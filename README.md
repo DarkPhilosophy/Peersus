@@ -1,1 +1,1 @@
-/home/alexa/Projects/Peersus/.github/README.md
+.github/README.md

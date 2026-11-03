@@ -1,1 +1,1 @@
-/home/alexa/Projects/Peersus/.github/CHANGELOG.md
+.github/CHANGELOG.md

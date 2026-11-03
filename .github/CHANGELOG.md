@@ -7,7 +7,7 @@ Generated sections come from `docs/changes.json`. Edit that source and run `pyth
 
 ### Fixed
 
-- Keep catalog extensions in one stable list across installation and removal, with a green Store badge, inline enable/disable and update actions, expandable controls and installation from file beside shared search.
+- Keep catalog extensions in one stable list across installation and removal, with a green Store badge, inline enable/disable and update actions, always-visible installed-plugin configuration and actions, expandable package details and installation from file beside shared search.
 - Keep direct connections first with independently enabled, reorderable relay fallbacks, retained addresses, advanced timing and credential controls, and a compatible migration to the new project relay default.
 - Native helper compilation and Linux staging honor CARGO_TARGET_DIR so desktop programs and their helpers use the same build output.
 - Linux staging refuses to overwrite an existing distribution; regression scenarios cover default, relative and absolute target paths.
