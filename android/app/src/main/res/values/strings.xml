@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Device connectivity</string>
+    <string name="available_title">Available for file transfers</string>
+    <string name="available_body">Paired devices can connect. Open the app to manage background mode.</string>
+    <string name="requests_channel">Incoming transfer requests</string>
+    <string name="offer_accept">Accept</string>
+    <string name="offer_cancel">Cancel</string>
+    <string name="offer_view">View files</string>
+    <string name="received_channel">Received files</string>
+    <string name="notifications_disabled">Notifications are off. You can enable them in Android app settings.</string>
+    <plurals name="received_title">
+        <item quantity="one">File received</item>
+        <item quantity="other">Files received</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Received files: %1$d. Open the app to view them.</item>
+        <item quantity="other">Received files: %1$d. Open the app to view them.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Incoming file transfer</item>
+        <item quantity="other">Incoming file transfers</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Files awaiting your approval: %1$d. Tap to review.</item>
+        <item quantity="other">Files awaiting your approval: %1$d. Tap to review.</item>
+    </plurals>
+</resources>

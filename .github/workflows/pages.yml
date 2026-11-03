@@ -1,0 +1,26 @@
+name: Website preview artifact
+
+# Deliberately manual and artifact-only. This workflow cannot deploy a website.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Validate and stage static website
+        run: python3 site/build.py --output "$RUNNER_TEMP/peersus-site"
+      - name: Upload reviewable website artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: peersus-website-preview
+          path: ${{ runner.temp }}/peersus-site/
+          if-no-files-found: error
+          retention-days: 14

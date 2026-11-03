@@ -1,0 +1,54 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Devices are reached over the network: without these nothing connects, and nothing says why. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <!-- Explicit background mode keeps paired network devices reachable independently of the Activity. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+  <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- The panel of an offer of files is drawn over whatever the person is doing, so that the application never has to open: this is the
+       permission that lets it, given once by hand in the system's settings. Without it the offer is a notification instead. -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <!-- The camera reads the code of another device, and nothing else; it is asked for when a person opens it, at the
+       circle of Receive, and not at start. Optional: everything but that works without one, so a device with no
+       camera is not turned away. -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <!-- allowBackup is off: the application's data directory is where the device's identity will live, and an
+       automatic backup would copy it to another device. -->
+  <application android:label="Peersus" android:hasCode="true" android:allowBackup="false"
+               android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
+               android:theme="@android:style/Theme.Material.NoActionBar">
+    <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
+              android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+              android:windowSoftInputMode="adjustResize">
+      <meta-data android:name="android.app.lib_name" android:value="peersus_android" />
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
+      <!-- Files shared from another application: they are handed to the same intake as the file picker, and the person then chooses
+           who gets them (a code, or a device). Read through the descriptor the sharing application grants for this one use. -->
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="*/*" />
+      </intent-filter>
+    </activity>
+    <service android:name=".TransferService" android:exported="false"
+             android:foregroundServiceType="connectedDevice" android:stopWithTask="false" />
+    <!-- Bundled plugins only; no downloaded code, no exported binding and no UI/owner memory sharing. -->
+    <service android:name=".PluginService" android:exported="false"
+             android:process=":plugins" android:stopWithTask="false" />
+    <service android:name=".WasmPluginService" android:exported="false"
+             android:process=":wasm" android:isolatedProcess="true" android:stopWithTask="false" />
+    <receiver android:name=".NotificationActions" android:exported="false" />
+  </application>
+</manifest>

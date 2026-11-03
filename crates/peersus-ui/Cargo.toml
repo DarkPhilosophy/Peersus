@@ -1,0 +1,55 @@
+[package]
+name = "peersus-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Peersus interface: renders the owner's Snapshot and sends it Commands. No business logic."
+
+# The interface is a library so that the desktop entry and the Android one load the same code;
+# the desktop program is a thin `main` over it.
+[lib]
+name = "peersus_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "peersus-ui"
+path = "src/main.rs"
+
+[dependencies]
+peersus-app = { workspace = true }
+peersus-core = { workspace = true }
+peersus-net = { workspace = true }
+peersus-plugin-api = { workspace = true }
+tokio = { workspace = true }
+freya = { workspace = true }
+# Only to switch on `embed-freetype`; see the root manifest. Not used by this crate's code.
+freya-skia-safe = { workspace = true }
+qrcodegen = { workspace = true }
+image = { workspace = true }
+# `O_NOFOLLOW`, to read the file that was chosen and not whatever a link points to.
+rustix = { workspace = true }
+# Reads the invitation out of a frame of a camera (`qr::invitation_in_frame`): code that ships, not only tests.
+rqrr = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Desktop only: on Android the system picker is reached through the platform crate. `arboard`
+# reads the list of files a file manager put on the clipboard, which the toolkit's own clipboard
+# (text only) cannot.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+rfd = { workspace = true }
+arboard = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
+futures-lite = "2.6.1"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
+iroh = { workspace = true }

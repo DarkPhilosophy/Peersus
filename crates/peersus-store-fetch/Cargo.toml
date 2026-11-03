@@ -1,0 +1,21 @@
+[package]
+name = "peersus-store-fetch"
+description = "Bounded HTTPS download for the extension store, kept out of the application owner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+reqwest = { workspace = true, features = ["stream"] }
+url.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util"] }
+
+[lints]
+workspace = true

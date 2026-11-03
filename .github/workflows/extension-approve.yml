@@ -1,0 +1,112 @@
+name: Approve extension and publish catalog
+# Maintainer only. Never triggered by a pull request or by contributor-controlled input.
+#   * `workflow_dispatch` only, in the protected `extension-approval` environment, which requires the
+#     maintainer's explicit approval before any step (and the signing secret) is available;
+#   * the maintainer supplies the archive SHA-256 they REVIEWED in the check report; the job refuses if
+#     the file at the pinned commit hashes to anything else, so a later force-push cannot be approved;
+#   * this job signs a catalog. It never builds or runs the contributor's code.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full commit SHA of the reviewed submission on the extension branch
+        required: true
+        type: string
+      archive:
+        description: Archive file under extensions/ (for example echo-1.0.0.tar.gz)
+        required: true
+        type: string
+      sha256:
+        description: Archive SHA-256 the maintainer reviewed (64 lowercase hex)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: extension-catalog
+  cancel-in-progress: false
+jobs:
+  approve:
+    name: Verify, sign and stage the catalog
+    runs-on: ubuntu-24.04
+    environment: extension-approval
+    timeout-minutes: 15
+    steps:
+      - name: Refuse malformed inputs before using them
+        shell: bash
+        env:
+          COMMIT: ${{ inputs.commit }}
+          ARCHIVE: ${{ inputs.archive }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "commit must be a full SHA"; exit 1; }
+          [[ "$ARCHIVE" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.tar\.gz$ ]] || { echo "archive name"; exit 1; }
+          [[ "$SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "sha256 must be lowercase hex"; exit 1; }
+      # TRUSTED CODE: the repository's default branch, never the submission. Every script run below,
+      # and the only step that sees the signing key, executes from here.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: trusted
+          persist-credentials: false
+      # UNTRUSTED DATA: the reviewed submission commit. Read as bytes only; nothing in it is executed.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.commit }}
+          path: submission
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Refuse a submission that changes anything but its own package
+        shell: bash
+        working-directory: submission
+        run: |
+          set -euo pipefail
+          base=$(git merge-base "origin/${{ github.event.repository.default_branch }}" HEAD)
+          # --no-renames: a rename is reported as a delete and an add, so moving a trusted file INTO extensions/ is seen.
+          outside=$(git diff --no-renames --name-only "$base" HEAD | grep -v '^extensions/' || true)
+          [ -z "$outside" ] || { echo "the submission changes files outside extensions/:"; echo "$outside"; exit 1; }
+      - name: Install the pinned Rust toolchain
+        shell: bash
+        working-directory: trusted
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - name: Check the reviewed digest and the package
+        shell: bash
+        env:
+          ARCHIVE: ${{ inputs.archive }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          actual=$(sha256sum "submission/extensions/$ARCHIVE" | cut -d' ' -f1)
+          [ "$actual" = "$SHA256" ] || { echo "the archive is not the one that was reviewed"; exit 1; }
+          python3 trusted/scripts/validate-extension.py "submission/extensions/$ARCHIVE" --report="$RUNNER_TEMP/report.json"
+      - name: Build and sign the catalog
+        shell: bash
+        env:
+          # Present only in the protected environment; never in pull_request runs.
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+          ARCHIVE: ${{ inputs.archive }}
+        run: |
+          set -euo pipefail
+          cd trusted
+          # The catalog ACCUMULATES: the previous one is TRUSTED data from the default branch (the maintainer commits
+          # each produced catalog under catalog/ after approving). Without it every approval would start a catalog of
+          # one entry at sequence 1, which the application refuses as a rollback.
+          previous=()
+          if [ -f catalog/catalog.json ]; then previous=(--previous "$GITHUB_WORKSPACE/trusted/catalog/catalog.json"); fi
+          cargo run --locked --release -p xtask -- catalog-sign \
+            --archive "$GITHUB_WORKSPACE/submission/extensions/$ARCHIVE" \
+            --report "$RUNNER_TEMP/report.json" --out "$RUNNER_TEMP/catalog" "${previous[@]}"
+          # Earlier approved archives travel with the new catalog: its entries name them, and the site checks each digest.
+          for old in catalog/*.tar.gz; do [ -e "$old" ] && cp -n "$old" "$RUNNER_TEMP/catalog/"; done || true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signed-catalog
+          path: ${{ runner.temp }}/catalog/
+          if-no-files-found: error
+          retention-days: 90

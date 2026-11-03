@@ -1,0 +1,36 @@
+name: Quality gates
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    name: Linux compilation and automated tests (not desktop runtime)
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_SKIA_BUILD: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install declared Rust toolchain and gate tools
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          rustup toolchain install "$version" --profile minimal --component rustfmt --component clippy
+          rustup default "$version"
+          cargo install cargo-audit --version 0.22.2 --locked
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+      - run: sh scripts/install-linux-deps.sh
+      - run: cargo xtask gate
+  nix-environment:
+    name: Pinned Nix shell evaluation (not runtime validation)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+      - run: nix flake lock
+      - run: nix eval --raw .#devShells.x86_64-linux.default.drvPath

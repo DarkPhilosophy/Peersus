@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Peersus
+Comment=Share files and clipboard between your devices
+Exec=peersus-ui
+Icon=io.github.DarkPhilosophy.Peersus
+Terminal=false
+Categories=Network;FileTransfer;
+StartupNotify=true

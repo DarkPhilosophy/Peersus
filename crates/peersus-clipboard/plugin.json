@@ -1,0 +1,72 @@
+{
+  "manifest_version": 1,
+  "platforms": ["android", "linux", "macos"],
+  "program": "peersus-clipboard",
+  "capabilities": {
+    "clipboard.use": "Read clipboard text for explicit sharing or separately enabled automatic synchronization, and replace this device's clipboard with text from an authorized paired device. Android excludes sensitive local clips; desktop clipboard APIs may not expose sensitivity metadata."
+  },
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": ["list", "send"],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": ["get"],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "clipboard.text",
+      "version": 1,
+      "description": "Shares clipboard text between this computer and a paired device.",
+      "consumers": ["host"],
+      "methods": {
+        "share": {
+          "capability": "clipboard.use",
+          "description": "Reads the clipboard text and sends it to the device you chose."
+        },
+        "receive": {
+          "capability": "clipboard.use",
+          "description": "Takes text a paired device sent and puts it on the clipboard, replacing what is there."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "actions": [
+      {
+        "id": "share",
+        "label": "Send clipboard text",
+        "short_label": "Send",
+        "target": { "service": "clipboard.text", "method": "share" },
+        "capability": "clipboard.use",
+        "needs_device": true,
+        "destructive": false
+      }
+    ],
+    "settings": [
+      {
+        "id": "automatic",
+        "label": "Automatically synchronize clipboard text",
+        "help": "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded.",
+        "scope": "global",
+        "kind": { "type": "toggle", "default": false }
+      },
+      {
+        "id": "sync",
+        "label": "Automatically send clipboard text to this device",
+        "help": "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission.",
+        "scope": "device",
+        "kind": { "type": "toggle", "default": false }
+      }
+    ]
+  }
+}
