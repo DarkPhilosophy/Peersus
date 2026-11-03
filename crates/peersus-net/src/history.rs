@@ -75,9 +75,7 @@ impl History {
             if candidate.len() == MAX_RECORDS {
                 let removable = candidate
                     .iter()
-                    .position(|item| {
-                        !item.state.is_active()
-                    })
+                    .position(|item| !item.state.is_active())
                     .ok_or_else(|| io::Error::other("Too many active transfers"))?;
                 candidate.remove(removable);
             }
@@ -110,7 +108,11 @@ impl History {
         if forgotten == 0 {
             return Ok(0);
         }
-        let bytes = serde_json::to_vec(&BorrowedDocument { version: 1, transfers: &kept }).map_err(|_| invalid())?;
+        let bytes = serde_json::to_vec(&BorrowedDocument {
+            version: 1,
+            transfers: &kept,
+        })
+        .map_err(|_| invalid())?;
         crate::atomic::write(&self.path, &bytes)?;
         self.transfers = kept;
         Ok(forgotten)
@@ -122,12 +124,21 @@ impl History {
     /// row left behind by an exception for "still going" would have no task to end it, and at the next start would open as failed and
     /// seed the log again. Persisted before it is published, as for `record`. Returns how many were forgotten.
     pub fn forget_peer(&mut self, peer: &peersus_core::model::PeerId) -> io::Result<usize> {
-        let kept: Vec<Transfer> = self.transfers.iter().filter(|item| &item.peer != peer).cloned().collect();
+        let kept: Vec<Transfer> = self
+            .transfers
+            .iter()
+            .filter(|item| &item.peer != peer)
+            .cloned()
+            .collect();
         let forgotten = self.transfers.len() - kept.len();
         if forgotten == 0 {
             return Ok(0);
         }
-        let bytes = serde_json::to_vec(&BorrowedDocument { version: 1, transfers: &kept }).map_err(|_| invalid())?;
+        let bytes = serde_json::to_vec(&BorrowedDocument {
+            version: 1,
+            transfers: &kept,
+        })
+        .map_err(|_| invalid())?;
         crate::atomic::write(&self.path, &bytes)?;
         self.transfers = kept;
         Ok(forgotten)
@@ -198,12 +209,21 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("history.json");
         let mut history = History::open(&path).unwrap();
-        history.record(Transfer { code: Some(1), ..transfer(TransferState::Complete) }).unwrap();
+        history
+            .record(Transfer {
+                code: Some(1),
+                ..transfer(TransferState::Complete)
+            })
+            .unwrap();
         // Within the run it is there, for the screen that drew that code to find its files by.
         assert_eq!(history.entries()[0].code, Some(1));
         // A new run counts codes from zero again: nothing it loads may claim to be of one of ITS codes.
         let reopened = History::open(&path).unwrap();
-        assert_eq!(reopened.entries()[0].code, None, "a record of an earlier run was taken for one of the new run's code");
+        assert_eq!(
+            reopened.entries()[0].code,
+            None,
+            "a record of an earlier run was taken for one of the new run's code"
+        );
         // Only that: the rest of the record is as it was.
         assert_eq!(reopened.entries()[0].state, TransferState::Complete);
         assert_eq!(reopened.entries()[0].name, "example.txt");
@@ -214,18 +234,46 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("history.json");
         let mut history = History::open(&path).unwrap();
-        let named = |id: &str, state| Transfer { id: id.into(), ..transfer(state) };
-        history.record(named("done", TransferState::Complete)).unwrap();
-        history.record(named("cancelled", TransferState::Cancelled)).unwrap();
-        history.record(named("failed", TransferState::Failed { reason: "x".into() })).unwrap();
-        history.record(named("waiting", TransferState::Offered)).unwrap();
-        history.record(named("moving", TransferState::Running)).unwrap();
+        let named = |id: &str, state| Transfer {
+            id: id.into(),
+            ..transfer(state)
+        };
+        history
+            .record(named("done", TransferState::Complete))
+            .unwrap();
+        history
+            .record(named("cancelled", TransferState::Cancelled))
+            .unwrap();
+        history
+            .record(named(
+                "failed",
+                TransferState::Failed { reason: "x".into() },
+            ))
+            .unwrap();
+        history
+            .record(named("waiting", TransferState::Offered))
+            .unwrap();
+        history
+            .record(named("moving", TransferState::Running))
+            .unwrap();
         assert_eq!(history.clear_finished().unwrap(), 3);
-        let ids: Vec<&str> = history.entries().iter().map(|item| item.id.as_str()).collect();
-        assert_eq!(ids, ["waiting", "moving"], "what was over stayed, or what was going was forgotten");
+        let ids: Vec<&str> = history
+            .entries()
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect();
+        assert_eq!(
+            ids,
+            ["waiting", "moving"],
+            "what was over stayed, or what was going was forgotten"
+        );
         // What was written is what is kept: a reopened history has the same two (as failed, as for any that was interrupted).
         let reopened = History::open(&path).unwrap();
-        let ids: Vec<&str> = reopened.entries().iter().map(|item| item.id.as_str()).collect();
+        let ids: Vec<&str> = reopened
+            .entries()
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect();
         assert_eq!(ids, ["waiting", "moving"]);
         // Nothing over, nothing to do: it says so and writes nothing.
         assert_eq!(history.clear_finished().unwrap(), 0);

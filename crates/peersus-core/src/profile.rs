@@ -67,7 +67,11 @@ impl Picture {
         if rgba.len() != (width * height * 4) as usize {
             return Err(Refused::Mismatch);
         }
-        Ok(Self { width, height, rgba })
+        Ok(Self {
+            width,
+            height,
+            rgba,
+        })
     }
 
     pub fn width(&self) -> u32 {
@@ -126,12 +130,17 @@ impl std::str::FromStr for Digest {
     type Err = Refused;
 
     fn from_str(text: &str) -> Result<Self, Refused> {
-        if text.len() != 64 || !text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+        if text.len() != 64
+            || !text
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
             return Err(Refused::Mismatch);
         }
         let mut out = [0u8; 32];
         for (at, byte) in out.iter_mut().enumerate() {
-            *byte = u8::from_str_radix(&text[at * 2..at * 2 + 2], 16).map_err(|_| Refused::Mismatch)?;
+            *byte =
+                u8::from_str_radix(&text[at * 2..at * 2 + 2], 16).map_err(|_| Refused::Mismatch)?;
         }
         Ok(Self(out))
     }
@@ -148,7 +157,8 @@ impl Serialize for Digest {
 impl<'de> Deserialize<'de> for Digest {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let text = String::deserialize(deserializer)?;
-        text.parse().map_err(|refused: Refused| serde::de::Error::custom(refused.words()))
+        text.parse()
+            .map_err(|refused: Refused| serde::de::Error::custom(refused.words()))
     }
 }
 
@@ -193,7 +203,8 @@ impl<'de> Deserialize<'de> for Picture {
             rgba: Vec<u8>,
         }
         let raw = Raw::deserialize(deserializer)?;
-        Self::new(raw.width, raw.height, raw.rgba).map_err(|refused| serde::de::Error::custom(refused.words()))
+        Self::new(raw.width, raw.height, raw.rgba)
+            .map_err(|refused| serde::de::Error::custom(refused.words()))
     }
 }
 
@@ -257,10 +268,19 @@ mod tests {
     fn what_is_empty_too_big_or_does_not_add_up_is_refused_with_its_own_reason() {
         assert_eq!(Picture::new(0, 4, Vec::new()), Err(Refused::Empty));
         assert_eq!(Picture::new(4, 0, Vec::new()), Err(Refused::Empty));
-        assert_eq!(Picture::new(MAX_EDGE + 1, 1, pixels(MAX_EDGE + 1, 1)), Err(Refused::TooBig));
-        assert_eq!(Picture::new(1, MAX_EDGE + 1, pixels(1, MAX_EDGE + 1)), Err(Refused::TooBig));
+        assert_eq!(
+            Picture::new(MAX_EDGE + 1, 1, pixels(MAX_EDGE + 1, 1)),
+            Err(Refused::TooBig)
+        );
+        assert_eq!(
+            Picture::new(1, MAX_EDGE + 1, pixels(1, MAX_EDGE + 1)),
+            Err(Refused::TooBig)
+        );
         // Sides that would overflow a multiplication are still just too big.
-        assert_eq!(Picture::new(u32::MAX, u32::MAX, Vec::new()), Err(Refused::TooBig));
+        assert_eq!(
+            Picture::new(u32::MAX, u32::MAX, Vec::new()),
+            Err(Refused::TooBig)
+        );
         // One byte short and one byte over.
         let mut short = pixels(2, 2);
         short.pop();
@@ -297,26 +317,37 @@ mod tests {
     #[test]
     fn a_stored_or_received_picture_that_is_malformed_is_refused_whatever_way_it_is_malformed() {
         for bad in [
-            r#"{"width":1,"height":1,"rgba":"zzzzzzzz"}"#,      // not hexadecimal
-            r#"{"width":1,"height":1,"rgba":"0011223"}"#,       // an odd number of digits
+            r#"{"width":1,"height":1,"rgba":"zzzzzzzz"}"#, // not hexadecimal
+            r#"{"width":1,"height":1,"rgba":"0011223"}"#,  // an odd number of digits
             r#"{"width":1,"height":1,"rgba":"00112233","x":1}"#, // a field nobody declared
-            r#"{"width":1,"height":1}"#,                         // no pixels
-            r#"{"width":-1,"height":1,"rgba":"00112233"}"#,      // a negative side
-            r#"{"width":1,"height":1,"rgba":"é0112233"}"#,       // not ASCII
+            r#"{"width":1,"height":1}"#,                   // no pixels
+            r#"{"width":-1,"height":1,"rgba":"00112233"}"#, // a negative side
+            r#"{"width":1,"height":1,"rgba":"é0112233"}"#, // not ASCII
             r#"{"width":1,"height":1,"rgba":null}"#,
             r#"[1,2,3]"#,
         ] {
-            assert!(serde_json::from_str::<Picture>(bad).is_err(), "{bad} was accepted");
+            assert!(
+                serde_json::from_str::<Picture>(bad).is_err(),
+                "{bad} was accepted"
+            );
         }
     }
 
     #[test]
     fn text_longer_than_any_picture_can_be_is_refused_before_it_is_turned_into_bytes() {
         // Twice the largest picture, as digits: never decoded, just refused for its length.
-        let huge = format!(r#"{{"width":1,"height":1,"rgba":"{}"}}"#, "0".repeat(MAX_BYTES * 2 + 2));
-        let error = serde_json::from_str::<Picture>(&huge).unwrap_err().to_string();
+        let huge = format!(
+            r#"{{"width":1,"height":1,"rgba":"{}"}}"#,
+            "0".repeat(MAX_BYTES * 2 + 2)
+        );
+        let error = serde_json::from_str::<Picture>(&huge)
+            .unwrap_err()
+            .to_string();
         // Told apart from a later mismatch: this is the refusal that comes BEFORE decoding.
-        assert!(error.contains(bytes::TOO_LONG), "refused for another reason, after decoding: {error}");
+        assert!(
+            error.contains(bytes::TOO_LONG),
+            "refused for another reason, after decoding: {error}"
+        );
         // Exactly the longest a picture can be is not over the ceiling.
         let exact = format!(
             r#"{{"width":{MAX_EDGE},"height":{MAX_EDGE},"rgba":"{}"}}"#,
@@ -329,7 +360,11 @@ mod tests {
     fn the_digest_is_the_same_for_the_same_picture_and_differs_for_any_other() {
         let a = Picture::new(4, 3, pixels(4, 3)).unwrap();
         let same = Picture::new(4, 3, pixels(4, 3)).unwrap();
-        assert_eq!(a.digest(), same.digest(), "the same picture has one digest, however it was made");
+        assert_eq!(
+            a.digest(),
+            same.digest(),
+            "the same picture has one digest, however it was made"
+        );
         assert_eq!(a.digest(), a.clone().digest());
 
         // One pixel changed, by one: a different picture, a different digest.
@@ -353,7 +388,10 @@ mod tests {
             .collect();
         for (i, left) in digests.iter().enumerate() {
             for right in &digests[i + 1..] {
-                assert_ne!(left, right, "two shapes of the same bytes were given one digest");
+                assert_ne!(
+                    left, right,
+                    "two shapes of the same bytes were given one digest"
+                );
             }
         }
     }
@@ -374,14 +412,28 @@ mod tests {
         let digest = Picture::new(2, 2, pixels(2, 2)).unwrap().digest();
         let text = digest.to_string();
         assert_eq!(text.len(), 64, "a digest is 32 bytes as 64 digits");
-        assert!(text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)));
+        assert!(
+            text.bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        );
         assert_eq!(text.parse::<Digest>().unwrap(), digest);
         // 64 BYTES that are not 64 digits: multi-byte characters, which a slicing parser would split.
         let multibyte = "é".repeat(32);
         assert_eq!(multibyte.len(), 64);
         assert!(multibyte.parse::<Digest>().is_err());
-        for bad in ["", "00", &"0".repeat(63), &"0".repeat(65), &"g".repeat(64), &"A".repeat(64), " 00"] {
-            assert!(bad.parse::<Digest>().is_err(), "{bad:?} was accepted as a digest");
+        for bad in [
+            "",
+            "00",
+            &"0".repeat(63),
+            &"0".repeat(65),
+            &"g".repeat(64),
+            &"A".repeat(64),
+            " 00",
+        ] {
+            assert!(
+                bad.parse::<Digest>().is_err(),
+                "{bad:?} was accepted as a digest"
+            );
         }
     }
 
@@ -404,7 +456,10 @@ mod tests {
             &format!("\"{}\"", "G".repeat(64)),
             &format!("\"{}\"", "0".repeat(65)),
         ] {
-            assert!(serde_json::from_str::<Digest>(bad).is_err(), "{bad} was read as a digest");
+            assert!(
+                serde_json::from_str::<Digest>(bad).is_err(),
+                "{bad} was read as a digest"
+            );
         }
     }
 }

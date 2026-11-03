@@ -79,7 +79,10 @@ impl Watching {
     }
 
     fn read<S: Store>(store: &mut Option<S>) -> Option<String> {
-        store.as_mut().and_then(Store::get).filter(|text| text.len() <= wire::MAX_TEXT as usize)
+        store
+            .as_mut()
+            .and_then(Store::get)
+            .filter(|text| text.len() <= wire::MAX_TEXT as usize)
     }
 
     fn observe<S: Store>(&mut self, store: &mut Option<S>) -> Reading {
@@ -90,13 +93,17 @@ impl Watching {
         if self.signals.is_none() {
             return snapshot(Self::read(store));
         }
-        let Some(signal) = self.drain() else { return snapshot(Self::read(store)) };
+        let Some(signal) = self.drain() else {
+            return snapshot(Self::read(store));
+        };
         let first = !std::mem::replace(&mut self.primed, true);
         match signal {
             Signal::Other => Reading::Unavailable,
             Signal::Text => match Self::read(store) {
                 None => Reading::Unavailable,
-                Some(text) if first || self.written.as_deref() == Some(text.as_str()) => Reading::Snapshot(text),
+                Some(text) if first || self.written.as_deref() == Some(text.as_str()) => {
+                    Reading::Snapshot(text)
+                }
                 Some(text) => Reading::Changed(text),
             },
         }
@@ -116,7 +123,11 @@ impl Owner {
         let (requests, incoming) = mpsc::sync_channel::<Request>(8);
         thread::spawn(move || {
             let mut store = open();
-            let mut watching = Watching { signals: None, primed: false, written: None };
+            let mut watching = Watching {
+                signals: None,
+                primed: false,
+                written: None,
+            };
             if let Some(store) = store.as_mut() {
                 let (sender, signals) = mpsc::sync_channel(SIGNAL_BACKLOG);
                 if store.listen(sender) {
@@ -127,7 +138,9 @@ impl Owner {
                 match request {
                     Request::Get(reply) => {
                         if !reply.is_closed() {
-                            let text = store.as_mut().and_then(Store::get)
+                            let text = store
+                                .as_mut()
+                                .and_then(Store::get)
                                 .filter(|text| text.len() <= wire::MAX_TEXT as usize);
                             let _ = reply.send(text);
                         }
@@ -277,7 +290,11 @@ mod tests {
             let (held, threads) = (held.clone(), threads.clone());
             move || Some(Fake { held, threads })
         });
-        assert!(!owner.set_text(&"x".repeat(wire::MAX_TEXT as usize + 1)).await);
+        assert!(
+            !owner
+                .set_text(&"x".repeat(wire::MAX_TEXT as usize + 1))
+                .await
+        );
         assert_eq!(held.lock().unwrap().as_deref(), Some("before"));
         assert!(threads.lock().unwrap().is_empty());
     }
@@ -295,7 +312,12 @@ mod tests {
             }
         });
         let (reply, answer) = oneshot::channel();
-        assert!(owner.requests.try_send(Request::Set("stale".to_owned(), reply)).is_ok());
+        assert!(
+            owner
+                .requests
+                .try_send(Request::Set("stale".to_owned(), reply))
+                .is_ok()
+        );
         drop(answer);
         release.send(()).unwrap();
         // A subsequent read is an ordering barrier on the same owner thread.
@@ -311,7 +333,9 @@ mod tests {
         feed: Arc<Mutex<Option<SyncSender<Signal>>>>,
     }
     impl Store for Evented {
-        fn get(&mut self) -> Option<String> { self.held.lock().unwrap().clone() }
+        fn get(&mut self) -> Option<String> {
+            self.held.lock().unwrap().clone()
+        }
         fn set(&mut self, text: &str) -> bool {
             *self.held.lock().unwrap() = Some(text.to_owned());
             true
@@ -393,7 +417,8 @@ mod tests {
         let (mut owner, copy) = evented().await;
         copy.copy("baseline");
         owner.observe().await;
-        let asked = tokio::time::timeout(std::time::Duration::from_millis(500), owner.observe()).await;
+        let asked =
+            tokio::time::timeout(std::time::Duration::from_millis(500), owner.observe()).await;
         assert!(matches!(asked, Ok(Reading::Snapshot(text)) if text == "baseline"));
     }
 
@@ -429,7 +454,10 @@ mod tests {
         copy.copy("copied while sending was off");
         assert!(owner.reset_observation().await);
         // The announcement is forgotten; what is still on the clipboard is an ordinary snapshot.
-        assert!(is_snapshot(&owner.observe().await, "copied while sending was off"));
+        assert!(is_snapshot(
+            &owner.observe().await,
+            "copied while sending was off"
+        ));
         // The first announcement after a reset is only a baseline, never a copy to send.
         copy.copy("the first copy after");
         assert!(is_snapshot(&owner.observe().await, "the first copy after"));
@@ -470,7 +498,9 @@ mod tests {
             self.reads.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             Some("private".to_owned())
         }
-        fn set(&mut self, _: &str) -> bool { true }
+        fn set(&mut self, _: &str) -> bool {
+            true
+        }
         fn listen(&mut self, signals: SyncSender<Signal>) -> bool {
             *self.feed.lock().unwrap() = Some(signals);
             true
@@ -488,14 +518,20 @@ mod tests {
             move || Some(Counting { reads, feed })
         });
         let signals = loop {
-            if let Some(signals) = feed.lock().unwrap().clone() { break signals; }
+            if let Some(signals) = feed.lock().unwrap().clone() {
+                break signals;
+            }
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         };
         for _ in 0..5 {
             signals.send(Signal::Text).unwrap();
             assert!(owner.reset_observation().await);
         }
-        assert_eq!(reads.load(std::sync::atomic::Ordering::SeqCst), 0, "the clipboard was read without being asked");
+        assert_eq!(
+            reads.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the clipboard was read without being asked"
+        );
         owner.observe().await;
         assert_eq!(reads.load(std::sync::atomic::Ordering::SeqCst), 1);
     }
@@ -509,7 +545,10 @@ mod tests {
         owner.observe().await;
         assert!(owner.reset_observation().await);
         copy.signals.send(Signal::Text).unwrap();
-        assert!(is_snapshot(&owner.observe().await, "private, from before consent"));
+        assert!(is_snapshot(
+            &owner.observe().await,
+            "private, from before consent"
+        ));
         copy.copy("copied after consent");
         assert!(is_changed(&owner.observe().await, "copied after consent"));
     }

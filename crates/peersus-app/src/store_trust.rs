@@ -11,7 +11,10 @@
 //! validly signed) catalog would be accepted again after every restart. A missing file is a first
 //! run (floor 0); a damaged one is refused, never read as 0, because that is the rollback.
 use ed25519_dalek::VerifyingKey;
-use std::{fs, io::Write, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// The maintainer's public key, or `None` until one is chosen. 32 bytes.
 pub const MAINTAINER_PUBLIC_KEY: Option<[u8; 32]> = None;
@@ -22,8 +25,11 @@ pub struct Unavailable(pub &'static str);
 
 /// The key to verify with, from a candidate (production passes [`MAINTAINER_PUBLIC_KEY`]).
 pub fn trust_root(candidate: Option<[u8; 32]>) -> Result<VerifyingKey, Unavailable> {
-    let bytes = candidate.ok_or(Unavailable("The extension store is not set up in this build"))?;
-    VerifyingKey::from_bytes(&bytes).map_err(|_| Unavailable("The extension store key is not valid"))
+    let bytes = candidate.ok_or(Unavailable(
+        "The extension store is not set up in this build",
+    ))?;
+    VerifyingKey::from_bytes(&bytes)
+        .map_err(|_| Unavailable("The extension store key is not valid"))
 }
 
 /// The persisted floor.
@@ -33,7 +39,9 @@ pub struct Floor {
 
 impl Floor {
     pub fn new(data: &Path) -> Self {
-        Self { path: data.join("store-sequence") }
+        Self {
+            path: data.join("store-sequence"),
+        }
     }
 
     /// The highest sequence accepted so far. Absent is 0; anything unreadable is an error.
@@ -44,7 +52,8 @@ impl Floor {
                 if text.is_empty() || text.len() > 20 || !text.bytes().all(|b| b.is_ascii_digit()) {
                     return Err(Unavailable("The saved store state is damaged"));
                 }
-                text.parse().map_err(|_| Unavailable("The saved store state is damaged"))
+                text.parse()
+                    .map_err(|_| Unavailable("The saved store state is damaged"))
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(0),
             Err(_) => Err(Unavailable("The saved store state could not be read")),
@@ -56,16 +65,8 @@ impl Floor {
         if sequence <= self.read()? {
             return Ok(());
         }
-        let fail = |_| Unavailable("The store state could not be saved");
-        let temporary = self.path.with_extension("tmp");
-        let mut options = fs::OpenOptions::new();
-        options.write(true).create(true).truncate(true);
-        #[cfg(unix)]
-        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-        let mut file = options.open(&temporary).map_err(fail)?;
-        file.write_all(format!("{sequence}\n").as_bytes()).map_err(fail)?;
-        file.sync_all().map_err(fail)?;
-        fs::rename(&temporary, &self.path).map_err(fail)
+        peersus_net::atomic::write(&self.path, format!("{sequence}\n").as_bytes())
+            .map_err(|_| Unavailable("The store state could not be saved"))
     }
 }
 
@@ -75,8 +76,16 @@ mod tests {
 
     #[test]
     fn without_a_key_the_store_refuses_everything() {
-        assert_eq!(trust_root(None).err(), Some(Unavailable("The extension store is not set up in this build")));
-        assert!(MAINTAINER_PUBLIC_KEY.is_none() || trust_root(MAINTAINER_PUBLIC_KEY).is_ok(), "a committed key must be a valid point");
+        assert_eq!(
+            trust_root(None).err(),
+            Some(Unavailable(
+                "The extension store is not set up in this build"
+            ))
+        );
+        assert!(
+            MAINTAINER_PUBLIC_KEY.is_none() || trust_root(MAINTAINER_PUBLIC_KEY).is_ok(),
+            "a committed key must be a valid point"
+        );
     }
 
     #[test]
@@ -92,8 +101,13 @@ mod tests {
             })
             .find(|candidate| VerifyingKey::from_bytes(candidate).is_err())
             .expect("some encoding in 256 tries is not a curve point");
-        assert_eq!(trust_root(Some(invalid)).err(), Some(Unavailable("The extension store key is not valid")));
-        let good = ed25519_dalek::SigningKey::from_bytes(&[7u8; 32]).verifying_key().to_bytes();
+        assert_eq!(
+            trust_root(Some(invalid)).err(),
+            Some(Unavailable("The extension store key is not valid"))
+        );
+        let good = ed25519_dalek::SigningKey::from_bytes(&[7u8; 32])
+            .verifying_key()
+            .to_bytes();
         assert!(trust_root(Some(good)).is_ok());
     }
 
@@ -105,7 +119,28 @@ mod tests {
         floor.raise(5).unwrap();
         floor.raise(3).unwrap();
         assert_eq!(floor.read(), Ok(5), "a lower sequence never lowers it");
-        assert_eq!(Floor::new(dir.path()).read(), Ok(5), "a new instance (a restart) sees it");
+        assert_eq!(
+            Floor::new(dir.path()).read(),
+            Ok(5),
+            "a new instance (a restart) sees it"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn raising_the_floor_never_uses_an_unrelated_temporary_symlink() {
+        let dir = tempfile::tempdir().unwrap();
+        let unrelated = dir.path().join("unrelated");
+        fs::write(&unrelated, b"leave this file alone").unwrap();
+        let old_temporary = dir.path().join("store-sequence.tmp");
+        std::os::unix::fs::symlink(&unrelated, &old_temporary).unwrap();
+
+        let floor = Floor::new(dir.path());
+        floor.raise(7).unwrap();
+
+        assert_eq!(fs::read(&unrelated).unwrap(), b"leave this file alone");
+        assert_eq!(floor.read(), Ok(7));
+        assert!(old_temporary.is_symlink());
     }
 
     #[test]
@@ -115,7 +150,10 @@ mod tests {
         for damaged in ["", "abc", "-1", "1 2", "99999999999999999999999", "0x10"] {
             fs::write(dir.path().join("store-sequence"), damaged).unwrap();
             assert!(floor.read().is_err(), "{damaged:?} was read as a number");
-            assert!(floor.raise(10).is_err(), "raising must not overwrite a state it cannot read");
+            assert!(
+                floor.raise(10).is_err(),
+                "raising must not overwrite a state it cannot read"
+            );
         }
     }
 }

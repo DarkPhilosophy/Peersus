@@ -69,7 +69,11 @@ impl Invitations {
     /// A new displayed files code revokes the previous, still-unused files code, and only that one. Returns the code and the
     /// generation it is: a number that is higher for every files code made, which an admission carries back, so that what was
     /// kept for one code is never given to a device that was admitted with another.
-    pub fn create_for_files(&self, endpoint: &Endpoint, now: u64) -> Result<(Invitation, u64), invitation::Error> {
+    pub fn create_for_files(
+        &self,
+        endpoint: &Endpoint,
+        now: u64,
+    ) -> Result<(Invitation, u64), invitation::Error> {
         self.create_for_file_selection(endpoint, now, 16)
     }
 
@@ -82,7 +86,9 @@ impl Invitations {
         let purpose = if files <= 16 {
             Purpose::Files
         } else {
-            Purpose::FileSelection { files: u32::try_from(files).map_err(|_| invitation::Error::Invalid)? }
+            Purpose::FileSelection {
+                files: u32::try_from(files).map_err(|_| invitation::Error::Invalid)?,
+            }
         };
         let invitation = Invitation::create(endpoint.addr(), now)?;
         let gate = Admission::new(&invitation, now, Instant::now());
@@ -106,8 +112,13 @@ impl Invitations {
     /// still draws it as "scanned" is told it is gone and asks for files again. A code that is still live is kept, and the pairing
     /// code is never touched: this is about the files code alone. Returns whether one was let go of.
     pub fn retire_files_if_spent(&self) -> bool {
-        let Ok(mut state) = self.state.lock() else { return false };
-        let spent = state.files.as_ref().is_some_and(|gate| !gate.is_live(Instant::now()));
+        let Ok(mut state) = self.state.lock() else {
+            return false;
+        };
+        let spent = state
+            .files
+            .as_ref()
+            .is_some_and(|gate| !gate.is_live(Instant::now()));
         if spent {
             state.files = None;
         }
@@ -119,7 +130,10 @@ impl Invitations {
     /// about it: the capability is a bearer, and a screen that holds it can be made to show it.
     pub fn files_code(&self) -> Option<(u64, bool)> {
         let state = self.state.lock().ok()?;
-        Some((state.generation, state.files.as_ref()?.is_live(Instant::now())))
+        Some((
+            state.generation,
+            state.files.as_ref()?.is_live(Instant::now()),
+        ))
     }
 
     pub async fn accept(
@@ -137,7 +151,12 @@ impl Invitations {
                 state.window = Instant::now();
                 state.attempts = 0;
             }
-            if permit.is_err() || (state.pairing.is_none() && state.pairing_older.is_none() && state.files.is_none()) || state.attempts >= 32 {
+            if permit.is_err()
+                || (state.pairing.is_none()
+                    && state.pairing_older.is_none()
+                    && state.files.is_none())
+                || state.attempts >= 32
+            {
                 false
             } else {
                 state.attempts += 1;
@@ -158,11 +177,21 @@ impl Invitations {
             |capability| {
                 let mut state = self.state.lock().ok()?;
                 let now = Instant::now();
-                if state.pairing.as_mut().is_some_and(|gate| gate.consume(capability, now))
-                    || state.pairing_older.as_mut().is_some_and(|gate| gate.consume(capability, now))
+                if state
+                    .pairing
+                    .as_mut()
+                    .is_some_and(|gate| gate.consume(capability, now))
+                    || state
+                        .pairing_older
+                        .as_mut()
+                        .is_some_and(|gate| gate.consume(capability, now))
                 {
                     Some(Purpose::Pairing)
-                } else if state.files.as_mut().is_some_and(|gate| gate.consume(capability, now)) {
+                } else if state
+                    .files
+                    .as_mut()
+                    .is_some_and(|gate| gate.consume(capability, now))
+                {
                     generation = state.generation;
                     Some(state.files_purpose)
                 } else {
@@ -192,6 +221,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await
@@ -230,6 +260,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await
@@ -242,7 +273,12 @@ mod tests {
         let current = gate.create(&b, 100).unwrap();
         // The code before the current one still admits, once (a device that scanned it as the new one was made must not be refused because
         // of the time the network took); the current one admits once; and neither admits a second time (replay).
-        for (invitation, allowed) in [(old.clone(), true), (old, false), (current.clone(), true), (current, false)] {
+        for (invitation, allowed) in [
+            (old.clone(), true),
+            (old, false),
+            (current.clone(), true),
+            (current, false),
+        ] {
             let (left, right) = tokio::join!(handshake::join(&a, invitation, "A".into()), async {
                 gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into())
                     .await
@@ -273,9 +309,14 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
-        let a = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = transport::bind(SecretKey::generate(), &policy).await.unwrap();
+        let a = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
         (a, b)
     }
 
@@ -287,7 +328,8 @@ mod tests {
         invitation: Invitation,
     ) -> Option<Purpose> {
         let (left, right) = tokio::join!(handshake::join(a, invitation, "A".into()), async {
-            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into()).await
+            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into())
+                .await
         });
         if let Ok(admitted) = left {
             admitted.connection.close(0_u32.into(), b"done");
@@ -311,18 +353,31 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn showing_a_code_for_files_does_not_revoke_the_code_shown_to_pair_and_the_other_way_round() {
+    async fn showing_a_code_for_files_does_not_revoke_the_code_shown_to_pair_and_the_other_way_round()
+     {
         let (a, b) = two_hosts().await;
         let gate = Invitations::default();
         // Pair code shown first, then a files code: the pair code must still admit, as pairing.
         let pairing = gate.create(&b, 100).unwrap();
         let files = gate.create_for_files(&b, 100).unwrap().0;
-        assert_eq!(scan(&a, &b, &gate, pairing).await, Some(Purpose::Pairing), "a files code revoked the pair code");
-        assert_eq!(scan(&a, &b, &gate, files).await, Some(Purpose::Files), "the pair code revoked the files code");
+        assert_eq!(
+            scan(&a, &b, &gate, pairing).await,
+            Some(Purpose::Pairing),
+            "a files code revoked the pair code"
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, files).await,
+            Some(Purpose::Files),
+            "the pair code revoked the files code"
+        );
         // And the other order: a files code, then a pair code.
         let files = gate.create_for_files(&b, 100).unwrap().0;
         let pairing = gate.create(&b, 100).unwrap();
-        assert_eq!(scan(&a, &b, &gate, files).await, Some(Purpose::Files), "a pair code revoked the files code");
+        assert_eq!(
+            scan(&a, &b, &gate, files).await,
+            Some(Purpose::Files),
+            "a pair code revoked the files code"
+        );
         assert_eq!(scan(&a, &b, &gate, pairing).await, Some(Purpose::Pairing));
         a.close().await;
         b.close().await;
@@ -334,29 +389,61 @@ mod tests {
         let gate = Invitations::default();
         let old = gate.create_for_files(&b, 100).unwrap().0;
         let current = gate.create_for_files(&b, 100).unwrap().0;
-        assert_eq!(scan(&a, &b, &gate, old).await, None, "a replaced files code still admitted");
-        assert_eq!(scan(&a, &b, &gate, current.clone()).await, Some(Purpose::Files));
-        assert_eq!(scan(&a, &b, &gate, current).await, None, "a files code admitted twice");
+        assert_eq!(
+            scan(&a, &b, &gate, old).await,
+            None,
+            "a replaced files code still admitted"
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, current.clone()).await,
+            Some(Purpose::Files)
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, current).await,
+            None,
+            "a files code admitted twice"
+        );
         a.close().await;
         b.close().await;
     }
 
     #[tokio::test]
-    async fn the_pairing_code_before_the_current_one_still_admits_and_never_more_than_two_are_held() {
+    async fn the_pairing_code_before_the_current_one_still_admits_and_never_more_than_two_are_held()
+    {
         let (a, b) = two_hosts().await;
         let gate = Invitations::default();
         // A device scans the code a moment before a new one is made: it must not be refused for the time the network took.
         let first = gate.create(&b, 100).unwrap();
         let second = gate.create(&b, 100).unwrap();
-        assert_eq!(scan(&a, &b, &gate, first.clone()).await, Some(Purpose::Pairing), "the code before the current one was refused");
-        assert_eq!(scan(&a, &b, &gate, first).await, None, "a pairing code admitted twice");
-        assert_eq!(scan(&a, &b, &gate, second.clone()).await, Some(Purpose::Pairing), "the current code was refused");
-        assert_eq!(scan(&a, &b, &gate, second).await, None, "a pairing code admitted twice");
+        assert_eq!(
+            scan(&a, &b, &gate, first.clone()).await,
+            Some(Purpose::Pairing),
+            "the code before the current one was refused"
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, first).await,
+            None,
+            "a pairing code admitted twice"
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, second.clone()).await,
+            Some(Purpose::Pairing),
+            "the current code was refused"
+        );
+        assert_eq!(
+            scan(&a, &b, &gate, second).await,
+            None,
+            "a pairing code admitted twice"
+        );
         // Three codes: the oldest is let go of, so a code made long ago does not stay open for ever.
         let one = gate.create(&b, 100).unwrap();
         let two = gate.create(&b, 100).unwrap();
         let three = gate.create(&b, 100).unwrap();
-        assert_eq!(scan(&a, &b, &gate, one).await, None, "a third code left the oldest open");
+        assert_eq!(
+            scan(&a, &b, &gate, one).await,
+            None,
+            "a third code left the oldest open"
+        );
         assert_eq!(scan(&a, &b, &gate, two).await, Some(Purpose::Pairing));
         assert_eq!(scan(&a, &b, &gate, three).await, Some(Purpose::Pairing));
         a.close().await;
@@ -377,7 +464,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn an_admission_carries_the_generation_of_the_code_it_used_even_when_a_newer_code_was_made_before_it_finished() {
+    async fn an_admission_carries_the_generation_of_the_code_it_used_even_when_a_newer_code_was_made_before_it_finished()
+     {
         let (a, b) = two_hosts().await;
         let gate = Arc::new(Invitations::default());
         let (first, first_generation) = gate.create_for_files(&b, 100).unwrap();
@@ -386,23 +474,39 @@ mod tests {
         let task_gate = Arc::clone(&gate);
         let admitted = tokio::spawn({
             let b = b.clone();
-            async move { task_gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into()).await }
+            async move {
+                task_gate
+                    .accept(b.accept().await.unwrap().await.unwrap(), "B".into())
+                    .await
+            }
         });
         let joined = handshake::join(&a, first, "A".into()).await.unwrap();
         let (second, second_generation) = gate.create_for_files(&b, 100).unwrap();
         let (admitted_with, purpose, generation) = admitted.await.unwrap().unwrap();
         assert_eq!(purpose, Purpose::Files);
-        assert_eq!(generation, first_generation, "the admission was given the generation of a code it did not use");
-        assert_ne!(generation, second_generation, "two files codes share a generation");
+        assert_eq!(
+            generation, first_generation,
+            "the admission was given the generation of a code it did not use"
+        );
+        assert_ne!(
+            generation, second_generation,
+            "two files codes share a generation"
+        );
         assert!(second_generation > first_generation);
         // The newer code is still usable, and is admitted with ITS generation.
         let (late, late_generation) = (second, second_generation);
         let (left, right) = tokio::join!(handshake::join(&a, late, "A".into()), async {
-            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into()).await
+            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into())
+                .await
         });
         let (admitted_again, _, again) = right.unwrap();
         assert_eq!(again, late_generation);
-        for connection in [joined.connection, admitted_with.connection, left.unwrap().connection, admitted_again.connection] {
+        for connection in [
+            joined.connection,
+            admitted_with.connection,
+            left.unwrap().connection,
+            admitted_again.connection,
+        ] {
             connection.close(0_u32.into(), b"done");
         }
         a.close().await;
@@ -411,23 +515,44 @@ mod tests {
 
     #[tokio::test]
     async fn the_files_code_status_follows_the_code_through_scan_replacement_and_revocation() {
-        let policy = NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false };
-        let a = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = transport::bind(SecretKey::generate(), &policy).await.unwrap();
+        let policy = NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        };
+        let a = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
         let gate = Invitations::default();
-        assert_eq!(gate.files_code(), None, "a code was reported before any was made");
+        assert_eq!(
+            gate.files_code(),
+            None,
+            "a code was reported before any was made"
+        );
         let (first, first_generation) = gate.create_for_files(&b, 100).unwrap();
         assert_eq!(gate.files_code(), Some((first_generation, true)));
         // A PAIRING code is another gate: making one says nothing about the files code.
         let _ = gate.create(&b, 100).unwrap();
-        assert_eq!(gate.files_code(), Some((first_generation, true)), "a pairing code changed the files code status");
+        assert_eq!(
+            gate.files_code(),
+            Some((first_generation, true)),
+            "a pairing code changed the files code status"
+        );
         // The scan: the same generation, no longer live.
         let (left, right) = tokio::join!(handshake::join(&a, first, "A".into()), async {
-            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into()).await
+            gate.accept(b.accept().await.unwrap().await.unwrap(), "B".into())
+                .await
         });
         let (admitted, purpose, _) = right.unwrap();
         assert_eq!(purpose, Purpose::Files);
-        assert_eq!(gate.files_code(), Some((first_generation, false)), "a scanned code was still reported live");
+        assert_eq!(
+            gate.files_code(),
+            Some((first_generation, false)),
+            "a scanned code was still reported live"
+        );
         // A new code is a new generation and live again.
         let (_second, second_generation) = gate.create_for_files(&b, 100).unwrap();
         assert!(second_generation > first_generation);
@@ -445,10 +570,16 @@ mod tests {
     async fn a_spent_files_code_is_retired_alone_and_a_live_one_and_the_pairing_code_are_kept() {
         let (a, b) = two_hosts().await;
         let gate = Invitations::default();
-        assert!(!gate.retire_files_if_spent(), "something was retired when no code was made");
+        assert!(
+            !gate.retire_files_if_spent(),
+            "something was retired when no code was made"
+        );
         let (live, generation) = gate.create_for_files(&b, 100).unwrap();
         let pairing = gate.create(&b, 100).unwrap();
-        assert!(!gate.retire_files_if_spent(), "a files code that can still admit someone was retired");
+        assert!(
+            !gate.retire_files_if_spent(),
+            "a files code that can still admit someone was retired"
+        );
         assert_eq!(gate.files_code(), Some((generation, true)));
         // Scan it: it is spent now, still the same generation.
         assert_eq!(scan(&a, &b, &gate, live).await, Some(Purpose::Files));
@@ -456,6 +587,10 @@ mod tests {
         assert!(gate.retire_files_if_spent(), "a spent files code was kept");
         assert_eq!(gate.files_code(), None, "a retired code was still reported");
         // The pairing code is not the files code's business.
-        assert_eq!(scan(&a, &b, &gate, pairing).await, Some(Purpose::Pairing), "retiring the files code took the pairing code with it");
+        assert_eq!(
+            scan(&a, &b, &gate, pairing).await,
+            Some(Purpose::Pairing),
+            "retiring the files code took the pairing code with it"
+        );
     }
 }

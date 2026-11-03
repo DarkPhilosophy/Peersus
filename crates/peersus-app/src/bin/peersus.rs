@@ -48,9 +48,13 @@ fn output(value: Output) -> Result<(), String> {
         }
         Output::Reply(Reply::Transfers(value)) => serde_json::to_value(value),
         Output::Reply(Reply::Applied) => return Ok(()),
-        Output::Reply(Reply::QueueBusy) => return Err("The transfer queue is full; retry when a transfer finishes".to_owned()),
+        Output::Reply(Reply::QueueBusy) => {
+            return Err("The transfer queue is full; retry when a transfer finishes".to_owned());
+        }
         // No command line asks for a picture, and one is not something to print: it is a window's.
-        Output::Reply(Reply::Picture(_)) => return Err("A picture is for a window, not a terminal".to_owned()),
+        Output::Reply(Reply::Picture(_)) => {
+            return Err("A picture is for a window, not a terminal".to_owned());
+        }
     }
     .map_err(|_| "Cannot encode command result")?;
     println!(
@@ -156,7 +160,7 @@ fn run() -> Result<(), String> {
                 .replace(candidate.clone())
                 .map_err(|error| error.to_string())?;
         }
-        return output(Output::Settings(candidate));
+        return output(Output::Settings(Box::new(candidate)));
     }
     // Every other command is carried out by a running owner, and there is none.
     if cli.action.is_some() {
@@ -208,7 +212,21 @@ fn run() -> Result<(), String> {
     let presence = peersus_app::lifetime::Presence::default();
     let (client, owner, service) = executor
         .block_on(async {
-            let endpoint = transport::bind(key, &settings.current().network)
+            // The token of a personal relay, only when one is used: the credential store is not asked for a secret that nothing will use.
+            // One that cannot be read is said and the program carries on without it, as with preferences it could not use: a relay that
+            // wants a token will then refuse this device, and the person is told why, and not left with an application that will not start.
+            let access = if settings.current().network.has_custom_relay() {
+                match peersus_app::relay_token::load() {
+                    Ok(access) => access,
+                    Err(reason) => {
+                        eprintln!("{reason}");
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            let endpoint = transport::bind_with(key, &settings.current().network, access.as_ref())
                 .await
                 .map_err(|_| "Cannot bind selected network")?;
             let mut devices = Peers::open(directory.join("peers.json"))
@@ -226,12 +244,17 @@ fn run() -> Result<(), String> {
                 History::open(directory.join("history.json"))
                     .map_err(|_| "Cannot read transfer history")?,
             )
+            .with_network_settings(&settings.current().network)
             // The pictures live beside everything else of the application's own, private to the user.
-            .with_pictures(peersus_net::pictures::Pictures::new(&directory));
+            .with_pictures(peersus_net::pictures::Pictures::new(&directory))
+            // What the endpoint was bound with, so that saving the same token again is no change and disturbs no connection.
+            .with_relay_access(access);
             // Which picture each device showed, so that every device has its face from the first moment and not only once it is online. A
             // file that cannot be read is left exactly as it is and the host starts without it: a picture is not worth a start that
             // does not happen, nor an empty list written over what was there.
-            let network = match peersus_net::picture_owners::PictureOwners::open(directory.join("picture-owners.json")) {
+            let network = match peersus_net::picture_owners::PictureOwners::open(
+                directory.join("picture-owners.json"),
+            ) {
                 Ok(owners) => network.with_picture_owners(owners),
                 Err(_) => network,
             };
@@ -243,7 +266,8 @@ fn run() -> Result<(), String> {
                 sockets.path().to_path_buf(),
             )
             .map_err(|_| "Cannot start the application")?;
-            let application = std::env::current_exe().map_err(|_| "Cannot locate module executors")?;
+            let application =
+                std::env::current_exe().map_err(|_| "Cannot locate module executors")?;
             let modules = peersus_plugin_host::module::DesktopModules::beside(&application)
                 .map_err(|_| "Cannot locate module executors")?;
             // The store of installed packages is the same directory the loader read above and the
@@ -255,17 +279,22 @@ fn run() -> Result<(), String> {
                 .with_modules(std::sync::Arc::new(modules))
                 .with_packages(peersus_app::plugin_manager::Manager::new(&directory))
                 .with_disabled(found.disabled)
-                .with_held_back(found.held_back);
+                .with_held_back(found.held_back)
+                .with_token_store(std::sync::Arc::new(peersus_app::relay_token::Keyring));
             // The extension store. Its rollback floor is durable, so it lives in the application's data
             // directory; what the helper downloads is scratch, so it goes in the private runtime directory.
             // With no maintainer key compiled in, the store reports itself as not set up and refuses
             // everything: there is no fallback that trusts an unsigned catalog.
             #[cfg(unix)]
             {
-                let fetcher = peersus_app::store_runtime::HelperFetcher::beside(&application, sockets.path())
-                    .map_err(|_| "Cannot locate the store helper")?;
+                let fetcher =
+                    peersus_app::store_runtime::HelperFetcher::beside(&application, sockets.path())
+                        .map_err(|_| "Cannot locate the store helper")?;
                 runtime = runtime.with_store(
-                    peersus_app::store_service::StoreService::new(peersus_app::store_trust::MAINTAINER_PUBLIC_KEY, &directory),
+                    peersus_app::store_service::StoreService::new(
+                        peersus_app::store_trust::MAINTAINER_PUBLIC_KEY,
+                        &directory,
+                    ),
                     std::sync::Arc::new(fetcher),
                 );
             }
@@ -273,7 +302,11 @@ fn run() -> Result<(), String> {
                 .listen()
                 .map_err(|_| "Cannot open local control socket; existing path was preserved")?;
             let owner = tokio::spawn(runtime.run());
-            let service = tokio::spawn(peersus_app::ipc::serve(listener, client.clone(), presence.clone()));
+            let service = tokio::spawn(peersus_app::ipc::serve(
+                listener,
+                client.clone(),
+                presence.clone(),
+            ));
             Ok::<_, &'static str>((client, owner, service))
         })
         .map_err(str::to_owned)?;
@@ -286,6 +319,9 @@ fn run() -> Result<(), String> {
         }
         let _ = shutdown.command(Command::Shutdown {}).await;
     });
+    // Whether this computer sleeps, told to the paired devices. A real suspend only, from the login manager: see `sleep`.
+    #[cfg(target_os = "linux")]
+    let sleeping = executor.spawn(peersus_app::sleep::follow(client.clone()));
     // An owner that a window started ends when its last window goes, unless the person asked for the
     // background, however that window ends (closed, killed, crashed): every window keeps a lease on the
     // owner for as long as it lives, and the owner counts them. The preference is read each time, so
@@ -323,6 +359,12 @@ fn run() -> Result<(), String> {
             owner.await.map_err(|_| "Application owner failed")?;
             signals.abort();
             let _ = signals.await;
+            // Let go of the lock on sleep with the owner: a computer must never be held back from sleeping by an owner that is gone.
+            #[cfg(target_os = "linux")]
+            {
+                sleeping.abort();
+                let _ = sleeping.await;
+            }
             #[cfg(unix)]
             if let Some(watcher) = watcher {
                 watcher.abort();

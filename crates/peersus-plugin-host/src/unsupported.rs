@@ -55,8 +55,15 @@ impl Service {
         ))
     }
 
-    pub fn start_with_launcher(_hub: Hub, _plugin: Plugin, _launcher: std::sync::Arc<dyn crate::supervisor::Launcher>) -> io::Result<Self> {
-        Err(io::Error::new(io::ErrorKind::Unsupported, "Plugin sockets are not supported on this platform yet"))
+    pub fn start_with_launcher(
+        _hub: Hub,
+        _plugin: Plugin,
+        _launcher: std::sync::Arc<dyn crate::supervisor::Launcher>,
+    ) -> io::Result<Self> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "Plugin sockets are not supported on this platform yet",
+        ))
     }
 
     pub fn events(&self) -> watch::Receiver<Event> {

@@ -52,8 +52,21 @@ impl StoreService {
     /// `candidate` is the compiled-in key (production passes `store_trust::MAINTAINER_PUBLIC_KEY`).
     pub fn new(candidate: Option<[u8; 32]>, data: &Path) -> Self {
         let key = store_trust::trust_root(candidate);
-        let status = if key.is_ok() { StoreStatus::Idle } else { StoreStatus::NotConfigured };
-        Self { key, floor: Floor::new(data), catalog: None, state: StoreState { status, ..StoreState::default() }, busy: None }
+        let status = if key.is_ok() {
+            StoreStatus::Idle
+        } else {
+            StoreStatus::NotConfigured
+        };
+        Self {
+            key,
+            floor: Floor::new(data),
+            catalog: None,
+            state: StoreState {
+                status,
+                ..StoreState::default()
+            },
+            busy: None,
+        }
     }
 
     /// What the window is told. Copied into every snapshot, so it never blanks on an unrelated update.
@@ -90,14 +103,29 @@ impl StoreService {
     }
 
     /// Verify and adopt what was downloaded. The floor is raised only after the signature checked out.
-    pub fn finish_refresh(&mut self, catalog_bytes: &[u8], signature: &[u8]) -> Result<(), Refusal> {
-        let Ok(key) = self.key else { return Err(Refusal("The extension store is not set up in this build")) };
-        let floor = self.floor.read().map_err(|unavailable| self.fail(unavailable.0))?;
-        let catalog = catalog::verify(&key, catalog_bytes, signature, floor).map_err(|refusal| self.fail(refusal.0))?;
-        self.floor.raise(catalog.sequence).map_err(|unavailable| self.fail(unavailable.0))?;
+    pub fn finish_refresh(
+        &mut self,
+        catalog_bytes: &[u8],
+        signature: &[u8],
+    ) -> Result<(), Refusal> {
+        let Ok(key) = self.key else {
+            return Err(Refusal("The extension store is not set up in this build"));
+        };
+        let floor = self
+            .floor
+            .read()
+            .map_err(|unavailable| self.fail(unavailable.0))?;
+        let catalog = catalog::verify(&key, catalog_bytes, signature, floor)
+            .map_err(|refusal| self.fail(refusal.0))?;
+        self.floor
+            .raise(catalog.sequence)
+            .map_err(|unavailable| self.fail(unavailable.0))?;
         self.state = StoreState {
             status: StoreStatus::Ready,
-            listings: store::search(&catalog, "").into_iter().filter_map(listing).collect(),
+            listings: store::search(&catalog, "")
+                .into_iter()
+                .filter_map(listing)
+                .collect(),
             error: None,
         };
         self.catalog = Some(catalog);
@@ -108,7 +136,11 @@ impl StoreService {
     /// Start an install of `plugin`: what to download is the SIGNED entry's, never anything supplied by
     /// the caller. Refused before anything is fetched for a name the maintainer did not approve.
     pub fn begin_install(&mut self, plugin: &PluginId) -> Result<Fetch, Refusal> {
-        let Some(entry) = self.catalog.as_ref().and_then(|catalog| catalog.find(plugin.as_str())) else {
+        let Some(entry) = self
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.find(plugin.as_str()))
+        else {
             return Err(Refusal("The extension is not in the approved catalog"));
         };
         let fetch = Fetch {
@@ -123,8 +155,18 @@ impl StoreService {
 
     /// Check what was downloaded against the signed entry, unpack it, and bind catalog, manifest and
     /// program together. The result is ready for the ordinary install.
-    pub fn finish_install(&mut self, plugin: &PluginId, bytes: Vec<u8>, scratch: &Path) -> Result<Verified, Refusal> {
-        let Some(entry) = self.catalog.as_ref().and_then(|catalog| catalog.find(plugin.as_str())).cloned() else {
+    pub fn finish_install(
+        &mut self,
+        plugin: &PluginId,
+        bytes: Vec<u8>,
+        scratch: &Path,
+    ) -> Result<Verified, Refusal> {
+        let Some(entry) = self
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.find(plugin.as_str()))
+            .cloned()
+        else {
             return Err(self.fail("The extension is not in the approved catalog"));
         };
         if let Err(refusal) = catalog::archive_matches(&entry, &bytes) {
@@ -175,8 +217,14 @@ fn listing(item: store::Listing) -> Option<StoreListing> {
 
 /// Keep the verified bytes under `<name>.tar.gz`, unpack with the same hardened unpacker a manual
 /// archive uses, and bind catalog, manifest and program together.
-fn unpack_and_bind(entry: &Entry, file_name: &str, bytes: Vec<u8>, scratch: &Path) -> Result<Unpacked, Refusal> {
-    let source = archive::keep_source(bytes.as_slice(), file_name, scratch).map_err(|r| Refusal(r.0))?;
+fn unpack_and_bind(
+    entry: &Entry,
+    file_name: &str,
+    bytes: Vec<u8>,
+    scratch: &Path,
+) -> Result<Unpacked, Refusal> {
+    let source =
+        archive::keep_source(bytes.as_slice(), file_name, scratch).map_err(|r| Refusal(r.0))?;
     let unpacked = archive::unpack_in(source.path(), scratch).map_err(|r| Refusal(r.0))?;
     bind(entry, &unpacked)?;
     Ok(unpacked)
@@ -193,11 +241,17 @@ fn bind(entry: &Entry, unpacked: &Unpacked) -> Result<(), Refusal> {
     // The store distributes only formats that run in the separate, isolated module helper. A legacy
     // `process` package runs directly with the user's own rights; it can still be installed by hand for
     // development, with its warning, but it is never what the maintainer's store offers.
-    if matches!(manifest.execution, peersus_plugin_api::manifest::Execution::Process) {
-        return Err(Refusal("The store only distributes extensions that run in the isolated module host"));
+    if matches!(
+        manifest.execution,
+        peersus_plugin_api::manifest::Execution::Process
+    ) {
+        return Err(Refusal(
+            "The store only distributes extensions that run in the isolated module host",
+        ));
     }
     let program = std::fs::read(root.join(manifest.program_file())).map_err(|_| BAD)?;
-    let embedded = crate::binary_metadata::read(&program).map_err(|absent| Refusal(absent.words()))?;
+    let embedded =
+        crate::binary_metadata::read(&program).map_err(|absent| Refusal(absent.words()))?;
     catalog::binds_package(entry, id, &package, &embedded)
 }
 
@@ -213,7 +267,9 @@ mod tests {
     const ARCHIVE: &[u8] = include_bytes!("../tests/fixtures/catalog/echo.tar.gz");
 
     fn test_key() -> [u8; 32] {
-        SigningKey::from_bytes(&[7u8; 32]).verifying_key().to_bytes()
+        SigningKey::from_bytes(&[7u8; 32])
+            .verifying_key()
+            .to_bytes()
     }
 
     fn echo() -> PluginId {
@@ -234,8 +290,15 @@ mod tests {
         assert_eq!(service.state().status, StoreStatus::NotConfigured);
         assert!(service.begin_refresh().is_err());
         assert!(service.begin_install(&echo()).is_err());
-        assert_eq!(service.state().status, StoreStatus::NotConfigured, "a refusal must not read as 'failed' and invite a retry");
-        assert!(service.finish_refresh(CATALOG, SIGNATURE).is_err(), "even a validly signed catalog is not trusted without a key");
+        assert_eq!(
+            service.state().status,
+            StoreStatus::NotConfigured,
+            "a refusal must not read as 'failed' and invite a retry"
+        );
+        assert!(
+            service.finish_refresh(CATALOG, SIGNATURE).is_err(),
+            "even a validly signed catalog is not trusted without a key"
+        );
     }
 
     #[test]
@@ -244,14 +307,25 @@ mod tests {
         let mut service = StoreService::new(Some(test_key()), dir.path());
         service.begin_refresh().unwrap();
         assert_eq!(service.state().status, StoreStatus::Loading);
-        assert!(service.begin_refresh().is_err(), "two fetches would race the floor");
+        assert!(
+            service.begin_refresh().is_err(),
+            "two fetches would race the floor"
+        );
         service.finish_refresh(CATALOG, SIGNATURE).unwrap();
         let state = service.state();
         assert_eq!(state.status, StoreStatus::Ready);
         assert_eq!(state.listings.len(), 1);
         assert_eq!(state.listings[0].plugin.as_str(), "echo");
-        assert_eq!((state.listings[0].author.as_str(), state.listings[0].link.as_str()), ("Someone", "https://example.org/echo"));
-        service.begin_refresh().expect("free again after a finished refresh");
+        assert_eq!(
+            (
+                state.listings[0].author.as_str(),
+                state.listings[0].link.as_str()
+            ),
+            ("Someone", "https://example.org/echo")
+        );
+        service
+            .begin_refresh()
+            .expect("free again after a finished refresh");
     }
 
     #[test]
@@ -264,8 +338,14 @@ mod tests {
         assert!(service.finish_refresh(&edited, SIGNATURE).is_err());
         assert_eq!(service.state().status, StoreStatus::Failed);
         assert!(service.state().listings.is_empty());
-        assert_eq!(Floor::new(dir.path()).read(), Ok(0), "nothing unverified may move the floor");
-        service.begin_refresh().expect("a failure releases the store so the person can retry");
+        assert_eq!(
+            Floor::new(dir.path()).read(),
+            Ok(0),
+            "nothing unverified may move the floor"
+        );
+        service
+            .begin_refresh()
+            .expect("a failure releases the store so the person can retry");
     }
 
     #[test]
@@ -275,7 +355,10 @@ mod tests {
         Floor::new(dir.path()).raise(9).unwrap();
         let mut restarted = StoreService::new(Some(test_key()), dir.path());
         restarted.begin_refresh().unwrap();
-        assert!(restarted.finish_refresh(CATALOG, SIGNATURE).is_err(), "sequence 1 < the saved 9");
+        assert!(
+            restarted.finish_refresh(CATALOG, SIGNATURE).is_err(),
+            "sequence 1 < the saved 9"
+        );
     }
 
     #[test]
@@ -288,9 +371,15 @@ mod tests {
             }
         }
         let fetch = service.begin_install(&echo()).unwrap();
-        assert_eq!(fetch.archive, "echo.tar.gz", "the file name is the signed entry's");
+        assert_eq!(
+            fetch.archive, "echo.tar.gz",
+            "the file name is the signed entry's"
+        );
         assert_eq!(fetch.limit, ARCHIVE.len());
-        assert!(service.begin_install(&echo()).is_err(), "a second install of the same name while one runs");
+        assert!(
+            service.begin_install(&echo()).is_err(),
+            "a second install of the same name while one runs"
+        );
     }
 
     #[test]
@@ -298,7 +387,9 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut service = ready(dir.path());
         service.begin_install(&echo()).unwrap();
-        let verified = service.finish_install(&echo(), ARCHIVE.to_vec(), dir.path()).expect("approved bytes");
+        let verified = service
+            .finish_install(&echo(), ARCHIVE.to_vec(), dir.path())
+            .expect("approved bytes");
         assert_eq!(verified.entry.name, "echo");
         assert!(verified.unpacked.root().join("plugin.json").is_file());
         service.done();
@@ -313,10 +404,20 @@ mod tests {
         let mut altered = ARCHIVE.to_vec();
         altered[40] ^= 1;
         let before = std::fs::read_dir(dir.path()).unwrap().count();
-        assert!(service.finish_install(&echo(), altered, dir.path()).is_err());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), before, "nothing was unpacked or kept");
+        assert!(
+            service
+                .finish_install(&echo(), altered, dir.path())
+                .is_err()
+        );
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            before,
+            "nothing was unpacked or kept"
+        );
         assert_eq!(service.state().status, StoreStatus::Failed);
-        service.begin_install(&echo()).expect("released after the refusal");
+        service
+            .begin_install(&echo())
+            .expect("released after the refusal");
     }
 
     /// The SHA-256 pin on its own. A corrupted archive is refused by the unpacker and a longer one by the size
@@ -335,8 +436,16 @@ mod tests {
         let real: Catalog = serde_json::from_slice(CATALOG).unwrap();
         let mut pinned = entry(&real);
         pinned.size = padded.len() as u64;
-        assert_eq!(pinned.sha256, hex::encode(Sha256::digest(ARCHIVE)), "the fixture pins the real archive");
-        let catalog = Catalog { schema: 1, sequence: 1, entries: vec![pinned] };
+        assert_eq!(
+            pinned.sha256,
+            hex::encode(Sha256::digest(ARCHIVE)),
+            "the fixture pins the real archive"
+        );
+        let catalog = Catalog {
+            schema: 1,
+            sequence: 1,
+            entries: vec![pinned],
+        };
         let body = serde_json::to_vec(&catalog).unwrap();
         let signature = SigningKey::from_bytes(&[7u8; 32]).sign(&body).to_bytes();
         let mut service = StoreService::new(Some(test_key()), dir.path());
@@ -351,7 +460,11 @@ mod tests {
             service.finish_install(&echo(), padded, dir.path()).err(),
             Some(Refusal("The package is not the one that was approved"))
         );
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), before, "nothing was unpacked or kept");
+        assert_eq!(
+            std::fs::read_dir(dir.path()).unwrap().count(),
+            before,
+            "nothing was unpacked or kept"
+        );
     }
 
     /// The same isolation by the simplest means: the gzip header's MTIME (bytes 4..8) is ignored by readers and
@@ -368,7 +481,8 @@ mod tests {
         assert_eq!(altered.len(), ARCHIVE.len());
         // Control: it unpacks, so no layer but the digest can be what refuses it.
         let source = archive::keep_source(altered.as_slice(), "echo.tar.gz", dir.path()).unwrap();
-        archive::unpack_in(source.path(), dir.path()).expect("only the timestamp differs, so it unpacks");
+        archive::unpack_in(source.path(), dir.path())
+            .expect("only the timestamp differs, so it unpacks");
         assert_eq!(
             service.finish_install(&echo(), altered, dir.path()).err(),
             Some(Refusal("The package is not the one that was approved"))
@@ -392,16 +506,25 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let mut entry = real.entries[0].clone();
             change(&mut entry);
-            let body = serde_json::to_vec(&Catalog { schema: 1, sequence: 1, entries: vec![entry] }).unwrap();
+            let body = serde_json::to_vec(&Catalog {
+                schema: 1,
+                sequence: 1,
+                entries: vec![entry],
+            })
+            .unwrap();
             let signature = SigningKey::from_bytes(&[7u8; 32]).sign(&body).to_bytes();
             let mut service = StoreService::new(Some(test_key()), dir.path());
             service.begin_refresh().unwrap();
             service.finish_refresh(&body, &signature).unwrap();
             service.begin_install(&echo()).unwrap();
-            let refused = service.finish_install(&echo(), ARCHIVE.to_vec(), dir.path()).err();
+            let refused = service
+                .finish_install(&echo(), ARCHIVE.to_vec(), dir.path())
+                .err();
             assert_eq!(
                 refused,
-                Some(Refusal("The package does not say what the catalog says about it")),
+                Some(Refusal(
+                    "The package does not say what the catalog says about it"
+                )),
                 "a signed {what} that the package does not carry was accepted"
             );
         }
@@ -437,13 +560,18 @@ mod tests {
             }
             members.push((path, bytes, mode));
         }
-        let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast()));
+        let mut builder = tar::Builder::new(flate2::write::GzEncoder::new(
+            Vec::new(),
+            flate2::Compression::fast(),
+        ));
         for (path, bytes, mode) in members {
             let mut header = tar::Header::new_gnu();
             header.set_size(bytes.len() as u64);
             header.set_mode(mode);
             header.set_cksum();
-            builder.append_data(&mut header, path, bytes.as_slice()).unwrap();
+            builder
+                .append_data(&mut header, path, bytes.as_slice())
+                .unwrap();
         }
         let archive = builder.into_inner().unwrap().finish().unwrap();
         let real: Catalog = serde_json::from_slice(CATALOG).unwrap();
@@ -451,7 +579,12 @@ mod tests {
         entry.sha256 = hex::encode(Sha256::digest(&archive));
         entry.size = archive.len() as u64;
         entry.author = signed_author.to_owned();
-        let body = serde_json::to_vec(&Catalog { schema: 1, sequence: 1, entries: vec![entry] }).unwrap();
+        let body = serde_json::to_vec(&Catalog {
+            schema: 1,
+            sequence: 1,
+            entries: vec![entry],
+        })
+        .unwrap();
         let signature = SigningKey::from_bytes(&[7u8; 32]).sign(&body).to_bytes();
         let mut service = StoreService::new(Some(test_key()), dir);
         service.begin_refresh().unwrap();
@@ -466,13 +599,16 @@ mod tests {
     #[test]
     fn an_edited_manifest_author_is_refused_when_the_compiled_in_record_says_otherwise() {
         let dir = tempfile::tempdir().unwrap();
-        let (mut service, archive) = service_over_edited_manifest(dir.path(), "Impostor", |manifest| {
-            manifest["package"]["author"] = "Impostor".into();
-        });
+        let (mut service, archive) =
+            service_over_edited_manifest(dir.path(), "Impostor", |manifest| {
+                manifest["package"]["author"] = "Impostor".into();
+            });
         let refused = service.finish_install(&echo(), archive, dir.path()).err();
         assert_eq!(
             refused,
-            Some(Refusal("The package does not say what the catalog says about it")),
+            Some(Refusal(
+                "The package does not say what the catalog says about it"
+            )),
             "the manifest and the signed entry agreed on an author the program does not carry"
         );
     }
@@ -483,10 +619,16 @@ mod tests {
     #[test]
     fn a_legacy_process_package_is_refused_by_the_isolation_gate_alone() {
         let dir = tempfile::tempdir().unwrap();
-        let (mut service, archive) = service_over_edited_manifest(dir.path(), "Someone", |manifest| {
-            manifest.as_object_mut().unwrap().remove("execution");
-        });
+        let (mut service, archive) =
+            service_over_edited_manifest(dir.path(), "Someone", |manifest| {
+                manifest.as_object_mut().unwrap().remove("execution");
+            });
         let refused = service.finish_install(&echo(), archive, dir.path()).err();
-        assert_eq!(refused, Some(Refusal("The store only distributes extensions that run in the isolated module host")));
+        assert_eq!(
+            refused,
+            Some(Refusal(
+                "The store only distributes extensions that run in the isolated module host"
+            ))
+        );
     }
 }

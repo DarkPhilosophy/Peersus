@@ -152,8 +152,11 @@ impl Manager {
             .map(|manifest| manifest.program_file().to_owned())
             .unwrap_or_else(|_| PROGRAM_FILE.to_owned());
         // Look at what is being offered before the store is touched at all.
-        if !files.iter().any(|file| crate::discovery::MANIFEST_FILES.iter().any(|name| file == Path::new(name)))
-            || !files.iter().any(|file| file == Path::new(&program))
+        if !files.iter().any(|file| {
+            crate::discovery::MANIFEST_FILES
+                .iter()
+                .any(|name| file == Path::new(name))
+        }) || !files.iter().any(|file| file == Path::new(&program))
         {
             return Err(Refusal("The package needs a manifest and a program"));
         }
@@ -191,7 +194,11 @@ impl Manager {
                 };
             }
             if fs::read_dir(&self.store)
-                .map(|read| read.filter_map(Result::ok).filter(|e| !e.file_name().to_string_lossy().starts_with('.')).count())
+                .map(|read| {
+                    read.filter_map(Result::ok)
+                        .filter(|e| !e.file_name().to_string_lossy().starts_with('.'))
+                        .count()
+                })
                 .unwrap_or(0)
                 >= crate::discovery::MAX_PLUGINS
             {
@@ -223,7 +230,9 @@ impl Manager {
                 if name.starts_with('.') {
                     continue;
                 }
-                let standing = crate::plugin_folder::look(&self.store.join(&name)).state.into();
+                let standing = crate::plugin_folder::look(&self.store.join(&name))
+                    .state
+                    .into();
                 entries.push(Entry { id: name, standing });
             }
         }
@@ -289,7 +298,9 @@ impl Manager {
         );
         for name in names {
             let Ok(id) = peersus_core::plugins::PluginId::new(name.clone()) else {
-                loaded.problems.push(problem(&name, "Its name is not usable"));
+                loaded
+                    .problems
+                    .push(problem(&name, "Its name is not usable"));
                 continue;
             };
             let path = self.store.join(&name);
@@ -300,15 +311,19 @@ impl Manager {
                 id: id.clone(),
                 standing,
                 // What it declares is shown when it could be read; a broken one has nothing to show.
-                manifest: crate::discovery::read_package(&path).ok().unwrap_or_default(),
+                manifest: crate::discovery::read_package(&path)
+                    .ok()
+                    .unwrap_or_default(),
                 why,
                 // Measured now, so that approving later is bound to exactly the program that is shown.
-                program: crate::discovery::read_package(&path).ok().and_then(|manifest| {
-                    crate::plugin_approval::program_digest(
-                        &path.join(manifest.program_file()),
-                        crate::plugin_folder::MAX_PROGRAM_BYTES,
-                    )
-                }),
+                program: crate::discovery::read_package(&path)
+                    .ok()
+                    .and_then(|manifest| {
+                        crate::plugin_approval::program_digest(
+                            &path.join(manifest.program_file()),
+                            crate::plugin_folder::MAX_PROGRAM_BYTES,
+                        )
+                    }),
             };
             match looked.state {
                 State::Ready | State::Disabled => match load_as(&self.store, &path, &name) {
@@ -316,8 +331,13 @@ impl Manager {
                         if loaded.registry.register(spec).is_err() {
                             // Ready on its own, and clashing with another plugin that was registered first (an id or a
                             // service two of them offer). It is not run, and it is not invisible.
-                            loaded.problems.push(problem(&name, "It could not be registered"));
-                            loaded.held_back.push(held(Standing::Broken, Some("It clashes with another plugin")));
+                            loaded
+                                .problems
+                                .push(problem(&name, "It could not be registered"));
+                            loaded.held_back.push(held(
+                                Standing::Broken,
+                                Some("It clashes with another plugin"),
+                            ));
                         } else if looked.state == State::Disabled {
                             // A plugin the person switched off is loaded and listed like any other, so the window can
                             // show it and offer to switch it on; it is only noted here, and not started.
@@ -326,14 +346,18 @@ impl Manager {
                     }
                     Err(reason) => {
                         loaded.problems.push(problem(&name, reason));
-                        loaded.held_back.push(held(Standing::Broken, Some("It could not be loaded")));
+                        loaded
+                            .held_back
+                            .push(held(Standing::Broken, Some("It could not be loaded")));
                     }
                 },
                 State::NeedsApproval => loaded.held_back.push(held(Standing::NeedsApproval, None)),
                 State::Changed => loaded.held_back.push(held(Standing::Changed, None)),
                 State::Broken(why) => {
                     loaded.problems.push(problem(&name, why.words()));
-                    loaded.held_back.push(held(Standing::Broken, Some(why.words())));
+                    loaded
+                        .held_back
+                        .push(held(Standing::Broken, Some(why.words())));
                 }
             }
         }
@@ -364,7 +388,8 @@ impl Manager {
         let retired = self
             .store
             .join(format!(".retired-{id}-{}", std::process::id()));
-        fs::rename(&path, &retired).map_err(|_| Refusal("The package could not be taken out of use"))?;
+        fs::rename(&path, &retired)
+            .map_err(|_| Refusal("The package could not be taken out of use"))?;
         let _ = fs::remove_dir_all(&retired);
         Ok(())
     }
@@ -386,12 +411,20 @@ impl Manager {
         // Only a plugin that is in good standing is replaced: one that was changed, or that nobody approved, is the
         // person's to look at first, and is not quietly set aside.
         let looked = crate::plugin_folder::look(&path);
-        if !matches!(looked.state, crate::plugin_state::State::Ready | crate::plugin_state::State::Disabled) {
-            return Err(Refusal("Its files are not what was installed; not replacing them"));
+        if !matches!(
+            looked.state,
+            crate::plugin_state::State::Ready | crate::plugin_state::State::Disabled
+        ) {
+            return Err(Refusal(
+                "Its files are not what was installed; not replacing them",
+            ));
         }
-        let kept = self.store.join(format!(".retired-{id}-{}", std::process::id()));
+        let kept = self
+            .store
+            .join(format!(".retired-{id}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&kept);
-        fs::rename(&path, &kept).map_err(|_| Refusal("The package could not be taken out of use"))?;
+        fs::rename(&path, &kept)
+            .map_err(|_| Refusal("The package could not be taken out of use"))?;
         Ok(kept)
     }
 
@@ -413,7 +446,10 @@ impl Manager {
             return Err(Refusal("Nothing was retired under that name"));
         }
         let looked = crate::plugin_folder::look(retired);
-        if !matches!(looked.state, crate::plugin_state::State::Ready | crate::plugin_state::State::Disabled) {
+        if !matches!(
+            looked.state,
+            crate::plugin_state::State::Ready | crate::plugin_state::State::Disabled
+        ) {
             return Err(Refusal("What was retired is not what it was"));
         }
         let path = self.store.join(id);
@@ -445,7 +481,12 @@ impl Manager {
         let marker = folder.join(crate::plugin_folder::DISABLED_MARKER);
         if disabled {
             // Created if it is not there, and a marker that already is stays: switching off twice is switching off once.
-            match fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&marker) {
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&marker)
+            {
                 Ok(_) => Ok(()),
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
                 Err(_) => Err(Refusal("The plugin could not be switched off")),
@@ -490,7 +531,9 @@ impl Manager {
                 )
             });
         if shown.is_empty() || now.as_deref() != Some(shown) {
-            return Err(Refusal("The plugin is not what was shown; look at it again"));
+            return Err(Refusal(
+                "The plugin is not what was shown; look at it again",
+            ));
         }
         approve_copy(&folder).map_err(|_| Refusal("The approval could not be written"))
     }
@@ -626,7 +669,11 @@ fn package_files(root: &Path, purpose: Purpose) -> Result<Vec<PathBuf>, Refusal>
             let mut bytes = 0u64;
             for file in &kept {
                 bytes = bytes
-                    .checked_add(selected_file(root, file, named.iter().any(|n| Path::new(n) == file))?)
+                    .checked_add(selected_file(
+                        root,
+                        file,
+                        named.iter().any(|n| Path::new(n) == file),
+                    )?)
                     .ok_or(Refusal("The package is too large"))?;
                 if bytes > MAX_BYTES {
                     return Err(Refusal("The package is too large"));
@@ -769,8 +816,14 @@ fn copy_package(source: &Path, destination: &Path, files: &[PathBuf]) -> Result<
         .create(destination)
         .map_err(|_| Refusal("The package could not be staged"))?;
     #[cfg(target_os = "android")]
-    let native_program = crate::discovery::read_package(source).ok()
-        .filter(|manifest| matches!(manifest.execution, peersus_plugin_api::manifest::Execution::NativeLibrary { .. }))
+    let native_program = crate::discovery::read_package(source)
+        .ok()
+        .filter(|manifest| {
+            matches!(
+                manifest.execution,
+                peersus_plugin_api::manifest::Execution::NativeLibrary { .. }
+            )
+        })
         .map(|manifest| manifest.program_file().to_owned());
     for file in files {
         if file
@@ -805,10 +858,17 @@ fn copy_package(source: &Path, destination: &Path, files: &[PathBuf]) -> Result<
             .and_then(|()| out.sync_all())
             .map_err(|_| Refusal("The package could not be staged"))?;
         #[cfg(target_os = "android")]
-        if native_program.as_deref().is_some_and(|program| file == Path::new(program)) {
+        if native_program
+            .as_deref()
+            .is_some_and(|program| file == Path::new(program))
+        {
             // Only our newly created staging copy changes mode. The user's source is untouched.
-            out.set_permissions(fs::Permissions::from_mode(if executable { 0o500 } else { 0o400 }))
-                .map_err(|_| Refusal("The native module could not be made read-only"))?;
+            out.set_permissions(fs::Permissions::from_mode(if executable {
+                0o500
+            } else {
+                0o400
+            }))
+            .map_err(|_| Refusal("The native module could not be made read-only"))?;
         }
     }
     Ok(())
@@ -881,7 +941,8 @@ pub(crate) fn approve_copy(directory: &Path) -> std::io::Result<()> {
     let refused = |what: &'static str| std::io::Error::other(what);
     let manifest = crate::discovery::read_package(directory).map_err(refused)?;
     crate::plugin_host::check_external_execution(manifest.execution).map_err(refused)?;
-    crate::plugin_host::check_manifest(&manifest).map_err(|_| refused("The manifest is not accepted"))?;
+    crate::plugin_host::check_manifest(&manifest)
+        .map_err(|_| refused("The manifest is not accepted"))?;
     let program = manifest.program_file().to_owned();
     let digest = crate::plugin_approval::program_digest(
         &directory.join(&program),
@@ -919,7 +980,9 @@ fn store_is_really_the_store(store: &Path) -> Result<(), Refusal> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(_) => Err(Refusal("The plugin store could not be read")),
         // Asked first, with its own words: for a link `is_dir` is false too, and the person should be told it is a link.
-        Ok(metadata) if metadata.file_type().is_symlink() => Err(Refusal("The plugin store is a link")),
+        Ok(metadata) if metadata.file_type().is_symlink() => {
+            Err(Refusal("The plugin store is a link"))
+        }
         Ok(metadata) if !metadata.is_dir() => Err(Refusal("The plugin store is not a directory")),
         Ok(_) => Ok(()),
     }
@@ -1020,7 +1083,11 @@ mod tests {
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join("plugin.toml"), manifest).unwrap();
         fs::write(directory.join(PROGRAM_FILE), b"x").unwrap();
-        fs::set_permissions(directory.join(PROGRAM_FILE), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(
+            directory.join(PROGRAM_FILE),
+            fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
         directory
     }
 
@@ -1029,13 +1096,18 @@ mod tests {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
         let source = package_toml(parent.path(), "thing", GOOD_TOML);
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("a TOML package was not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("a TOML package was not installed")
+        };
         let installed = manager.store().join("thing");
         assert!(installed.join("plugin.toml").is_file() && installed.join(PROGRAM_FILE).is_file());
         assert!(!installed.join("plugin.json").exists());
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
         // And installing it again changes nothing, as for any package.
-        assert!(matches!(manager.install(&source), Ok(Installed::Unchanged(_))));
+        assert!(matches!(
+            manager.install(&source),
+            Ok(Installed::Unchanged(_))
+        ));
     }
 
     #[test]
@@ -1046,7 +1118,9 @@ mod tests {
         let source = package_toml(parent.path(), "thing", &manifest);
         fs::write(source.join("settings.toml"), b"t").unwrap();
         fs::write(source.join("README.md"), b"r").unwrap();
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         let installed = manager.store().join("thing");
         for named in ["plugin.toml", "plugin", "settings.toml"] {
             assert!(installed.join(named).is_file(), "{named} was not installed");
@@ -1064,7 +1138,12 @@ mod tests {
         fs::write(source.join("plugin.json"), GOOD).unwrap();
         assert!(manager.install(&source).is_err());
         assert!(manager.list().unwrap().is_empty());
-        assert_eq!(fs::read_dir(manager.store()).map(|d| d.count()).unwrap_or(0), 0);
+        assert_eq!(
+            fs::read_dir(manager.store())
+                .map(|d| d.count())
+                .unwrap_or(0),
+            0
+        );
         // And what is shown is refused the same way, so confirming is never offered.
         assert!(package_digest(&source).is_err());
     }
@@ -1092,7 +1171,10 @@ mod tests {
             panic!("not installed");
         };
         assert_eq!(record, "thing");
-        assert!(crate::plugin_approval::read(&manager.store().join("thing")).is_some_and(|a| a.sha256.len() == 64));
+        assert!(
+            crate::plugin_approval::read(&manager.store().join("thing"))
+                .is_some_and(|a| a.sha256.len() == 64)
+        );
         // Not just that files exist, but that the application would load them.
         let found = crate::discovery::discover(manager.store());
         assert!(found.problems.is_empty(), "{:?}", found.problems);
@@ -1113,7 +1195,13 @@ mod tests {
         fs::create_dir(&outside).unwrap();
         fs::write(outside.join("a.so"), b"not the package's own").unwrap();
 
-        let through = package(parent.path(), "through", &manifest_naming(&["lib/a.so"]), b"x", 0o755);
+        let through = package(
+            parent.path(),
+            "through",
+            &manifest_naming(&["lib/a.so"]),
+            b"x",
+            0o755,
+        );
         std::os::unix::fs::symlink(&outside, through.join("lib")).unwrap();
         assert_eq!(
             manager.install(&through).unwrap_err(),
@@ -1121,14 +1209,25 @@ mod tests {
         );
 
         // The named file is itself a link.
-        let named = package(parent.path(), "named", &manifest_naming(&["a.so"]), b"x", 0o755);
+        let named = package(
+            parent.path(),
+            "named",
+            &manifest_naming(&["a.so"]),
+            b"x",
+            0o755,
+        );
         std::os::unix::fs::symlink(outside.join("a.so"), named.join("a.so")).unwrap();
         assert_eq!(
             manager.install(&named).unwrap_err(),
             Refusal("A plugin package cannot contain links")
         );
         assert!(manager.list().unwrap().is_empty());
-        assert_eq!(fs::read_dir(manager.store()).map(|d| d.count()).unwrap_or(0), 0);
+        assert_eq!(
+            fs::read_dir(manager.store())
+                .map(|d| d.count())
+                .unwrap_or(0),
+            0
+        );
     }
 
     /// A package whose manifest names its program `peersus-thing`, with that file as the program.
@@ -1142,7 +1241,11 @@ mod tests {
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.join(MANIFEST_FILE), manifest).unwrap();
         fs::write(directory.join("peersus-thing"), b"#!/bin/sh\nexit 0\n").unwrap();
-        fs::set_permissions(directory.join("peersus-thing"), fs::Permissions::from_mode(0o755)).unwrap();
+        fs::set_permissions(
+            directory.join("peersus-thing"),
+            fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
         directory
     }
 
@@ -1151,14 +1254,22 @@ mod tests {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
         let source = package_named(parent.path(), "thing", None);
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         let installed = manager.store().join("thing");
-        assert!(installed.join("peersus-thing").is_file(), "the program was not installed under its name");
+        assert!(
+            installed.join("peersus-thing").is_file(),
+            "the program was not installed under its name"
+        );
         assert!(!installed.join("plugin").exists());
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
         // Replacing the program after the fact is noticed, as for any package.
         fs::write(installed.join("peersus-thing"), b"another").unwrap();
-        assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Changed)]);
+        assert_eq!(
+            ids(&manager.list().unwrap()),
+            [("thing", Standing::Changed)]
+        );
     }
 
     #[test]
@@ -1166,10 +1277,21 @@ mod tests {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
         // A file called `plugin` is there, but the manifest says the program is another file.
-        let source = package(parent.path(), "thing", &GOOD.replacen('{', "{\"program\":\"peersus-thing\",", 1), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &GOOD.replacen('{', "{\"program\":\"peersus-thing\",", 1),
+            b"x",
+            0o755,
+        );
         assert!(manager.install(&source).is_err());
         assert!(manager.list().unwrap().is_empty());
-        assert_eq!(fs::read_dir(manager.store()).map(|d| d.count()).unwrap_or(0), 0);
+        assert_eq!(
+            fs::read_dir(manager.store())
+                .map(|d| d.count())
+                .unwrap_or(0),
+            0
+        );
     }
 
     #[test]
@@ -1179,7 +1301,9 @@ mod tests {
         let source = package_named(parent.path(), "thing", Some(&["settings.toml"]));
         fs::write(source.join("settings.toml"), b"t").unwrap();
         fs::write(source.join("README.md"), b"r").unwrap();
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         let installed = manager.store().join("thing");
         for named in ["plugin.json", "peersus-thing", "settings.toml"] {
             assert!(installed.join(named).is_file(), "{named} was not installed");
@@ -1198,8 +1322,12 @@ mod tests {
         let second = PluginId::new("second").unwrap();
         // A set of nothing is stored as nothing, so each is granted something real.
         let some = |owner: &PluginId| {
-            Grants::new([peersus_plugin_api::permission::Permission::new(owner.as_str(), "thing.use").unwrap()])
-                .unwrap()
+            Grants::new([peersus_plugin_api::permission::Permission::new(
+                owner.as_str(),
+                "thing.use",
+            )
+            .unwrap()])
+            .unwrap()
         };
         standalone.set(first.clone(), some(&first)).unwrap();
         standalone.set(second.clone(), some(&second)).unwrap();
@@ -1208,8 +1336,14 @@ mod tests {
         let forgotten = forget_one(&first, &mut peers, &mut standalone).unwrap();
 
         // What `first` was granted is gone now, not at some later start, and `second` keeps its own.
-        assert!(standalone.all().get(&first).is_none(), "first kept its grants");
-        assert!(standalone.all().get(&second).is_some(), "second lost its grants");
+        assert!(
+            standalone.all().get(&first).is_none(),
+            "first kept its grants"
+        );
+        assert!(
+            standalone.all().get(&second).is_some(),
+            "second lost its grants"
+        );
         assert!(forgotten >= 1);
         // The same thing again is not an error and forgets nothing more.
         assert_eq!(forget_one(&first, &mut peers, &mut standalone).unwrap(), 0);
@@ -1433,7 +1567,11 @@ mod tests {
         fs::write(source.join("assets").join("data.bin"), b"original").unwrap();
         manager.install(&source).unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
-        let file = manager.store().join("thing").join("assets").join("data.bin");
+        let file = manager
+            .store()
+            .join("thing")
+            .join("assets")
+            .join("data.bin");
         fs::set_permissions(&file, fs::Permissions::from_mode(0o600)).unwrap();
         fs::write(&file, b"tampered").unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
@@ -1445,22 +1583,43 @@ mod tests {
         type Tampering = (&'static str, fn(&Path), Standing);
         let ways: [Tampering; 5] = [
             // The program is what runs, and it is what was approved.
-            ("program changed", |d| fs::write(d.join(PROGRAM_FILE), b"other").unwrap(), Standing::Changed),
+            (
+                "program changed",
+                |d| fs::write(d.join(PROGRAM_FILE), b"other").unwrap(),
+                Standing::Changed,
+            ),
             // It now asks for something the person was never shown.
             (
                 "manifest asks for something else",
-                |d| fs::write(d.join(MANIFEST_FILE), GOOD.replace("thing.use", "thing.usx")).unwrap(),
+                |d| {
+                    fs::write(
+                        d.join(MANIFEST_FILE),
+                        GOOD.replace("thing.use", "thing.usx"),
+                    )
+                    .unwrap()
+                },
                 Standing::NeedsApproval,
             ),
             // Not the program, so not measured (see `a_file_added_beside_the_program_...`).
-            ("file added", |d| fs::write(d.join("extra"), b"x").unwrap(), Standing::Ready),
+            (
+                "file added",
+                |d| fs::write(d.join("extra"), b"x").unwrap(),
+                Standing::Ready,
+            ),
             // A program that cannot be run is not something to approve or to run.
             (
                 "runnable bit dropped",
-                |d| fs::set_permissions(d.join(PROGRAM_FILE), fs::Permissions::from_mode(0o600)).unwrap(),
+                |d| {
+                    fs::set_permissions(d.join(PROGRAM_FILE), fs::Permissions::from_mode(0o600))
+                        .unwrap()
+                },
                 Standing::Broken,
             ),
-            ("manifest removed", |d| fs::remove_file(d.join(MANIFEST_FILE)).unwrap(), Standing::Broken),
+            (
+                "manifest removed",
+                |d| fs::remove_file(d.join(MANIFEST_FILE)).unwrap(),
+                Standing::Broken,
+            ),
         ];
         for (name, change, expected) in ways {
             let (parent, data) = (tempfile::tempdir().unwrap(), data());
@@ -1469,7 +1628,11 @@ mod tests {
                 .install(&package(parent.path(), "thing", GOOD, b"first", 0o755))
                 .unwrap();
             change(&manager.store().join("thing"));
-            assert_eq!(ids(&manager.list().unwrap()), [("thing", expected)], "{name}");
+            assert_eq!(
+                ids(&manager.list().unwrap()),
+                [("thing", expected)],
+                "{name}"
+            );
         }
     }
 
@@ -1483,7 +1646,13 @@ mod tests {
         // An empty folder is not a plugin waiting for approval: it has no manifest and no program.
         fs::create_dir(manager.store().join("byhand")).unwrap();
         // A complete package put there by hand (nobody approved it) is waiting for approval.
-        let complete = package(manager.store(), "complete", &GOOD.replace("thing", "complete"), b"x", 0o700);
+        let complete = package(
+            manager.store(),
+            "complete",
+            &GOOD.replace("thing", "complete"),
+            b"x",
+            0o700,
+        );
         fs::set_permissions(&complete, fs::Permissions::from_mode(0o700)).unwrap();
         assert_eq!(
             ids(&manager.list().unwrap()),
@@ -1532,11 +1701,26 @@ mod tests {
         manager
             .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
             .unwrap();
-        fs::write(manager.store().join("thing").join(PROGRAM_FILE), b"not what was installed").unwrap();
-        assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Changed)]);
-        manager.remove("thing").expect("a changed plugin could not be removed");
-        assert!(!manager.store().join("thing").exists(), "the folder was left behind");
-        assert!(manager.list().unwrap().is_empty(), "it is still listed after it was removed");
+        fs::write(
+            manager.store().join("thing").join(PROGRAM_FILE),
+            b"not what was installed",
+        )
+        .unwrap();
+        assert_eq!(
+            ids(&manager.list().unwrap()),
+            [("thing", Standing::Changed)]
+        );
+        manager
+            .remove("thing")
+            .expect("a changed plugin could not be removed");
+        assert!(
+            !manager.store().join("thing").exists(),
+            "the folder was left behind"
+        );
+        assert!(
+            manager.list().unwrap().is_empty(),
+            "it is still listed after it was removed"
+        );
         // And the name is free: it installs again.
         manager
             .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
@@ -1558,10 +1742,15 @@ mod tests {
             ids(&manager.list().unwrap()),
             [("byhand", Standing::Broken), ("recorded", Standing::Ready)]
         );
-        manager.remove("byhand").expect("a folder put there by hand could not be removed");
+        manager
+            .remove("byhand")
+            .expect("a folder put there by hand could not be removed");
         assert!(!byhand.exists());
         // What was recorded is untouched by it.
-        assert_eq!(ids(&manager.list().unwrap()), [("recorded", Standing::Ready)]);
+        assert_eq!(
+            ids(&manager.list().unwrap()),
+            [("recorded", Standing::Ready)]
+        );
     }
 
     #[test]
@@ -1583,7 +1772,10 @@ mod tests {
         assert!(Manager::new(data.path()).remove("nothing").is_err());
         // And a name that could point out of the store is never a plugin to remove.
         for name in ["..", ".", "a/b", "", ".hidden", "../x"] {
-            assert!(Manager::new(data.path()).remove(name).is_err(), "{name:?} was accepted");
+            assert!(
+                Manager::new(data.path()).remove(name).is_err(),
+                "{name:?} was accepted"
+            );
         }
     }
 
@@ -1600,10 +1792,21 @@ mod tests {
         fs::create_dir(&elsewhere).unwrap();
         fs::write(elsewhere.join("precious.txt"), b"keep me").unwrap();
         std::os::unix::fs::symlink(&elsewhere, manager.store().join("sneaky")).unwrap();
-        manager.remove("sneaky").expect("a link in the store could not be removed");
-        assert!(fs::symlink_metadata(manager.store().join("sneaky")).is_err(), "the link is still there");
-        assert!(elsewhere.join("precious.txt").exists(), "what the link pointed to was deleted");
-        assert_eq!(ids(&manager.list().unwrap()), [("recorded", Standing::Ready)]);
+        manager
+            .remove("sneaky")
+            .expect("a link in the store could not be removed");
+        assert!(
+            fs::symlink_metadata(manager.store().join("sneaky")).is_err(),
+            "the link is still there"
+        );
+        assert!(
+            elsewhere.join("precious.txt").exists(),
+            "what the link pointed to was deleted"
+        );
+        assert_eq!(
+            ids(&manager.list().unwrap()),
+            [("recorded", Standing::Ready)]
+        );
     }
 
     #[test]
@@ -1624,7 +1827,10 @@ mod tests {
         // The refusal must be about the link and not about something else that happens to refuse (a permission, a
         // lock): a test that passes for the wrong reason holds nothing.
         assert_eq!(refused.to_string(), "The plugin store is a link");
-        assert!(outside.join("thing").join("precious").exists(), "something outside the store was deleted");
+        assert!(
+            outside.join("thing").join("precious").exists(),
+            "something outside the store was deleted"
+        );
     }
 
     #[test]
@@ -1645,9 +1851,24 @@ mod tests {
         manager
             .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
             .unwrap();
-        assert!(real_home.join("data").join("plugins").join("thing").exists());
-        manager.remove("thing").expect("a data directory below a link could not be used");
-        assert!(!real_home.join("data").join("plugins").join("thing").exists(), "the folder was left behind");
+        assert!(
+            real_home
+                .join("data")
+                .join("plugins")
+                .join("thing")
+                .exists()
+        );
+        manager
+            .remove("thing")
+            .expect("a data directory below a link could not be used");
+        assert!(
+            !real_home
+                .join("data")
+                .join("plugins")
+                .join("thing")
+                .exists(),
+            "the folder was left behind"
+        );
     }
 
     #[test]
@@ -1661,11 +1882,23 @@ mod tests {
             .install(&package(parent.path(), "alpha", GOOD, b"x", 0o755))
             .unwrap();
         manager
-            .install(&package(parent.path(), "beta", &GOOD.replace("thing", "other"), b"y", 0o755))
+            .install(&package(
+                parent.path(),
+                "beta",
+                &GOOD.replace("thing", "other"),
+                b"y",
+                0o755,
+            ))
             .unwrap();
-        fs::write(data.path().join("installed.json"), b"\xff\xfe not json at all").unwrap();
+        fs::write(
+            data.path().join("installed.json"),
+            b"\xff\xfe not json at all",
+        )
+        .unwrap();
         assert_eq!(
-            ids(&manager.list().expect("a damaged record made the listing fail")),
+            ids(&manager
+                .list()
+                .expect("a damaged record made the listing fail")),
             [("alpha", Standing::Ready), ("beta", Standing::Ready)]
         );
         // And a folder that is hidden is the store's own, not a plugin to be offered.
@@ -1683,8 +1916,13 @@ mod tests {
             .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
             .unwrap();
         fs::write(data.path().join("installed.json"), b"this is not json {{{").unwrap();
-        manager.remove("thing").expect("a damaged record kept a plugin from being removed");
-        assert!(!manager.store().join("thing").exists(), "the folder was left behind");
+        manager
+            .remove("thing")
+            .expect("a damaged record kept a plugin from being removed");
+        assert!(
+            !manager.store().join("thing").exists(),
+            "the folder was left behind"
+        );
     }
 
     #[test]
@@ -1703,8 +1941,14 @@ mod tests {
         for name in ["../keep", ".hidden", "..", "thing/.."] {
             assert!(manager.remove(name).is_err(), "{name:?} was accepted");
         }
-        assert!(data.path().join("keep").join("file").exists(), "something outside the store was deleted");
-        assert!(manager.store().join(".hidden").exists(), "a hidden entry of the store was deleted");
+        assert!(
+            data.path().join("keep").join("file").exists(),
+            "something outside the store was deleted"
+        );
+        assert!(
+            manager.store().join(".hidden").exists(),
+            "a hidden entry of the store was deleted"
+        );
         assert!(manager.store().join("thing").exists());
     }
 
@@ -1717,10 +1961,16 @@ mod tests {
         manager
             .install(&package(parent.path(), "real", GOOD, b"x", 0o755))
             .unwrap();
-        std::os::unix::fs::symlink(manager.store().join("real"), manager.store().join("alias")).unwrap();
-        manager.remove("alias").expect("a link could not be removed");
+        std::os::unix::fs::symlink(manager.store().join("real"), manager.store().join("alias"))
+            .unwrap();
+        manager
+            .remove("alias")
+            .expect("a link could not be removed");
         assert!(fs::symlink_metadata(manager.store().join("alias")).is_err());
-        assert!(manager.store().join("real").join(PROGRAM_FILE).exists(), "the plugin the link pointed at was deleted");
+        assert!(
+            manager.store().join("real").join(PROGRAM_FILE).exists(),
+            "the plugin the link pointed at was deleted"
+        );
     }
 
     #[test]
@@ -1804,7 +2054,13 @@ mod tests {
         // README and a spare file. Neither is installed, because the package did not name them.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["lib/libwork.so", "settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["lib/libwork.so", "settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::create_dir_all(source.join("lib")).unwrap();
         fs::write(source.join("lib").join("libwork.so"), b"lib").unwrap();
         fs::write(source.join("settings.toml"), b"t").unwrap();
@@ -1812,13 +2068,21 @@ mod tests {
         fs::create_dir(source.join("Documents")).unwrap();
         fs::write(source.join("Documents").join("private.txt"), b"mine").unwrap();
 
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         let installed = manager.store().join("thing");
         for named in ["plugin.json", "plugin", "lib/libwork.so", "settings.toml"] {
             assert!(installed.join(named).is_file(), "{named} was not installed");
         }
-        assert!(!installed.join("README.md").exists(), "a file the package did not name was installed");
-        assert!(!installed.join("Documents").exists(), "a folder the package did not name was installed");
+        assert!(
+            !installed.join("README.md").exists(),
+            "a file the package did not name was installed"
+        );
+        assert!(
+            !installed.join("Documents").exists(),
+            "a folder the package did not name was installed"
+        );
     }
 
     #[test]
@@ -1828,23 +2092,41 @@ mod tests {
         // to "no list" would do for a package that said, in writing, that it wants less.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["../escape"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["../escape"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("README.md"), b"read me").unwrap();
         assert!(manager.install(&source).is_err());
         assert!(manager.list().unwrap().is_empty());
-        assert_eq!(fs::read_dir(manager.store()).map(|d| d.count()).unwrap_or(0), 0);
+        assert_eq!(
+            fs::read_dir(manager.store())
+                .map(|d| d.count())
+                .unwrap_or(0),
+            0
+        );
         // Nothing is measured for a package that is refused: there is no digest to compare against,
         // so nothing can be confirmed against one, and nothing is taken in its place.
         assert!(package_digest(&source).is_err());
     }
 
     #[test]
-    fn an_installed_package_whose_listed_data_file_is_removed_afterwards_is_still_the_approved_program() {
+    fn an_installed_package_whose_listed_data_file_is_removed_afterwards_is_still_the_approved_program()
+     {
         // What the manifest lists is copied at install; afterwards the plugin's own data files are the plugin's. Only the
         // program is approved, so a data file going does not change the standing (the plugin may fail on its own).
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("settings.toml"), b"t").unwrap();
         manager.install(&source).unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
@@ -1854,12 +2136,19 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_that_names_its_files_is_not_refused_for_the_size_or_links_of_what_it_does_not_name() {
+    fn a_folder_that_names_its_files_is_not_refused_for_the_size_or_links_of_what_it_does_not_name()
+    {
         // The same package that installs from an archive must install from a folder: what the list
         // leaves out is not looked at, so neither its size nor a link lying among it refuses the package.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("settings.toml"), b"t").unwrap();
         // Not named, and more than a package may hold, as a home folder would be.
         let big = fs::File::create(source.join("sources.bin")).unwrap();
@@ -1884,7 +2173,8 @@ mod tests {
     }
 
     #[test]
-    fn a_file_added_beside_the_program_does_not_change_the_standing_and_this_is_the_accepted_cost() {
+    fn a_file_added_beside_the_program_does_not_change_the_standing_and_this_is_the_accepted_cost()
+    {
         // The approval is of the PROGRAM (its bytes and whether it can be run), not of the folder: the design chose this
         // on purpose (docs/plugin-installation-design.txt, M3 and C1). A file dropped next to a plugin is therefore NOT
         // noticed. That is a real limit, pinned here so it cannot be forgotten or changed by accident: a plugin that loads
@@ -1892,7 +2182,13 @@ mod tests {
         // sandbox, so the approval was never a guarantee against a process that can write there.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("settings.toml"), b"t").unwrap();
         manager.install(&source).unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
@@ -1900,8 +2196,15 @@ mod tests {
         fs::write(manager.store().join("thing").join("injected.so"), b"evil").unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
         // The program itself changing IS noticed.
-        fs::write(manager.store().join("thing").join(PROGRAM_FILE), b"other program").unwrap();
-        assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Changed)]);
+        fs::write(
+            manager.store().join("thing").join(PROGRAM_FILE),
+            b"other program",
+        )
+        .unwrap();
+        assert_eq!(
+            ids(&manager.list().unwrap()),
+            [("thing", Standing::Changed)]
+        );
     }
 
     #[test]
@@ -1909,7 +2212,13 @@ mod tests {
         // Pinned by its reason: a refusal that came from somewhere else would hide the rule.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["missing.so"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["missing.so"]),
+            b"x",
+            0o755,
+        );
         assert_eq!(
             manager.install(&source).unwrap_err(),
             Refusal("The package names a file it does not have")
@@ -1920,12 +2229,24 @@ mod tests {
     fn an_installed_package_whose_manifest_is_damaged_afterwards_is_broken_and_can_be_removed() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("settings.toml"), b"t").unwrap();
         manager.install(&source).unwrap();
-        fs::write(manager.store().join("thing").join(MANIFEST_FILE), b"this is not json").unwrap();
+        fs::write(
+            manager.store().join("thing").join(MANIFEST_FILE),
+            b"this is not json",
+        )
+        .unwrap();
         assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Broken)]);
-        manager.remove("thing").expect("a plugin with a destroyed manifest could not be removed");
+        manager
+            .remove("thing")
+            .expect("a plugin with a destroyed manifest could not be removed");
     }
 
     #[test]
@@ -1935,7 +2256,9 @@ mod tests {
         let manager = Manager::new(data.path());
         let source = package(parent.path(), "thing", GOOD, b"x", 0o755);
         fs::write(source.join("extra.txt"), b"e").unwrap();
-        let Ok(Installed::New(_)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(_)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         assert!(manager.store().join("thing").join("extra.txt").is_file());
     }
 
@@ -1943,12 +2266,29 @@ mod tests {
     fn a_package_that_names_a_file_it_does_not_hold_is_refused_and_nothing_is_installed() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["missing.so"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["missing.so"]),
+            b"x",
+            0o755,
+        );
         assert!(manager.install(&source).is_err());
         assert!(manager.list().unwrap().is_empty());
-        assert_eq!(fs::read_dir(manager.store()).map(|d| d.count()).unwrap_or(0), 0);
+        assert_eq!(
+            fs::read_dir(manager.store())
+                .map(|d| d.count())
+                .unwrap_or(0),
+            0
+        );
         // A named directory is not a file either.
-        let dir = package(parent.path(), "other", &manifest_naming(&["lib"]), b"x", 0o755);
+        let dir = package(
+            parent.path(),
+            "other",
+            &manifest_naming(&["lib"]),
+            b"x",
+            0o755,
+        );
         fs::create_dir(dir.join("lib")).unwrap();
         assert!(manager.install(&dir).is_err());
     }
@@ -1959,22 +2299,44 @@ mod tests {
         // not that package changing, and confirming must not be refused for it.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        let source = package(parent.path(), "thing", &manifest_naming(&["settings.toml"]), b"x", 0o755);
+        let source = package(
+            parent.path(),
+            "thing",
+            &manifest_naming(&["settings.toml"]),
+            b"x",
+            0o755,
+        );
         fs::write(source.join("settings.toml"), b"t").unwrap();
         let shown = package_digest(&source).unwrap();
 
         fs::write(source.join("README.md"), b"anything").unwrap();
-        assert_eq!(package_digest(&source).unwrap(), shown, "an unnamed file changed the digest");
+        assert_eq!(
+            package_digest(&source).unwrap(),
+            shown,
+            "an unnamed file changed the digest"
+        );
         fs::write(source.join("settings.toml"), b"changed").unwrap();
-        assert_ne!(package_digest(&source).unwrap(), shown, "a named file changed and nothing noticed");
+        assert_ne!(
+            package_digest(&source).unwrap(),
+            shown,
+            "a named file changed and nothing noticed"
+        );
 
         // And the same package installs, then installing it again changes nothing: the digest of the
         // folder it came from and of what is in the store are the same, README or not.
         fs::write(source.join("settings.toml"), b"t").unwrap();
-        let Ok(Installed::New(first)) = manager.install(&source) else { panic!("not installed") };
+        let Ok(Installed::New(first)) = manager.install(&source) else {
+            panic!("not installed")
+        };
         assert_eq!(first, "thing");
-        assert!(crate::plugin_approval::read(&manager.store().join("thing")).is_some_and(|a| a.sha256.len() == 64));
-        assert!(matches!(manager.install(&source), Ok(Installed::Unchanged(_))));
+        assert!(
+            crate::plugin_approval::read(&manager.store().join("thing"))
+                .is_some_and(|a| a.sha256.len() == 64)
+        );
+        assert!(matches!(
+            manager.install(&source),
+            Ok(Installed::Unchanged(_))
+        ));
     }
 
     #[test]
@@ -2021,29 +2383,52 @@ mod tests {
         // The person sees what a package asks for before they confirm, so installing is the approval of exactly that.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"x", 0o755)).unwrap();
-        let approval = crate::plugin_approval::read(&manager.store().join("thing")).expect("installing wrote no approval");
-        assert_eq!(approval.capabilities.iter().map(String::as_str).collect::<Vec<_>>(), ["thing.use"]);
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
+            .unwrap();
+        let approval = crate::plugin_approval::read(&manager.store().join("thing"))
+            .expect("installing wrote no approval");
+        assert_eq!(
+            approval
+                .capabilities
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["thing.use"]
+        );
         let loaded = manager.load();
         assert_eq!(loaded.registry.iter().count(), 1, "{:?}", loaded.problems);
         assert!(loaded.held_back.is_empty(), "{:?}", loaded.held_back);
     }
 
     #[test]
-    fn a_plugin_whose_manifest_wording_was_rewritten_and_whose_old_record_was_destroyed_still_runs_and_is_listed() {
+    fn a_plugin_whose_manifest_wording_was_rewritten_and_whose_old_record_was_destroyed_still_runs_and_is_listed()
+     {
         // The case that started this. The manifest is rewritten after install (another description, other whitespace) and
         // installed.json is destroyed; the plugin must still be found, still run, and still be removable.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
+            .unwrap();
         fs::write(
             manager.store().join("thing").join(MANIFEST_FILE),
-            GOOD.replace("Lets the thing do what it does.", "Rewritten later, by someone else.").replace("  ", "\t"),
+            GOOD.replace(
+                "Lets the thing do what it does.",
+                "Rewritten later, by someone else.",
+            )
+            .replace("  ", "\t"),
         )
         .unwrap();
         fs::write(data.path().join("installed.json"), b"destroyed {{{").unwrap();
         let loaded = manager.load();
-        assert_eq!(loaded.registry.iter().count(), 1, "the plugin did not load: {:?} {:?}", loaded.problems, loaded.held_back);
+        assert_eq!(
+            loaded.registry.iter().count(),
+            1,
+            "the plugin did not load: {:?} {:?}",
+            loaded.problems,
+            loaded.held_back
+        );
         assert!(loaded.held_back.is_empty());
         // And it is listed, whatever the record says.
         // Only the words changed, and what it asks for did not: it is still what the person approved. (Changing what it
@@ -2059,26 +2444,46 @@ mod tests {
         // reported with what it is waiting for, so that it can be approved or removed.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "installed", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "installed", GOOD, b"x", 0o755))
+            .unwrap();
         let other = GOOD.replace("thing.service", "other.service");
         let by_hand = package(manager.store(), "byhand", &other, b"y", 0o755);
         fs::set_permissions(&by_hand, fs::Permissions::from_mode(0o700)).unwrap();
         let loaded = manager.load();
         let ran: Vec<&str> = loaded.registry.iter().map(|s| s.id.as_str()).collect();
         assert_eq!(ran, ["installed"], "a plugin nobody approved was run");
-        let held: Vec<(&str, peersus_core::model::Standing)> =
-            loaded.held_back.iter().map(|h| (h.id.as_str(), h.standing)).collect();
-        assert_eq!(held, [("byhand", peersus_core::model::Standing::NeedsApproval)]);
+        let held: Vec<(&str, peersus_core::model::Standing)> = loaded
+            .held_back
+            .iter()
+            .map(|h| (h.id.as_str(), h.standing))
+            .collect();
+        assert_eq!(
+            held,
+            [("byhand", peersus_core::model::Standing::NeedsApproval)]
+        );
     }
 
     /// A package put in the store by hand (so nobody approved it), and the digest the owner would have shown for it.
     fn waiting(manager: &Manager, name: &str, program: &[u8]) -> String {
-        let folder = package(manager.store(), name, &GOOD.replace("thing", name), program, 0o755);
+        let folder = package(
+            manager.store(),
+            name,
+            &GOOD.replace("thing", name),
+            program,
+            0o755,
+        );
         fs::set_permissions(&folder, fs::Permissions::from_mode(0o700)).unwrap();
         let held = manager.load().held_back;
-        let found = held.iter().find(|h| h.id.as_str() == name).expect("it was not held back");
+        let found = held
+            .iter()
+            .find(|h| h.id.as_str() == name)
+            .expect("it was not held back");
         assert_eq!(found.standing, peersus_core::model::Standing::NeedsApproval);
-        found.program.clone().expect("no digest was measured for a plugin that waits")
+        found
+            .program
+            .clone()
+            .expect("no digest was measured for a plugin that waits")
     }
 
     #[test]
@@ -2088,14 +2493,30 @@ mod tests {
         fs::create_dir_all(manager.store()).unwrap();
         fs::set_permissions(manager.store(), fs::Permissions::from_mode(0o700)).unwrap();
         let shown = waiting(&manager, "byhand", b"the program");
-        manager.approve("byhand", &shown).expect("what was shown could not be approved");
+        manager
+            .approve("byhand", &shown)
+            .expect("what was shown could not be approved");
         let loaded = manager.load();
-        assert_eq!(loaded.registry.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["byhand"]);
+        assert_eq!(
+            loaded
+                .registry
+                .iter()
+                .map(|s| s.id.as_str())
+                .collect::<Vec<_>>(),
+            ["byhand"]
+        );
         assert!(loaded.held_back.is_empty(), "{:?}", loaded.held_back);
         // What was approved is what the manifest asked for, by name, and the program that was shown.
         let approval = crate::plugin_approval::read(&manager.store().join("byhand")).unwrap();
         assert_eq!(approval.sha256, shown);
-        assert_eq!(approval.capabilities.iter().map(String::as_str).collect::<Vec<_>>(), ["byhand.use"]);
+        assert_eq!(
+            approval
+                .capabilities
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["byhand.use"]
+        );
     }
 
     #[test]
@@ -2109,29 +2530,65 @@ mod tests {
         let program = manager.store().join("byhand").join(PROGRAM_FILE);
         fs::write(&program, b"another program").unwrap();
         let refusal = manager.approve("byhand", &shown).unwrap_err();
-        assert_eq!(refusal, Refusal("The plugin is not what was shown; look at it again"));
-        assert!(!manager.store().join("byhand").join(crate::plugin_approval::FILE).exists(), "an approval was written anyway");
+        assert_eq!(
+            refusal,
+            Refusal("The plugin is not what was shown; look at it again")
+        );
+        assert!(
+            !manager
+                .store()
+                .join("byhand")
+                .join(crate::plugin_approval::FILE)
+                .exists(),
+            "an approval was written anyway"
+        );
         // Empty and made-up digests are never a match either.
         for bad in ["", "0", &"0".repeat(64)] {
-            assert!(manager.approve("byhand", bad).is_err(), "{bad:?} was accepted");
+            assert!(
+                manager.approve("byhand", bad).is_err(),
+                "{bad:?} was accepted"
+            );
         }
-        assert!(!manager.store().join("byhand").join(crate::plugin_approval::FILE).exists());
+        assert!(
+            !manager
+                .store()
+                .join("byhand")
+                .join(crate::plugin_approval::FILE)
+                .exists()
+        );
     }
 
     #[test]
     fn only_a_plugin_that_waits_or_has_changed_can_be_approved() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "ready", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "ready", GOOD, b"x", 0o755))
+            .unwrap();
         // Ready: nothing to approve.
-        let digest = crate::plugin_approval::read(&manager.store().join("ready")).unwrap().sha256;
-        assert_eq!(manager.approve("ready", &digest).unwrap_err(), Refusal("There is nothing to approve for this plugin"));
+        let digest = crate::plugin_approval::read(&manager.store().join("ready"))
+            .unwrap()
+            .sha256;
+        assert_eq!(
+            manager.approve("ready", &digest).unwrap_err(),
+            Refusal("There is nothing to approve for this plugin")
+        );
         // Broken: only removable.
-        fs::write(manager.store().join("ready").join(MANIFEST_FILE), b"destroyed").unwrap();
-        assert_eq!(manager.approve("ready", &digest).unwrap_err(), Refusal("There is nothing to approve for this plugin"));
+        fs::write(
+            manager.store().join("ready").join(MANIFEST_FILE),
+            b"destroyed",
+        )
+        .unwrap();
+        assert_eq!(
+            manager.approve("ready", &digest).unwrap_err(),
+            Refusal("There is nothing to approve for this plugin")
+        );
         // A name that is not a plugin's, and one with no folder.
         for name in ["../x", ".hidden", "", "nothing"] {
-            assert!(manager.approve(name, &digest).is_err(), "{name:?} was accepted");
+            assert!(
+                manager.approve(name, &digest).is_err(),
+                "{name:?} was accepted"
+            );
         }
     }
 
@@ -2139,12 +2596,20 @@ mod tests {
     fn a_plugin_whose_program_changed_runs_again_only_after_it_is_approved_as_shown() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"first", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"first", 0o755))
+            .unwrap();
         fs::write(manager.store().join("thing").join(PROGRAM_FILE), b"second").unwrap();
         let loaded = manager.load();
-        assert!(loaded.registry.iter().next().is_none(), "a changed program ran");
+        assert!(
+            loaded.registry.iter().next().is_none(),
+            "a changed program ran"
+        );
         let shown = loaded.held_back[0].program.clone().unwrap();
-        assert_eq!(loaded.held_back[0].standing, peersus_core::model::Standing::Changed);
+        assert_eq!(
+            loaded.held_back[0].standing,
+            peersus_core::model::Standing::Changed
+        );
         manager.approve("thing", &shown).unwrap();
         let after = manager.load();
         assert_eq!(after.registry.iter().count(), 1, "{:?}", after.held_back);
@@ -2159,18 +2624,30 @@ mod tests {
         let manager = Manager::new(data.path());
         fs::create_dir_all(manager.store()).unwrap();
         fs::set_permissions(manager.store(), fs::Permissions::from_mode(0o700)).unwrap();
-        let outside = package(data.path(), "outside", &GOOD.replace("thing", "outside"), b"p", 0o755);
+        let outside = package(
+            data.path(),
+            "outside",
+            &GOOD.replace("thing", "outside"),
+            b"p",
+            0o755,
+        );
         approve_copy(&outside).unwrap();
         let name = Refusal("That is not the name of a plugin");
         assert_eq!(manager.set_disabled("../outside", true).unwrap_err(), name);
-        assert!(!outside.join(crate::plugin_folder::DISABLED_MARKER).exists(), "a switch was written outside the store");
+        assert!(
+            !outside.join(crate::plugin_folder::DISABLED_MARKER).exists(),
+            "a switch was written outside the store"
+        );
         assert_eq!(manager.retire("../outside").unwrap_err(), name);
         assert!(outside.is_dir(), "a folder outside the store was moved");
         // `restore` takes what is retired too: a folder named like one that was set aside, but of another plugin's name.
         let retired = manager.store().join(".retired-outside-1");
         fs::rename(&outside, &retired).unwrap();
         assert_eq!(manager.restore("../outside", &retired).unwrap_err(), name);
-        assert!(retired.is_dir() && !data.path().join("outside").exists(), "something was put outside the store");
+        assert!(
+            retired.is_dir() && !data.path().join("outside").exists(),
+            "something was put outside the store"
+        );
     }
 
     #[test]
@@ -2181,25 +2658,57 @@ mod tests {
         let manager = Manager::new(data.path());
         fs::create_dir_all(manager.store()).unwrap();
         fs::set_permissions(manager.store(), fs::Permissions::from_mode(0o700)).unwrap();
-        let outside = package(data.path(), "outside", &GOOD.replace("thing", "outside"), b"p", 0o755);
-        let digest = crate::plugin_approval::program_digest(&outside.join(PROGRAM_FILE), crate::plugin_folder::MAX_PROGRAM_BYTES).unwrap();
-        assert_eq!(manager.approve("../outside", &digest).unwrap_err(), Refusal("That is not the name of a plugin"));
-        assert!(!outside.join(crate::plugin_approval::FILE).exists(), "an approval was written outside the store");
+        let outside = package(
+            data.path(),
+            "outside",
+            &GOOD.replace("thing", "outside"),
+            b"p",
+            0o755,
+        );
+        let digest = crate::plugin_approval::program_digest(
+            &outside.join(PROGRAM_FILE),
+            crate::plugin_folder::MAX_PROGRAM_BYTES,
+        )
+        .unwrap();
+        assert_eq!(
+            manager.approve("../outside", &digest).unwrap_err(),
+            Refusal("That is not the name of a plugin")
+        );
+        assert!(
+            !outside.join(crate::plugin_approval::FILE).exists(),
+            "an approval was written outside the store"
+        );
     }
 
     #[test]
-    fn a_plugin_whose_program_was_replaced_is_held_back_as_changed_and_one_that_cannot_run_as_broken() {
+    fn a_plugin_whose_program_was_replaced_is_held_back_as_changed_and_one_that_cannot_run_as_broken()
+     {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "swapped", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "swapped", GOOD, b"x", 0o755))
+            .unwrap();
         let other = GOOD.replace("thing.service", "other.service");
-        manager.install(&package(parent.path(), "broken", &other, b"y", 0o755)).unwrap();
-        fs::write(manager.store().join("swapped").join(PROGRAM_FILE), b"a different program").unwrap();
-        fs::write(manager.store().join("broken").join(MANIFEST_FILE), b"not a manifest").unwrap();
+        manager
+            .install(&package(parent.path(), "broken", &other, b"y", 0o755))
+            .unwrap();
+        fs::write(
+            manager.store().join("swapped").join(PROGRAM_FILE),
+            b"a different program",
+        )
+        .unwrap();
+        fs::write(
+            manager.store().join("broken").join(MANIFEST_FILE),
+            b"not a manifest",
+        )
+        .unwrap();
         let loaded = manager.load();
         assert_eq!(loaded.registry.iter().count(), 0);
-        let held: Vec<(&str, peersus_core::model::Standing, bool)> =
-            loaded.held_back.iter().map(|h| (h.id.as_str(), h.standing, h.why.is_some())).collect();
+        let held: Vec<(&str, peersus_core::model::Standing, bool)> = loaded
+            .held_back
+            .iter()
+            .map(|h| (h.id.as_str(), h.standing, h.why.is_some()))
+            .collect();
         assert_eq!(
             held,
             [
@@ -2213,13 +2722,31 @@ mod tests {
     fn one_plugin_that_cannot_run_never_stops_another_and_the_order_is_by_name() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "zeta", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "zeta", GOOD, b"x", 0o755))
+            .unwrap();
         let other = GOOD.replace("thing.service", "other.service");
-        manager.install(&package(parent.path(), "alpha", &other, b"y", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "alpha", &other, b"y", 0o755))
+            .unwrap();
         fs::write(manager.store().join("alpha").join(MANIFEST_FILE), b"broken").unwrap();
         let loaded = manager.load();
-        assert_eq!(loaded.registry.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["zeta"]);
-        assert_eq!(loaded.held_back.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(), ["alpha"]);
+        assert_eq!(
+            loaded
+                .registry
+                .iter()
+                .map(|s| s.id.as_str())
+                .collect::<Vec<_>>(),
+            ["zeta"]
+        );
+        assert_eq!(
+            loaded
+                .held_back
+                .iter()
+                .map(|h| h.id.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha"]
+        );
     }
 
     #[test]
@@ -2228,16 +2755,35 @@ mod tests {
         // the store's own: not a plugin to run, not one that is held back, and not a problem to tell the person about.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
+            .unwrap();
         for hidden in [".install-thing-1", ".retired-thing-2"] {
-            let folder = package(manager.store(), hidden, &GOOD.replace("thing.service", "other.service"), b"y", 0o755);
+            let folder = package(
+                manager.store(),
+                hidden,
+                &GOOD.replace("thing.service", "other.service"),
+                b"y",
+                0o755,
+            );
             fs::set_permissions(&folder, fs::Permissions::from_mode(0o700)).unwrap();
         }
         let loaded = manager.load();
-        assert_eq!(loaded.registry.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(), ["thing"]);
+        assert_eq!(
+            loaded
+                .registry
+                .iter()
+                .map(|s| s.id.as_str())
+                .collect::<Vec<_>>(),
+            ["thing"]
+        );
         assert!(loaded.held_back.is_empty(), "{:?}", loaded.held_back);
         assert!(loaded.problems.is_empty(), "{:?}", loaded.problems);
-        assert_eq!(loaded.installed.as_ref().map(|set| set.len()), Some(1), "a hidden folder was counted as installed");
+        assert_eq!(
+            loaded.installed.as_ref().map(|set| set.len()),
+            Some(1),
+            "a hidden folder was counted as installed"
+        );
     }
 
     #[test]
@@ -2257,44 +2803,72 @@ mod tests {
         assert_eq!(ids, ["installed"], "a plugin nobody approved was loaded");
         // It is not invisible: it is held back, saying what it waits for.
         assert!(
-            loaded
-                .held_back
-                .iter()
-                .any(|h| h.id.as_str() == "byhand" && h.standing == peersus_core::model::Standing::NeedsApproval),
+            loaded.held_back.iter().any(|h| h.id.as_str() == "byhand"
+                && h.standing == peersus_core::model::Standing::NeedsApproval),
             "{:?}",
             loaded.held_back
         );
     }
 
     #[test]
-    fn what_stops_a_plugin_after_it_was_installed_is_its_program_its_right_to_run_or_a_guard_loosened_and_nothing_else() {
+    fn what_stops_a_plugin_after_it_was_installed_is_its_program_its_right_to_run_or_a_guard_loosened_and_nothing_else()
+     {
         // What the person approved is the program that runs and what each method of it is guarded by. Words that describe
         // it, and files added beside it, are not that: they can be rewritten by anyone and change nothing about what runs.
         use peersus_core::model::Standing;
         // (what was done, what it does to the plugin, whether it must still run)
         type Tampering = (&'static str, fn(&Path), Option<Standing>);
         let ways: [Tampering; 5] = [
-            ("description edited", |d| {
-                let text = fs::read_to_string(d.join(MANIFEST_FILE)).unwrap();
-                fs::set_permissions(d.join(MANIFEST_FILE), fs::Permissions::from_mode(0o600)).unwrap();
-                let changed = text.replace("Goes.", "Wins a billion.");
-                assert_ne!(changed, text, "the change changed nothing, so the test proves nothing");
-                fs::write(d.join(MANIFEST_FILE), changed).unwrap();
-            }, None),
-            ("guard removed", |d| {
-                let text = fs::read_to_string(d.join(MANIFEST_FILE)).unwrap();
-                fs::set_permissions(d.join(MANIFEST_FILE), fs::Permissions::from_mode(0o600)).unwrap();
-                let changed = text.replace("\"capability\": \"thing.use\", ", "");
-                assert_ne!(changed, text, "the change changed nothing, so the test proves nothing");
-                fs::write(d.join(MANIFEST_FILE), changed).unwrap();
-            }, Some(Standing::NeedsApproval)),
-            ("program replaced", |d| {
-                fs::write(d.join(PROGRAM_FILE), b"another program").unwrap();
-            }, Some(Standing::Changed)),
-            ("file added", |d| fs::write(d.join("extra"), b"x").unwrap(), None),
-            ("runnable bit dropped", |d| {
-                fs::set_permissions(d.join(PROGRAM_FILE), fs::Permissions::from_mode(0o600)).unwrap();
-            }, Some(Standing::Broken)),
+            (
+                "description edited",
+                |d| {
+                    let text = fs::read_to_string(d.join(MANIFEST_FILE)).unwrap();
+                    fs::set_permissions(d.join(MANIFEST_FILE), fs::Permissions::from_mode(0o600))
+                        .unwrap();
+                    let changed = text.replace("Goes.", "Wins a billion.");
+                    assert_ne!(
+                        changed, text,
+                        "the change changed nothing, so the test proves nothing"
+                    );
+                    fs::write(d.join(MANIFEST_FILE), changed).unwrap();
+                },
+                None,
+            ),
+            (
+                "guard removed",
+                |d| {
+                    let text = fs::read_to_string(d.join(MANIFEST_FILE)).unwrap();
+                    fs::set_permissions(d.join(MANIFEST_FILE), fs::Permissions::from_mode(0o600))
+                        .unwrap();
+                    let changed = text.replace("\"capability\": \"thing.use\", ", "");
+                    assert_ne!(
+                        changed, text,
+                        "the change changed nothing, so the test proves nothing"
+                    );
+                    fs::write(d.join(MANIFEST_FILE), changed).unwrap();
+                },
+                Some(Standing::NeedsApproval),
+            ),
+            (
+                "program replaced",
+                |d| {
+                    fs::write(d.join(PROGRAM_FILE), b"another program").unwrap();
+                },
+                Some(Standing::Changed),
+            ),
+            (
+                "file added",
+                |d| fs::write(d.join("extra"), b"x").unwrap(),
+                None,
+            ),
+            (
+                "runnable bit dropped",
+                |d| {
+                    fs::set_permissions(d.join(PROGRAM_FILE), fs::Permissions::from_mode(0o600))
+                        .unwrap();
+                },
+                Some(Standing::Broken),
+            ),
         ];
         for (name, change, stops) in ways {
             let (parent, data) = (tempfile::tempdir().unwrap(), data());
@@ -2303,16 +2877,27 @@ mod tests {
                 .install(&package(parent.path(), "thing", GOOD, b"first", 0o755))
                 .unwrap();
             let before = manager.load();
-            assert_eq!(before.registry.iter().count(), 1, "{name}: not loaded at first");
+            assert_eq!(
+                before.registry.iter().count(),
+                1,
+                "{name}: not loaded at first"
+            );
             change(&manager.store().join("thing"));
             let after = manager.load();
             match stops {
                 None => {
-                    assert_eq!(after.registry.iter().count(), 1, "{name}: stopped a plugin that nothing about it had changed");
+                    assert_eq!(
+                        after.registry.iter().count(),
+                        1,
+                        "{name}: stopped a plugin that nothing about it had changed"
+                    );
                     assert!(after.held_back.is_empty(), "{name}: {:?}", after.held_back);
                 }
                 Some(standing) => {
-                    assert!(after.registry.is_empty(), "{name}: a plugin that changed was still loaded");
+                    assert!(
+                        after.registry.is_empty(),
+                        "{name}: a plugin that changed was still loaded"
+                    );
                     let held: Vec<Standing> = after.held_back.iter().map(|h| h.standing).collect();
                     assert_eq!(held, [standing], "{name}: {:?}", after.held_back);
                 }
@@ -2353,8 +2938,19 @@ mod tests {
         fs::write(data.path().join("installed.json"), b"damaged").unwrap();
         let loaded = manager.load();
         let ran: Vec<&str> = loaded.registry.iter().map(|s| s.id.as_str()).collect();
-        assert_eq!(ran, ["thing"], "a damaged record stopped an approved plugin, or let an unapproved one run");
-        assert_eq!(loaded.held_back.iter().map(|h| h.id.as_str()).collect::<Vec<_>>(), ["byhand"]);
+        assert_eq!(
+            ran,
+            ["thing"],
+            "a damaged record stopped an approved plugin, or let an unapproved one run"
+        );
+        assert_eq!(
+            loaded
+                .held_back
+                .iter()
+                .map(|h| h.id.as_str())
+                .collect::<Vec<_>>(),
+            ["byhand"]
+        );
     }
 
     #[test]
@@ -2488,18 +3084,29 @@ mod tests {
         let mut standalone = consent(data.path(), "thing");
         // Control: the store can be listed, so who is installed IS known and this plugin is among them.
         let known = manager.load();
-        assert!(known.installed.as_ref().is_some_and(|set| set.iter().any(|id| id.as_str() == "thing")));
+        assert!(
+            known
+                .installed
+                .as_ref()
+                .is_some_and(|set| set.iter().any(|id| id.as_str() == "thing"))
+        );
         // The store cannot be read: nothing is known about anyone.
         fs::set_permissions(manager.store(), fs::Permissions::from_mode(0o000)).unwrap();
         let found = manager.load();
         fs::set_permissions(manager.store(), fs::Permissions::from_mode(0o700)).unwrap();
         assert!(found.installed.is_none(), "the test needs it to be unknown");
         forget_removed(&found, &mut no_devices(data.path()), &mut standalone).unwrap();
-        assert!(holds(&standalone, "thing"), "a permission was forgotten for a store that could not be listed");
+        assert!(
+            holds(&standalone, "thing"),
+            "a permission was forgotten for a store that could not be listed"
+        );
         // And a store that is not there at all is the same.
         let fresh = tempfile::tempdir().unwrap();
         let nothing = Manager::new(fresh.path()).load();
-        assert!(nothing.installed.is_none(), "an absent store was taken as knowing who is installed");
+        assert!(
+            nothing.installed.is_none(),
+            "an absent store was taken as knowing who is installed"
+        );
     }
 
     #[test]
@@ -2510,7 +3117,11 @@ mod tests {
         std::fs::create_dir(&package).unwrap();
         std::fs::write(package.join("plugin.json"), "{}").unwrap();
         std::fs::write(package.join("plugin"), "#!/bin/sh\nexit 0\n").unwrap();
-        std::fs::set_permissions(package.join("plugin"), std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(
+            package.join("plugin"),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
 
         let shown = package_digest(&package).expect("a package that can be read");
         // The same package gives the same digest, so a confirmation of what was shown passes.
@@ -2518,16 +3129,36 @@ mod tests {
 
         // Changing the program between the look and the confirmation changes it.
         std::fs::write(package.join("plugin"), "#!/bin/sh\nrm -rf ~\n").unwrap();
-        assert_ne!(package_digest(&package).unwrap(), shown, "a changed program went unnoticed");
+        assert_ne!(
+            package_digest(&package).unwrap(),
+            shown,
+            "a changed program went unnoticed"
+        );
         std::fs::write(package.join("plugin"), "#!/bin/sh\nexit 0\n").unwrap();
         assert_eq!(package_digest(&package).unwrap(), shown);
 
         // So does making a file runnable that was not, and adding a file.
-        std::fs::set_permissions(package.join("plugin"), std::fs::Permissions::from_mode(0o600)).unwrap();
-        assert_ne!(package_digest(&package).unwrap(), shown, "a change of runnability went unnoticed");
-        std::fs::set_permissions(package.join("plugin"), std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(
+            package.join("plugin"),
+            std::fs::Permissions::from_mode(0o600),
+        )
+        .unwrap();
+        assert_ne!(
+            package_digest(&package).unwrap(),
+            shown,
+            "a change of runnability went unnoticed"
+        );
+        std::fs::set_permissions(
+            package.join("plugin"),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
         std::fs::write(package.join("extra"), "x").unwrap();
-        assert_ne!(package_digest(&package).unwrap(), shown, "an added file went unnoticed");
+        assert_ne!(
+            package_digest(&package).unwrap(),
+            shown,
+            "an added file went unnoticed"
+        );
     }
 
     #[test]
@@ -2536,7 +3167,10 @@ mod tests {
         // Changed between the look and the confirmation: refused.
         assert!(!still_what_was_shown("abc", Ok("abd".into())));
         // Unreadable now: refused too, a package that cannot be read is not what was shown.
-        assert!(!still_what_was_shown("abc", Err(Refusal("The package could not be read"))));
+        assert!(!still_what_was_shown(
+            "abc",
+            Err(Refusal("The package could not be read"))
+        ));
         // An empty digest on either side is never a match.
         assert!(!still_what_was_shown("", Ok(String::new())));
     }
@@ -2547,8 +3181,14 @@ mod tests {
         // and whether or not it is valid, a plugin that was installed now loads and is listed exactly as without it.
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"x", 0o755)).unwrap();
-        for old in [&br#"[{"id":"thing","digest":"abc"}]"#[..], b"[]", b"not json {{{"] {
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
+            .unwrap();
+        for old in [
+            &br#"[{"id":"thing","digest":"abc"}]"#[..],
+            b"[]",
+            b"not json {{{",
+        ] {
             fs::write(data.path().join("installed.json"), old).unwrap();
             let found = Manager::new(data.path()).load();
             assert!(found.problems.is_empty(), "{:?}", found.problems);
@@ -2556,27 +3196,57 @@ mod tests {
             assert_eq!(ids(&manager.list().unwrap()), [("thing", Standing::Ready)]);
         }
         // And it is never written: what is in it is left exactly as the person has it.
-        manager.install(&package(parent.path(), "other", &GOOD.replace("thing.service", "other.service"), b"x", 0o755)).unwrap();
-        assert_eq!(fs::read(data.path().join("installed.json")).unwrap(), b"not json {{{");
+        manager
+            .install(&package(
+                parent.path(),
+                "other",
+                &GOOD.replace("thing.service", "other.service"),
+                b"x",
+                0o755,
+            ))
+            .unwrap();
+        assert_eq!(
+            fs::read(data.path().join("installed.json")).unwrap(),
+            b"not json {{{"
+        );
     }
 
     #[test]
     fn a_plugin_that_was_disabled_stays_installed_but_is_not_started_after_a_restart() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"x", 0o755))
+            .unwrap();
         let different = GOOD.replace("thing.service", "other.service");
-        manager.install(&package(parent.path(), "other", &different, b"x", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "other", &different, b"x", 0o755))
+            .unwrap();
 
-        manager.set_disabled("thing", true).expect("it is installed");
+        manager
+            .set_disabled("thing", true)
+            .expect("it is installed");
         // A fresh manager over the same directory is what a restart is.
         let found = Manager::new(data.path()).load();
         let installed = found.installed.expect("the record was read");
         let name = |s: &str| peersus_core::plugins::PluginId::new(s).unwrap();
-        assert!(installed.contains(&name("thing")), "a disabled plugin stopped being installed");
-        assert!(found.registry.find(&name("thing")).is_some(), "a disabled plugin stopped being listed");
-        assert!(found.registry.find(&name("other")).is_some(), "the other plugin was not loaded");
-        assert_eq!(found.disabled, [name("thing")].into(), "the disabled plugin was not reported");
+        assert!(
+            installed.contains(&name("thing")),
+            "a disabled plugin stopped being installed"
+        );
+        assert!(
+            found.registry.find(&name("thing")).is_some(),
+            "a disabled plugin stopped being listed"
+        );
+        assert!(
+            found.registry.find(&name("other")).is_some(),
+            "the other plugin was not loaded"
+        );
+        assert_eq!(
+            found.disabled,
+            [name("thing")].into(),
+            "the disabled plugin was not reported"
+        );
 
         // Enabling it makes it start again at the next start, and nothing else changed.
         manager.set_disabled("thing", false).unwrap();
@@ -2591,28 +3261,44 @@ mod tests {
     fn a_retired_package_can_be_put_back_exactly_as_it_was_or_dropped_for_good() {
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
-        manager.install(&package(parent.path(), "thing", GOOD, b"first", 0o755)).unwrap();
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"first", 0o755))
+            .unwrap();
         manager.set_disabled("thing", true).unwrap();
         let before = destination_digest(&manager.store().join("thing")).unwrap();
 
         let retired = manager.retire("thing").expect("it was installed");
         // Out of use: not installed, no files at its name, and not loadable.
-        assert!(manager.list().unwrap().is_empty(), "a retired package is still listed");
+        assert!(
+            manager.list().unwrap().is_empty(),
+            "a retired package is still listed"
+        );
         assert!(!manager.store().join("thing").exists());
         assert!(retired.exists(), "what was retired is not kept");
 
         // Put back: the same files, the same record, and still switched off as it was.
-        manager.restore("thing", &retired).expect("it can be put back");
-        assert_eq!(destination_digest(&manager.store().join("thing")).unwrap(), before);
+        manager
+            .restore("thing", &retired)
+            .expect("it can be put back");
+        assert_eq!(
+            destination_digest(&manager.store().join("thing")).unwrap(),
+            before
+        );
         assert_eq!(manager.list().unwrap().len(), 1);
         let again = Manager::new(data.path()).load();
-        assert!(again.disabled.contains(&peersus_core::plugins::PluginId::new("thing").unwrap()));
+        assert!(
+            again
+                .disabled
+                .contains(&peersus_core::plugins::PluginId::new("thing").unwrap())
+        );
 
         // Retiring and then dropping for good leaves nothing, and a new package may take the name.
         let retired = manager.retire("thing").unwrap();
         manager.drop_retired(&retired);
         assert!(!retired.exists(), "what was dropped is still there");
-        manager.install(&package(parent.path(), "thing", GOOD, b"second", 0o755)).expect("the name is free");
+        manager
+            .install(&package(parent.path(), "thing", GOOD, b"second", 0o755))
+            .expect("the name is free");
         // A plugin that is not installed cannot be retired, and nothing is touched.
         assert!(manager.retire("nothing").is_err());
     }
@@ -2620,14 +3306,28 @@ mod tests {
     #[test]
     fn incompatible_platform_is_neither_installed_nor_run_and_existing_folder_remains_visible() {
         use peersus_plugin_api::platform::OperatingSystem;
-        let Some(current) = OperatingSystem::current() else { return };
-        let other = OperatingSystem::ALL.into_iter().find(|os| *os != current).unwrap();
+        let Some(current) = OperatingSystem::current() else {
+            return;
+        };
+        let other = OperatingSystem::ALL
+            .into_iter()
+            .find(|os| *os != current)
+            .unwrap();
         let (parent, data) = (tempfile::tempdir().unwrap(), data());
         let manager = Manager::new(data.path());
         let mut manifest: serde_json::Value = serde_json::from_str(GOOD).unwrap();
         manifest["platforms"] = serde_json::json!([other]);
-        let source = package(parent.path(), "foreign", &manifest.to_string(), b"plugin", 0o755);
-        assert_eq!(manager.install(&source), Err(Refusal("It does not support this operating system")));
+        let source = package(
+            parent.path(),
+            "foreign",
+            &manifest.to_string(),
+            b"plugin",
+            0o755,
+        );
+        assert_eq!(
+            manager.install(&source),
+            Err(Refusal("It does not support this operating system"))
+        );
         assert!(manager.load().registry.is_empty());
         manifest["platforms"] = serde_json::json!([current]);
         fs::write(source.join("plugin.json"), manifest.to_string()).unwrap();
@@ -2635,12 +3335,19 @@ mod tests {
         assert_eq!(manager.load().registry.len(), 1);
         // A declaration changed on disk cannot make the plugin disappear or run on an unsupported OS.
         manifest["platforms"] = serde_json::json!([other]);
-        fs::write(manager.store().join("foreign/plugin.json"), manifest.to_string()).unwrap();
+        fs::write(
+            manager.store().join("foreign/plugin.json"),
+            manifest.to_string(),
+        )
+        .unwrap();
         let loaded = manager.load();
         assert!(loaded.registry.is_empty());
         assert_eq!(loaded.held_back.len(), 1);
         assert_eq!(loaded.held_back[0].id.as_str(), "foreign");
-        assert_eq!(loaded.held_back[0].why, Some("It does not support this operating system"));
+        assert_eq!(
+            loaded.held_back[0].why,
+            Some("It does not support this operating system")
+        );
         assert_eq!(manager.list().unwrap().len(), 1);
     }
 }

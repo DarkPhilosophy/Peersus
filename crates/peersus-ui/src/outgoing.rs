@@ -26,9 +26,19 @@ pub fn safe_name(given: &str) -> String {
     let last = given.rsplit(['/', '\\']).next().unwrap_or("");
     let cleaned: String = last
         .chars()
-        .map(|c| if c.is_control() || matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') { '_' } else { c })
+        .map(|c| {
+            if c.is_control() || matches!(c, ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+                '_'
+            } else {
+                c
+            }
+        })
         .collect();
-    let trimmed = cleaned.trim().trim_start_matches('.').trim_end_matches('.').trim();
+    let trimmed = cleaned
+        .trim()
+        .trim_start_matches('.')
+        .trim_end_matches('.')
+        .trim();
     if trimmed.is_empty() {
         return UNNAMED.to_owned();
     }
@@ -49,16 +59,29 @@ mod tests {
 
     #[test]
     fn a_name_keeps_no_path_whatever_the_other_application_sent() {
-        for hostile in ["../../x", "../x", "/etc/passwd", "a/b/c.txt", r"C:\Windows\system32\x.dll", "..\\..\\x", "x/.."] {
+        for hostile in [
+            "../../x",
+            "../x",
+            "/etc/passwd",
+            "a/b/c.txt",
+            r"C:\Windows\system32\x.dll",
+            "..\\..\\x",
+            "x/..",
+        ] {
             let name = safe_name(hostile);
-            assert!(!name.contains('/') && !name.contains('\\'), "{hostile:?} became {name:?}, which has a separator");
+            assert!(
+                !name.contains('/') && !name.contains('\\'),
+                "{hostile:?} became {name:?}, which has a separator"
+            );
             assert!(name != ".." && name != ".", "{hostile:?} became {name:?}");
         }
     }
 
     #[test]
     fn a_name_that_is_nothing_or_only_dots_is_given_a_plain_one() {
-        for nothing in ["", " ", "   ", ".", "..", "...", " . ", "/", "\\", "//", "a/", "../.."] {
+        for nothing in [
+            "", " ", "   ", ".", "..", "...", " . ", "/", "\\", "//", "a/", "../..",
+        ] {
             assert_eq!(safe_name(nothing), UNNAMED, "{nothing:?}");
         }
     }

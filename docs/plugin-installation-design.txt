@@ -1,8 +1,12 @@
 PLUGIN INSTALLATION: WHY IT BLOCKS ITSELF, AND A DESIGN WITHOUT IT
 ===================================================================
 
-STATUS: a proposal for the owner of the project to judge. NO code is changed by this file.
-Every statement under "FACTS" was read from the code or measured on this machine today.
+STATUS: historical installation proposal and subsequent execution-format design notes.
+The FACTS, measured observations and undecided items below describe the earlier implementation,
+not the current API or platform support. They are retained for design context, not as build instructions.
+For the current contract, read docs/architecture.md, docs/api/manifests.md,
+docs/api/module-abi.md and docs/extension-store.md. release-readiness.md records historical test evidence;
+it is not proof that the current checkout has passed those tests.
 
 
 FACTS

@@ -15,6 +15,32 @@ Rust workspace (edition 2024, MSRV 1.96). Dependencies are declared once in the 
 | `crates/peersus-plugin-android` | Isolated WASM worker JNI descriptor adapter. Links the bounded interpreter only; no UI, application identity, network stack or external-native loader. Narrow audited FFI only. |
 | `plugins/` | Bundled plugin adapters (clipboard first). Depend on `peersus-plugin-api` only. |
 
+## Development builds and artifact layout
+
+- Project stage: **private, unpublished development prerelease**. Cargo `debug`/`release` profiles are compilation choices, not permission to publish, tag or change the project version.
+- Preferred entry point: `./dev.sh`. It delegates to `cargo xtask`; do not maintain a second set of ad-hoc build commands.
+- `./dev.sh desktop` builds the desktop programs, bundled extensions and native helper in the Cargo **dev** profile (`debug/`).
+- `./dev.sh android` builds community native libraries for both declared Android ABIs, then packages a **debuggable community APK** with Gradle's existing local debug signer. The Rust Android libraries remain optimized (`release`); a debug APK does not imply unoptimized Rust.
+- `./dev.sh desktop --container NAME` or `./dev.sh android --container NAME` uses an existing Distrobox for compilation. Android APK packaging/debug signing stays on the host, avoiding an unrelated container debug certificate.
+- `./dev.sh deploy nx rog` explicitly updates only those selected physical phones. It builds nothing, deduplicates multiple ADB transports, checks every installed signer before any installation, uses replace-install and verifies the installed APK byte-for-byte. It never uninstalls or clears application data; a signer mismatch is a refusal, not a reason to erase data.
+- `./build.sh desktop` selects optimized desktop release artifacts; `./build.sh android` prepares both unsigned Android release flavors and bundles. Build commands never deploy.
+- `./check.sh` runs the existing strict verification gate. Individual existing gates remain available as arguments.
+
+Canonical helper layout is owned by `scripts/build_layout.py`, not hand-written OS aliases. Desktop helpers set the native `CARGO_BUILD_TARGET`; Cargo itself creates the standard target-triple directory:
+
+```text
+target/ui/<rust-target-triple>/debug/                  desktop development programs and helpers
+target/ui/<rust-target-triple>/release/                optimized desktop programs and helpers
+target/android/<android-rust-target-triple>/release/  optimized Android Rust artifacts
+target/android/jniLibs/<flavor>/<android-abi>/         Gradle native-library staging inputs
+target/android/gradle/                               Gradle caches, intermediates and raw outputs
+target/distribution/android/community/debug/          installable development APK
+```
+
+The development APK is `target/distribution/android/community/debug/app-community-debug.apk`. `CARGO_TARGET_DIR` and an explicit `CARGO_BUILD_TARGET` remain overrides; consumers must use the same environment and resolver. Bare Cargo retains its normal native `target/<profile>/` convention unless those variables are set. Never silently select an older flat-directory artifact when a triple-specific artifact is missing. Changing the default layout does not migrate, delete or overwrite old caches. Windows/macOS triples describe layout; their appearance here does not claim new cross-compilation or packaging support.
+
+See `docs/development.md` for prerequisites, detailed commands and the distinction between artifacts, staging and published releases.
+
 ## Plugin agnosticism rules
 
 - The core and the UI never name a plugin. A plugin is identified by an id assigned by the host, never by a manifest field.
@@ -34,7 +60,7 @@ Both users independently choose the same one of three number circles; a differen
 - Mobile has its own layout (safe-area insets, navigation placement); the desktop layout is not shrunk onto a phone.
 - `unsafe` is allowed only in the two Android platform crates above, for their entry symbols and descriptor/JNI ownership transfers. Every `unsafe` block carries a `// SAFETY:` comment naming the invariant. Every other Rust crate keeps `unsafe_code = "forbid"`.
 - A web view is allowed only for content that really is web content (published API and wiki pages), never as the base of the interface.
-- Skia (Freya's renderer) is **built from source** (`FORCE_SKIA_BUILD=1`), not taken as the prebuilt binary archive the bindings download, because the bindings do not verify what they download. Source is still fetched over the network at a pinned tag (the bindings' `[package.metadata] skia`) from the bindings' own fork (`github.com/marc2332/rust-skia`), so what changes is that we trust reviewable source and not an opaque archive; the fork stays a trust decision. Proven on the development host (Bazzite, immutable): a source build linked and the resulting binary resolves every shared library on the host. It needs `freya-skia-safe` with feature `embed-freetype` and the C and graphics development headers, which the immutable host lacks, so the build runs in the `peersus-ui-build` distrobox (Fedora 44; `dnf` packages: `fontconfig-devel freetype-devel mesa-libEGL-devel mesa-libGL-devel libxkbcommon-devel wayland-devel libX11-devel libxcb-devel clang gcc gcc-c++ python3 ninja-build git cmake pkgconf-pkg-config lld`): `distrobox enter peersus-ui-build -- env FORCE_SKIA_BUILD=1 CARGO_TARGET_DIR=<dir on disk> cargo build`. The first build takes about seven minutes. Do not set `LIBRARY_PATH` or symlink host libraries inside the container. A local mirror of exported binaries, if one is ever used to save time, lives outside the repository with its sha256 recorded and is selected with `SKIA_BINARIES_URL=file://...`.
+- Skia (Freya's renderer) is **built from source** (`FORCE_SKIA_BUILD=1`), not taken from the unverified prebuilt archive. The bindings fetch their pinned source revision from their fork; this remains a source trust decision. Linux rendering requires C/C++ and graphics development headers; on an immutable host, use the existing build container through `./dev.sh ... --container NAME`. Keep `embed-freetype` enabled. Do not substitute host libraries into the container or bypass the source-build setting to make a build pass.
 - Build UI targets on disk, not on a RAM-backed `/tmp`: set `CARGO_TARGET_DIR` to a directory on disk.
 - A web, desktop or Android build counts as working only after a person has seen it run. A process that starts is not an acceptance.
 

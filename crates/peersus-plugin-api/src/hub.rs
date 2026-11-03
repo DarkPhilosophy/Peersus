@@ -341,7 +341,9 @@ impl Channel {
     /// Unlike registration this preserves its channel, admitted calls and unchanged
     /// subscriptions. No wire operation exposes this to an extension.
     pub fn update_host_manifest(&self, manifest: Manifest) -> Result<()> {
-        if self.identity.owner != HOST { return Err(Error::Denied); }
+        if self.identity.owner != HOST {
+            return Err(Error::Denied);
+        }
         manifest.validate()?;
         let mut state = lock(&self.hub);
         if !state.live(&self.identity) || !state.endpoints.contains_key(&self.identity) {
@@ -350,7 +352,11 @@ impl Channel {
         if let Some(grants) = state.permissions.get_mut(HOST) {
             grants.retain(|grant| Hub::may_import(&manifest, &grant.owner));
         }
-        state.owners.get_mut(HOST).ok_or(Error::UnknownProvider)?.manifest = manifest;
+        state
+            .owners
+            .get_mut(HOST)
+            .ok_or(Error::UnknownProvider)?
+            .manifest = manifest;
         state.drop_unpermitted_subscriptions();
         Ok(())
     }
@@ -585,11 +591,22 @@ impl State {
                 let timeout = Duration::from_millis(u64::from(timeout_ms));
                 // Long waits exist only for a real host invoking an explicitly declared
                 // user action. Plugins cannot extend their own broker-call lifetime.
-                let declared_action = caller.owner == HOST && self.owners.get(&provider).is_some_and(|provider|
-                    provider.manifest.exports.iter().any(|export| export.service == service && export.version == version)
-                    && provider.manifest.contributions.actions.iter().any(|action|
-                        action.target.service == service && action.target.method == method
-                        && timeout_ms <= action.timeout_ms));
+                let declared_action =
+                    caller.owner == HOST
+                        && self.owners.get(&provider).is_some_and(|provider| {
+                            provider.manifest.exports.iter().any(|export| {
+                                export.service == service && export.version == version
+                            }) && provider
+                                .manifest
+                                .contributions
+                                .actions
+                                .iter()
+                                .any(|action| {
+                                    action.target.service == service
+                                        && action.target.method == method
+                                        && timeout_ms <= action.timeout_ms
+                                })
+                        });
                 if id == 0 || timeout.is_zero() || (timeout > MAX_TIMEOUT && !declared_action) {
                     return Err(Error::Timeout);
                 }

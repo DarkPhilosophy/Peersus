@@ -293,7 +293,10 @@ fn a_directory_put_in_the_store_by_hand_is_listed_by_what_it_is_and_never_as_ins
     // The state words of a plugin that really is installed (and switched off), which neither of these may have.
     for line in listed.lines() {
         let state = line.split_once("  ").map_or("", |(_, state)| state);
-        assert!(state != "installed" && !state.starts_with("installed,"), "a folder nobody installed was listed as installed: {line}");
+        assert!(
+            state != "installed" && !state.starts_with("installed,"),
+            "a folder nobody installed was listed as installed: {line}"
+        );
     }
 }
 
@@ -369,8 +372,16 @@ fn only_a_plugin_that_was_installed_and_is_unchanged_is_started() {
     // A plugin that is blocked is never missing from the list (it can be approved or removed from the window), so
     // what this proves is WHICH ones may run: by what each says of its standing, and that a blocked one has no process.
     let state = |id: &str| {
-        let found = listed.as_array().unwrap().iter().find(|p| p["id"] == id).unwrap_or_else(|| panic!("{id} is not listed: {listed}"));
-        (found["standing"].as_str().unwrap().to_owned(), found["status"].as_str().unwrap().to_owned())
+        let found = listed
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["id"] == id)
+            .unwrap_or_else(|| panic!("{id} is not listed: {listed}"));
+        (
+            found["standing"].as_str().unwrap().to_owned(),
+            found["status"].as_str().unwrap().to_owned(),
+        )
     };
     // The person is still told, in fixed words, which blocked plugin is blocked and why: by the list command.
     let described = run(data.path(), &["plugin-list"]);
@@ -379,16 +390,41 @@ fn only_a_plugin_that_was_installed_and_is_unchanged_is_started() {
     let stop = run(data.path(), &["stop"]);
     assert!(stop.status.success());
     let (_status, stderr) = owner.ended_with_output();
-    assert_eq!(listed.as_array().unwrap().len(), 3, "every plugin in the store is listed: {listed}");
-    assert_eq!(state("quiet").0, "ready", "what was installed and is unchanged may run");
+    assert_eq!(
+        listed.as_array().unwrap().len(),
+        3,
+        "every plugin in the store is listed: {listed}"
+    );
+    assert_eq!(
+        state("quiet").0,
+        "ready",
+        "what was installed and is unchanged may run"
+    );
     assert_ne!(state("quiet").1, "stopped", "and it was started: {listed}");
-    assert_eq!(state("byhand"), ("needs-approval".to_owned(), "stopped".to_owned()), "nobody installed it");
-    assert_eq!(state("swapped"), ("changed".to_owned(), "stopped".to_owned()), "it is not what was installed");
-    assert!(described.contains("byhand  NOT APPROVED: put there by hand, not installed"), "{described}");
-    assert!(described.contains("swapped  CHANGED since it was approved"), "{described}");
+    assert_eq!(
+        state("byhand"),
+        ("needs-approval".to_owned(), "stopped".to_owned()),
+        "nobody installed it"
+    );
+    assert_eq!(
+        state("swapped"),
+        ("changed".to_owned(), "stopped".to_owned()),
+        "it is not what was installed"
+    );
+    assert!(
+        described.contains("byhand  NOT APPROVED: put there by hand, not installed"),
+        "{described}"
+    );
+    assert!(
+        described.contains("swapped  CHANGED since it was approved"),
+        "{described}"
+    );
     // A blocked plugin is a state to show and no longer a start-up problem, so the owner has nothing to say about
     // it on its error output: and in particular nothing the plugin wrote.
-    assert!(!stderr.contains("sleep"), "text from a plugin reached the owner's output: {stderr}");
+    assert!(
+        !stderr.contains("sleep"),
+        "text from a plugin reached the owner's output: {stderr}"
+    );
 }
 
 /// The production default, through the REAL program: this build carries no maintainer key, so the extension store
@@ -404,12 +440,17 @@ fn a_build_without_a_maintainer_key_reports_the_store_as_not_set_up_and_refuses_
     let state: serde_json::Value = serde_json::from_slice(&shown.stdout).unwrap();
     assert_eq!(state["status"], "not-configured", "{state}");
     assert_eq!(state["listings"], serde_json::json!([]));
-    for arguments in [&["store-refresh"][..], &["store-install", "echo"], &["store-install", "../etc"]] {
+    for arguments in [
+        &["store-refresh"][..],
+        &["store-install", "echo"],
+        &["store-install", "../etc"],
+    ] {
         let refused = run(data.path(), arguments);
         assert!(!refused.status.success(), "{arguments:?} must be refused");
     }
     // Refusing is not a failure state that invites a retry: it still reads as not set up.
-    let again: serde_json::Value = serde_json::from_slice(&run(data.path(), &["store"]).stdout).unwrap();
+    let again: serde_json::Value =
+        serde_json::from_slice(&run(data.path(), &["store"]).stdout).unwrap();
     assert_eq!(again["status"], "not-configured");
     let stop = run(data.path(), &["stop"]);
     assert!(stop.status.success());

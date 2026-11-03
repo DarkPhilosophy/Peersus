@@ -24,13 +24,18 @@ async fn start_with(path: &Path, plugins: Registry) -> (Client, tokio::task::Joi
     start_waiting(path, plugins, Settings::default().offer_timeout_seconds).await
 }
 /// A runtime that starts from a SAVED wait for an answer to an offer: the path every start takes.
-async fn start_waiting(path: &Path, plugins: Registry, offer_timeout_seconds: u32) -> (Client, tokio::task::JoinHandle<()>) {
+async fn start_waiting(
+    path: &Path,
+    plugins: Registry,
+    offer_timeout_seconds: u32,
+) -> (Client, tokio::task::JoinHandle<()>) {
     std::fs::create_dir_all(path).unwrap();
     let mut store = SettingsStore::open(path.join("preferences.json")).unwrap();
     let settings = Settings {
         network: NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         },
         offer_timeout_seconds,
         ..Settings::default()
@@ -133,40 +138,90 @@ async fn selected_batches_wait_for_stream_capacity_and_queued_cancellation_never
     let peer = pair(&sender, &receiver).await;
     let destination = directory.path().join("received");
     std::fs::create_dir(&destination).unwrap();
-    let paths: Vec<_> = (0..32).map(|index| {
-        let path = directory.path().join(format!("selected-{index:02}.bin"));
-        std::fs::write(&path, vec![index as u8; index + 1]).unwrap();
-        path
-    }).collect();
+    let paths: Vec<_> = (0..32)
+        .map(|index| {
+            let path = directory.path().join(format!("selected-{index:02}.bin"));
+            std::fs::write(&path, vec![index as u8; index + 1]).unwrap();
+            path
+        })
+        .collect();
     for batch in paths.chunks(16) {
-        sender.command(Command::SendFiles { peer: peer.clone(), paths: batch.to_vec() })
-            .await.expect("a selected batch must wait instead of being rejected when streams are busy");
+        sender
+            .command(Command::SendFiles {
+                peer: peer.clone(),
+                paths: batch.to_vec(),
+            })
+            .await
+            .expect("a selected batch must wait instead of being rejected when streams are busy");
     }
     let queued = until(&sender, |snapshot| snapshot.transfers.len() == 32).await;
-    assert_eq!(queued.transfers.iter().filter(|transfer| transfer.expires_at.is_none()).count(), 16,
-        "queued files must not spend their offer timeout before a stream is available");
-    let cancelled = queued.transfers.iter().find(|transfer| transfer.name == "selected-31.bin").unwrap();
-    sender.command(Command::CancelTransfer { transfer: cancelled.id.clone() }).await.unwrap();
+    assert_eq!(
+        queued
+            .transfers
+            .iter()
+            .filter(|transfer| transfer.expires_at.is_none())
+            .count(),
+        16,
+        "queued files must not spend their offer timeout before a stream is available"
+    );
+    let cancelled = queued
+        .transfers
+        .iter()
+        .find(|transfer| transfer.name == "selected-31.bin")
+        .unwrap();
+    sender
+        .command(Command::CancelTransfer {
+            transfer: cancelled.id.clone(),
+        })
+        .await
+        .unwrap();
     let initially_offered = until(&receiver, |snapshot| snapshot.transfers.len() == 16).await;
-    assert!(initially_offered.transfers.iter().all(|transfer| transfer.name != "selected-31.bin"));
+    assert!(
+        initially_offered
+            .transfers
+            .iter()
+            .all(|transfer| transfer.name != "selected-31.bin")
+    );
     let mut accepted = std::collections::BTreeSet::new();
     while accepted.len() < 31 {
-        let available = until(&receiver, |snapshot| snapshot.transfers.iter().any(|transfer|
-            transfer.state == TransferState::Offered && !accepted.contains(&transfer.id))).await;
+        let available = until(&receiver, |snapshot| {
+            snapshot.transfers.iter().any(|transfer| {
+                transfer.state == TransferState::Offered && !accepted.contains(&transfer.id)
+            })
+        })
+        .await;
         for transfer in &available.transfers {
-            assert_ne!(transfer.name, "selected-31.bin", "a cancelled queued file reached the receiver");
+            assert_ne!(
+                transfer.name, "selected-31.bin",
+                "a cancelled queued file reached the receiver"
+            );
             if transfer.state == TransferState::Offered && accepted.insert(transfer.id.clone()) {
-                receiver.command(Command::AcceptTransfer {
-                    transfer: transfer.id.clone(), directory: destination.clone(),
-                }).await.unwrap();
+                receiver
+                    .command(Command::AcceptTransfer {
+                        transfer: transfer.id.clone(),
+                        directory: destination.clone(),
+                    })
+                    .await
+                    .unwrap();
             }
         }
     }
     for client in [&sender, &receiver] {
-        until(client, |snapshot| snapshot.transfers.iter().filter(|transfer| transfer.state == TransferState::Complete).count() == 31).await;
+        until(client, |snapshot| {
+            snapshot
+                .transfers
+                .iter()
+                .filter(|transfer| transfer.state == TransferState::Complete)
+                .count()
+                == 31
+        })
+        .await;
     }
     for (index, path) in paths.iter().enumerate().take(31) {
-        assert_eq!(std::fs::read(destination.join(path.file_name().unwrap())).unwrap(), vec![index as u8; index + 1]);
+        assert_eq!(
+            std::fs::read(destination.join(path.file_name().unwrap())).unwrap(),
+            vec![index as u8; index + 1]
+        );
     }
     assert!(!destination.join("selected-31.bin").exists());
     stop([(&sender, sender_task), (&receiver, receiver_task)]).await;
@@ -223,7 +278,10 @@ async fn clients_pair_transfer_and_apply_cli_or_ui_preferences_through_one_owner
         bytes
     );
     // The record of the finished transfer says where the file is, on the receiving side only.
-    assert_eq!(b.snapshot().transfers[0].saved_as.as_deref(), Some(destination.join("payload.bin").as_path()));
+    assert_eq!(
+        b.snapshot().transfers[0].saved_as.as_deref(),
+        Some(destination.join("payload.bin").as_path())
+    );
     assert_eq!(a.snapshot().transfers[0].saved_as, None);
     cli().execute(&a).await.unwrap();
     assert_eq!(a.snapshot().settings, candidate);
@@ -266,7 +324,8 @@ async fn clients_pair_transfer_and_apply_cli_or_ui_preferences_through_one_owner
 }
 
 #[tokio::test]
-async fn scanning_a_files_code_delivers_the_files_with_no_pairing_and_no_peer_and_a_second_send_needs_a_new_scan() {
+async fn scanning_a_files_code_delivers_the_files_with_no_pairing_and_no_peer_and_a_second_send_needs_a_new_scan()
+ {
     let directory = tempfile::tempdir().unwrap();
     let (sender, task_sender) = start(&directory.path().join("sender")).await;
     let (receiver, task_receiver) = start(&directory.path().join("receiver")).await;
@@ -277,45 +336,94 @@ async fn scanning_a_files_code_delivers_the_files_with_no_pairing_and_no_peer_an
     std::fs::create_dir(&destination).unwrap();
 
     // The sender shows a code for the chosen file, and the receiver scans it with the one command a scan always is.
-    let Reply::FilesInvitation { code, generation, expires_at } =
-        sender.command(Command::CreateFilesInvitation { paths: vec![payload.clone()] }).await.unwrap()
+    let Reply::FilesInvitation {
+        code,
+        generation,
+        expires_at,
+    } = sender
+        .command(Command::CreateFilesInvitation {
+            paths: vec![payload.clone()],
+        })
+        .await
+        .unwrap()
     else {
         panic!("Expected a files code")
     };
     assert!(expires_at > 0);
     // On show and able to admit a device, for this generation: what a window draws the code from.
-    let shown = sender.snapshot().files_code.expect("the code made was not reported");
+    let shown = sender
+        .snapshot()
+        .files_code
+        .expect("the code made was not reported");
     assert_eq!((shown.generation, shown.live), (generation, true));
-    receiver.command(Command::JoinInvitation { invitation: code }).await.unwrap();
+    receiver
+        .command(Command::JoinInvitation { invitation: code })
+        .await
+        .unwrap();
     // Scanned: the same generation, no longer live, and the file that came of it carries that generation.
     let sent = until(&sender, |s| s.transfers.iter().any(|t| !t.incoming)).await;
-    assert_eq!(sent.transfers.iter().find(|t| !t.incoming).unwrap().code, Some(generation), "the file was not tagged with its code");
-    let spent = sender.snapshot().files_code.expect("the code went from the snapshot at the scan");
-    assert_eq!((spent.generation, spent.live), (generation, false), "a scanned code was still live");
+    assert_eq!(
+        sent.transfers.iter().find(|t| !t.incoming).unwrap().code,
+        Some(generation),
+        "the file was not tagged with its code"
+    );
+    let spent = sender
+        .snapshot()
+        .files_code
+        .expect("the code went from the snapshot at the scan");
+    assert_eq!(
+        (spent.generation, spent.live),
+        (generation, false),
+        "a scanned code was still live"
+    );
 
     // The file is OFFERED, to be accepted. Nothing was asked of anyone about pairing.
     let offered = until(&receiver, |s| !s.transfers.is_empty()).await;
-    assert!(sender.snapshot().pairing.is_empty() && receiver.snapshot().pairing.is_empty(), "a scan asked for a pairing");
+    assert!(
+        sender.snapshot().pairing.is_empty() && receiver.snapshot().pairing.is_empty(),
+        "a scan asked for a pairing"
+    );
     receiver
-        .command(Command::AcceptTransfer { transfer: offered.transfers[0].id.clone(), directory: destination.clone() })
+        .command(Command::AcceptTransfer {
+            transfer: offered.transfers[0].id.clone(),
+            directory: destination.clone(),
+        })
         .await
         .unwrap();
     // While the files are crossing, the connection that carries them is open, and that is not a device being online.
     for client in [&sender, &receiver] {
-        assert!(client.snapshot().peers.is_empty(), "a device was listed while only its files were crossing");
+        assert!(
+            client.snapshot().peers.is_empty(),
+            "a device was listed while only its files were crossing"
+        );
     }
     for client in [&sender, &receiver] {
-        until(client, |s| s.transfers.iter().all(|t| t.state == TransferState::Complete) && !s.transfers.is_empty()).await;
+        until(client, |s| {
+            s.transfers
+                .iter()
+                .all(|t| t.state == TransferState::Complete)
+                && !s.transfers.is_empty()
+        })
+        .await;
     }
-    assert_eq!(std::fs::read(destination.join("report.bin")).unwrap(), bytes);
+    assert_eq!(
+        std::fs::read(destination.join("report.bin")).unwrap(),
+        bytes
+    );
 
     // The trust was these files only: neither owner lists the other as a device. Said as presence too, since a device that
     // was never approved must not be seen coming and going: no entry at all, online or offline, at any moment.
-    assert!(sender.snapshot().peers.is_empty() && receiver.snapshot().peers.is_empty(), "a scan made a peer");
+    assert!(
+        sender.snapshot().peers.is_empty() && receiver.snapshot().peers.is_empty(),
+        "a scan made a peer"
+    );
     tokio::time::sleep(Duration::from_millis(600)).await;
     for client in [&sender, &receiver] {
         let snapshot = client.snapshot();
-        assert!(snapshot.peers.is_empty(), "a device that is only in the history was listed, with a presence");
+        assert!(
+            snapshot.peers.is_empty(),
+            "a device that is only in the history was listed, with a presence"
+        );
         assert!(snapshot.peers.iter().all(|peer| !peer.online));
     }
     // The record of the transfer stays, on both sides, as history.
@@ -323,8 +431,16 @@ async fn scanning_a_files_code_delivers_the_files_with_no_pairing_and_no_peer_an
     assert_eq!(receiver.snapshot().transfers.len(), 1);
     // And a NEW file cannot go to that device by itself: it is not paired, so it has to be scanned again.
     let other_device = receiver.snapshot().transfers[0].peer.clone();
-    let refused = sender.command(Command::SendFiles { peer: other_device, paths: vec![payload] }).await;
-    assert!(refused.is_err(), "a file was sent to a device that is only in the history");
+    let refused = sender
+        .command(Command::SendFiles {
+            peer: other_device,
+            paths: vec![payload],
+        })
+        .await;
+    assert!(
+        refused.is_err(),
+        "a file was sent to a device that is only in the history"
+    );
     stop([(&sender, task_sender), (&receiver, task_receiver)]).await;
 }
 
@@ -335,51 +451,99 @@ async fn sending_a_folder_preserves_nested_paths_and_empty_files_over_real_conne
     let (receiver, task_receiver) = start(&directory.path().join("receiver")).await;
     let peer = pair(&sender, &receiver).await;
     let folder = directory.path().join("pictures");
-    let files = [("a.txt", b"root".as_slice()), ("nested/deeper/b.txt", b"nested".as_slice()), ("nested/empty.txt", b"".as_slice())];
+    let files = [
+        ("a.txt", b"root".as_slice()),
+        ("nested/deeper/b.txt", b"nested".as_slice()),
+        ("nested/empty.txt", b"".as_slice()),
+    ];
     for (name, bytes) in files {
         let path = folder.join(name);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, bytes).unwrap();
     }
-    sender.command(Command::SendFolder { peer, root: folder }).await.unwrap();
-    let offered = until(&receiver, |snapshot| snapshot.transfers.len() == files.len()).await;
+    sender
+        .command(Command::SendFolder { peer, root: folder })
+        .await
+        .unwrap();
+    let offered = until(&receiver, |snapshot| {
+        snapshot.transfers.len() == files.len()
+    })
+    .await;
     let destination = directory.path().join("received");
     std::fs::create_dir(&destination).unwrap();
     for transfer in &offered.transfers {
-        receiver.command(Command::AcceptTransfer {
-            transfer: transfer.id.clone(),
-            directory: destination.clone(),
-        }).await.unwrap();
+        receiver
+            .command(Command::AcceptTransfer {
+                transfer: transfer.id.clone(),
+                directory: destination.clone(),
+            })
+            .await
+            .unwrap();
     }
     for client in [&sender, &receiver] {
-        until(client, |snapshot| snapshot.transfers.len() == files.len()
-            && snapshot.transfers.iter().all(|transfer| transfer.state == TransferState::Complete)).await;
+        until(client, |snapshot| {
+            snapshot.transfers.len() == files.len()
+                && snapshot
+                    .transfers
+                    .iter()
+                    .all(|transfer| transfer.state == TransferState::Complete)
+        })
+        .await;
     }
     for (name, bytes) in files {
-        assert_eq!(std::fs::read(destination.join("pictures").join(name)).unwrap(), bytes);
+        assert_eq!(
+            std::fs::read(destination.join("pictures").join(name)).unwrap(),
+            bytes
+        );
     }
     stop([(&sender, task_sender), (&receiver, task_receiver)]).await;
 }
 
 #[tokio::test]
-async fn the_saved_wait_decides_how_long_an_offer_waits_and_an_offer_nobody_answers_is_refused_on_its_own() {
+async fn the_saved_wait_decides_how_long_an_offer_waits_and_an_offer_nobody_answers_is_refused_on_its_own()
+ {
     let directory = tempfile::tempdir().unwrap();
     let (sender, task_sender) = start(&directory.path().join("sender")).await;
     // The receiver is the one with the person who must answer, and its saved wait is the shortest that can be chosen.
-    let (receiver, task_receiver) =
-        start_waiting(&directory.path().join("receiver"), Registry::default(), peersus_core::config::MIN_OFFER_TIMEOUT).await;
+    let (receiver, task_receiver) = start_waiting(
+        &directory.path().join("receiver"),
+        Registry::default(),
+        peersus_core::config::MIN_OFFER_TIMEOUT,
+    )
+    .await;
     let payload = directory.path().join("unanswered.bin");
     std::fs::write(&payload, vec![9; 10_000]).unwrap();
-    let Reply::FilesInvitation { code, .. } =
-        sender.command(Command::CreateFilesInvitation { paths: vec![payload] }).await.unwrap()
+    let Reply::FilesInvitation { code, .. } = sender
+        .command(Command::CreateFilesInvitation {
+            paths: vec![payload],
+        })
+        .await
+        .unwrap()
     else {
         panic!("Expected a files code")
     };
-    receiver.command(Command::JoinInvitation { invitation: code }).await.unwrap();
-    let offered = until(&receiver, |s| s.transfers.iter().any(|t| t.incoming && t.state == TransferState::Offered)).await;
+    receiver
+        .command(Command::JoinInvitation { invitation: code })
+        .await
+        .unwrap();
+    let offered = until(&receiver, |s| {
+        s.transfers
+            .iter()
+            .any(|t| t.incoming && t.state == TransferState::Offered)
+    })
+    .await;
     // While it waits, the owner says when it ends: this device's own wait from the moment it was offered, as data.
-    let clock = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
-    let ends = offered.transfers.iter().find(|t| t.incoming).unwrap().expires_at.expect("a waiting offer reported no deadline");
+    let clock = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let ends = offered
+        .transfers
+        .iter()
+        .find(|t| t.incoming)
+        .unwrap()
+        .expires_at
+        .expect("a waiting offer reported no deadline");
     let wait = u64::from(peersus_core::config::MIN_OFFER_TIMEOUT);
     assert!(
         (clock + wait - 1..=clock + wait + 1).contains(&ends),
@@ -390,7 +554,13 @@ async fn the_saved_wait_decides_how_long_an_offer_waits_and_an_offer_nobody_answ
     // here they differ, and the receiver's own wait is the shorter one. Aligning the two needs the receiver to say its deadline, a
     // protocol change that is not made here.
     let sent = until(&sender, |s| s.transfers.iter().any(|t| !t.incoming)).await;
-    let sender_ends = sent.transfers.iter().find(|t| !t.incoming).unwrap().expires_at.expect("the sending side reported no deadline");
+    let sender_ends = sent
+        .transfers
+        .iter()
+        .find(|t| !t.incoming)
+        .unwrap()
+        .expires_at
+        .expect("the sending side reported no deadline");
     let own = u64::from(peersus_core::config::DEFAULT_OFFER_TIMEOUT);
     assert!(
         (clock + own - 2..=clock + own + 2).contains(&sender_ends),
@@ -399,23 +569,57 @@ async fn the_saved_wait_decides_how_long_an_offer_waits_and_an_offer_nobody_answ
     let before = std::time::Instant::now();
     // Nobody answers. The offer ends by itself, on both sides, and by its own deadline: not at once, and not at two minutes.
     for client in [&receiver, &sender] {
-        until(client, |s| !s.transfers.is_empty() && s.transfers.iter().all(|t| t.state == TransferState::Cancelled)).await;
+        until(client, |s| {
+            !s.transfers.is_empty()
+                && s.transfers
+                    .iter()
+                    .all(|t| t.state == TransferState::Cancelled)
+        })
+        .await;
     }
     let waited = before.elapsed();
     assert!(
-        receiver.snapshot().transfers.iter().all(|t| t.expires_at.is_none()),
+        receiver
+            .snapshot()
+            .transfers
+            .iter()
+            .all(|t| t.expires_at.is_none()),
         "an offer that is over still reports a deadline"
     );
     assert!(
-        sender.snapshot().transfers.iter().all(|t| t.expires_at.is_none()),
+        sender
+            .snapshot()
+            .transfers
+            .iter()
+            .all(|t| t.expires_at.is_none()),
         "a send that is over still counts down on the sending side"
     );
-    assert!(offered.transfers.iter().all(|t| t.state == TransferState::Offered), "it was not waiting when it was shown");
-    assert!(waited >= Duration::from_secs(3), "the offer was refused after {waited:?}, long before its wait");
-    assert!(waited < Duration::from_secs(9), "the offer waited {waited:?}: the saved wait was not the one used");
+    assert!(
+        offered
+            .transfers
+            .iter()
+            .all(|t| t.state == TransferState::Offered),
+        "it was not waiting when it was shown"
+    );
+    assert!(
+        waited >= Duration::from_secs(3),
+        "the offer was refused after {waited:?}, long before its wait"
+    );
+    assert!(
+        waited < Duration::from_secs(9),
+        "the offer waited {waited:?}: the saved wait was not the one used"
+    );
     // An answer after the end is refused in words, and not silently.
     let id = receiver.snapshot().transfers[0].id.clone();
-    assert!(receiver.command(Command::AcceptTransfer { transfer: id, directory: directory.path().to_path_buf() }).await.is_err());
+    assert!(
+        receiver
+            .command(Command::AcceptTransfer {
+                transfer: id,
+                directory: directory.path().to_path_buf()
+            })
+            .await
+            .is_err()
+    );
     stop([(&sender, task_sender), (&receiver, task_receiver)]).await;
 }
 
@@ -427,30 +631,62 @@ async fn a_wait_changed_while_running_reaches_the_next_offer_with_no_restart() {
     let (receiver, task_receiver) = start(&directory.path().join("receiver")).await;
     assert_eq!(receiver.snapshot().settings.offer_timeout_seconds, 120);
     // The same patch the command line (`--offer-timeout`) and a window send.
-    let cli = Cli::try_parse_from(["peersus", "--offer-timeout", "5", "settings", "--save"]).unwrap();
+    let cli =
+        Cli::try_parse_from(["peersus", "--offer-timeout", "5", "settings", "--save"]).unwrap();
     cli.execute(&receiver).await.unwrap();
-    assert_eq!(receiver.snapshot().settings.offer_timeout_seconds, 5, "the change was not kept");
+    assert_eq!(
+        receiver.snapshot().settings.offer_timeout_seconds,
+        5,
+        "the change was not kept"
+    );
     let payload = directory.path().join("later.bin");
     std::fs::write(&payload, vec![3; 10_000]).unwrap();
-    let Reply::FilesInvitation { code, .. } =
-        sender.command(Command::CreateFilesInvitation { paths: vec![payload] }).await.unwrap()
+    let Reply::FilesInvitation { code, .. } = sender
+        .command(Command::CreateFilesInvitation {
+            paths: vec![payload],
+        })
+        .await
+        .unwrap()
     else {
         panic!("Expected a files code")
     };
-    receiver.command(Command::JoinInvitation { invitation: code }).await.unwrap();
-    until(&receiver, |s| s.transfers.iter().any(|t| t.incoming && t.state == TransferState::Offered)).await;
+    receiver
+        .command(Command::JoinInvitation { invitation: code })
+        .await
+        .unwrap();
+    until(&receiver, |s| {
+        s.transfers
+            .iter()
+            .any(|t| t.incoming && t.state == TransferState::Offered)
+    })
+    .await;
     let before = std::time::Instant::now();
-    until(&receiver, |s| s.transfers.iter().all(|t| t.state == TransferState::Cancelled)).await;
-    assert!(before.elapsed() < Duration::from_secs(9), "the offer kept the old wait of two minutes");
+    until(&receiver, |s| {
+        s.transfers
+            .iter()
+            .all(|t| t.state == TransferState::Cancelled)
+    })
+    .await;
+    assert!(
+        before.elapsed() < Duration::from_secs(9),
+        "the offer kept the old wait of two minutes"
+    );
     // Out of range is refused in words and changes nothing.
-    let refused = Cli::try_parse_from(["peersus", "--offer-timeout", "1", "settings", "--save"]).unwrap().execute(&receiver).await;
-    assert_eq!(refused.err(), Some(peersus_core::SettingsError::OfferTimeout.to_string()));
+    let refused = Cli::try_parse_from(["peersus", "--offer-timeout", "1", "settings", "--save"])
+        .unwrap()
+        .execute(&receiver)
+        .await;
+    assert_eq!(
+        refused.err(),
+        Some(peersus_core::SettingsError::OfferTimeout.to_string())
+    );
     assert_eq!(receiver.snapshot().settings.offer_timeout_seconds, 5);
     stop([(&sender, task_sender), (&receiver, task_receiver)]).await;
 }
 
 #[tokio::test]
-async fn clearing_the_history_forgets_finished_transfers_on_that_device_only_by_command_or_by_the_cli() {
+async fn clearing_the_history_forgets_finished_transfers_on_that_device_only_by_command_or_by_the_cli()
+ {
     let directory = tempfile::tempdir().unwrap();
     let (sender, task_sender) = start(&directory.path().join("sender")).await;
     let (receiver, task_receiver) = start(&directory.path().join("receiver")).await;
@@ -458,19 +694,35 @@ async fn clearing_the_history_forgets_finished_transfers_on_that_device_only_by_
     std::fs::write(&payload, vec![5; 20_000]).unwrap();
     let destination = directory.path().join("received");
     std::fs::create_dir(&destination).unwrap();
-    let Reply::FilesInvitation { code, .. } =
-        sender.command(Command::CreateFilesInvitation { paths: vec![payload.clone()] }).await.unwrap()
+    let Reply::FilesInvitation { code, .. } = sender
+        .command(Command::CreateFilesInvitation {
+            paths: vec![payload.clone()],
+        })
+        .await
+        .unwrap()
     else {
         panic!("Expected a files code")
     };
-    receiver.command(Command::JoinInvitation { invitation: code }).await.unwrap();
+    receiver
+        .command(Command::JoinInvitation { invitation: code })
+        .await
+        .unwrap();
     let offered = until(&receiver, |s| !s.transfers.is_empty()).await;
     receiver
-        .command(Command::AcceptTransfer { transfer: offered.transfers[0].id.clone(), directory: destination.clone() })
+        .command(Command::AcceptTransfer {
+            transfer: offered.transfers[0].id.clone(),
+            directory: destination.clone(),
+        })
         .await
         .unwrap();
     for client in [&sender, &receiver] {
-        until(client, |s| !s.transfers.is_empty() && s.transfers.iter().all(|t| t.state == TransferState::Complete)).await;
+        until(client, |s| {
+            !s.transfers.is_empty()
+                && s.transfers
+                    .iter()
+                    .all(|t| t.state == TransferState::Complete)
+        })
+        .await;
     }
 
     // The sender made a code and it was scanned: it is still reported, spent, until the history that came of it is forgotten.
@@ -480,15 +732,36 @@ async fn clearing_the_history_forgets_finished_transfers_on_that_device_only_by_
     );
     // The sender forgets what is over; the receiver's record is its own and is not touched.
     sender.command(Command::ClearHistory {}).await.unwrap();
-    assert!(sender.snapshot().transfers.is_empty(), "a finished transfer survived Clear");
-    assert_eq!(sender.snapshot().files_code, None, "a code that was spent was still on show after Clear, so the circle fell back to scanned");
-    assert_eq!(receiver.snapshot().transfers.len(), 1, "Clear on one device forgot the other's record");
+    assert!(
+        sender.snapshot().transfers.is_empty(),
+        "a finished transfer survived Clear"
+    );
+    assert_eq!(
+        sender.snapshot().files_code,
+        None,
+        "a code that was spent was still on show after Clear, so the circle fell back to scanned"
+    );
+    assert_eq!(
+        receiver.snapshot().transfers.len(),
+        1,
+        "Clear on one device forgot the other's record"
+    );
     // Only the record: the file that arrived is where it was put.
-    assert_eq!(std::fs::read(destination.join("note.bin")).unwrap().len(), 20_000);
+    assert_eq!(
+        std::fs::read(destination.join("note.bin")).unwrap().len(),
+        20_000
+    );
     // Nothing over is not an error, and the same command from the command line does what the command does.
     sender.command(Command::ClearHistory {}).await.unwrap();
-    Cli::try_parse_from(["peersus", "clear-history"]).unwrap().execute(&receiver).await.unwrap();
-    assert!(receiver.snapshot().transfers.is_empty(), "the command line's clear-history did not clear");
+    Cli::try_parse_from(["peersus", "clear-history"])
+        .unwrap()
+        .execute(&receiver)
+        .await
+        .unwrap();
+    assert!(
+        receiver.snapshot().transfers.is_empty(),
+        "the command line's clear-history did not clear"
+    );
     stop([(&sender, task_sender), (&receiver, task_receiver)]).await;
 }
 
@@ -519,7 +792,7 @@ async fn local_control_updates_the_running_owner_and_survives_malformed_clients(
     let peersus_app::cli::Output::Settings(saved) = output else {
         panic!("Expected saved preferences");
     };
-    assert_eq!(saved, settings);
+    assert_eq!(*saved, settings);
     assert_eq!(client.snapshot().settings, settings);
     assert_eq!(
         SettingsStore::open(directory.path().join("preferences.json"))
@@ -674,9 +947,23 @@ async fn an_ordinary_request_and_a_command_line_client_are_never_counted_as_a_wi
     for _ in 0..5 {
         ipc::snapshot(&socket).await.unwrap();
     }
-    ipc::command(&socket, Command::PatchSettings { patch: Default::default() }).await.unwrap();
-    assert_eq!(presence.windows(), 0, "a request that is not a lease was counted as a window");
-    assert!(!presence.ever_had_a_window(), "the command line made an owner think a window had been there");
+    ipc::command(
+        &socket,
+        Command::PatchSettings {
+            patch: Default::default(),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        presence.windows(),
+        0,
+        "a request that is not a lease was counted as a window"
+    );
+    assert!(
+        !presence.ever_had_a_window(),
+        "the command line made an owner think a window had been there"
+    );
 
     client.command(Command::Shutdown {}).await.unwrap();
     owner.await.unwrap();
@@ -752,7 +1039,10 @@ async fn windows_attached_never_leave_a_command_line_client_waiting_and_only_so_
         let mut answer = vec![0; length];
         ninth.read_exact(&mut answer).await.unwrap();
         let text = String::from_utf8(answer).unwrap();
-        assert!(text.contains("Too many windows"), "the ninth lease was not refused: {text}");
+        assert!(
+            text.contains("Too many windows"),
+            "the ninth lease was not refused: {text}"
+        );
         // And the connection is closed after the refusal, so it holds nothing.
         let mut rest = Vec::new();
         tokio::time::timeout(Duration::from_secs(2), ninth.read_to_end(&mut rest))
@@ -786,13 +1076,23 @@ async fn a_window_that_attaches_is_counted_while_it_lives_and_not_after_it_goes(
     windows_become(&presence, 2).await;
     // A window being open for a while, doing its requests every second, is still one window.
     tokio::time::sleep(Duration::from_millis(1500)).await;
-    assert_eq!(presence.windows(), 2, "the polling of an open window was counted as more windows, or let go");
+    assert_eq!(
+        presence.windows(),
+        2,
+        "the polling of an open window was counted as more windows, or let go"
+    );
     // The first closes: its client is dropped and its task ends. The other is still open and still counted.
     drop(first);
-    tokio::time::timeout(Duration::from_secs(3), first_bridge).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(3), first_bridge)
+        .await
+        .unwrap()
+        .unwrap();
     windows_become(&presence, 1).await;
     drop(second);
-    tokio::time::timeout(Duration::from_secs(3), second_bridge).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(3), second_bridge)
+        .await
+        .unwrap()
+        .unwrap();
     windows_become(&presence, 0).await;
 
     client.command(Command::Shutdown {}).await.unwrap();
@@ -820,19 +1120,30 @@ async fn a_window_the_owner_has_no_room_to_count_is_not_made_and_is_made_when_th
     // One more is not made at all: a window the owner does not count is a window whose owner may end under it
     // when the counted ones go. It is an error, and nothing was counted for it.
     let refused = ipc::attach(socket.clone()).await;
-    assert!(refused.is_err(), "a window was made that the owner did not count");
+    assert!(
+        refused.is_err(),
+        "a window was made that the owner did not count"
+    );
     assert_eq!(presence.windows(), 8);
     // One of the eight goes, and there is room: the same attach now works, and is counted.
     let (first, first_bridge) = windows.remove(0);
     drop(first);
-    tokio::time::timeout(Duration::from_secs(3), first_bridge).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(3), first_bridge)
+        .await
+        .unwrap()
+        .unwrap();
     windows_become(&presence, 7).await;
-    let ninth = ipc::attach(socket.clone()).await.expect("there was room and the window was still refused");
+    let ninth = ipc::attach(socket.clone())
+        .await
+        .expect("there was room and the window was still refused");
     windows_become(&presence, 8).await;
     // The seven others go, and the ninth alone keeps the owner counted as having a window.
     for (client, bridge) in windows.drain(..) {
         drop(client);
-        tokio::time::timeout(Duration::from_secs(3), bridge).await.unwrap().unwrap();
+        tokio::time::timeout(Duration::from_secs(3), bridge)
+            .await
+            .unwrap()
+            .unwrap();
     }
     windows_become(&presence, 1).await;
     drop(ninth);
@@ -854,7 +1165,11 @@ async fn an_owner_too_old_to_count_windows_still_lets_a_window_attach_and_is_not
     // A real owner, with its own socket.
     let (client, owner) = start(directory.path()).await;
     let real = directory.path().join("control.sock");
-    let server = tokio::spawn(ipc::serve(UnixListener::bind(&real).unwrap(), client.clone(), Default::default()));
+    let server = tokio::spawn(ipc::serve(
+        UnixListener::bind(&real).unwrap(),
+        client.clone(),
+        Default::default(),
+    ));
     // What stands between the window and it is an owner without leases: it reads a request, and one it
     // does not know it cannot make sense of, so it closes the connection. Everything else goes through to
     // the real owner and comes back as the real answer, so nothing here is built by hand.
@@ -863,7 +1178,9 @@ async fn an_owner_too_old_to_count_windows_still_lets_a_window_attach_and_is_not
     let through = real.clone();
     let old = tokio::spawn(async move {
         loop {
-            let Ok((mut window, _)) = listener.accept().await else { return };
+            let Ok((mut window, _)) = listener.accept().await else {
+                return;
+            };
             let through = through.clone();
             tokio::spawn(async move {
                 let length = window.read_u32().await.unwrap() as usize;
@@ -884,11 +1201,14 @@ async fn an_owner_too_old_to_count_windows_still_lets_a_window_attach_and_is_not
         }
     });
     let attached = tokio::time::timeout(Duration::from_secs(3), ipc::attach(old_socket)).await;
-    let (window, bridge) = attached.expect("attach waited on an owner that does not know leases").expect(
-        "a window could not attach to an owner that is too old to count windows",
-    );
+    let (window, bridge) = attached
+        .expect("attach waited on an owner that does not know leases")
+        .expect("a window could not attach to an owner that is too old to count windows");
     drop(window);
-    tokio::time::timeout(Duration::from_secs(3), bridge).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(3), bridge)
+        .await
+        .unwrap()
+        .unwrap();
     old.abort();
     client.command(Command::Shutdown {}).await.unwrap();
     owner.await.unwrap();
@@ -896,7 +1216,8 @@ async fn an_owner_too_old_to_count_windows_still_lets_a_window_attach_and_is_not
 }
 
 #[tokio::test]
-async fn an_owner_that_answers_a_lease_with_something_unreadable_is_an_error_and_not_an_owner_that_is_too_old() {
+async fn an_owner_that_answers_a_lease_with_something_unreadable_is_an_error_and_not_an_owner_that_is_too_old()
+ {
     use peersus_app::ipc;
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
@@ -905,7 +1226,11 @@ async fn an_owner_that_answers_a_lease_with_something_unreadable_is_an_error_and
     let directory = tempfile::tempdir().unwrap();
     let (client, owner) = start(directory.path()).await;
     let real = directory.path().join("control.sock");
-    let server = tokio::spawn(ipc::serve(UnixListener::bind(&real).unwrap(), client.clone(), Default::default()));
+    let server = tokio::spawn(ipc::serve(
+        UnixListener::bind(&real).unwrap(),
+        client.clone(),
+        Default::default(),
+    ));
     // An owner of another version: the snapshot goes through to the real one and is answered as it is, but to a lease it
     // answers with a frame that is there and is not a response (what a changed `Response` looks like to this window).
     let other_socket = directory.path().join("other.sock");
@@ -913,7 +1238,9 @@ async fn an_owner_that_answers_a_lease_with_something_unreadable_is_an_error_and
     let through = real.clone();
     let other = tokio::spawn(async move {
         loop {
-            let Ok((mut window, _)) = listener.accept().await else { return };
+            let Ok((mut window, _)) = listener.accept().await else {
+                return;
+            };
             let through = through.clone();
             tokio::spawn(async move {
                 let length = window.read_u32().await.unwrap() as usize;
@@ -936,7 +1263,9 @@ async fn an_owner_that_answers_a_lease_with_something_unreadable_is_an_error_and
             });
         }
     });
-    let attached = tokio::time::timeout(Duration::from_secs(3), ipc::attach(other_socket)).await.expect("attach hung on an unreadable answer");
+    let attached = tokio::time::timeout(Duration::from_secs(3), ipc::attach(other_socket))
+        .await
+        .expect("attach hung on an unreadable answer");
     let error = attached.err().expect("a window was made on an owner it does not understand: the owner would not count it, and would end under it");
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
     other.abort();
@@ -991,7 +1320,8 @@ async fn preference_patches_preserve_newer_network_policy_and_stale_editors_are_
 }
 
 #[tokio::test]
-async fn turning_the_relays_on_from_the_switch_is_accepted_when_an_address_was_fixed_and_a_refusal_says_why() {
+async fn turning_the_relays_on_from_the_switch_is_accepted_when_an_address_was_fixed_and_a_refusal_says_why()
+ {
     use peersus_core::config::{BindChange, SettingsPatch};
     let directory = tempfile::tempdir().unwrap();
     let (client, owner) = start(directory.path()).await;
@@ -1010,16 +1340,28 @@ async fn turning_the_relays_on_from_the_switch_is_accepted_when_an_address_was_f
     // a phrase about "conflict" that tells the person nothing about what to change.
     let refused = match client
         .command(Command::PatchSettings {
-            patch: SettingsPatch { allow_relay: Some(true), ..SettingsPatch::default() },
+            patch: SettingsPatch {
+                allow_relay: Some(true),
+                ..SettingsPatch::default()
+            },
         })
         .await
     {
         Ok(_) => panic!("relays on beside a fixed address were accepted"),
         Err(refused) => refused,
     };
-    assert!(refused.to_string().contains("relays"), "the refusal does not say what is wrong: {refused}");
-    assert!(!refused.to_string().contains("conflict"), "the refusal is the old phrase that says nothing: {refused}");
-    assert!(!client.snapshot().settings.network.allow_relay, "a refused edit changed the settings");
+    assert!(
+        refused.to_string().contains("relays"),
+        "the refusal does not say what is wrong: {refused}"
+    );
+    assert!(
+        !refused.to_string().contains("conflict"),
+        "the refusal is the old phrase that says nothing: {refused}"
+    );
+    assert!(
+        !client.snapshot().settings.network.allow_relay,
+        "a refused edit changed the settings"
+    );
     // What the switch sends: relays on, and routing returned to the system's (see `relay_patch` in the interface,
     // whose own test holds that this is what it builds). Accepted.
     client
@@ -1034,7 +1376,10 @@ async fn turning_the_relays_on_from_the_switch_is_accepted_when_an_address_was_f
         .expect("the relay switch was refused with an address fixed");
     let after = client.snapshot().settings.clone();
     assert!(after.network.allow_relay, "the relays are not on");
-    assert_eq!(after.network.bind, None, "routing was not returned to the system's");
+    assert_eq!(
+        after.network.bind, None,
+        "routing was not returned to the system's"
+    );
     client.command(Command::Shutdown {}).await.unwrap();
     owner.await.unwrap();
 }

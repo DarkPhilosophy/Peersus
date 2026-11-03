@@ -55,7 +55,10 @@ pub struct Taken {
 impl Picked {
     /// A picker that keeps its files in `held`, the same registry the owner takes them from.
     pub fn new(held: Held) -> Self {
-        Self { held, inner: Arc::default() }
+        Self {
+            held,
+            inner: Arc::default(),
+        }
     }
 
     /// Begin a selection: whatever an earlier one left untaken is let go of, so that an old choice cannot be sent along with a new one,
@@ -77,13 +80,17 @@ impl Picked {
     /// The interface is opening the picker. Anything left from an earlier one that was never taken is let go of
     /// first, so that an old choice cannot be sent along with a new one.
     pub fn opened(&self) {
-        let Ok(mut state) = self.inner.lock() else { return };
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
         self.begin(&mut state, false);
     }
 
     /// Paired sends consume descriptors as they arrive, so a producer can wait for registry space.
     pub fn opened_streaming(&self) {
-        let Ok(mut state) = self.inner.lock() else { return };
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
         self.begin(&mut state, true);
     }
 
@@ -114,7 +121,9 @@ impl Picked {
     /// page that handles them forward: the page itself takes the notice (see [`Picked::take_external`]), so that it is taken once and by
     /// the one that does something with it.
     pub fn has_external(&self) -> bool {
-        self.inner.lock().is_ok_and(|state| state.external.is_some())
+        self.inner
+            .lock()
+            .is_ok_and(|state| state.external.is_some())
     }
 
     pub fn generation(&self) -> u64 {
@@ -123,7 +132,9 @@ impl Picked {
 
     /// -1 cancels an obsolete producer; 0 applies backpressure; 1 permits another provider open.
     pub fn producer_state(&self, generation: u64) -> i32 {
-        let Ok(state) = self.inner.lock() else { return -1 };
+        let Ok(state) = self.inner.lock() else {
+            return -1;
+        };
         if !state.waiting || state.generation != generation {
             -1
         } else if state.streaming && self.held.len() >= crate::held::MOST_HELD {
@@ -136,14 +147,20 @@ impl Picked {
     /// The native picker knows the complete selection before opening its first file.
     pub fn selected_for(&self, generation: u64, count: u32) {
         if let Ok(mut state) = self.inner.lock()
-            && state.waiting && state.generation == generation && state.expected.is_none()
+            && state.waiting
+            && state.generation == generation
+            && state.expected.is_none()
         {
             state.expected = Some(count);
         }
     }
 
     pub fn selected_count(&self, generation: u64) -> Option<u32> {
-        self.inner.lock().ok().filter(|state| state.generation == generation).and_then(|state| state.expected)
+        self.inner
+            .lock()
+            .ok()
+            .filter(|state| state.generation == generation)
+            .and_then(|state| state.expected)
     }
 
     /// A file was chosen: kept, unless the picker was not asked for (then it is closed, since nobody will take it)
@@ -154,7 +171,9 @@ impl Picked {
 
     /// A late result from a replaced picker is closed, never attached to the newer choice.
     pub fn file_for(&self, generation: u64, file: File, name: String) {
-        let Ok(mut state) = self.inner.lock() else { return };
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
         if !state.waiting || state.generation != generation {
             return;
         }
@@ -172,10 +191,13 @@ impl Picked {
 
     pub fn finished_for(&self, generation: u64) {
         if let Ok(mut state) = self.inner.lock()
-            && state.generation == generation && state.waiting
+            && state.generation == generation
+            && state.waiting
         {
             if let Some(expected) = state.expected {
-                state.refused = state.refused.saturating_add(expected.saturating_sub(state.received));
+                state.refused = state
+                    .refused
+                    .saturating_add(expected.saturating_sub(state.received));
             }
             state.waiting = false;
         }
@@ -190,10 +212,18 @@ impl Picked {
     /// A watcher for a replaced picker must not consume the new picker's files.
     pub fn take_for(&self, generation: u64) -> Taken {
         let Ok(mut state) = self.inner.lock() else {
-            return Taken { files: Vec::new(), still_open: false, refused: 0 };
+            return Taken {
+                files: Vec::new(),
+                still_open: false,
+                refused: 0,
+            };
         };
         if state.generation != generation {
-            return Taken { files: Vec::new(), still_open: false, refused: 0 };
+            return Taken {
+                files: Vec::new(),
+                still_open: false,
+                refused: 0,
+            };
         }
         Taken {
             files: std::mem::take(&mut state.arrived),
@@ -291,7 +321,9 @@ mod tests {
     #[test]
     fn files_shared_from_outside_open_a_selection_and_leave_one_notice_for_the_interface() {
         let picked = Picked::new(Held::default());
-        let generation = picked.opened_externally().expect("nothing was open, so the share is taken");
+        let generation = picked
+            .opened_externally()
+            .expect("nothing was open, so the share is taken");
         assert_eq!(generation, picked.generation());
         assert_eq!(picked.take_external(), Some(generation));
         assert_eq!(picked.take_external(), None, "the notice was given twice");
@@ -301,7 +333,14 @@ mod tests {
         picked.file_for(generation, pathless(b"two"), "two.bin".into());
         picked.finished_for(generation);
         let taken = picked.take_for(generation);
-        assert_eq!(taken.files.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>(), ["one.bin", "two.bin"]);
+        assert_eq!(
+            taken
+                .files
+                .iter()
+                .map(|(_, name)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["one.bin", "two.bin"]
+        );
         assert_eq!(taken.refused, 0);
         assert!(!taken.still_open);
     }
@@ -311,8 +350,16 @@ mod tests {
         let picked = Picked::new(Held::default());
         picked.opened_streaming();
         let theirs = picked.generation();
-        picked.file_for(theirs, pathless(b"the person's own choice"), "mine.bin".into());
-        assert_eq!(picked.opened_externally(), None, "a share was taken while a picker was open");
+        picked.file_for(
+            theirs,
+            pathless(b"the person's own choice"),
+            "mine.bin".into(),
+        );
+        assert_eq!(
+            picked.opened_externally(),
+            None,
+            "a share was taken while a picker was open"
+        );
         assert_eq!(picked.generation(), theirs, "the open picker was replaced");
         assert_eq!(picked.take_external(), None);
         let kept = picked.take_for(theirs);
@@ -325,22 +372,36 @@ mod tests {
         let picked = Picked::new(Held::default());
         let first = picked.opened_externally().unwrap();
         picked.finished_for(first);
-        assert_eq!(picked.opened_externally(), None, "a second share replaced one nobody had been told about");
+        assert_eq!(
+            picked.opened_externally(),
+            None,
+            "a second share replaced one nobody had been told about"
+        );
         assert_eq!(picked.take_external(), Some(first));
-        let second = picked.opened_externally().expect("the first was taken, so the next share is");
+        let second = picked
+            .opened_externally()
+            .expect("the first was taken, so the next share is");
         assert_ne!(second, first);
     }
 
     #[test]
-    fn a_picker_the_person_opens_drops_the_notice_of_a_share_it_replaces_and_lets_go_of_its_files() {
+    fn a_picker_the_person_opens_drops_the_notice_of_a_share_it_replaces_and_lets_go_of_its_files()
+    {
         let held = Held::default();
         let picked = Picked::new(held.clone());
         let shared = picked.opened_externally().unwrap();
         picked.file_for(shared, pathless(b"shared"), "shared.bin".into());
         picked.finished_for(shared);
         picked.opened_streaming();
-        assert_eq!(picked.take_external(), None, "a notice pointed at a generation that was replaced");
-        assert!(held.is_empty(), "a shared file the person never saw was left open");
+        assert_eq!(
+            picked.take_external(),
+            None,
+            "a notice pointed at a generation that was replaced"
+        );
+        assert!(
+            held.is_empty(),
+            "a shared file the person never saw was left open"
+        );
     }
 
     #[test]
@@ -358,7 +419,10 @@ mod tests {
             let shared = share.join().unwrap();
             let theirs = person.join().unwrap();
             if let Some(shared) = shared {
-                assert_ne!(shared, theirs, "a share and a picker were given the same selection");
+                assert_ne!(
+                    shared, theirs,
+                    "a share and a picker were given the same selection"
+                );
             }
         }
     }
@@ -382,7 +446,13 @@ mod tests {
         picked.file_for(generation, pathless(b"last"), "last".into());
         picked.finished_for(generation);
         let last = picked.take();
-        assert_eq!(last.files.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>(), ["last"]);
+        assert_eq!(
+            last.files
+                .iter()
+                .map(|(_, name)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["last"]
+        );
         assert_eq!(first.refused + last.refused, 0);
         assert!(!last.still_open);
         assert_eq!(picked.producer_state(generation), -1);
@@ -405,7 +475,14 @@ mod tests {
         picked.file_for(current, pathless(b"current"), "current".into());
         picked.finished_for(current);
         let result = picked.take();
-        assert_eq!(result.files.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>(), ["current"]);
+        assert_eq!(
+            result
+                .files
+                .iter()
+                .map(|(_, name)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["current"]
+        );
         assert!(!result.still_open);
     }
 
@@ -420,7 +497,10 @@ mod tests {
         assert_eq!(first.files.len(), 2);
         assert_eq!(first.files[0].1, "a.jpg");
         assert_eq!(first.files[1].1, "b.pdf");
-        assert!(first.still_open, "the picker was said to be done before it said so");
+        assert!(
+            first.still_open,
+            "the picker was said to be done before it said so"
+        );
         // Both are in the registry, by the numbers that were told, and the numbers differ.
         assert_ne!(first.files[0].0, first.files[1].0);
         assert_eq!(held.len(), 2);
@@ -438,12 +518,17 @@ mod tests {
         picked.opened();
         picked.file(pathless(b"the picture"), "me.png".into());
         let number = picked.take().files[0].0;
-        let mut file = picked.take_file(number).expect("a chosen file was not given back");
+        let mut file = picked
+            .take_file(number)
+            .expect("a chosen file was not given back");
         let mut text = String::new();
         std::io::Read::read_to_string(&mut file, &mut text).unwrap();
         assert_eq!(text, "the picture");
         // It left the registry, so none is held and a second ask finds nothing.
-        assert!(held.is_empty(), "the file stayed held after it was taken out");
+        assert!(
+            held.is_empty(),
+            "the file stayed held after it was taken out"
+        );
         assert!(picked.take_file(number).is_none());
         // A number that was never held is nothing.
         assert!(picked.take_file(9_999).is_none());
@@ -456,7 +541,10 @@ mod tests {
         picked.finished();
         let taken = picked.take();
         assert!(taken.files.is_empty());
-        assert!(!taken.still_open, "the interface would wait for ever on a picker that was cancelled");
+        assert!(
+            !taken.still_open,
+            "the interface would wait for ever on a picker that was cancelled"
+        );
     }
 
     #[test]
@@ -466,7 +554,9 @@ mod tests {
         picked.opened();
         picked.file(pathless(b"0123456789"), "a.bin".into());
         let first = picked.take().files;
-        let second = picked.reopened(&first).expect("the chosen files could not be held again");
+        let second = picked
+            .reopened(&first)
+            .expect("the chosen files could not be held again");
         assert_eq!(second.len(), 1);
         assert_ne!(first[0].0, second[0].0);
         assert_eq!(second[0].1, "a.bin");
@@ -492,7 +582,11 @@ mod tests {
         let before = held.len();
         assert_eq!(before, MOST_HELD - 1);
         assert!(picked.reopened(&files).is_err());
-        assert_eq!(held.len(), before, "copies made before the one that failed were left open");
+        assert_eq!(
+            held.len(),
+            before,
+            "copies made before the one that failed were left open"
+        );
     }
 
     #[test]
@@ -511,7 +605,8 @@ mod tests {
     }
 
     #[test]
-    fn opening_the_picker_again_lets_go_of_what_the_last_one_left_so_an_old_choice_is_not_sent_with_a_new_one() {
+    fn opening_the_picker_again_lets_go_of_what_the_last_one_left_so_an_old_choice_is_not_sent_with_a_new_one()
+     {
         let held = Held::default();
         let picked = Picked::new(held.clone());
         picked.opened();
@@ -519,7 +614,10 @@ mod tests {
         picked.finished();
         // Never taken. The person opens the picker again.
         picked.opened();
-        assert!(held.is_empty(), "the old file was still held when a new picker was opened");
+        assert!(
+            held.is_empty(),
+            "the old file was still held when a new picker was opened"
+        );
         picked.file(pathless(b"new"), "new.bin".into());
         let taken = picked.take();
         assert_eq!(taken.files.len(), 1);
@@ -536,7 +634,10 @@ mod tests {
         }
         let taken = picked.take();
         assert_eq!(taken.files.len(), MOST_HELD);
-        assert_eq!(taken.refused, 3, "the files that did not fit were not counted");
+        assert_eq!(
+            taken.refused, 3,
+            "the files that did not fit were not counted"
+        );
         assert_eq!(held.len(), MOST_HELD);
         // Said once: asking again does not say it again.
         assert_eq!(picked.take().refused, 0);
@@ -555,7 +656,10 @@ mod tests {
             picked.file(pathless(b"b"), "b.bin".into());
             picked.finished();
             let taken = picked.take();
-            assert_eq!(taken.refused, 0, "the registry was full of files nobody would send");
+            assert_eq!(
+                taken.refused, 0,
+                "the registry was full of files nobody would send"
+            );
             assert_eq!(taken.files.len(), 2);
             // The page was left with these waiting: they are let go of.
             picked.release(&taken.files);
@@ -575,7 +679,11 @@ mod tests {
         picked.file(pathless(b"keep"), "keep.bin".into());
         let kept = picked.take().files;
         picked.release(&[(999_999, "never.bin".into())]);
-        assert_eq!(held.len(), 1, "releasing a number that was never given let go of another file");
+        assert_eq!(
+            held.len(),
+            1,
+            "releasing a number that was never given let go of another file"
+        );
         picked.release(&kept);
         picked.release(&kept);
         assert!(held.is_empty());

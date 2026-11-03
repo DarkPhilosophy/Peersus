@@ -38,9 +38,13 @@ fn publish(temporary: &Path, destination: &Path) -> io::Result<()> {
     #[cfg(any(target_os = "linux", target_os = "android"))]
     {
         rustix::fs::renameat_with(
-            rustix::fs::CWD, temporary, rustix::fs::CWD, destination,
+            rustix::fs::CWD,
+            temporary,
+            rustix::fs::CWD,
+            destination,
             rustix::fs::RenameFlags::NOREPLACE,
-        ).map_err(Into::into)
+        )
+        .map_err(Into::into)
     }
     #[cfg(not(any(target_os = "linux", target_os = "android")))]
     {
@@ -56,7 +60,10 @@ pub fn load(directory: &Path) -> Result<SecretKey, &'static str> {
     }
     let key = SecretKey::generate();
     // A name of its own for each start (two starts must not write one file), made with `create_new` so nothing is reused.
-    let temporary = directory.join(format!("{FILE}.new.{}", hex::encode(rand::random::<[u8; 8]>())));
+    let temporary = directory.join(format!(
+        "{FILE}.new.{}",
+        hex::encode(rand::random::<[u8; 8]>())
+    ));
     let written = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -66,7 +73,9 @@ pub fn load(directory: &Path) -> Result<SecretKey, &'static str> {
             io::Write::write_all(&mut file, &key.to_bytes())?;
             file.sync_all()
         })
-        .and_then(|()| std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600)));
+        .and_then(|()| {
+            std::fs::set_permissions(&temporary, std::fs::Permissions::from_mode(0o600))
+        });
     let published = written.and_then(|()| publish(&temporary, &path));
     let _ = std::fs::remove_file(&temporary);
     match published {
@@ -87,7 +96,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let first = load(directory.path()).unwrap().public();
         let second = load(directory.path()).unwrap().public();
-        assert_eq!(first, second, "a start after the first got another identity");
+        assert_eq!(
+            first, second,
+            "a start after the first got another identity"
+        );
     }
 
     #[test]
@@ -105,10 +117,20 @@ mod tests {
                 })
             })
             .collect();
-        let keys: Vec<_> = handles.into_iter().map(|handle| handle.join().unwrap()).collect();
-        assert!(keys.windows(2).all(|pair| pair[0] == pair[1]), "starts at once ended as more than one device");
+        let keys: Vec<_> = handles
+            .into_iter()
+            .map(|handle| handle.join().unwrap())
+            .collect();
+        assert!(
+            keys.windows(2).all(|pair| pair[0] == pair[1]),
+            "starts at once ended as more than one device"
+        );
         // And it is the key the file holds, so the next start is the same device too.
-        assert_eq!(load(directory.path()).unwrap().public(), keys[0], "the file holds another key than the starts ran with");
+        assert_eq!(
+            load(directory.path()).unwrap().public(),
+            keys[0],
+            "the file holds another key than the starts ran with"
+        );
     }
 
     #[test]
@@ -117,16 +139,31 @@ mod tests {
         let path = directory.path().join(FILE);
         std::fs::write(&path, [1u8, 2, 3]).unwrap();
         assert_eq!(load(directory.path()).unwrap_err(), INVALID);
-        assert_eq!(std::fs::read(&path).unwrap(), [1u8, 2, 3], "a bad file was replaced with a new key");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            [1u8, 2, 3],
+            "a bad file was replaced with a new key"
+        );
     }
 
     #[test]
     fn the_file_is_private_and_no_temporary_is_left() {
         let directory = tempfile::tempdir().unwrap();
         load(directory.path()).unwrap();
-        let mode = std::fs::metadata(directory.path().join(FILE)).unwrap().permissions().mode() & 0o777;
+        let mode = std::fs::metadata(directory.path().join(FILE))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
         assert_eq!(mode, 0o600, "the key file is readable by others");
-        let names: Vec<_> = std::fs::read_dir(directory.path()).unwrap().map(|entry| entry.unwrap().file_name()).collect();
-        assert_eq!(names.len(), 1, "a temporary file was left behind: {names:?}");
+        let names: Vec<_> = std::fs::read_dir(directory.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(
+            names.len(),
+            1,
+            "a temporary file was left behind: {names:?}"
+        );
     }
 }

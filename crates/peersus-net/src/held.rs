@@ -53,7 +53,9 @@ impl Held {
     /// (or the registry cannot be locked): the file is given back unheld, to be closed when the caller drops it,
     /// rather than a descriptor kept without bound.
     pub fn keep(&self, file: File) -> Result<u64, File> {
-        let Ok(mut inner) = self.inner.lock() else { return Err(file) };
+        let Ok(mut inner) = self.inner.lock() else {
+            return Err(file);
+        };
         if inner.files.len() >= MOST_HELD {
             return Err(file);
         }
@@ -96,21 +98,39 @@ impl Held {
     pub fn reopen(&self, number: u64) -> Result<u64, String> {
         use std::os::fd::AsRawFd;
         let (again, folder) = {
-            let inner = self.inner.lock().map_err(|_| "the registry cannot be locked".to_owned())?;
-            let file = inner.files.get(&number).ok_or_else(|| "no file is held under that number".to_owned())?;
+            let inner = self
+                .inner
+                .lock()
+                .map_err(|_| "the registry cannot be locked".to_owned())?;
+            let file = inner
+                .files
+                .get(&number)
+                .ok_or_else(|| "no file is held under that number".to_owned())?;
             match File::open(format!("/proc/self/fd/{}", file.as_raw_fd())) {
                 Ok(again) => (Ok(again), None),
-                Err(refused) => (Err(refused), Some((file.try_clone().map_err(|error| format!("the file cannot be duplicated: {error}"))?, inner.copies.clone()))),
+                Err(refused) => (
+                    Err(refused),
+                    Some((
+                        file.try_clone()
+                            .map_err(|error| format!("the file cannot be duplicated: {error}"))?,
+                        inner.copies.clone(),
+                    )),
+                ),
             }
         };
         let again = match again {
             Ok(again) => again,
             Err(refused) => {
-                let Some((source, copies)) = folder else { return Err(format!("the system will not open it again: {refused}")) };
-                copy_of(&source, copies.as_deref()).map_err(|error| format!("it could not be opened again ({refused}) nor copied ({error})"))?
+                let Some((source, copies)) = folder else {
+                    return Err(format!("the system will not open it again: {refused}"));
+                };
+                copy_of(&source, copies.as_deref()).map_err(|error| {
+                    format!("it could not be opened again ({refused}) nor copied ({error})")
+                })?
             }
         };
-        self.keep(again).map_err(|_| "too many files are held".to_owned())
+        self.keep(again)
+            .map_err(|_| "too many files are held".to_owned())
     }
 }
 
@@ -153,7 +173,9 @@ mod tests {
     fn a_held_file_comes_back_as_the_same_file_and_only_once() {
         let held = Held::default();
         let number = held.keep(file_with(b"the file")).unwrap();
-        let mut taken = held.take(number).expect("a file that was kept was not found");
+        let mut taken = held
+            .take(number)
+            .expect("a file that was kept was not found");
         let mut text = String::new();
         taken.read_to_string(&mut text).unwrap();
         assert_eq!(text, "the file");
@@ -184,7 +206,10 @@ mod tests {
         let number = interface.keep(file_with(b"shared")).unwrap();
         assert_eq!(owner.len(), 1);
         assert!(owner.take(number).is_some());
-        assert!(interface.is_empty(), "the interface still held a file that the owner took");
+        assert!(
+            interface.is_empty(),
+            "the interface still held a file that the owner took"
+        );
     }
 
     #[test]
@@ -218,7 +243,9 @@ mod tests {
     fn a_reopened_file_has_a_read_position_of_its_own_and_is_taken_by_its_own_number() {
         let held = Held::default();
         let first = held.keep(file_with(b"0123456789")).unwrap();
-        let second = held.reopen(first).expect("a held file could not be opened again");
+        let second = held
+            .reopen(first)
+            .expect("a held file could not be opened again");
         assert_ne!(first, second);
         assert_eq!(held.len(), 2);
         let mut one = held.take(first).unwrap();
@@ -229,7 +256,10 @@ mod tests {
         assert_eq!(&head, b"0123");
         let mut all = String::new();
         two.read_to_string(&mut all).unwrap();
-        assert_eq!(all, "0123456789", "the second copy began where the first one was read to");
+        assert_eq!(
+            all, "0123456789",
+            "the second copy began where the first one was read to"
+        );
     }
 
     #[test]
@@ -240,14 +270,18 @@ mod tests {
         for _ in 0..MOST_HELD {
             numbers.push(held.keep(file_with(b"x")).unwrap());
         }
-        assert!(held.reopen(numbers[0]).is_err(), "a copy was held past the limit");
+        assert!(
+            held.reopen(numbers[0]).is_err(),
+            "a copy was held past the limit"
+        );
         assert_eq!(held.len(), MOST_HELD);
     }
 
     /// A desktop lets a file be opened again, so the refusal of a phone cannot be made here with a real file: what is tried is the copy that
     /// is made in its place, which is what `reopen` hands over once the system has said no.
     #[test]
-    fn a_copy_is_the_whole_file_from_its_start_whatever_the_first_has_read_and_does_not_move_the_first() {
+    fn a_copy_is_the_whole_file_from_its_start_whatever_the_first_has_read_and_does_not_move_the_first()
+     {
         let mut original = file_with(b"0123456789");
         let mut head = [0_u8; 4];
         original.read_exact(&mut head).unwrap();
@@ -255,7 +289,10 @@ mod tests {
         let mut copy = copy_of(&original, Some(folder.path())).unwrap();
         let mut all = String::new();
         copy.read_to_string(&mut all).unwrap();
-        assert_eq!(all, "0123456789", "the copy began where the first one was read to");
+        assert_eq!(
+            all, "0123456789",
+            "the copy began where the first one was read to"
+        );
         // The first one is where it was: the copy was made without moving it.
         let mut rest = String::new();
         original.read_to_string(&mut rest).unwrap();
@@ -280,6 +317,10 @@ mod tests {
         let copy = copy_of(&original, Some(folder.path())).unwrap();
         let number = held.keep(copy).unwrap();
         held.release(number);
-        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 0, "a copy stayed in the folder after it was let go of");
+        assert_eq!(
+            std::fs::read_dir(folder.path()).unwrap().count(),
+            0,
+            "a copy stayed in the folder after it was let go of"
+        );
     }
 }

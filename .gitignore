@@ -1,5 +1,4 @@
 /target/
-/target-*/
 /.flatpak-builder/
 /.backup/
 /.shots/
@@ -10,8 +9,7 @@
 /result-*
 /android/.gradle/
 /android/local.properties
-/android/app/build/
-# Native libraries are built from this source (`cargo ndk`), for every flavour: build output, never source.
+# Legacy native staging is not an input; canonical artifacts live under target/android/.
 /android/app/src/*/jniLibs/
 **/.DS_Store
 .env
@@ -28,3 +26,5 @@ service-account*.json
 __pycache__/
 *.pyc
 .cargo-ok
+AGENTS.md
+WATCHDOG.yml

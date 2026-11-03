@@ -31,7 +31,11 @@ async fn follow(sender: &watch::Sender<Option<bool>>) -> zbus::Result<()> {
 }
 
 #[cfg(target_os = "linux")]
-async fn follow_on(connection: &zbus::Connection, destination: &str, sender: &watch::Sender<Option<bool>>) -> zbus::Result<()> {
+async fn follow_on(
+    connection: &zbus::Connection,
+    destination: &str,
+    sender: &watch::Sender<Option<bool>>,
+) -> zbus::Result<()> {
     use futures_lite::StreamExt;
     use zbus::zvariant::OwnedValue;
     let proxy = zbus::Proxy::new(
@@ -39,11 +43,19 @@ async fn follow_on(connection: &zbus::Connection, destination: &str, sender: &wa
         destination,
         "/org/freedesktop/portal/desktop",
         "org.freedesktop.portal.Settings",
-    ).await?;
+    )
+    .await?;
     // Subscribe before reading: a preference changed during startup must not be lost.
-    let mut signals = proxy.receive_signal_with_args("SettingChanged", &[(0, "org.freedesktop.appearance"), (1, "color-scheme")]).await?;
+    let mut signals = proxy
+        .receive_signal_with_args(
+            "SettingChanged",
+            &[(0, "org.freedesktop.appearance"), (1, "color-scheme")],
+        )
+        .await?;
     let mut owners = proxy.receive_owner_changed().await?;
-    let value: OwnedValue = proxy.call("ReadOne", &("org.freedesktop.appearance", "color-scheme")).await?;
+    let value: OwnedValue = proxy
+        .call("ReadOne", &("org.freedesktop.appearance", "color-scheme"))
+        .await?;
     sender.send_replace(preference(u32::try_from(value).ok()));
     loop {
         tokio::select! {
@@ -87,7 +99,11 @@ mod tests {
         struct SettingsFixture;
         #[zbus::interface(name = "org.freedesktop.portal.Settings")]
         impl SettingsFixture {
-            fn read_one(&self, namespace: &str, key: &str) -> zbus::fdo::Result<zbus::zvariant::OwnedValue> {
+            fn read_one(
+                &self,
+                namespace: &str,
+                key: &str,
+            ) -> zbus::fdo::Result<zbus::zvariant::OwnedValue> {
                 if namespace != "org.freedesktop.appearance" || key != "color-scheme" {
                     return Err(zbus::fdo::Error::Failed("Unknown test preference".into()));
                 }
@@ -95,22 +111,42 @@ mod tests {
             }
         }
         let name = format!("ro.peersus.ThemeTest.p{}", std::process::id());
-        let service = zbus::connection::Builder::session().unwrap()
-            .name(name.as_str()).unwrap()
-            .serve_at("/org/freedesktop/portal/desktop", SettingsFixture).unwrap()
-            .build().await.unwrap();
+        let service = zbus::connection::Builder::session()
+            .unwrap()
+            .name(name.as_str())
+            .unwrap()
+            .serve_at("/org/freedesktop/portal/desktop", SettingsFixture)
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
         let (sender, mut receiver) = watch::channel(None);
         let client = zbus::Connection::session().await.unwrap();
         let worker = tokio::spawn(async move { follow_on(&client, &name, &sender).await });
-        tokio::time::timeout(std::time::Duration::from_secs(5), receiver.changed()).await.unwrap().unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(5), receiver.changed())
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(*receiver.borrow_and_update(), Some(true));
         for (value, expected) in [(2u32, Some(false)), (0u32, None), (1u32, Some(true))] {
-            service.emit_signal(
-                None::<&str>, "/org/freedesktop/portal/desktop",
-                "org.freedesktop.portal.Settings", "SettingChanged",
-                &("org.freedesktop.appearance", "color-scheme", zbus::zvariant::OwnedValue::from(value)),
-            ).await.unwrap();
-            tokio::time::timeout(std::time::Duration::from_secs(5), receiver.changed()).await.unwrap().unwrap();
+            service
+                .emit_signal(
+                    None::<&str>,
+                    "/org/freedesktop/portal/desktop",
+                    "org.freedesktop.portal.Settings",
+                    "SettingChanged",
+                    &(
+                        "org.freedesktop.appearance",
+                        "color-scheme",
+                        zbus::zvariant::OwnedValue::from(value),
+                    ),
+                )
+                .await
+                .unwrap();
+            tokio::time::timeout(std::time::Duration::from_secs(5), receiver.changed())
+                .await
+                .unwrap()
+                .unwrap();
             assert_eq!(*receiver.borrow_and_update(), expected);
         }
         worker.abort();

@@ -24,6 +24,22 @@ public final class TransferService extends Service {
     static { System.loadLibrary("peersus_android"); }
     private native void startOwner(String directory);
     private native void releaseService();
+    private native void asleepChanged(boolean asleep);
+
+    /**
+     * The phone sleeps while its screen is off. Doze is not read on purpose: it comes only after the screen has been off for a while,
+     * and by then the system has already cut the network, so nothing could be said. The word leaves when the screen goes dark, while
+     * the connection still works, and the other devices keep it for as long as the connection stays open.
+     */
+    private final android.content.BroadcastReceiver sleepWatch = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) { reportSleep(); }
+    };
+
+    private void reportSleep() {
+        android.os.PowerManager power = getSystemService(android.os.PowerManager.class);
+        if (power == null) return;
+        asleepChanged(!power.isInteractive());
+    }
 
     static synchronized void resumed(Context context) {
         visible = true;
@@ -93,6 +109,12 @@ public final class TransferService extends Service {
         }
         // A sticky service can be recreated without an activity. Reuse or initialize the same Rust owner.
         PluginBridge.initialize(this);
+        // Registered here and not in the manifest: the system delivers the screen broadcasts only to a receiver made at run time.
+        android.content.IntentFilter filter = new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(sleepWatch, filter);
+        // The state at start counts as well: a service that starts with the screen already off is asleep from the first moment.
+        reportSleep();
         new Thread(() -> startOwner(getFilesDir().getAbsolutePath()), "peersus-owner-start").start();
     }
 
@@ -167,6 +189,11 @@ public final class TransferService extends Service {
         update(this, keepAvailable, transferring);
     }
 
+    /** Keeps store downloads available without an Activity. */
+    public boolean downloadStore(String name, long limit, String output) {
+        return StoreFetchBridge.download(this, name, limit, output);
+    }
+
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         synchronized (TransferService.class) {
@@ -195,6 +222,7 @@ public final class TransferService extends Service {
 
     @Override public void onDestroy() {
         releaseService();
+        try { unregisterReceiver(sleepWatch); } catch (IllegalArgumentException notRegistered) { }
         synchronized (TransferService.class) {
             requested = false;
             promoted = false;

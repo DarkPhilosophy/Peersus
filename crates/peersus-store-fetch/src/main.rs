@@ -13,12 +13,17 @@ fn main() -> ExitCode {
         eprintln!("usage: peersus-store-fetch <file-name> <limit-bytes> <output-path>");
         return ExitCode::from(2);
     };
-    let Ok(limit) = limit.parse::<usize>() else { return ExitCode::from(2) };
+    let Ok(limit) = limit.parse::<usize>() else {
+        return ExitCode::from(2);
+    };
     // The ceiling is the application's package bound; a larger request is a bug, not a wish.
     if limit == 0 || limit > 128 * 1024 * 1024 {
         return ExitCode::from(2);
     }
-    let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+    let runtime = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
         Ok(runtime) => runtime,
         Err(_) => return ExitCode::FAILURE,
     };
@@ -43,7 +48,10 @@ fn main() -> ExitCode {
     options.write(true).create_new(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    match options.open(output).and_then(|mut file| file.write_all(&body)) {
+    match options
+        .open(output)
+        .and_then(|mut file| file.write_all(&body))
+    {
         Ok(()) => ExitCode::SUCCESS,
         Err(_) => {
             eprintln!("write");

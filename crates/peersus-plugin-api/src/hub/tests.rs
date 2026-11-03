@@ -283,7 +283,9 @@ fn a_grant_made_while_the_participant_is_between_processes_applies_to_the_next_o
 fn forgetting_a_participant_leaves_a_package_of_the_same_name_nothing_to_inherit() {
     let hub = Hub::default();
     let _b = join(&hub, "b", provider(&["a"]), &[]);
-    let first = hub.register("a", consumer("b"), grants_of(&consumer("b"), &["cap"])).unwrap();
+    let first = hub
+        .register("a", consumer("b"), grants_of(&consumer("b"), &["cap"]))
+        .unwrap();
     let _ = hub.connect("a", first).unwrap();
     // Taking it away for good: its process goes AND what it was granted goes with it.
     hub.forget("a");
@@ -303,7 +305,9 @@ fn revoking_alone_still_keeps_the_grants_so_a_restarted_process_has_them() {
     // them. If forgetting were what revoke does, every restart would silently lose them.
     let hub = Hub::default();
     let _b = join(&hub, "b", provider(&["a"]), &[]);
-    let first = hub.register("a", consumer("b"), grants_of(&consumer("b"), &["cap"])).unwrap();
+    let first = hub
+        .register("a", consumer("b"), grants_of(&consumer("b"), &["cap"]))
+        .unwrap();
     let _ = hub.connect("a", first).unwrap();
     hub.revoke("a");
     let generation = hub.register("a", consumer("b"), BTreeSet::new()).unwrap();
@@ -1104,27 +1108,50 @@ fn only_the_host_can_use_an_explicitly_declared_long_action_budget() {
     let hub = Hub::default();
     let mut manifest = provider(&[HOST, "ordinary"]);
     manifest.contributions.actions.push(Action {
-        id: "choose".into(), label: "Choose a file".into(),
+        id: "choose".into(),
+        label: "Choose a file".into(),
         short_label: None,
-        target: Source { service: "svc".into(), method: "act".into() },
-        capability: Some("cap".into()), needs_device: false, destructive: false,
+        target: Source {
+            service: "svc".into(),
+            method: "act".into(),
+        },
+        capability: Some("cap".into()),
+        needs_device: false,
+        destructive: false,
         timeout_ms: 60_000,
     });
     let target = join(&hub, "target", manifest, &[]);
     let host_manifest = consumer("target");
-    let generation = hub.register_host(HOST, host_manifest.clone(), grants_of(&host_manifest, &["cap"])).unwrap();
+    let generation = hub
+        .register_host(
+            HOST,
+            host_manifest.clone(),
+            grants_of(&host_manifest, &["cap"]),
+        )
+        .unwrap();
     let host = hub.connect(HOST, generation).unwrap();
     let ordinary = join(&hub, "ordinary", consumer("target"), &["cap"]);
     let request = |id, milliseconds, method| {
         let mut operation = call(id, "target", method);
-        if let Operation::Call { timeout_ms, .. } = &mut operation { *timeout_ms = milliseconds; }
+        if let Operation::Call { timeout_ms, .. } = &mut operation {
+            *timeout_ms = milliseconds;
+        }
         operation
     };
-    assert_eq!(ordinary.submit(request(1, 60_000, "act")), Err(Error::Timeout));
+    assert_eq!(
+        ordinary.submit(request(1, 60_000, "act")),
+        Err(Error::Timeout)
+    );
     assert_eq!(host.submit(request(1, 60_001, "act")), Err(Error::Timeout));
     assert_eq!(host.submit(request(2, 60_000, "open")), Err(Error::Timeout));
     host.submit(request(3, 60_000, "act")).unwrap();
     let ticket = ticket(target.try_recv().unwrap());
     reply(&target, ticket, json!("completed"));
-    assert!(matches!(host.try_recv().unwrap(), Some(Delivery::Result { id: 3, result: Outcome::Ok { .. } })));
+    assert!(matches!(
+        host.try_recv().unwrap(),
+        Some(Delivery::Result {
+            id: 3,
+            result: Outcome::Ok { .. }
+        })
+    ));
 }

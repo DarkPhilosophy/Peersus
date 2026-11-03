@@ -10,7 +10,7 @@
 pub mod owner;
 pub mod picture;
 pub mod plugin;
-pub mod watch;
-pub mod wire;
 #[cfg(unix)]
 pub mod session;
+pub mod watch;
+pub mod wire;

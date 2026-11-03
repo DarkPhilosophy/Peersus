@@ -6,7 +6,7 @@
 use clap::{Args, Parser, Subcommand};
 use peersus_core::{
     Renderer, Theme,
-    config::{BindChange, SaveFolderChange, SettingsPatch},
+    config::{BindChange, RelayChange, SaveFolderChange, SettingsPatch},
     model::{Command, PeerId, PluginInfo, Snapshot},
     plugins::{Grants, PluginId, Value},
 };
@@ -58,6 +58,10 @@ pub struct Preferences {
     pub reduced_motion: Option<bool>,
     #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub allow_relay: Option<bool>,
+    /// A relay of your own, such as https://relay.example.org, instead of the public ones; or 'public' to go back to them.
+    /// Its access token is not an option here: a command line is visible to other programs. Set the token in Settings.
+    #[arg(long, value_parser = parse_relay)]
+    pub relay: Option<RelayChange>,
     /// Whether a file that is offered is saved without asking. Use --auto-save=false to be asked for every file.
     #[arg(long, num_args = 0..=1, default_missing_value = "true", require_equals = true)]
     pub auto_save: Option<bool>,
@@ -92,6 +96,8 @@ impl Preferences {
             offer_timeout_seconds: self.offer_timeout,
             custom_theme: None,
             save_theme: None,
+            relay: self.relay.clone(),
+            relay_policy: None,
         }
     }
 }
@@ -183,7 +189,7 @@ pub enum Action {
 /// Structured command output; the native entry point chooses human/IPC rendering.
 /// Invitation replies intentionally have no Debug representation.
 pub enum Output {
-    Settings(peersus_core::Settings),
+    Settings(Box<peersus_core::Settings>),
     Peers(Vec<peersus_core::model::Peer>),
     History(Vec<peersus_core::model::Transfer>),
     Plugins(Vec<PluginInfo>),
@@ -276,7 +282,7 @@ impl Cli {
             .apply(&current.settings)
             .map_err(|error| error.to_string())?;
         if matches!(self.action, Some(Action::Settings { save: false })) {
-            return Ok(Output::Settings(settings));
+            return Ok(Output::Settings(Box::new(settings)));
         }
         if patch != SettingsPatch::default()
             || matches!(self.action, Some(Action::Settings { save: true }))
@@ -286,7 +292,9 @@ impl Cli {
         let command = match self.action {
             None => return Ok(Output::Reply(crate::runtime::Reply::Applied)),
             Some(Action::Settings { .. }) => {
-                return Ok(Output::Settings(client.state().await?.settings.clone()));
+                return Ok(Output::Settings(Box::new(
+                    client.state().await?.settings.clone(),
+                )));
             }
             Some(Action::Peers) => return Ok(Output::Peers(client.state().await?.peers.clone())),
             Some(Action::History) => {
@@ -299,7 +307,8 @@ impl Cli {
             Some(Action::StoreRefresh) => Command::StoreRefresh {},
             // Names only the plugin: what is downloaded is decided by the signed catalog, never by this command.
             Some(Action::StoreInstall { plugin: id }) => Command::StoreInstall {
-                plugin: peersus_core::plugins::PluginId::new(id).map_err(|_| "That is not a valid extension name")?,
+                plugin: peersus_core::plugins::PluginId::new(id)
+                    .map_err(|_| "That is not a valid extension name")?,
             },
             Some(Action::Invite) => Command::CreateInvitation {},
             Some(Action::Join { invitation }) => Command::JoinInvitation { invitation },
@@ -420,6 +429,19 @@ fn parse_save_folder(value: &str) -> Result<SaveFolderChange, String> {
         Err("use a full path, or auto".into())
     }
 }
+
+/// The address of a relay of one's own (`https://` and a host, nothing more), or `public` to give the choice back to the
+/// public relays. Checked by the same rule the preferences use, so the two cannot disagree about what a usable address is.
+fn parse_relay(value: &str) -> Result<RelayChange, String> {
+    if value == "public" {
+        return Ok(RelayChange::Public);
+    }
+    if peersus_core::config::valid_relay_url(value) {
+        Ok(RelayChange::Own(value.to_owned()))
+    } else {
+        Err("use https:// and a host name with nothing after it, or public".into())
+    }
+}
 fn parse_renderer(value: &str) -> Result<Renderer, String> {
     match value {
         "auto" => Ok(Renderer::Auto),
@@ -486,11 +508,26 @@ mod tests {
         assert!(saved.collapse_to_icons);
         // A bare flag means on, as for `--reduced-motion`.
         let bare = Cli::try_parse_from(["peersus", "--collapse-to-icons"]).unwrap();
-        assert!(bare.preferences.patch().apply(&Settings::default()).unwrap().collapse_to_icons);
+        assert!(
+            bare.preferences
+                .patch()
+                .apply(&Settings::default())
+                .unwrap()
+                .collapse_to_icons
+        );
         // Not mentioned: whatever was saved stays.
         let cli = Cli::try_parse_from(["peersus", "--background"]).unwrap();
-        let kept = Settings { collapse_to_icons: true, ..Settings::default() };
-        assert!(cli.preferences.patch().apply(&kept).unwrap().collapse_to_icons);
+        let kept = Settings {
+            collapse_to_icons: true,
+            ..Settings::default()
+        };
+        assert!(
+            cli.preferences
+                .patch()
+                .apply(&kept)
+                .unwrap()
+                .collapse_to_icons
+        );
         // What earlier versions had is gone: it meant arrangements that do not exist.
         assert!(Cli::try_parse_from(["peersus", "--navigation", "bar"]).is_err());
         assert!(Cli::try_parse_from(["peersus", "--sidebar-open=false"]).is_err());

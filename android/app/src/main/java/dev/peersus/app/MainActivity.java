@@ -91,6 +91,11 @@ public class MainActivity extends NativeActivity {
         if (background || active) runOnUiThread(this::requestTransferNotifications);
     }
 
+    /** Called only from the native owner's blocking pool, never from the UI thread. */
+    public boolean downloadStore(String name, long limit, String output) {
+        return StoreFetchBridge.download(this, name, limit, output);
+    }
+
     public void setTransferNotifications(int waiting, int completed, String offer, String files) {
         TransferNotifications.update(this, waiting, completed, offer, files);
         if (waiting > 0) runOnUiThread(this::requestTransferNotifications);
@@ -228,6 +233,23 @@ public class MainActivity extends NativeActivity {
     public void openOverlayPermission() {
         runOnUiThread(() -> startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 android.net.Uri.parse("package:" + getPackageName()))));
+    }
+
+    /**
+     * Whether the system leaves this program out of its battery optimisation, which is what keeps the network of the background service
+     * working while the phone is idle. The person decides it in the system's settings; the program does not ask for it directly.
+     */
+    public boolean batteryUnrestricted() {
+        android.os.PowerManager power = getSystemService(android.os.PowerManager.class);
+        return power != null && power.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    /**
+     * Opens the system's list of programs and their battery optimisation, where the person chooses. It is the list and not the direct
+     * request, which the store of applications limits to a few kinds of program. Called from Rust, on any thread.
+     */
+    public void openBatterySettings() {
+        runOnUiThread(() -> startActivity(new Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)));
     }
 
     /** Whether notifications of this application can be shown now: the permission is given and the application is not blocked as a whole. */

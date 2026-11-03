@@ -78,7 +78,14 @@ impl Offer {
     /// Whether `name` is one name of a path: judged by exactly the rule a file's own name is, so that a folder is never named with
     /// anything a file could not be (no separator, no `.` or `..`, no device name, no trailing dot or space).
     pub(crate) fn is_one_name(name: &str) -> bool {
-        Offer { id: "0".repeat(32), name: name.to_owned(), bytes: 0, folder: None }.validate_name().is_ok()
+        Offer {
+            id: "0".repeat(32),
+            name: name.to_owned(),
+            bytes: 0,
+            folder: None,
+        }
+        .validate_name()
+        .is_ok()
     }
 
     /// The folders this file sits in, inside what was sent, as a list of names and never as one string with separators: there is
@@ -92,7 +99,11 @@ impl Offer {
     fn validate_folders(&self) -> Result<(), Error> {
         let folders = self.folders();
         if folders.len() > MAX_FOLDER_DEPTH
-            || folders.iter().map(|name| name.chars().count()).sum::<usize>() > MAX_FOLDER_CHARS
+            || folders
+                .iter()
+                .map(|name| name.chars().count())
+                .sum::<usize>()
+                > MAX_FOLDER_CHARS
             || !folders.iter().all(|name| Self::is_one_name(name))
         {
             return Err(Error::InvalidOffer);
@@ -142,7 +153,11 @@ impl Source {
         Self::from_file_in(file, name, None).await
     }
 
-    pub(crate) async fn from_file_in(file: std::fs::File, name: &str, folder: Option<Vec<String>>) -> Result<Self, Error> {
+    pub(crate) async fn from_file_in(
+        file: std::fs::File,
+        name: &str,
+        folder: Option<Vec<String>>,
+    ) -> Result<Self, Error> {
         let file = tokio::fs::File::from_std(file);
         let metadata = file.metadata().await?;
         if !metadata.is_file() {
@@ -195,7 +210,6 @@ impl Source {
     }
 }
 
-
 /// A folder that is open, and that every step after it is made RELATIVE to.
 ///
 /// WHY A HANDLE AND NOT A PATH. A path is looked at and then used, and in between anyone who can write in the folder the person chose
@@ -232,7 +246,8 @@ impl Folder {
             }
             // Opened as a folder and without following: whatever is at this name now (a link, a file, another thing) is refused
             // here, on the way in, and the handle that comes back is a real folder.
-            handle = openat(&handle, name.as_str(), directory, Mode::empty()).map_err(|_| Error::InvalidOffer)?;
+            handle = openat(&handle, name.as_str(), directory, Mode::empty())
+                .map_err(|_| Error::InvalidOffer)?;
         }
         Ok(Self { handle })
     }
@@ -242,9 +257,21 @@ impl Folder {
     fn stage(&self) -> Result<Staged<'_>, Error> {
         use rustix::fs::{Mode, OFlags, openat};
         let name = format!(".peersus-{}.part", hex::encode(rand::random::<[u8; 8]>()));
-        let flags = OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-        let file = openat(&self.handle, name.as_str(), flags, Mode::from_raw_mode(0o600)).map_err(|error| Error::Io(error.into()))?;
-        Ok(Staged { folder: self, name, file: Some(std::fs::File::from(file)), published: false })
+        let flags =
+            OFlags::WRONLY | OFlags::CREATE | OFlags::EXCL | OFlags::NOFOLLOW | OFlags::CLOEXEC;
+        let file = openat(
+            &self.handle,
+            name.as_str(),
+            flags,
+            Mode::from_raw_mode(0o600),
+        )
+        .map_err(|error| Error::Io(error.into()))?;
+        Ok(Staged {
+            folder: self,
+            name,
+            file: Some(std::fs::File::from(file)),
+            published: false,
+        })
     }
 }
 
@@ -270,12 +297,19 @@ impl Staged<'_> {
         use rustix::fs::{AtFlags, unlinkat};
         #[cfg(any(target_os = "linux", target_os = "android"))]
         let published = rustix::fs::renameat_with(
-            &self.folder.handle, self.name.as_str(), &self.folder.handle, name,
+            &self.folder.handle,
+            self.name.as_str(),
+            &self.folder.handle,
+            name,
             rustix::fs::RenameFlags::NOREPLACE,
         );
         #[cfg(not(any(target_os = "linux", target_os = "android")))]
         let published = rustix::fs::linkat(
-            &self.folder.handle, self.name.as_str(), &self.folder.handle, name, AtFlags::empty(),
+            &self.folder.handle,
+            self.name.as_str(),
+            &self.folder.handle,
+            name,
+            AtFlags::empty(),
         );
         match published {
             Ok(()) => {}
@@ -293,7 +327,11 @@ impl Drop for Staged<'_> {
     fn drop(&mut self) {
         // Published: the staging name is gone already. Not published: the file is removed, and a name that is not there is no error.
         if !self.published {
-            let _ = rustix::fs::unlinkat(&self.folder.handle, self.name.as_str(), rustix::fs::AtFlags::empty());
+            let _ = rustix::fs::unlinkat(
+                &self.folder.handle,
+                self.name.as_str(),
+                rustix::fs::AtFlags::empty(),
+            );
         }
     }
 }
@@ -382,7 +420,12 @@ mod tests {
     }
 
     fn offer_in(folder: Option<Vec<&str>>) -> Offer {
-        Offer { id: "a".repeat(32), name: "photo.jpg".into(), bytes: 1, folder: folder.map(|names| names.into_iter().map(str::to_owned).collect()) }
+        Offer {
+            id: "a".repeat(32),
+            name: "photo.jpg".into(),
+            bytes: 1,
+            folder: folder.map(|names| names.into_iter().map(str::to_owned).collect()),
+        }
     }
 
     #[test]
@@ -390,11 +433,17 @@ mod tests {
         assert!(offer_in(Some(vec!["pictures", "2024"])).validate().is_ok());
         // Every trick that a file's name is refused for, in any place of the path: a step up, a separator inside one name (so that
         // one name could be a whole path), a drive, a device, a trailing dot or space, nothing at all, a control character.
-        for bad in ["..", ".", "a/b", "a\\b", "C:", "CON", "nul", "COM1", "a.", "a ", "", "x\0y", "a*b", "a?b"] {
+        for bad in [
+            "..", ".", "a/b", "a\\b", "C:", "CON", "nul", "COM1", "a.", "a ", "", "x\0y", "a*b",
+            "a?b",
+        ] {
             for place in 0..3 {
                 let mut names = vec!["one", "two", "three"];
                 names[place] = bad;
-                assert!(offer_in(Some(names)).validate().is_err(), "{bad:?} was taken as a folder name at place {place}");
+                assert!(
+                    offer_in(Some(names)).validate().is_err(),
+                    "{bad:?} was taken as a folder name at place {place}"
+                );
             }
         }
     }
@@ -402,34 +451,62 @@ mod tests {
     #[test]
     fn a_path_cannot_be_made_of_endless_or_endlessly_long_folders() {
         let names = |count: usize| vec!["d".to_owned(); count];
-        let with = |names: Vec<String>| Offer { folder: Some(names), ..offer_in(None) };
+        let with = |names: Vec<String>| Offer {
+            folder: Some(names),
+            ..offer_in(None)
+        };
         assert!(with(names(MAX_FOLDER_DEPTH)).validate().is_ok());
-        assert!(with(names(MAX_FOLDER_DEPTH + 1)).validate().is_err(), "a path deeper than the limit was taken");
+        assert!(
+            with(names(MAX_FOLDER_DEPTH + 1)).validate().is_err(),
+            "a path deeper than the limit was taken"
+        );
         // Few names, but together past the length that is allowed: each is a good name alone.
         let long = vec!["n".repeat(200); MAX_FOLDER_CHARS / 200 + 1];
-        assert!(with(long).validate().is_err(), "a path longer than the limit was taken");
+        assert!(
+            with(long).validate().is_err(),
+            "a path longer than the limit was taken"
+        );
     }
 
     #[test]
-    fn a_file_sent_alone_is_offered_exactly_as_before_folders_and_an_offer_from_before_still_reads() {
+    fn a_file_sent_alone_is_offered_exactly_as_before_folders_and_an_offer_from_before_still_reads()
+    {
         // On the wire a file with no folder has NO field for it, so a device that does not know folders takes it as it always did.
         let alone = serde_json::to_string(&offer_in(None)).unwrap();
-        assert!(!alone.contains("folder"), "a file sent alone carries a field an older device would refuse: {alone}");
-        assert_eq!(alone, format!(r#"{{"id":"{}","name":"photo.jpg","bytes":1}}"#, "a".repeat(32)));
+        assert!(
+            !alone.contains("folder"),
+            "a file sent alone carries a field an older device would refuse: {alone}"
+        );
+        assert_eq!(
+            alone,
+            format!(
+                r#"{{"id":"{}","name":"photo.jpg","bytes":1}}"#,
+                "a".repeat(32)
+            )
+        );
         // An offer written before folders existed reads as a file with none.
         let before: Offer = serde_json::from_str(&alone).unwrap();
         assert!(before.folders().is_empty());
         assert!(before.validate().is_ok());
         // A file in folders does carry them, as a list and never as one string with separators.
         let inside = serde_json::to_string(&offer_in(Some(vec!["a", "b"]))).unwrap();
-        assert!(inside.contains(r#""folder":["a","b"]"#), "the folders are not a list on the wire: {inside}");
+        assert!(
+            inside.contains(r#""folder":["a","b"]"#),
+            "the folders are not a list on the wire: {inside}"
+        );
     }
 
     #[test]
     fn an_offer_still_refuses_a_field_it_does_not_know() {
         // A new field must not open a way for anything else to ride along: the offer is still strict about what it holds.
-        let wrong = format!(r#"{{"id":"{}","name":"a.txt","bytes":1,"path":"../x"}}"#, "a".repeat(32));
-        assert!(serde_json::from_str::<Offer>(&wrong).is_err(), "an unknown field was accepted in an offer");
+        let wrong = format!(
+            r#"{{"id":"{}","name":"a.txt","bytes":1,"path":"../x"}}"#,
+            "a".repeat(32)
+        );
+        assert!(
+            serde_json::from_str::<Offer>(&wrong).is_err(),
+            "an unknown field was accepted in an offer"
+        );
     }
 
     fn names(list: &[&str]) -> Vec<String> {
@@ -445,13 +522,32 @@ mod tests {
     }
 
     #[test]
-    fn the_folders_of_an_offer_are_made_inside_the_chosen_one_and_a_real_folder_that_is_there_is_used() {
+    fn the_folders_of_an_offer_are_made_inside_the_chosen_one_and_a_real_folder_that_is_there_is_used()
+     {
         let base = tempfile::tempdir().unwrap();
-        put(&Folder::open(base.path(), &names(&["pictures", "2024"])).unwrap(), "a.jpg", b"a").unwrap();
-        assert_eq!(std::fs::read(base.path().join("pictures").join("2024").join("a.jpg")).unwrap(), b"a");
+        put(
+            &Folder::open(base.path(), &names(&["pictures", "2024"])).unwrap(),
+            "a.jpg",
+            b"a",
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(base.path().join("pictures").join("2024").join("a.jpg")).unwrap(),
+            b"a"
+        );
         // A second file in the same folders finds them and uses them.
-        put(&Folder::open(base.path(), &names(&["pictures", "2024"])).unwrap(), "b.jpg", b"b").unwrap();
-        assert_eq!(std::fs::read_dir(base.path().join("pictures").join("2024")).unwrap().count(), 2);
+        put(
+            &Folder::open(base.path(), &names(&["pictures", "2024"])).unwrap(),
+            "b.jpg",
+            b"b",
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read_dir(base.path().join("pictures").join("2024"))
+                .unwrap()
+                .count(),
+            2
+        );
         // A file sent alone has no folders: it goes in the chosen one itself.
         put(&Folder::open(base.path(), &[]).unwrap(), "alone.txt", b"x").unwrap();
         assert!(base.path().join("alone.txt").is_file());
@@ -464,21 +560,37 @@ mod tests {
         let elsewhere = tempfile::tempdir().unwrap();
         // A link to a real folder somewhere the person never chose, placed in the folder they chose.
         std::os::unix::fs::symlink(elsewhere.path(), base.path().join("pictures")).unwrap();
-        assert!(Folder::open(base.path(), &names(&["pictures", "2024"])).is_err(), "a path went through a link");
-        assert_eq!(std::fs::read_dir(elsewhere.path()).unwrap().count(), 0, "something was made on the other side of the link");
+        assert!(
+            Folder::open(base.path(), &names(&["pictures", "2024"])).is_err(),
+            "a path went through a link"
+        );
+        assert_eq!(
+            std::fs::read_dir(elsewhere.path()).unwrap().count(),
+            0,
+            "something was made on the other side of the link"
+        );
         // A link to a file, and a link that points nowhere: refused as well.
         let file = base.path().join("a-file");
         std::fs::write(&file, b"x").unwrap();
         std::os::unix::fs::symlink(&file, base.path().join("to-file")).unwrap();
-        std::os::unix::fs::symlink(base.path().join("not-there"), base.path().join("dangling")).unwrap();
+        std::os::unix::fs::symlink(base.path().join("not-there"), base.path().join("dangling"))
+            .unwrap();
         for link in ["to-file", "dangling"] {
-            assert!(Folder::open(base.path(), &names(&[link])).is_err(), "{link} was taken as a folder");
+            assert!(
+                Folder::open(base.path(), &names(&[link])).is_err(),
+                "{link} was taken as a folder"
+            );
         }
         // And a link in the MIDDLE of a path, under a folder that is real.
         std::fs::create_dir(base.path().join("real")).unwrap();
-        std::os::unix::fs::symlink(elsewhere.path(), base.path().join("real").join("inner")).unwrap();
+        std::os::unix::fs::symlink(elsewhere.path(), base.path().join("real").join("inner"))
+            .unwrap();
         assert!(Folder::open(base.path(), &names(&["real", "inner", "deeper"])).is_err());
-        assert_eq!(std::fs::read_dir(elsewhere.path()).unwrap().count(), 0, "something was made through a link in the middle");
+        assert_eq!(
+            std::fs::read_dir(elsewhere.path()).unwrap().count(),
+            0,
+            "something was made through a link in the middle"
+        );
     }
 
     #[cfg(unix)]
@@ -494,20 +606,39 @@ mod tests {
         std::fs::rename(base.path().join("pictures"), &moved).unwrap();
         std::os::unix::fs::symlink(elsewhere.path(), base.path().join("pictures")).unwrap();
         put(&folder, "a.jpg", b"for the real folder").unwrap();
-        assert_eq!(std::fs::read_dir(elsewhere.path()).unwrap().count(), 0, "a file was written through a link that was put there after the open");
-        assert_eq!(std::fs::read(moved.join("2024").join("a.jpg")).unwrap(), b"for the real folder", "the file did not land in the folder that was opened");
+        assert_eq!(
+            std::fs::read_dir(elsewhere.path()).unwrap().count(),
+            0,
+            "a file was written through a link that was put there after the open"
+        );
+        assert_eq!(
+            std::fs::read(moved.join("2024").join("a.jpg")).unwrap(),
+            b"for the real folder",
+            "the file did not land in the folder that was opened"
+        );
     }
 
     #[test]
-    fn a_file_where_a_folder_should_be_is_refused_and_a_name_that_is_not_one_name_is_never_followed() {
+    fn a_file_where_a_folder_should_be_is_refused_and_a_name_that_is_not_one_name_is_never_followed()
+     {
         let base = tempfile::tempdir().unwrap();
         std::fs::write(base.path().join("taken"), b"x").unwrap();
-        assert!(Folder::open(base.path(), &names(&["taken"])).is_err(), "a file was taken for a folder");
+        assert!(
+            Folder::open(base.path(), &names(&["taken"])).is_err(),
+            "a file was taken for a folder"
+        );
         // The disk is touched only with names that are one name: a step up or a separator is refused before any level is made.
         for bad in ["..", "a/b", "a\\b", "", "."] {
-            assert!(Folder::open(base.path(), &names(&["fine", bad])).is_err(), "{bad:?} reached the disk");
+            assert!(
+                Folder::open(base.path(), &names(&["fine", bad])).is_err(),
+                "{bad:?} reached the disk"
+            );
         }
-        assert_eq!(std::fs::read_dir(base.path()).unwrap().count(), 2, "something was made outside what was asked");
+        assert_eq!(
+            std::fs::read_dir(base.path()).unwrap().count(),
+            2,
+            "something was made outside what was asked"
+        );
     }
 
     #[test]
@@ -515,38 +646,75 @@ mod tests {
         let base = tempfile::tempdir().unwrap();
         let folder = Folder::open(base.path(), &[]).unwrap();
         put(&folder, "x.txt", b"first").unwrap();
-        assert!(matches!(put(&folder, "x.txt", b"second"), Err(Error::Exists)), "a file was replaced");
+        assert!(
+            matches!(put(&folder, "x.txt", b"second"), Err(Error::Exists)),
+            "a file was replaced"
+        );
         assert_eq!(std::fs::read(base.path().join("x.txt")).unwrap(), b"first");
         // A file begun and dropped (a cancel, an error, a task that is dropped) is removed with nothing else left in the folder.
         {
             let mut staged = folder.stage().unwrap();
             std::io::Write::write_all(&mut staged.take_file().unwrap(), b"half").unwrap();
         }
-        assert_eq!(std::fs::read_dir(base.path()).unwrap().count(), 1, "a file that was not finished was left behind");
+        assert_eq!(
+            std::fs::read_dir(base.path()).unwrap().count(),
+            1,
+            "a file that was not finished was left behind"
+        );
     }
 
     #[tokio::test]
-    async fn a_file_of_a_folder_is_offered_with_the_folders_it_sits_in_and_a_file_alone_with_none() {
+    async fn a_file_of_a_folder_is_offered_with_the_folders_it_sits_in_and_a_file_alone_with_none()
+    {
         let base = tempfile::tempdir().unwrap();
         let path = base.path().join("a.jpg");
         std::fs::write(&path, b"abc").unwrap();
-        let inside = Source::from_file_in(std::fs::File::open(&path).unwrap(), "a.jpg", Some(names(&["pictures", "2024"]))).await.unwrap();
+        let inside = Source::from_file_in(
+            std::fs::File::open(&path).unwrap(),
+            "a.jpg",
+            Some(names(&["pictures", "2024"])),
+        )
+        .await
+        .unwrap();
         assert_eq!(inside.offer.folders(), ["pictures", "2024"]);
         assert_eq!(inside.offer.bytes, 3);
         // A file chosen on its own has no folders, and no field for them on the wire.
         let alone = Source::open(&path).await.unwrap();
         assert!(alone.offer.folders().is_empty());
-        assert!(!serde_json::to_string(&alone.offer).unwrap().contains("folder"));
+        assert!(
+            !serde_json::to_string(&alone.offer)
+                .unwrap()
+                .contains("folder")
+        );
         // An empty list is the same as none: nothing is written for it.
-        let none = Source::from_file_in(std::fs::File::open(&path).unwrap(), "a.jpg", Some(Vec::new())).await.unwrap();
-        assert!(!serde_json::to_string(&none.offer).unwrap().contains("folder"));
+        let none = Source::from_file_in(
+            std::fs::File::open(&path).unwrap(),
+            "a.jpg",
+            Some(Vec::new()),
+        )
+        .await
+        .unwrap();
+        assert!(
+            !serde_json::to_string(&none.offer)
+                .unwrap()
+                .contains("folder")
+        );
         // And a folder name that cannot be one is refused before anything is sent.
-        assert!(Source::from_file_in(std::fs::File::open(&path).unwrap(), "a.jpg", Some(names(&["fine", ".."]))).await.is_err());
+        assert!(
+            Source::from_file_in(
+                std::fs::File::open(&path).unwrap(),
+                "a.jpg",
+                Some(names(&["fine", ".."]))
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn a_link_put_where_a_file_was_is_refused_at_the_open_and_what_it_points_at_is_not_sent() {
+    async fn a_link_put_where_a_file_was_is_refused_at_the_open_and_what_it_points_at_is_not_sent()
+    {
         let base = tempfile::tempdir().unwrap();
         let secret = tempfile::tempdir().unwrap();
         std::fs::write(secret.path().join("private.key"), b"do not send").unwrap();
@@ -562,7 +730,15 @@ mod tests {
         // And a folder in the place of a file is refused by its handle.
         let folder = base.path().join("was-a-file");
         std::fs::create_dir(&folder).unwrap();
-        assert!(Source::from_file_in(std::fs::File::open(&folder).unwrap(), "was-a-file", Some(names(&["pictures"]))).await.is_err());
+        assert!(
+            Source::from_file_in(
+                std::fs::File::open(&folder).unwrap(),
+                "was-a-file",
+                Some(names(&["pictures"]))
+            )
+            .await
+            .is_err()
+        );
     }
 
     #[tokio::test]
@@ -575,6 +751,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await
@@ -631,11 +808,24 @@ mod tests {
         held.rewind().unwrap();
         let source = Source::from_file(held, "holiday.bin").await.unwrap();
         assert_eq!(source.offer.bytes, data.len() as u64);
-        assert_eq!(source.offer.name, "holiday.bin", "the name is the one given");
-        let policy = NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false };
-        let a = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let (a_conn, b_conn) = tokio::join!(a.connect(b.addr(), ALPN), async { b.accept().await.unwrap().await });
+        assert_eq!(
+            source.offer.name, "holiday.bin",
+            "the name is the one given"
+        );
+        let policy = NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        };
+        let a = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let (a_conn, b_conn) = tokio::join!(a.connect(b.addr(), ALPN), async {
+            b.accept().await.unwrap().await
+        });
         let (a_conn, b_conn) = (a_conn.unwrap(), b_conn.unwrap());
         let offer = source.offer.clone();
         let (sent, received) = tokio::join!(
@@ -650,7 +840,12 @@ mod tests {
         );
         sent.unwrap();
         received.unwrap();
-        assert_eq!(tokio::fs::read(destination_dir.path().join("holiday.bin")).await.unwrap(), data);
+        assert_eq!(
+            tokio::fs::read(destination_dir.path().join("holiday.bin"))
+                .await
+                .unwrap(),
+            data
+        );
         a_conn.close(0_u32.into(), b"done");
         b_conn.close(0_u32.into(), b"done");
         a.close().await;
@@ -662,15 +857,37 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("x.bin");
         std::fs::write(&path, b"data").unwrap();
-        for name in ["", ".", "..", "../x", "a/b", "a\\b", "a:b", "a*b", "trailing.", "trailing ", &"n".repeat(241)] {
+        for name in [
+            "",
+            ".",
+            "..",
+            "../x",
+            "a/b",
+            "a\\b",
+            "a:b",
+            "a*b",
+            "trailing.",
+            "trailing ",
+            &"n".repeat(241),
+        ] {
             let file = std::fs::File::open(&path).unwrap();
-            assert!(Source::from_file(file, name).await.is_err(), "{name:?} was accepted as a name");
+            assert!(
+                Source::from_file(file, name).await.is_err(),
+                "{name:?} was accepted as a name"
+            );
         }
         // A handle on a folder is not a file, whatever it is called.
         let folder = std::fs::File::open(dir.path()).unwrap();
-        assert!(matches!(Source::from_file(folder, "folder").await, Err(Error::InvalidOffer)));
+        assert!(matches!(
+            Source::from_file(folder, "folder").await,
+            Err(Error::InvalidOffer)
+        ));
         // And an ordinary name is accepted.
-        assert!(Source::from_file(std::fs::File::open(&path).unwrap(), "ok.bin").await.is_ok());
+        assert!(
+            Source::from_file(std::fs::File::open(&path).unwrap(), "ok.bin")
+                .await
+                .is_ok()
+        );
         // `open` is the case where the name is the path's own, and judges it the same way.
         assert_eq!(Source::open(&path).await.unwrap().offer.name, "x.bin");
     }
@@ -681,6 +898,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await

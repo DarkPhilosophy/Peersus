@@ -44,12 +44,21 @@ pub struct SettingsStore {
 fn known_fields_only(mut value: serde_json::Value) -> serde_json::Value {
     let known = serde_json::to_value(Settings::default()).unwrap_or_default();
     if let (Some(found), Some(known)) = (value.as_object_mut(), known.as_object()) {
-        found.retain(|key, _| known.contains_key(key) || matches!(key.as_str(), "language" | "custom_theme" | "saved_themes"));
+        found.retain(|key, _| {
+            known.contains_key(key)
+                || matches!(key.as_str(), "language" | "custom_theme" | "saved_themes")
+        });
         if let (Some(found), Some(known)) = (
-            found.get_mut("network").and_then(|network| network.as_object_mut()),
+            found
+                .get_mut("network")
+                .and_then(|network| network.as_object_mut()),
             known.get("network").and_then(|network| network.as_object()),
         ) {
-            found.retain(|key, _| known.contains_key(key));
+            // A field that is not written while it holds its default (the address of a personal relay) is not in the default's
+            // own serialization, so it is named here: it is known, and dropping it would lose what the person chose.
+            found.retain(|key, _| {
+                known.contains_key(key) || matches!(key.as_str(), "relay_url" | "relay_policy")
+            });
         }
     }
     value
@@ -133,7 +142,11 @@ impl SettingsStore {
             Err(error) => return Err(error.into()),
         };
         let Some(bytes) = read else {
-            return Ok(Self { path, current: Settings::default(), set_aside: None });
+            return Ok(Self {
+                path,
+                current: Settings::default(),
+                set_aside: None,
+            });
         };
         let parsed = (bytes.len() as u64 <= MAX_BYTES)
             .then(|| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
@@ -145,7 +158,11 @@ impl SettingsStore {
             .and_then(|value| serde_json::from_value::<Settings>(value).ok())
             .filter(|settings| settings.validate().is_ok());
         if let Some(current) = whole {
-            return Ok(Self { path, current, set_aside: None });
+            return Ok(Self {
+                path,
+                current,
+                set_aside: None,
+            });
         }
         // Something in it is wrong. Keep every value that is right and reset only the ones that
         // are not, so that a wrong picture scale can never switch the relays back on. If it is
@@ -155,7 +172,11 @@ impl SettingsStore {
         // file from here on.
         let aside = set_aside_name(&path)?;
         std::fs::rename(&path, &aside)?;
-        let mut store = Self { path, current: Settings::default(), set_aside: Some(aside) };
+        let mut store = Self {
+            path,
+            current: Settings::default(),
+            set_aside: Some(aside),
+        };
         store.replace(current)?;
         Ok(store)
     }
@@ -202,16 +223,21 @@ mod tests {
         let path = directory.path().join("preferences.json");
         for language in Language::ALL {
             let mut store = SettingsStore::open(&path).unwrap();
-            store.update(&SettingsPatch {
-                language: Some(language),
-                allow_relay: Some(false),
-                ..Default::default()
-            }).unwrap();
+            store
+                .update(&SettingsPatch {
+                    language: Some(language),
+                    allow_relay: Some(false),
+                    ..Default::default()
+                })
+                .unwrap();
             drop(store);
             let reopened = SettingsStore::open(&path).unwrap();
             assert_eq!(reopened.current().language, language);
             assert!(!reopened.current().network.allow_relay);
-            assert!(reopened.set_aside().is_none(), "a supported language is not a damaged preference");
+            assert!(
+                reopened.set_aside().is_none(),
+                "a supported language is not a damaged preference"
+            );
         }
     }
 
@@ -319,7 +345,10 @@ mod tests {
         assert_eq!(store.current().scale, Settings::default().scale);
         // ...and what the person restricted is exactly as they chose it. A wrong picture scale
         // must never switch the relays back on.
-        assert_eq!(store.current().network.bind, Some("127.0.0.1".parse().unwrap()));
+        assert_eq!(
+            store.current().network.bind,
+            Some("127.0.0.1".parse().unwrap())
+        );
         assert!(!store.current().network.allow_relay);
         assert_eq!(store.current().device_name, "Alex laptop");
         // The old file is kept, and the file in use now says the same as memory.
@@ -343,7 +372,10 @@ mod tests {
         // person turned off stays off: the unusable half takes nothing with it.
         assert_eq!(store.current().network.bind, None);
         assert!(!store.current().network.allow_relay);
-        assert!(store.set_aside().is_some(), "the loss of the address must be said");
+        assert!(
+            store.set_aside().is_some(),
+            "the loss of the address must be said"
+        );
     }
 
     #[test]
@@ -363,7 +395,11 @@ mod tests {
             fs::write(&path, text).unwrap();
             let store = SettingsStore::open(&path).expect("must open");
             assert_eq!(store.current().scale, Settings::default().scale, "{text}");
-            assert_eq!(store.current().network.bind, Some("127.0.0.1".parse().unwrap()), "{text}");
+            assert_eq!(
+                store.current().network.bind,
+                Some("127.0.0.1".parse().unwrap()),
+                "{text}"
+            );
             assert!(!store.current().network.allow_relay, "{text}");
         }
     }
@@ -383,9 +419,17 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("preferences.json");
         fs::write(&path, b"first").unwrap();
-        let first = SettingsStore::open(&path).unwrap().set_aside().unwrap().to_owned();
+        let first = SettingsStore::open(&path)
+            .unwrap()
+            .set_aside()
+            .unwrap()
+            .to_owned();
         fs::write(&path, b"second").unwrap();
-        let second = SettingsStore::open(&path).unwrap().set_aside().unwrap().to_owned();
+        let second = SettingsStore::open(&path)
+            .unwrap()
+            .set_aside()
+            .unwrap()
+            .to_owned();
         assert_ne!(first, second);
         assert_eq!(fs::read(first).unwrap(), b"first");
         assert_eq!(fs::read(second).unwrap(), b"second");
@@ -416,5 +460,60 @@ mod tests {
                 .is_err()
         );
         assert!(!store.current().background);
+    }
+
+    /// A field that is not written while it holds its default is invisible to anything that learns the fields of the settings from
+    /// how the defaults are written. Each one is given a value that is not the default, saved, and read back from the file; the
+    /// reopened settings must be what was saved, and nothing may be said to have been lost.
+    #[test]
+    fn every_field_that_is_not_written_at_its_default_survives_a_save_and_a_reopen() {
+        let mut chosen = Settings::default();
+        chosen.network.relay_url = Some("https://relay.example.org".into());
+        chosen.language = peersus_core::config::Language::ALL[1];
+        chosen
+            .custom_theme
+            .colors
+            .insert(peersus_core::config::ThemeColor::Background, [1, 2, 3]);
+        chosen
+            .saved_themes
+            .insert("Mine".into(), peersus_core::config::CustomTheme::default());
+        chosen
+            .validate()
+            .expect("the settings under test are themselves valid");
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("preferences.json");
+        let mut store = SettingsStore::open(&path).unwrap();
+        store.replace(chosen.clone()).unwrap();
+        drop(store);
+
+        let reopened = SettingsStore::open(&path).unwrap();
+        assert_eq!(
+            reopened.current().network.relay_url,
+            chosen.network.relay_url,
+            "the relay of one's own was dropped"
+        );
+        assert_eq!(reopened.current(), &chosen);
+        assert!(
+            reopened.set_aside().is_none(),
+            "reading a valid file must not be said to have lost anything"
+        );
+
+        // The way the command line saves: an edit that says nothing about the relay must leave it where it was.
+        let mut store = reopened;
+        store
+            .update(&SettingsPatch {
+                reduced_motion: Some(true),
+                ..Default::default()
+            })
+            .unwrap();
+        drop(store);
+        let after = SettingsStore::open(&path).unwrap();
+        assert_eq!(
+            after.current().network.relay_url,
+            chosen.network.relay_url,
+            "an edit of something else lost the relay"
+        );
+        assert!(after.current().reduced_motion);
     }
 }

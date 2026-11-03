@@ -9,7 +9,9 @@
 //! which types are on offer, and says whether one of them is text. Reading the text is left to
 //! the owner thread, and happens only when the session asks, which is only while a person has
 //! switched automatic sending on: with it off, nothing here ever looks at the clipboard.
-use std::{sync::mpsc::SyncSender, thread};
+use std::sync::mpsc::SyncSender;
+#[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
+use std::thread;
 
 /// What the compositor said about the selection, and nothing about its contents.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -24,7 +26,9 @@ pub enum Signal {
 /// because it could not be trusted to decode.
 pub fn offers_text(offered: &[String]) -> bool {
     const TEXT: [&str; 3] = ["text/plain;charset=utf-8", "UTF8_STRING", "text/plain"];
-    offered.iter().any(|have| TEXT.iter().any(|wanted| have.eq_ignore_ascii_case(wanted)))
+    offered
+        .iter()
+        .any(|have| TEXT.iter().any(|wanted| have.eq_ignore_ascii_case(wanted)))
 }
 
 /// Start listening. False if neither source of real copy events exists in this session, and the
@@ -57,7 +61,11 @@ fn wayland(events: SyncSender<Signal>) -> bool {
             loop {
                 let signal = match watcher.next_event() {
                     Ok(Some(ClipboardEvent::Changed { mime_types, .. })) => {
-                        if offers_text(&mime_types) { Signal::Text } else { Signal::Other }
+                        if offers_text(&mime_types) {
+                            Signal::Text
+                        } else {
+                            Signal::Other
+                        }
                     }
                     Ok(Some(ClipboardEvent::Cleared { .. })) => Signal::Other,
                     // Cancelled, or the compositor went away: nothing more will ever arrive.
@@ -89,30 +97,56 @@ fn x11(events: SyncSender<Signal>) -> bool {
             xproto::{ConnectionExt as _, CreateWindowAux, WindowClass},
         },
     };
-    let Ok((conn, screen)) = x11rb::connect(None) else { return false };
+    let Ok((conn, screen)) = x11rb::connect(None) else {
+        return false;
+    };
     // Absent on a server too old or too restricted to say: then there is nothing to listen to.
-    if conn.xfixes_query_version(5, 0).ok().and_then(|cookie| cookie.reply().ok()).is_none() {
+    if conn
+        .xfixes_query_version(5, 0)
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+        .is_none()
+    {
         return false;
     }
-    let (Ok(window), Some(root)) = (conn.generate_id(), conn.setup().roots.get(screen).map(|s| s.root)) else {
+    let (Ok(window), Some(root)) = (
+        conn.generate_id(),
+        conn.setup().roots.get(screen).map(|s| s.root),
+    ) else {
         return false;
     };
     // Each request is confirmed by the server before going on: an INPUT_ONLY window that was not
     // made, or a selection that was refused, would otherwise listen to nothing and say nothing.
     let created = conn
         .create_window(
-            COPY_DEPTH_FROM_PARENT, window, root, 0, 0, 1, 1, 0,
-            WindowClass::INPUT_ONLY, COPY_FROM_PARENT, &CreateWindowAux::new(),
+            COPY_DEPTH_FROM_PARENT,
+            window,
+            root,
+            0,
+            0,
+            1,
+            1,
+            0,
+            WindowClass::INPUT_ONLY,
+            COPY_FROM_PARENT,
+            &CreateWindowAux::new(),
         )
         .ok()
         .and_then(|cookie| cookie.check().ok());
-    let Some(clipboard) = conn.intern_atom(false, b"CLIPBOARD").ok().and_then(|cookie| cookie.reply().ok()) else {
+    let Some(clipboard) = conn
+        .intern_atom(false, b"CLIPBOARD")
+        .ok()
+        .and_then(|cookie| cookie.reply().ok())
+    else {
         return false;
     };
     let selected = conn
         .xfixes_select_selection_input(
-            window, clipboard.atom,
-            SelectionEventMask::SET_SELECTION_OWNER | SelectionEventMask::SELECTION_WINDOW_DESTROY | SelectionEventMask::SELECTION_CLIENT_CLOSE,
+            window,
+            clipboard.atom,
+            SelectionEventMask::SET_SELECTION_OWNER
+                | SelectionEventMask::SELECTION_WINDOW_DESTROY
+                | SelectionEventMask::SELECTION_CLIENT_CLOSE,
         )
         .ok()
         .and_then(|cookie| cookie.check().ok());
@@ -143,7 +177,10 @@ fn x11(events: SyncSender<Signal>) -> bool {
 /// thread must never block. False once the plugin is gone.
 #[cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))]
 fn announce(events: &SyncSender<Signal>, signal: Signal) -> bool {
-    !matches!(events.try_send(signal), Err(std::sync::mpsc::TrySendError::Disconnected(_)))
+    !matches!(
+        events.try_send(signal),
+        Err(std::sync::mpsc::TrySendError::Disconnected(_))
+    )
 }
 
 /// Everywhere else the system library is all there is: no copy events, so snapshots.
@@ -162,13 +199,20 @@ mod tests {
 
     #[test]
     fn plain_text_types_count_and_other_charsets_and_pictures_do_not() {
-        assert!(offers_text(&offered(&["TARGETS", "text/plain", "text/plain;charset=utf-8"])));
+        assert!(offers_text(&offered(&[
+            "TARGETS",
+            "text/plain",
+            "text/plain;charset=utf-8"
+        ])));
         assert!(offers_text(&offered(&["text/plain"])));
         assert!(offers_text(&offered(&["UTF8_STRING"])));
         assert!(offers_text(&offered(&["TEXT/PLAIN;CHARSET=UTF-8"])));
         assert!(!offers_text(&offered(&["text/plain;charset=iso-8859-1"])));
         assert!(!offers_text(&offered(&["image/png"])));
-        assert!(!offers_text(&offered(&["text/uri-list", "x-special/gnome-copied-files"])));
+        assert!(!offers_text(&offered(&[
+            "text/uri-list",
+            "x-special/gnome-copied-files"
+        ])));
         assert!(!offers_text(&[]));
     }
 }

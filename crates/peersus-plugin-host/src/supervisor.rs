@@ -33,7 +33,9 @@ pub trait Lifecycle: Send {
 
 impl Lifecycle for Running {
     fn wait(&mut self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-        Box::pin(async move { Running::wait(self).await; })
+        Box::pin(async move {
+            Running::wait(self).await;
+        })
     }
     fn stop(&mut self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(Running::stop(self))
@@ -157,7 +159,9 @@ impl Launch {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .kill_on_drop(true);
-        if let Some(module) = module { command.arg(module); }
+        if let Some(module) = module {
+            command.arg(module);
+        }
         #[cfg(unix)]
         command.process_group(0);
         let child = command.spawn()?;
@@ -179,7 +183,9 @@ impl Launch {
 
 impl Running {
     /// The live child identity, unavailable once it has been collected.
-    pub fn id(&self) -> Option<u32> { self.child.id() }
+    pub fn id(&self) -> Option<u32> {
+        self.child.id()
+    }
 
     /// How long the process has been running (or ran, once it has ended).
     pub fn ran_for(&self) -> Duration {

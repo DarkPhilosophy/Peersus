@@ -1,5 +1,6 @@
 // Rust and JNI artifacts are built separately for each distribution by cargo xtask.
 plugins { id 'com.android.application' }
+def nativeLibraries = rootProject.file('../target/android/jniLibs')
 android {
     namespace 'dev.peersus.app'
     compileSdk 36
@@ -23,8 +24,8 @@ android {
         main.jniLibs.srcDirs = []
         debug.jniLibs.srcDirs = []
         release.jniLibs.srcDirs = []
-        play.jniLibs.srcDirs = ['src/play/jniLibs']
-        community.jniLibs.srcDirs = ['src/community/jniLibs']
+        play.jniLibs.srcDirs = [new File(nativeLibraries, 'play')]
+        community.jniLibs.srcDirs = [new File(nativeLibraries, 'community')]
         community.java.srcDir(layout.buildDirectory.dir('generated/nativeSlots/java'))
         community.manifest.srcFile(layout.buildDirectory.file('generated/nativeSlots/AndroidManifest.xml'))
         androidTest.assets.srcDir(layout.buildDirectory.dir('generated/moduleTestAssets'))
@@ -124,11 +125,11 @@ tasks.configureEach { if (name.contains('Community') && (name.startsWith('compil
                 def libraries = ['libpeersus_android.so', 'libpeersus_plugin_android.so']
                 if (flavor == 'community') libraries += 'libpeersus_native_android.so'
                 libraries.each { library ->
-                    if (!file('src/' + flavor + '/jniLibs/' + abi + '/' + library).isFile()) {
+                    if (!new File(nativeLibraries, flavor + '/' + abi + '/' + library).isFile()) {
                         throw new GradleException('Missing ' + flavor + ' native artifact; run cargo xtask android before packaging')
                     }
                 }
-                if (flavor == 'play' && file('src/play/jniLibs/' + abi + '/libpeersus_native_android.so').exists()) {
+                if (flavor == 'play' && new File(nativeLibraries, 'play/' + abi + '/libpeersus_native_android.so').exists()) {
                     throw new GradleException('External-native loader must never enter the Play source set')
                 }
             }
@@ -144,7 +145,19 @@ def nativeCommunityTestAssets = tasks.register('nativeCommunityTestAssets', Exec
         file('../../crates/peersus-plugin-runtime/native/host.c'), file('../../crates/peersus-plugin-runtime/sdk/peersus_plugin.h'),
         file('../../crates/peersus-plugin-runtime/sdk/echo.c'), file('../../crates/peersus-plugin-runtime/tests/android_data_fixture.c'))
     outputs.dir(layout.buildDirectory.dir('generated/nativeModuleTestAssets'))
-    commandLine 'python3', file('../../scripts/build-android-native.py').absolutePath, '--output', file('src/community/jniLibs').absolutePath,
+    commandLine 'python3', file('../../scripts/build-android-native.py').absolutePath, '--output', new File(nativeLibraries, 'community').absolutePath,
         '--fixtures-only', '--test-assets', layout.buildDirectory.dir('generated/nativeModuleTestAssets').get().asFile.absolutePath
 }
 tasks.configureEach { if (name == 'mergeCommunityDebugAndroidTestAssets') dependsOn(nativeCommunityTestAssets) }
+
+// These transport regressions use the real JDK HTTP stack, without Android mocks
+// or a second test-framework dependency. Match the existing plain JVM tests.
+def verifyStoreTransport = tasks.register('verifyStoreTransport', JavaExec) {
+    dependsOn('compileCommunityDebugUnitTestJavaWithJavac')
+    mainClass = 'dev.peersus.app.StoreDownloadTest'
+    classpath = files(
+        providers.provider { tasks.named('compileCommunityDebugJavaWithJavac').get().destinationDirectory.get() },
+        providers.provider { tasks.named('compileCommunityDebugUnitTestJavaWithJavac').get().destinationDirectory.get() }
+    )
+}
+tasks.named('check').configure { dependsOn(verifyStoreTransport) }

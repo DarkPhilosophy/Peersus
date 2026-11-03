@@ -68,7 +68,10 @@ pub fn close_camera() {
 
 /// Whether the camera said it could not be used (the permission was refused), read once.
 pub fn take_refusal() -> bool {
-    stopped().lock().map(|mut flag| std::mem::take(&mut *flag)).unwrap_or(false)
+    stopped()
+        .lock()
+        .map(|mut flag| std::mem::take(&mut *flag))
+        .unwrap_or(false)
 }
 
 /// How many quarter turns clockwise a frame must be turned to stand upright, as Java last said. Java knows the sensor's
@@ -90,7 +93,10 @@ pub extern "system" fn Java_dev_peersus_app_CodeCamera_cameraTurns<'local>(
     turns: jint,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        TURNS.store(turns.rem_euclid(4) as u32, std::sync::atomic::Ordering::Relaxed);
+        TURNS.store(
+            turns.rem_euclid(4) as u32,
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }));
 }
 
@@ -104,14 +110,20 @@ pub extern "system" fn Java_dev_peersus_app_CodeCamera_cameraFrame<'local>(
     height: jint,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        let (Ok(width), Ok(height)) = (usize::try_from(width), usize::try_from(height)) else { return };
+        let (Ok(width), Ok(height)) = (usize::try_from(width), usize::try_from(height)) else {
+            return;
+        };
         // Taken out of the lock before the frame is read, which costs: the interface asks the scanner questions too.
-        let Some(scanner) = scan().lock().ok().and_then(|current| current.clone()) else { return };
+        let Some(scanner) = scan().lock().ok().and_then(|current| current.clone()) else {
+            return;
+        };
         // Cheap to refuse before copying anything: a scan that is over takes no frames.
         if scanner.is_over() {
             return;
         }
-        let Ok(bytes) = env.convert_byte_array(&luma) else { return };
+        let Ok(bytes) = env.convert_byte_array(&luma) else {
+            return;
+        };
         scanner.frame(&bytes, width, height, Instant::now());
     }));
 }

@@ -15,6 +15,7 @@ async fn invitation_consent_persistence_and_reconnection_preserve_identity() {
     let policy = NetworkSettings {
         bind: Some("127.0.0.1".parse().unwrap()),
         allow_relay: false,
+        ..NetworkSettings::default()
     };
     let key_a = SecretKey::generate();
     let key_b = SecretKey::generate();
@@ -29,7 +30,11 @@ async fn invitation_consent_persistence_and_reconnection_preserve_identity() {
     });
     let left = left.unwrap();
     let (right, purpose, _) = right.unwrap();
-    assert_eq!(purpose, peersus_net::invitations::Purpose::Pairing, "a code shown to pair must admit as pairing");
+    assert_eq!(
+        purpose,
+        peersus_net::invitations::Purpose::Pairing,
+        "a code shown to pair must admit as pairing"
+    );
     let path_a = directory.path().join("a.json");
     let path_b = directory.path().join("b.json");
     let mut peers_a = Peers::open(&path_a).unwrap();

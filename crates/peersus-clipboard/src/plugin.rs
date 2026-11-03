@@ -55,7 +55,9 @@ pub trait Clipboard: Send {
         async { false }
     }
     /// Recheck a capture immediately before its irreversible outgoing write.
-    fn can_share(&mut self) -> impl Future<Output = bool> + Send { async { true } }
+    fn can_share(&mut self) -> impl Future<Output = bool> + Send {
+        async { true }
+    }
     /// Discard platform events from an earlier eligibility epoch and stop listening.
     /// False blocks automatic observation and sends until a later reset succeeds.
     fn reset_observation(&mut self) -> impl Future<Output = bool> + Send {
@@ -65,26 +67,43 @@ pub trait Clipboard: Send {
     fn set_text(&mut self, text: &str) -> impl Future<Output = bool> + Send;
     /// The deadline belongs to the whole receive, not a new platform timeout. Providers
     /// that queue non-cancellable work must revoke its permit when this future is dropped.
-    fn set_text_until(&mut self, text: &str, deadline: std::time::Instant) -> impl Future<Output = bool> + Send {
+    fn set_text_until(
+        &mut self,
+        text: &str,
+        deadline: std::time::Instant,
+    ) -> impl Future<Output = bool> + Send {
         async move {
-            if std::time::Instant::now() >= deadline { return false; }
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
             self.set_text(text).await
         }
     }
     /// Override only when the platform can distinguish a new local copy from old contents.
     fn observe(&mut self) -> impl Future<Output = Reading> + Send {
         async {
-            self.text().await.map_or(Reading::Unavailable, Reading::Snapshot)
+            self.text()
+                .await
+                .map_or(Reading::Unavailable, Reading::Snapshot)
         }
     }
 }
 
 /// Only this wrapper can consume the selected payload. The ordinary action stays independent.
-struct Selected<'a, C> { clipboard: &'a mut C, context: u64 }
+struct Selected<'a, C> {
+    clipboard: &'a mut C,
+    context: u64,
+}
 impl<C: Clipboard> Clipboard for Selected<'_, C> {
-    async fn text(&mut self) -> Option<String> { self.clipboard.selected_text(self.context).await }
-    async fn set_text(&mut self, _: &str) -> bool { false }
-    async fn can_share(&mut self) -> bool { self.clipboard.selected_valid(self.context).await }
+    async fn text(&mut self) -> Option<String> {
+        self.clipboard.selected_text(self.context).await
+    }
+    async fn set_text(&mut self, _: &str) -> bool {
+        false
+    }
+    async fn can_share(&mut self) -> bool {
+        self.clipboard.selected_valid(self.context).await
+    }
 }
 
 /// What a call is answered with. Fixed words: nothing read from the clipboard, a device or the
@@ -184,7 +203,9 @@ where
     };
     let now = std::time::Instant::now();
     let remaining = match expires {
-        Some(expires) => expires.checked_duration_since(now).ok_or(answer::NOTHING)?
+        Some(expires) => expires
+            .checked_duration_since(now)
+            .ok_or(answer::NOTHING)?
             .min(std::time::Duration::from_secs(2)),
         None => std::time::Duration::from_secs(8),
     };
@@ -197,12 +218,18 @@ where
             ticket: 0,
             claim: Some(claim),
         };
-        frame::write(&mut data, &hello, HELLO_LIMIT).await.map_err(|_| answer::FAILED)?;
-        if !clipboard.can_share().await { return Err(answer::NOTHING); }
+        frame::write(&mut data, &hello, HELLO_LIMIT)
+            .await
+            .map_err(|_| answer::FAILED)?;
+        if !clipboard.can_share().await {
+            return Err(answer::NOTHING);
+        }
         data.write_all(&bytes).await.map_err(|_| answer::FAILED)?;
         data.shutdown().await.map_err(|_| answer::FAILED)?;
         Ok(())
-    }).await.map_err(|_| answer::FAILED)?
+    })
+    .await
+    .map_err(|_| answer::FAILED)?
 }
 
 /// Collect the text a device sent over a data connection answering call `ticket`, and place
@@ -334,12 +361,15 @@ pub async fn drain(stream: &mut tokio::net::UnixStream, waiting: &mut VecDeque<D
     }
 }
 
-
 /// Receiving never reads control frames itself. While it waits on data/platform work,
 /// listen for revocation without ever abandoning a partially consumed control frame.
 async fn receive_action<C, S, D, F, Fut>(
-    clipboard: &mut C, stream: &mut S, waiting: &mut VecDeque<Delivery>,
-    ticket: u64, token: &str, connect: F,
+    clipboard: &mut C,
+    stream: &mut S,
+    waiting: &mut VecDeque<Delivery>,
+    ticket: u64,
+    token: &str,
+    connect: F,
 ) -> Option<Outcome>
 where
     C: Clipboard,
@@ -427,7 +457,15 @@ where
                 };
                 let result = if let Some(context) = args.get("context") {
                     match context.as_u64().filter(|context| *context > 0) {
-                        Some(context) => share(&mut Selected { clipboard, context }, control, device, connect).await,
+                        Some(context) => {
+                            share(
+                                &mut Selected { clipboard, context },
+                                control,
+                                device,
+                                connect,
+                            )
+                            .await
+                        }
                         None => Err(answer::NOTHING),
                     }
                 } else {
@@ -440,7 +478,8 @@ where
             }
             None => Outcome::error("failed", answer::REFUSED),
         },
-        "receive" => match receive_action(clipboard, stream, waiting, ticket, token, connect).await {
+        "receive" => match receive_action(clipboard, stream, waiting, ticket, token, connect).await
+        {
             Some(outcome) => outcome,
             None => return false,
         },
@@ -774,7 +813,9 @@ mod tests {
                 result = receive(&mut clipboard, 1, "t", || async { Ok(near) }) => result,
                 () = sender => unreachable!(),
             }
-        }).await.expect("the plugin waited indefinitely for EOF");
+        })
+        .await
+        .expect("the plugin waited indefinitely for EOF");
         assert_eq!(result, Err(answer::NOT_ACCEPTED));
         assert_eq!(clipboard.held.as_deref(), Some("untouched"));
     }
@@ -982,8 +1023,15 @@ mod tests {
             .expect("the manifest does not import the service this code calls");
         assert_eq!(import.version, 1);
         assert!(import.methods.contains("send"));
-        assert_eq!(import.methods, ["list".to_owned(), "send".to_owned()].into());
-        let config = manifest.imports.iter().find(|import| import.provider == "host" && import.service == "peersus.config").unwrap();
+        assert_eq!(
+            import.methods,
+            ["list".to_owned(), "send".to_owned()].into()
+        );
+        let config = manifest
+            .imports
+            .iter()
+            .find(|import| import.provider == "host" && import.service == "peersus.config")
+            .unwrap();
         assert_eq!(config.version, 1);
         assert_eq!(config.methods, ["get".to_owned()].into());
         // `peers.send` is the APPLICATION's permission, not this plugin's: it guards the
@@ -1203,12 +1251,25 @@ mod tests {
         let mut clipboard = Fake::with("old capture");
         let mut waiting = VecDeque::new();
         let host = async {
-            assert!(matches!(read_operation(&mut app).await, Operation::Call { .. }));
+            assert!(matches!(
+                read_operation(&mut app).await,
+                Operation::Call { .. }
+            ));
             deliver(&mut app, &sent_ok(12)).await;
         };
         let send = share_until(
-            &mut clipboard, Control { stream: &mut stream, token: "test", waiting: &mut waiting },
-            "device", || async { panic!("expired data must never connect"); #[allow(unreachable_code)] Ok::<_, std::io::Error>(data_pair().0) },
+            &mut clipboard,
+            Control {
+                stream: &mut stream,
+                token: "test",
+                waiting: &mut waiting,
+            },
+            "device",
+            || async {
+                panic!("expired data must never connect");
+                #[allow(unreachable_code)]
+                Ok::<_, std::io::Error>(data_pair().0)
+            },
             Some(std::time::Instant::now() - std::time::Duration::from_secs(1)),
         );
         let (result, ()) = tokio::join!(send, host);
@@ -1226,12 +1287,35 @@ mod tests {
             deliver(&mut app, &sent_ok(12)).await;
             deliver(&mut app, &call(99, "unknown", json!({}))).await;
         };
-        let send = share_until(&mut clipboard, Control { stream: &mut stream, token: "test", waiting: &mut waiting }, "device", || async { Ok(near) }, Some(std::time::Instant::now() + std::time::Duration::from_secs(2)));
+        let send = share_until(
+            &mut clipboard,
+            Control {
+                stream: &mut stream,
+                token: "test",
+                waiting: &mut waiting,
+            },
+            "device",
+            || async { Ok(near) },
+            Some(std::time::Instant::now() + std::time::Duration::from_secs(2)),
+        );
         let (result, ()) = tokio::join!(send, host);
         assert_eq!(result, Err(answer::FAILED));
         let delivery = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
-        assert!(handle(&mut clipboard, &mut stream, "test", &mut waiting, delivery, || async { Ok(data_pair().0) }).await);
-        assert!(matches!(read_operation(&mut app).await, Operation::Reply { ticket: 99, .. }));
+        assert!(
+            handle(
+                &mut clipboard,
+                &mut stream,
+                "test",
+                &mut waiting,
+                delivery,
+                || async { Ok(data_pair().0) }
+            )
+            .await
+        );
+        assert!(matches!(
+            read_operation(&mut app).await,
+            Operation::Reply { ticket: 99, .. }
+        ));
     }
 
     #[tokio::test]
@@ -1247,9 +1331,21 @@ mod tests {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut data = Vec::new();
             far.read_to_end(&mut data).await.unwrap();
-            assert_eq!(wire::decode(&mut Cursor::new(data)).unwrap(), Item::Text("explicit text".into()));
+            assert_eq!(
+                wire::decode(&mut Cursor::new(data)).unwrap(),
+                Item::Text("explicit text".into())
+            );
         };
-        let send = share(&mut clipboard, Control { stream: &mut stream, token:"test", waiting:&mut waiting }, "device", || async { Ok(near) });
+        let send = share(
+            &mut clipboard,
+            Control {
+                stream: &mut stream,
+                token: "test",
+                waiting: &mut waiting,
+            },
+            "device",
+            || async { Ok(near) },
+        );
         let (result, ()) = tokio::join!(send, host);
         assert_eq!(result, Ok(()));
     }
@@ -1260,15 +1356,21 @@ mod tests {
         live: std::sync::Arc<std::sync::atomic::AtomicBool>,
     }
     impl Clipboard for SelectedFake {
-        async fn text(&mut self) -> Option<String> { panic!("selected actions must not read the ordinary clipboard") }
+        async fn text(&mut self) -> Option<String> {
+            panic!("selected actions must not read the ordinary clipboard")
+        }
         async fn selected_text(&mut self, context: u64) -> Option<String> {
-            if context != self.context { return None; }
+            if context != self.context {
+                return None;
+            }
             self.selected.take()
         }
         async fn selected_valid(&mut self, context: u64) -> bool {
             context == self.context && self.live.load(std::sync::atomic::Ordering::SeqCst)
         }
-        async fn set_text(&mut self, _: &str) -> bool { false }
+        async fn set_text(&mut self, _: &str) -> bool {
+            false
+        }
     }
 
     #[tokio::test]
@@ -1277,15 +1379,36 @@ mod tests {
             let (mut app, mut stream) = duplex(64 * 1024);
             let mut waiting = VecDeque::new();
             let mut clipboard = SelectedFake {
-                context: 1, selected: None,
+                context: 1,
+                selected: None,
                 live: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             };
-            assert!(handle(&mut clipboard, &mut stream, "test", &mut waiting,
-                call(31, "share", json!({"peer":"destination", "context":context})),
-                || async { panic!("rejected selection must not connect"); #[allow(unreachable_code)] Ok::<_, std::io::Error>(data_pair().0) },
-            ).await);
-            assert!(matches!(read_operation(&mut app).await,
-                Operation::Reply { ticket:31, result: Outcome::Error { .. } }));
+            assert!(
+                handle(
+                    &mut clipboard,
+                    &mut stream,
+                    "test",
+                    &mut waiting,
+                    call(
+                        31,
+                        "share",
+                        json!({"peer":"destination", "context":context})
+                    ),
+                    || async {
+                        panic!("rejected selection must not connect");
+                        #[allow(unreachable_code)]
+                        Ok::<_, std::io::Error>(data_pair().0)
+                    },
+                )
+                .await
+            );
+            assert!(matches!(
+                read_operation(&mut app).await,
+                Operation::Reply {
+                    ticket: 31,
+                    result: Outcome::Error { .. }
+                }
+            ));
         }
     }
 
@@ -1295,21 +1418,39 @@ mod tests {
         let (near, mut far) = data_pair();
         let mut waiting = VecDeque::new();
         let mut clipboard = SelectedFake {
-            context: 17, selected: Some("exact selected text".into()),
+            context: 17,
+            selected: Some("exact selected text".into()),
             live: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
         };
         let host = async {
-            assert!(matches!(read_operation(&mut app).await, Operation::Call { .. }));
+            assert!(matches!(
+                read_operation(&mut app).await,
+                Operation::Call { .. }
+            ));
             deliver(&mut app, &sent_ok(5)).await;
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
-            assert_eq!(wire::decode(Cursor::new(body)).unwrap(), Item::Text("exact selected text".into()));
-            assert!(matches!(read_operation(&mut app).await,
-                Operation::Reply { ticket:32, result:Outcome::Ok { .. } }));
+            assert_eq!(
+                wire::decode(Cursor::new(body)).unwrap(),
+                Item::Text("exact selected text".into())
+            );
+            assert!(matches!(
+                read_operation(&mut app).await,
+                Operation::Reply {
+                    ticket: 32,
+                    result: Outcome::Ok { .. }
+                }
+            ));
         };
-        let handled = handle(&mut clipboard, &mut stream, "test", &mut waiting,
-            call(32, "share", json!({"peer":"destination", "context":17})), || async { Ok(near) });
+        let handled = handle(
+            &mut clipboard,
+            &mut stream,
+            "test",
+            &mut waiting,
+            call(32, "share", json!({"peer":"destination", "context":17})),
+            || async { Ok(near) },
+        );
         let (handled, ()) = tokio::join!(handled, host);
         assert!(handled);
         assert!(clipboard.selected.is_none());
@@ -1321,7 +1462,11 @@ mod tests {
         let (near, mut far) = data_pair();
         let mut waiting = VecDeque::new();
         let live = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true));
-        let mut clipboard = SelectedFake { context:17, selected:Some("do not send".into()), live:live.clone() };
+        let mut clipboard = SelectedFake {
+            context: 17,
+            selected: Some("do not send".into()),
+            live: live.clone(),
+        };
         let host = async {
             read_operation(&mut app).await;
             live.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -1330,11 +1475,22 @@ mod tests {
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
             assert!(body.is_empty(), "revoked selected text escaped");
-            assert!(matches!(read_operation(&mut app).await,
-                Operation::Reply { ticket:33, result:Outcome::Error { .. } }));
+            assert!(matches!(
+                read_operation(&mut app).await,
+                Operation::Reply {
+                    ticket: 33,
+                    result: Outcome::Error { .. }
+                }
+            ));
         };
-        let handled = handle(&mut clipboard, &mut stream, "test", &mut waiting,
-            call(33, "share", json!({"peer":"destination", "context":17})), || async { Ok(near) });
+        let handled = handle(
+            &mut clipboard,
+            &mut stream,
+            "test",
+            &mut waiting,
+            call(33, "share", json!({"peer":"destination", "context":17})),
+            || async { Ok(near) },
+        );
         let (handled, ()) = tokio::join!(handled, host);
         assert!(handled);
     }
@@ -1345,11 +1501,17 @@ mod tests {
     }
     struct WritePermit(std::sync::Arc<std::sync::atomic::AtomicBool>);
     impl Drop for WritePermit {
-        fn drop(&mut self) { self.0.store(false, std::sync::atomic::Ordering::SeqCst); }
+        fn drop(&mut self) {
+            self.0.store(false, std::sync::atomic::Ordering::SeqCst);
+        }
     }
     impl Clipboard for QueuedWrite {
-        async fn text(&mut self) -> Option<String> { None }
-        async fn set_text(&mut self, _: &str) -> bool { panic!("receive must carry its original deadline") }
+        async fn text(&mut self) -> Option<String> {
+            None
+        }
+        async fn set_text(&mut self, _: &str) -> bool {
+            panic!("receive must carry its original deadline")
+        }
         async fn set_text_until(&mut self, _: &str, deadline: std::time::Instant) -> bool {
             assert!(deadline > std::time::Instant::now());
             let _permit = WritePermit(self.active.clone());
@@ -1366,23 +1528,39 @@ mod tests {
         let mut waiting = VecDeque::new();
         let ready = std::sync::Arc::new(tokio::sync::Notify::new());
         let active = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-        let mut clipboard = QueuedWrite { ready:ready.clone(), active:active.clone() };
+        let mut clipboard = QueuedWrite {
+            ready: ready.clone(),
+            active: active.clone(),
+        };
         let host = async {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
-            far.write_all(&wire::encode(&Item::Text("queued incoming".into())).unwrap()).await.unwrap();
+            far.write_all(&wire::encode(&Item::Text("queued incoming".into())).unwrap())
+                .await
+                .unwrap();
             far.shutdown().await.unwrap();
             ready.notified().await;
             assert!(active.load(std::sync::atomic::Ordering::SeqCst));
-            deliver(&mut app, &Delivery::Cancelled { ticket:44 }).await;
+            deliver(&mut app, &Delivery::Cancelled { ticket: 44 }).await;
             assert!(matches!(read_operation(&mut app).await,
                 Operation::Reply { ticket:44, result:Outcome::Error { code, .. } } if code == "cancelled"));
-            assert!(!active.load(std::sync::atomic::Ordering::SeqCst), "queued write permit survived revocation");
+            assert!(
+                !active.load(std::sync::atomic::Ordering::SeqCst),
+                "queued write permit survived revocation"
+            );
         };
-        let handled = handle(&mut clipboard, &mut stream, "test", &mut waiting,
-            call(44, "receive", json!({})), || async { Ok(near) });
+        let handled = handle(
+            &mut clipboard,
+            &mut stream,
+            "test",
+            &mut waiting,
+            call(44, "receive", json!({})),
+            || async { Ok(near) },
+        );
         tokio::time::timeout(std::time::Duration::from_secs(2), async {
             let (handled, ()) = tokio::join!(handled, host);
             assert!(handled);
-        }).await.expect("revocation was not processed until the outer receive deadline");
+        })
+        .await
+        .expect("revocation was not processed until the outer receive deadline");
     }
 }

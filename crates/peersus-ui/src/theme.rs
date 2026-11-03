@@ -103,6 +103,11 @@ pub const DARK: Palette = Palette {
     button_text: (0x16, 0x1b, 0x1d),
 };
 
+/// The night blue of a device that sleeps, one for a dark page and one for a light one: a blue that is light enough to be read on black and
+/// dark enough to be read on cream cannot be one blue. It is told from the palette's `receive` (sky) by being indigo, and from `good` and
+/// `muted` by being blue, so a row says awake, asleep or gone by its colour as well as by its word.
+const SLEEPING_ON_DARK: Rgb = (0x7b, 0x8c, 0xf0);
+const SLEEPING_ON_LIGHT: Rgb = (0x3f, 0x4f, 0xb8);
 impl Palette {
     /// The palette for a choice. `System` follows the platform, which is dark until the
     /// platform's preference is read (the toolkit exposes it per window, not here).
@@ -119,6 +124,29 @@ impl Palette {
     /// Navigation icons have one neutral colour, not an arbitrary hue per destination.
     pub fn of_tab(self, _tab: crate::view::SettingsTab) -> Rgb {
         self.icons
+    }
+
+    /// The word and the colour of how a device is reachable, the one place that says it: awake is green, asleep is the night blue and gone is
+    /// grey, so that a row says which it is by its colour as well as by its word.
+    pub fn of_presence(self, presence: &crate::view::Presence) -> (&'static str, Rgb) {
+        use crate::view::Presence;
+        match presence {
+            Presence::Online => ("ONLINE", self.good),
+            Presence::Sleeping => ("SLEEPING", self.sleeping()),
+            Presence::Offline => ("OFFLINE", self.muted),
+        }
+    }
+
+    /// The colour of a tone, the one place that says it: good is green, bad is red, what is going on or waits for an answer is the colour of
+    /// sending, and what is switched off is grey. Used by every line that is told in words and coloured by how it stands.
+    pub fn of_tone(self, tone: crate::view::Tone) -> Rgb {
+        use crate::view::Tone;
+        match tone {
+            Tone::Good => self.good,
+            Tone::Ask | Tone::Going => self.send,
+            Tone::Bad => self.bad,
+            Tone::Quiet => self.muted,
+        }
     }
 
     pub fn custom(custom: &CustomTheme) -> Self {
@@ -192,15 +220,32 @@ impl Palette {
         }
         Palette { send, ..self }
     }
+
+    /// How a sleeping device is coloured on THIS palette: the night blue that is read on its page. Decided by how light the page is, so a
+    /// custom theme with a light or a dark page gets the right one without a colour of its own for it.
+    pub fn sleeping(self) -> Rgb {
+        if contrast_ratio(SLEEPING_ON_DARK, self.background)
+            >= contrast_ratio(SLEEPING_ON_LIGHT, self.background)
+        {
+            SLEEPING_ON_DARK
+        } else {
+            SLEEPING_ON_LIGHT
+        }
+    }
 }
 
 /// Contrast ratio of two colours (1 to 21), as the accessibility guidelines define it.
 pub fn contrast_ratio(a: Rgb, b: Rgb) -> f32 {
     let channel = |v: u8| {
         let v = f32::from(v) / 255.;
-        if v <= 0.039_28 { v / 12.92 } else { ((v + 0.055) / 1.055).powf(2.4) }
+        if v <= 0.039_28 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
     };
-    let luminance = |(r, g, b): Rgb| 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    let luminance =
+        |(r, g, b): Rgb| 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
     let (x, y) = (luminance(a), luminance(b));
     (x.max(y) + 0.05) / (x.min(y) + 0.05)
 }
@@ -211,7 +256,6 @@ fn toward(from: Rgb, to: Rgb, part: f32) -> Rgb {
     (mix(from.0, to.0), mix(from.1, to.1), mix(from.2, to.2))
 }
 
-
 fn colour((r, g, b): Rgb) -> Color {
     Color::from_rgb(r, g, b)
 }
@@ -220,7 +264,11 @@ fn switch_preferences(palette: Palette) -> SwitchColorsThemePreference {
     let on_track = palette.good;
     let light_thumb = (0xff, 0xff, 0xff);
     let dark_thumb = (0x16, 0x1b, 0x1d);
-    let on_thumb = if contrast_ratio(on_track, light_thumb) >= 3.0 { light_thumb } else { dark_thumb };
+    let on_thumb = if contrast_ratio(on_track, light_thumb) >= 3.0 {
+        light_thumb
+    } else {
+        dark_thumb
+    };
     SwitchColorsThemePreference {
         background: Preference::Specific(colour(palette.border)),
         thumb_background: Preference::Specific(colour(palette.muted)),
@@ -267,12 +315,21 @@ mod tests {
     fn enabled_switch_keeps_its_thumb_distinct_from_the_track() {
         for palette in [LIGHT, DARK] {
             let colors = switch_preferences(palette);
-            let Preference::Specific(track) = colors.toggled_background else { panic!("the enabled track must not inherit the monochrome button color") };
-            let Preference::Specific(thumb) = colors.toggled_thumb_background else { panic!("the enabled thumb must not inherit the monochrome button color") };
+            let Preference::Specific(track) = colors.toggled_background else {
+                panic!("the enabled track must not inherit the monochrome button color")
+            };
+            let Preference::Specific(thumb) = colors.toggled_thumb_background else {
+                panic!("the enabled thumb must not inherit the monochrome button color")
+            };
             assert_ne!(colors.background, colors.toggled_background);
             assert_ne!(colors.thumb_background, colors.background);
             assert_ne!(track, thumb);
-            assert!(contrast_ratio((track.r(), track.g(), track.b()), (thumb.r(), thumb.g(), thumb.b())) >= 3.0);
+            assert!(
+                contrast_ratio(
+                    (track.r(), track.g(), track.b()),
+                    (thumb.r(), thumb.g(), thumb.b())
+                ) >= 3.0
+            );
         }
     }
 
@@ -284,7 +341,13 @@ mod tests {
             assert_eq!(tinted.send, (0xe0, 0x30, 0x90));
             // Everything else is the theme's own: what comes in keeps its colour, and so do the
             // surfaces and the text.
-            assert_eq!(Palette { send: base.send, ..tinted }, base);
+            assert_eq!(
+                Palette {
+                    send: base.send,
+                    ..tinted
+                },
+                base
+            );
         }
     }
 
@@ -308,7 +371,11 @@ mod tests {
             for chosen in [base.background, base.surface, (0, 0, 0), (255, 255, 255)] {
                 let tinted = base.with_accent(chosen);
                 let ratio = contrast_ratio(tinted.send, base.background);
-                assert!(ratio >= 3.0, "{chosen:?} on {:?} gives contrast {ratio}", base.background);
+                assert!(
+                    ratio >= 3.0,
+                    "{chosen:?} on {:?} gives contrast {ratio}",
+                    base.background
+                );
             }
         }
     }
@@ -318,9 +385,15 @@ mod tests {
         assert_eq!(DARK.background, (0, 0, 0));
         // Raised things are only a little above black, never a coloured grey that lights the panel.
         for surface in [DARK.surface, DARK.raised, DARK.portal] {
-            assert!(surface.0 < 0x20 && surface.1 < 0x20 && surface.2 < 0x20, "{surface:?} is too bright for black");
+            assert!(
+                surface.0 < 0x20 && surface.1 < 0x20 && surface.2 < 0x20,
+                "{surface:?} is too bright for black"
+            );
             // And they are neutral: a tint here would be lit on every pixel of every card.
-            assert!(surface.0 == surface.1 && surface.1 == surface.2, "{surface:?} is tinted");
+            assert!(
+                surface.0 == surface.1 && surface.1 == surface.2,
+                "{surface:?} is tinted"
+            );
         }
     }
 
@@ -333,6 +406,94 @@ mod tests {
         }
         for palette in [LIGHT, DARK] {
             assert!(contrast_ratio(palette.portal_text, palette.portal) >= 4.5);
+        }
+    }
+
+    #[test]
+    fn a_sleeping_device_has_a_night_blue_that_is_read_on_every_surface_and_is_not_one_of_the_other_colours()
+     {
+        for (name, palette) in [("dark", DARK), ("light", LIGHT)] {
+            let blue = palette.sleeping();
+            // It is a WORD in a colour on a card, so it is held to the contrast of text, on the page and on everything lifted above it.
+            for surface in [palette.background, palette.surface, palette.raised] {
+                let ratio = contrast_ratio(blue, surface);
+                assert!(
+                    ratio >= 4.5,
+                    "{name}: the night blue {blue:?} is {ratio} on {surface:?}"
+                );
+            }
+            // Awake is green, gone is grey, and the sleeping one is neither of them nor the sky blue of receiving: the colour alone says which.
+            for (other, colour) in [
+                ("good", palette.good),
+                ("muted", palette.muted),
+                ("receive", palette.receive),
+            ] {
+                assert_ne!(blue, colour, "{name}: sleeping has the colour of {other}");
+                let apart: i32 = [blue.0, blue.1, blue.2]
+                    .iter()
+                    .zip([colour.0, colour.1, colour.2])
+                    .map(|(a, b)| (i32::from(*a) - i32::from(b)).abs())
+                    .sum();
+                assert!(
+                    apart >= 60,
+                    "{name}: sleeping is too close to {other} to tell apart ({apart})"
+                );
+            }
+            // Indigo, not sky: more blue than anything, and clearly more red than green, which sky is not.
+            assert!(
+                blue.2 > blue.0 && blue.2 > blue.1,
+                "{name}: the night blue is not blue"
+            );
+            assert!(
+                i32::from(blue.0) > i32::from(blue.1) - 40,
+                "{name}: the night blue is the sky blue of receiving"
+            );
+        }
+        // A custom theme chooses a page, and the right blue follows the page: a light page gets the dark blue and a dark one the light blue.
+        let light_page = Palette {
+            background: (0xee, 0xee, 0xee),
+            ..DARK
+        };
+        assert!(contrast_ratio(light_page.sleeping(), light_page.background) >= 4.5);
+        let dark_page = Palette {
+            background: (0x10, 0x10, 0x18),
+            ..LIGHT
+        };
+        assert!(contrast_ratio(dark_page.sleeping(), dark_page.background) >= 4.5);
+    }
+
+    #[test]
+    fn a_device_is_green_when_awake_night_blue_when_asleep_and_grey_when_gone_in_both_themes() {
+        use crate::view::Presence;
+        for (name, palette) in [("dark", DARK), ("light", LIGHT)] {
+            assert_eq!(
+                palette.of_presence(&Presence::Online),
+                ("ONLINE", palette.good),
+                "{name}"
+            );
+            assert_eq!(
+                palette.of_presence(&Presence::Sleeping),
+                ("SLEEPING", palette.sleeping()),
+                "{name}"
+            );
+            assert_eq!(
+                palette.of_presence(&Presence::Offline),
+                ("OFFLINE", palette.muted),
+                "{name}"
+            );
+            // Three states, three different colours: the colour alone says which.
+            let colours = [Presence::Online, Presence::Sleeping, Presence::Offline]
+                .map(|presence| palette.of_presence(&presence).1);
+            assert!(
+                colours[0] != colours[1] && colours[1] != colours[2] && colours[0] != colours[2],
+                "{name}: {colours:?}"
+            );
+            // And sleeping is no longer the yellow of a risk notice, which means something else.
+            assert_ne!(
+                palette.of_presence(&Presence::Sleeping).1,
+                palette.warning,
+                "{name}"
+            );
         }
     }
 
@@ -373,10 +534,15 @@ mod tests {
     #[test]
     fn camera_detection_outline_keeps_its_contrast_when_panel_borders_change() {
         for base in [ThemeBase::Dark, ThemeBase::Light] {
-            let mut custom = CustomTheme { base, ..Default::default() };
+            let mut custom = CustomTheme {
+                base,
+                ..Default::default()
+            };
             custom.colors.insert(ThemeColor::Border, [0, 0, 0]);
             assert_eq!(Palette::custom(&custom).scanner_outline, (255, 255, 255));
-            custom.colors.insert(ThemeColor::ScannerOutline, [120, 240, 180]);
+            custom
+                .colors
+                .insert(ThemeColor::ScannerOutline, [120, 240, 180]);
             let palette = Palette::custom(&custom);
             assert_eq!(palette.scanner_outline, (120, 240, 180));
             assert_eq!(palette.border, (0, 0, 0));

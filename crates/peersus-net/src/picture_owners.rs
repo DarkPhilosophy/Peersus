@@ -94,7 +94,11 @@ impl PictureOwners {
     }
 
     fn write(&self, owners: &BTreeMap<PeerId, Digest>) -> io::Result<()> {
-        let bytes = serde_json::to_vec(&Document { version: 1, owners: owners.clone() }).map_err(|_| invalid())?;
+        let bytes = serde_json::to_vec(&Document {
+            version: 1,
+            owners: owners.clone(),
+        })
+        .map_err(|_| invalid())?;
         if bytes.len() as u64 > MAX_BYTES {
             return Err(invalid());
         }
@@ -103,7 +107,10 @@ impl PictureOwners {
 }
 
 fn invalid() -> io::Error {
-    io::Error::new(io::ErrorKind::InvalidData, "Device pictures list is invalid; original preserved")
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Device pictures list is invalid; original preserved",
+    )
 }
 
 #[cfg(test)]
@@ -114,7 +121,9 @@ mod tests {
         PeerId(name.into())
     }
     fn digest(n: u8) -> Digest {
-        peersus_core::profile::Picture::new(1, 1, vec![n, n, n, 255]).unwrap().digest()
+        peersus_core::profile::Picture::new(1, 1, vec![n, n, n, 255])
+            .unwrap()
+            .digest()
     }
 
     #[test]
@@ -136,13 +145,19 @@ mod tests {
         let path = directory.path().join("picture-owners.json");
         let mut owners = PictureOwners::open(&path).unwrap();
         assert!(owners.set(&peer("a"), Some(digest(1))).unwrap());
-        assert!(!owners.set(&peer("a"), Some(digest(1))).unwrap(), "the same picture was written again");
+        assert!(
+            !owners.set(&peer("a"), Some(digest(1))).unwrap(),
+            "the same picture was written again"
+        );
         assert!(owners.set(&peer("a"), Some(digest(2))).unwrap());
         assert_eq!(owners.all().get(&peer("a")), Some(&digest(2)));
         // A device that shows none is remembered as having none, not as having its old one.
         assert!(owners.set(&peer("a"), None).unwrap());
         assert!(owners.all().is_empty());
-        assert!(!owners.set(&peer("a"), None).unwrap(), "forgetting what is not there wrote the file");
+        assert!(
+            !owners.set(&peer("a"), None).unwrap(),
+            "forgetting what is not there wrote the file"
+        );
     }
 
     #[test]
@@ -154,8 +169,15 @@ mod tests {
         owners.set(&peer("b"), Some(digest(2))).unwrap();
         assert!(owners.forget(&peer("a")).unwrap());
         let again = PictureOwners::open(&path).unwrap();
-        assert!(!again.all().contains_key(&peer("a")), "a forgotten device's picture stayed on disk");
-        assert_eq!(again.all().get(&peer("b")), Some(&digest(2)), "another device's picture went with it");
+        assert!(
+            !again.all().contains_key(&peer("a")),
+            "a forgotten device's picture stayed on disk"
+        );
+        assert_eq!(
+            again.all().get(&peer("b")),
+            Some(&digest(2)),
+            "another device's picture went with it"
+        );
     }
 
     #[test]
@@ -164,7 +186,11 @@ mod tests {
         let path = directory.path().join("picture-owners.json");
         std::fs::write(&path, b"not a list").unwrap();
         assert!(PictureOwners::open(&path).is_err());
-        assert_eq!(std::fs::read(&path).unwrap(), b"not a list", "an unreadable file was replaced");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            b"not a list",
+            "an unreadable file was replaced"
+        );
     }
 
     #[test]
@@ -175,7 +201,10 @@ mod tests {
         for n in 0..MOST_DEVICES {
             owners.owners.insert(peer(&format!("p{n}")), digest(1));
         }
-        assert!(!owners.set(&peer("stranger"), Some(digest(2))).unwrap(), "a device past the limit was remembered");
+        assert!(
+            !owners.set(&peer("stranger"), Some(digest(2))).unwrap(),
+            "a device past the limit was remembered"
+        );
         assert!(!owners.all().contains_key(&peer("stranger")));
         // A device already known can still change its picture at the limit.
         assert!(owners.set(&peer("p0"), Some(digest(3))).unwrap());

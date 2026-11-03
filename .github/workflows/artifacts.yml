@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Install declared toolchain
         run: |
-          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
           rustup toolchain install "$version" --profile minimal
           rustup default "$version"
       - run: sh scripts/install-linux-deps.sh
@@ -55,8 +55,8 @@ jobs:
         run: |
           cargo xtask android
           mkdir -p target/distribution/android
-          cp android/app/build/outputs/apk/*/release/*.apk target/distribution/android/
-          cp android/app/build/outputs/bundle/*Release/*.aab target/distribution/android/
+          cp target/android/gradle/app/outputs/apk/*/release/*.apk target/distribution/android/
+          cp target/android/gradle/app/outputs/bundle/*Release/*.aab target/distribution/android/
       - name: Flatpak build prerequisites
         if: inputs.package == 'flatpak'
         run: |
@@ -71,6 +71,9 @@ jobs:
           name: peersus-${{ inputs.package }}-unsigned
           path: |
             target/distribution/linux/
+            target/distribution/appimage/*.AppImage
+            target/distribution/appimage/*.AppImage.sha256
+            target/distribution/appimage/README-appimage.txt
             target/distribution/android/
             target/distribution/android-size.json
             target/distribution/flatpak-*/Peersus.flatpak

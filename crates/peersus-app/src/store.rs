@@ -38,7 +38,9 @@ pub fn search(catalog: &Catalog, query: &str) -> Vec<Listing> {
         .iter()
         .filter(|entry| {
             needle.is_empty()
-                || [&entry.name, &entry.author, &entry.description].iter().any(|field| field.to_lowercase().contains(&needle))
+                || [&entry.name, &entry.author, &entry.description]
+                    .iter()
+                    .any(|field| field.to_lowercase().contains(&needle))
         })
         .map(Listing::from)
         .collect()
@@ -66,13 +68,20 @@ mod tests {
         let catalog = Catalog {
             schema: 1,
             sequence: 1,
-            entries: vec![entry("echo", "Someone", "Copies text"), entry("zeta", "Other", "Copies files")],
+            entries: vec![
+                entry("echo", "Someone", "Copies text"),
+                entry("zeta", "Other", "Copies files"),
+            ],
         };
         assert_eq!(search(&catalog, "").len(), 2);
         assert_eq!(search(&catalog, "ECHO")[0].name, "echo");
         assert_eq!(search(&catalog, "other")[0].name, "zeta", "by author");
         assert_eq!(search(&catalog, "copies").len(), 2, "by description");
-        assert_eq!(search(&catalog, "  echo  ").len(), 1, "surrounding space is ignored");
+        assert_eq!(
+            search(&catalog, "  echo  ").len(),
+            1,
+            "surrounding space is ignored"
+        );
         assert!(search(&catalog, "nothing like this").is_empty());
     }
 }

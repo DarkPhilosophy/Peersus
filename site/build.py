@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 SOURCE = Path(__file__).resolve().parent
-FILES = ("index.html", "install.html", "privacy.html", "style.css", "app.js", "supporters.json", "brand/peersus.svg")
+FILES = ("index.html", "install.html", "privacy.html", "style.css", "app.js", "supporters.json", "brand/peersus.svg", "brand/peersus-mark.svg")
 EXTERNAL = {"https://ko-fi.com/DarkPhilosophy"}
 
 class Document(HTMLParser):
@@ -148,22 +148,32 @@ def validate_catalog(directory: Path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True, help="New, nonexistent output directory")
-    parser.add_argument("--catalog", type=Path, help="Signed catalog directory to publish under store/ (optional)")
+    catalogs = parser.add_mutually_exclusive_group()
+    catalogs.add_argument("--catalog", type=Path, help="Signed approved catalog directory to stage under store/ (optional)")
+    catalogs.add_argument("--test-catalog", action="store_true", help="Clearly marked development preview with public fixtures under store-test/, never store/")
     args = parser.parse_args()
     output = args.output.absolute()
     if output.exists() or output.is_symlink() or output.resolve().is_relative_to(SOURCE):
         parser.error("Output must be a nonexistent directory outside site/")
     validate()
-    store = validate_catalog(args.catalog.absolute()) if args.catalog else []
+    catalog = SOURCE.parent / "crates/peersus-app/tests/fixtures/catalog" if args.test_catalog else args.catalog
+    store = validate_catalog(catalog.absolute()) if catalog else []
     output.mkdir(parents=True, exist_ok=False)
     for name in FILES:
         destination = output / name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(SOURCE / name, destination)
+        if args.test_catalog and name.endswith(".html"):
+            html = (SOURCE / name).read_text(encoding="utf-8")
+            marker = '<body data-test-catalog="true"><aside class="preview-banner" role="note">Development testing preview · Unpublished prerelease · Public test fixtures only, not production approvals.</aside>'
+            if "<body>" not in html:
+                raise ValueError(f"Missing preview annotation point: {name}")
+            destination.write_text(html.replace("<body>", marker, 1), encoding="utf-8")
+        else:
+            shutil.copyfile(SOURCE / name, destination)
     for name in store:
-        destination = output / "store" / name
+        destination = output / ("store-test" if args.test_catalog else "store") / name
         destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(args.catalog.absolute() / name, destination)
+        shutil.copyfile(catalog.absolute() / name, destination)
     print(f"Staged {len(FILES)} static files and {len(store)} store files. No deployment performed.")
 
 if __name__ == "__main__":

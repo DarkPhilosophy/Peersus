@@ -91,7 +91,7 @@ def check():
 def stage(destination):
     # Fresh output only: never traverse build output, backups, home or user state.
     destination.mkdir(parents=True, exist_ok=False)
-    allowed = ["Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "crates", "vendor", "xtask", ".cargo", "packaging/linux"]
+    allowed = ["Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "LICENSE", "NOTICE", "crates", "vendor", "xtask", ".cargo", "packaging/linux"]
     for name in allowed:
         source = ROOT / name
         paths = [source, *source.rglob("*")] if source.is_dir() else [source]

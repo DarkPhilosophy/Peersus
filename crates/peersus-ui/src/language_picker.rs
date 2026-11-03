@@ -52,13 +52,21 @@ impl Ribbon {
 
     /// The languages the strip shows: all but the one in use, in their usual order.
     pub fn others(current: peersus_core::config::Language) -> Vec<peersus_core::config::Language> {
-        peersus_core::config::Language::ALL.into_iter().filter(|language| *language != current).collect()
+        peersus_core::config::Language::ALL
+            .into_iter()
+            .filter(|language| *language != current)
+            .collect()
     }
 }
 
 /// The patch that chooses `language`.
 fn choose(link: &Link, language: peersus_core::config::Language) {
-    link.send(Command::PatchSettings { patch: SettingsPatch { language: Some(language), ..Default::default() } });
+    link.send(Command::PatchSettings {
+        patch: SettingsPatch {
+            language: Some(language),
+            ..Default::default()
+        },
+    });
 }
 
 /// One language in the strip or in the list: its own name, in its own language, and nothing else.
@@ -75,6 +83,7 @@ impl Component for Name {
         let on_choose = self.on_choose.clone();
         let mut hovered = use_state(|| false);
         rect()
+            .height(Size::px(Picker::BUTTON_HEIGHT))
             .width(Size::fill())
             .padding((10., 16.))
             .corner_radius(8.)
@@ -92,7 +101,16 @@ impl Component for Name {
                 e.stop_propagation();
                 on_choose.call(language);
             })
-            .child(label().text(language.name()).color(if self.selected { palette.text } else { palette.muted }).font_size(15.))
+            .child(
+                label()
+                    .text(language.name())
+                    .color(if self.selected {
+                        palette.text
+                    } else {
+                        palette.muted
+                    })
+                    .font_size(15.),
+            )
     }
 }
 
@@ -114,12 +132,17 @@ impl Component for Strip {
         let items = Ribbon::others(current);
         let lap = Ribbon::lap_ms(items.len());
         // One lap, again and again: the toolkit restarts it when it ends. With reduced motion the strip stands still.
-        let animation = use_animation_with_dependencies(&(current, self.reduced_motion), move |conf, (_, reduced)| {
-            conf.on_creation(OnCreation::Run);
-            conf.on_change(OnChange::Rerun);
-            conf.on_finish(OnFinish::restart());
-            AnimNum::new(0., 1.).time(if *reduced { 0 } else { lap }).function(Function::Linear)
-        });
+        let animation = use_animation_with_dependencies(
+            &(current, self.reduced_motion),
+            move |conf, (_, reduced)| {
+                conf.on_creation(OnCreation::Run);
+                conf.on_change(OnChange::Rerun);
+                conf.on_finish(OnFinish::restart());
+                AnimNum::new(0., 1.)
+                    .time(if *reduced { 0 } else { lap })
+                    .function(Function::Linear)
+            },
+        );
         let progress: f32 = animation.get().value();
         // Every language takes the same width, and the lap is exactly the width of one whole row: the row is drawn twice, one
         // after the other, so when the first copy has gone past the second sits where the first began, and the end of a lap is
@@ -131,19 +154,33 @@ impl Component for Strip {
                 .children(items.iter().map(|language| -> Element {
                     rect()
                         .width(Size::px(Ribbon::ITEM))
-                        .child(label().text(language.name()).color(palette.muted).font_size(Picker::FONT_SIZE).max_lines(1))
+                        .child(
+                            label()
+                                .text(language.name())
+                                .color(palette.muted)
+                                .font_size(Picker::FONT_SIZE)
+                                .max_lines(1),
+                        )
                         .into()
                 }))
                 .into()
         };
-        let track = rect().horizontal().offset_x(offset).child(row()).child(row());
+        let track = rect()
+            .horizontal()
+            .offset_x(offset)
+            .child(row())
+            .child(row());
         let fade = |side_left: bool| -> Element {
             // From the colour of the PAGE the strip lies on (not the header's, which is another colour) to nothing: what is under it shows
             // through more and more toward the middle, so a name comes and goes without a hard edge at either side.
             let solid = Color::from_rgb(self.ground.0, self.ground.1, self.ground.2);
             let clear = solid.with_a(0);
             // The renderer's 270 degrees runs left to right; each solid stop belongs at the outside edge.
-            let (angle, from, to) = if side_left { (270., solid, clear) } else { (90., solid, clear) };
+            let (angle, from, to) = if side_left {
+                (270., solid, clear)
+            } else {
+                (90., solid, clear)
+            };
             let at = Position::new_absolute().top(0.);
             rect()
                 .position(if side_left { at.left(0.) } else { at.right(0.) })
@@ -151,7 +188,12 @@ impl Component for Strip {
                 .layer(Layer::Relative(4))
                 .width(Size::px(Ribbon::FADE))
                 .height(Size::fill())
-                .background(LinearGradient::new().angle(angle).stop((from, 0.)).stop((to, 100.)))
+                .background(
+                    LinearGradient::new()
+                        .angle(angle)
+                        .stop((from, 0.))
+                        .stop((to, 100.)),
+                )
                 .into()
         };
         rect()
@@ -182,11 +224,24 @@ pub struct Picker {
     pub palette: Palette,
     /// The colour of what the control lies on: the strip fades into it at both ends.
     pub ground: (u8, u8, u8),
+    /// Window edges reserved for the system and the main navigation.
+    pub inset_top: f32,
+    pub inset_bottom: f32,
 }
 impl Component for Picker {
     fn render(&self) -> impl IntoElement {
-        let (palette, current, reduced) = (self.palette, self.settings.language, self.settings.reduced_motion);
+        let (palette, current, reduced) = (
+            self.palette,
+            self.settings.language,
+            self.settings.reduced_motion,
+        );
+        let window = Platform::get().current_window();
+        let (width, height) = {
+            let size = *window.root_size.read();
+            (size.width.max(0.), size.height.max(0.))
+        };
         let mut open = use_state(|| false);
+        let mut anchor = use_state(|| (0_f32, 0_f32, 0_f32));
         let on_open = EventHandler::new(move |()| open.set(true));
         let button = rect()
             .horizontal()
@@ -196,39 +251,91 @@ impl Component for Picker {
             .padding((0., 16.))
             .corner_radius(10.)
             .background(palette.raised)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .on_sized(move |e: Event<SizedEventData>| {
+                anchor.set_if_modified((e.area.min_x(), e.area.min_y(), e.area.max_y()));
+            })
             .on_press({
                 let on_open = on_open.clone();
                 move |_| on_open.call(())
             })
-            .child(label().text(current.name()).color(palette.text).font_size(Self::FONT_SIZE))
+            .child(
+                label()
+                    .text(current.name())
+                    .color(palette.text)
+                    .font_size(Self::FONT_SIZE),
+            )
             // A plain mark that says "opens a list", and nothing that belongs to another part of the program.
-            .child(label().text("\u{25BE}").color(palette.muted).font_size(Self::FONT_SIZE));
+            .child(
+                label()
+                    .text("\u{25BE}")
+                    .color(palette.muted)
+                    .font_size(Self::FONT_SIZE),
+            );
         let link = self.link.clone();
-        // The list belongs to the button: it is placed just under it, inside the same row, and moves with it. `Reveal` draws in
-        // the window's own coordinates and would put it in a corner, so the move is followed here with the same progress.
+        // Follow the button in window coordinates, flip above it when there is
+        // more room there, and scroll the choices rather than clipping them.
         let progress = motion::use_progress(open(), reduced);
-        let shown = if reduced { crate::view::Popup::still() } else { crate::view::Popup::at(progress) };
+        let shown = if reduced {
+            crate::view::Popup::still()
+        } else {
+            crate::view::Popup::at(progress)
+        };
         let mounted = crate::view::Motion::mounted(open(), progress);
+        let (anchor_x, anchor_top, anchor_bottom) = anchor();
+        let desired_height =
+            peersus_core::config::Language::ALL.len() as f32 * (Self::BUTTON_HEIGHT + 2.) + 10.;
+        let min_top = self.inset_top + 16.;
+        let max_bottom = (height - self.inset_bottom - 16.).max(min_top);
+        let below = (max_bottom - anchor_bottom - 6.).max(0.);
+        let above = (anchor_top - min_top - 6.).max(0.);
+        let flip = below < desired_height && above > below;
+        let panel_height = desired_height
+            .min(if flip { above } else { below })
+            .min((max_bottom - min_top).max(0.));
+        let panel_width = (width - 32.).clamp(0., 260.);
+        let left = anchor_x.clamp(16., (width - panel_width - 16.).max(16.));
+        let top = if flip {
+            anchor_top - 6. - panel_height
+        } else {
+            anchor_bottom + 6.
+        }
+        .clamp(min_top, (max_bottom - panel_height).max(min_top));
         let list = {
-            let mut panel = rect()
-                .position(Position::new_absolute().top(Self::BUTTON_HEIGHT + 6.).left(0.))
+            let panel = rect()
+                .position(Position::new_global().top(top).left(left))
                 .layer(Layer::Overlay)
-                .width(Size::px(260.))
+                .width(Size::px(panel_width))
+                .height(Size::px(panel_height))
                 .padding(6.)
-                .spacing(2.)
                 .corner_radius(12.)
                 .background(palette.header)
-                .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                )
                 .opacity(shown.opacity)
                 .offset_y(shown.lift)
                 .scale(shown.scale)
                 .transform_origin(TransformOrigin::top_left())
-                // The layer under it closes the list on a pointer-down: this one must not reach it.
-                .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation());
+                // Keep list gestures from scrolling the Settings page beneath it.
+                .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
+                .on_pointer_move(|e: Event<PointerEventData>| e.stop_propagation())
+                .on_wheel(|e: Event<WheelEventData>| e.stop_propagation())
+                .on_touch_start(|e: Event<TouchEventData>| e.stop_propagation())
+                .on_touch_move(|e: Event<TouchEventData>| e.stop_propagation())
+                .on_touch_end(|e: Event<TouchEventData>| e.stop_propagation());
+            let mut rows = rect().width(Size::fill()).spacing(2.);
             for language in peersus_core::config::Language::ALL {
                 let link = link.clone();
-                panel = panel.child(Name {
+                rows = rows.child(Name {
                     language,
                     palette,
                     selected: language == current,
@@ -238,26 +345,31 @@ impl Component for Picker {
                     }),
                 });
             }
-            panel
+            panel.child(ScrollView::new().auto_hide_scrollbars(false).child(rows))
         };
         // A layer as large as the WINDOW under the list, that takes a click anywhere else to close it. `Size::fill()` here would only fill the
         // row this component is in, so a click outside the row would never reach it and the list would stay open: the window's own size is
         // given in pixels, as the other full-window layers are.
-        let window = Platform::get().current_window();
-        let (width, height) = {
-            let size = *window.root_size.read();
-            (size.width.max(0.), size.height.max(0.))
-        };
         let away = rect()
             .layer(Layer::Overlay)
             .position(Position::new_global().top(0.).left(0.))
             .width(Size::px(width))
             .height(Size::px(height))
-            .on_pointer_down(move |_| open.set(false));
+            .on_pointer_down(move |_| open.set(false))
+            .on_pointer_move(|e: Event<PointerEventData>| e.stop_propagation())
+            .on_wheel(|e: Event<WheelEventData>| e.stop_propagation())
+            .on_touch_start(|e: Event<TouchEventData>| e.stop_propagation())
+            .on_touch_move(|e: Event<TouchEventData>| e.stop_propagation())
+            .on_touch_end(|e: Event<TouchEventData>| e.stop_propagation());
         rect()
             .width(Size::fill())
             .spacing(8.)
-            .child(label().text(i18n::tr("Language")).color(palette.muted).font_size(13.))
+            .child(
+                label()
+                    .text(i18n::tr("Language"))
+                    .color(palette.muted)
+                    .font_size(13.),
+            )
             .child(
                 rect()
                     .width(Size::fill())
@@ -265,7 +377,13 @@ impl Component for Picker {
                     .cross_align(Alignment::center())
                     .spacing(16.)
                     .child(button)
-                    .child(Strip { current, palette, ground: self.ground, reduced_motion: reduced, on_open: on_open.clone() }),
+                    .child(Strip {
+                        current,
+                        palette,
+                        ground: self.ground,
+                        reduced_motion: reduced,
+                        on_open: on_open.clone(),
+                    }),
             )
             .maybe_child(mounted.then(|| Element::from(away)))
             .maybe_child(mounted.then(|| Element::from(list)))
@@ -341,15 +459,24 @@ mod tests {
         for items in [1usize, 11] {
             assert_eq!(Ribbon::row_width(items), items as f32 * Ribbon::ITEM);
         }
-        assert_eq!(Ribbon::offset(1., Ribbon::row_width(11)), -Ribbon::row_width(11));
+        assert_eq!(
+            Ribbon::offset(1., Ribbon::row_width(11)),
+            -Ribbon::row_width(11)
+        );
     }
 
     #[test]
     fn the_longest_name_fits_the_slot_it_is_drawn_in() {
         // A name wider than its slot would run under the next one; the same estimate the headlines are fitted with.
         for language in Language::ALL {
-            let width = crate::view::Headline::width_of(language.name().chars().count(), Picker::FONT_SIZE);
-            assert!(width <= Ribbon::ITEM, "{} needs {width}px of {}", language.name(), Ribbon::ITEM);
+            let width =
+                crate::view::Headline::width_of(language.name().chars().count(), Picker::FONT_SIZE);
+            assert!(
+                width <= Ribbon::ITEM,
+                "{} needs {width}px of {}",
+                language.name(),
+                Ribbon::ITEM
+            );
         }
     }
 }

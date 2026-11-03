@@ -1,8 +1,10 @@
 # Extension store
 
 How an extension gets from its author to a person's device, what each step proves, and what it does **not** prove.
-Everything below is implemented and tested in this repository except the two steps marked **maintainer action**, which
-need something only the maintainer can do (a signing key, a public address).
+The implementation provides package validation, protected approval/signing workflow definitions, catalog verification
+and desktop download/install integration. A public store is **not active** merely because those components exist:
+the production verification key and public address still require maintainer setup, and publishing is separate.
+Local tests are not evidence that GitHub environment protection or a deployed catalog has been configured.
 
 ## The chain
 
@@ -23,9 +25,40 @@ author ──PR──▶ extension branch ──CI check──▶ maintainer app
    anything else. All code it runs comes from the default branch; the submission is data.
 4. **Publish.** The signed `catalog.json` + `catalog.sig` and the approved archives are served as static files
    (GitHub Pages). Publishing them is a separate, deliberate step that is **not automated here**.
-5. **Install.** In the app, *Settings → Extensions → Store*: search, then one click. The app downloads through a
+5. **Install.** In the app, *Settings → Extensions*: search the unified list, then choose Install. Catalog entries carry a green 🛒 Store badge and keep their list position whether installed or removed. The app downloads through a
    separate helper process, verifies, and installs through the same installer as a manual install. The extension starts
    with **every permission refused**.
+
+### A local store UX demonstration
+
+The development-only `store_demo` example serves the existing public, signed Echo fixture to a real application owner. Only the fetcher is in memory: catalog signatures, package digests, embedded metadata checks, installation, listing and removal use the normal implementation. It does not change `MAINTAINER_PUBLIC_KEY`, contact the public store, generate signing credentials or use personal application data. It is excluded from normal builds by the `test-plugin` feature.
+
+Use the root launcher rather than assembling separate build and owner/UI commands:
+
+```sh
+./store-demo.sh
+```
+
+It builds the required release programs and native hosts, resolves the triple-specific artifact directory through the shared build layout, creates a fresh data root, starts the isolated owner and attaches the real UI. It uses the same prerequisites as the desktop build.
+
+The launcher chooses a new session rather than deleting or reusing personal data. In **Settings → Extensions**, refresh, search for **Echo**, inspect its author/version/description, install it, then remove it from the same card and confirm removal. Check that the card remains in its original list position with the green 🛒 Store badge and offers Install again after removal. Installation starts with no permissions. This fixture demonstrates installation, listing and removal, not functional file-transfer or clipboard actions; its validator-only program exits immediately, so a failed runtime status is expected and does not establish a module-host defect. The example attaches the normal module executors from the release application directory. Closing the UI or interrupting the launcher stops its own processes; its data remains under `target/store-demo/`.
+
+This desktop demonstration does not configure the Android production store or prove HTTPS download operation. Android store UX requires its own explicitly isolated development setup; do not replace the production trust key with a test key to make a normal phone build accept the fixture.
+
+### Branches, pull requests and CI
+
+The roles are different:
+
+* The default branch holds trusted application code, validators, workflow definitions and the previously approved catalog.
+* `extension` is the **base/target** branch for package-submission PRs. Initialize it from a trusted default-branch commit, not as an empty/orphan branch: validation runs scripts from that base.
+* An author works on a separate feature branch, usually in a fork, and opens a PR **into `extension`**, not a PR from `extension` into the default branch. Keep the PR focused on one extension archive. The current workflow enforces that changed paths stay under `extensions/`; it validates every archive there, rather than enforcing exactly one archive.
+* Build the program and package it before submission. Include its manifest and embedded metadata, not an installer script or a source-only archive. Validate locally with the same `scripts/validate-extension.py` command used in CI.
+* PR CI produces review reports, not approval, installation, a merge or publication. A green report means the package passed structural/provenance checks; it is not proof that the code is safe or that it works on every platform.
+* The maintainer reviews the package and exact digest, then deliberately runs the protected approval workflow for the reviewed commit/archive/digest. That workflow revalidates and emits a signed-catalog artifact; it does not merge the PR or deploy Pages.
+* The website workflow currently creates a preview artifact only. GitHub Pages publication and the production signing environment must be configured separately before clients can use a public store.
+
+Creating a remote branch, pushing a submission, opening a PR, configuring a signing secret and publishing Pages are separate operations. The local demonstration requires none of them.
+
 
 ## What a package must be
 
@@ -117,11 +150,11 @@ and refuses every store command** — there is no fallback that trusts an unsign
 
 ## Limits, stated plainly
 
-* **Android** has the install machinery, but the Android entry does not attach a store, so it reports "not set up" and
-  refuses store commands. Wiring it needs a way to download that fits Android's process rules (the desktop path runs a
-  separate helper program beside the application), which has not been designed or tested. Manual install on Android is unchanged.
-* **Windows and AppImage**: the store and the helper are Unix-only today (`archive` and the package manager use Unix
-  file semantics), and no AppImage or Windows packaging exists in this repository. Nothing here claims they work.
+* **Android** attaches the same store verifier and installer as desktop. Downloads run in a private, non-exported `:store` service using platform HTTPS and a bounded file descriptor, with a 75-second caller deadline. The service is a separate same-UID process, not an adversarial security sandbox. A missing production verification key still reports "not set up". Local transport and Binder tests do not establish public-store deployment or complete phone UX verification.
+* **Windows**: the store and download helper use Unix package/file semantics; Windows operation is not verified.
+* **AppImage**: `scripts/build-appimage.py` packages the staged Linux binaries, including helpers. That is packaging
+  support, not proof of store operation on every target distribution; certificate discovery and helper execution need
+  runtime validation on the intended host.
 * **NixOS and similar**: the download helper runs with an **empty environment** on purpose (no proxy variables, no
   credentials). Systems that need `SSL_CERT_FILE`-style variables to find certificates would need the helper to be
   given exactly those, not the whole environment.

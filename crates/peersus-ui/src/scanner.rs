@@ -72,7 +72,13 @@ impl Scanner {
         // Every frame is kept to be shown, and only some are looked at: a frame that is not looked at leaves the
         // corners of the last look as they were.
         let shown = (width.checked_mul(height) == Some(luma.len()) && width > 0 && height > 0)
-            .then(|| Arc::new(Frame { luma: luma.to_vec(), width, height }));
+            .then(|| {
+                Arc::new(Frame {
+                    luma: luma.to_vec(),
+                    width,
+                    height,
+                })
+            });
         if !self.begin(now) {
             if let Some(frame) = shown {
                 self.show(frame, None);
@@ -90,11 +96,16 @@ impl Scanner {
     /// Whether a frame at `now` is to be looked at: not if the scan is over, and not if it came too soon after the
     /// last one that was. When it is, it is counted and the time is kept.
     pub fn begin(&self, now: Instant) -> bool {
-        let Ok(mut state) = self.inner.lock() else { return false };
+        let Ok(mut state) = self.inner.lock() else {
+            return false;
+        };
         if state.over {
             return false;
         }
-        if state.last_look.is_some_and(|last| now.saturating_duration_since(last) < LOOK_EVERY) {
+        if state
+            .last_look
+            .is_some_and(|last| now.saturating_duration_since(last) < LOOK_EVERY)
+        {
             return false;
         }
         state.last_look = Some(now);
@@ -105,7 +116,9 @@ impl Scanner {
     /// What a frame that was looked at means, given what was read in it. The person may have left while it was being
     /// read, on another thread: what it found is then not passed on.
     pub fn finish(&self, read: Option<String>) -> Outcome {
-        let Ok(mut state) = self.inner.lock() else { return Outcome::Skipped };
+        let Ok(mut state) = self.inner.lock() else {
+            return Outcome::Skipped;
+        };
         if state.over {
             return Outcome::Skipped;
         }
@@ -147,7 +160,9 @@ impl Scanner {
     /// kept under the lock, never a copy of the frame. `corners` is what the last look found, and `None` leaves what
     /// the last look found as it was: a frame that was not looked at is not evidence that the code went away.
     pub fn show(&self, frame: Arc<Frame>, corners: Option<Vec<qr::Corners>>) {
-        let Ok(mut state) = self.inner.lock() else { return };
+        let Ok(mut state) = self.inner.lock() else {
+            return;
+        };
         if state.over {
             return;
         }
@@ -166,7 +181,11 @@ impl Scanner {
         if state.over || state.serial == after {
             return None;
         }
-        Some(View { frame: state.frame.clone()?, corners: state.corners.clone(), serial: state.serial })
+        Some(View {
+            frame: state.frame.clone()?,
+            corners: state.corners.clone(),
+            serial: state.serial,
+        })
     }
 }
 
@@ -194,7 +213,12 @@ mod tests {
     fn frame_of(text: &str) -> (Vec<u8>, usize) {
         let raster = qr::raster(&qr::for_code(text)).expect("a code that can be drawn");
         let side = raster.side as usize;
-        ((0..side * side).map(|index| raster.rgba[index * 4]).collect(), side)
+        (
+            (0..side * side)
+                .map(|index| raster.rgba[index * 4])
+                .collect(),
+            side,
+        )
     }
 
     fn invitation() -> String {
@@ -206,14 +230,21 @@ mod tests {
         let scanner = Scanner::new();
         let (frame, side) = frame_of(&invitation());
         let start = Instant::now();
-        assert_eq!(scanner.frame(&frame, side, side, start), Outcome::Found(invitation()));
+        assert_eq!(
+            scanner.frame(&frame, side, side, start),
+            Outcome::Found(invitation())
+        );
         assert!(scanner.is_over());
         // A camera that stays on the code: the frames that follow are not looked at, and nothing is joined twice.
         for n in 1..=20 {
             let later = start + LOOK_EVERY * n;
             assert_eq!(scanner.frame(&frame, side, side, later), Outcome::Skipped);
         }
-        assert_eq!(scanner.looked_at(), 1, "a frame was looked at after the scan was over");
+        assert_eq!(
+            scanner.looked_at(),
+            1,
+            "a frame was looked at after the scan was over"
+        );
         assert_eq!(scanner.take(), Some(invitation()));
         assert_eq!(scanner.take(), None, "the invitation was handed out twice");
     }
@@ -225,10 +256,19 @@ mod tests {
         let start = Instant::now();
         assert_eq!(scanner.frame(&blank, 64, 64, start), Outcome::Nothing);
         // Thirty frames a second: the next one at 33 ms is too soon.
-        assert_eq!(scanner.frame(&blank, 64, 64, start + Duration::from_millis(33)), Outcome::Skipped);
-        assert_eq!(scanner.frame(&blank, 64, 64, start + Duration::from_millis(66)), Outcome::Skipped);
+        assert_eq!(
+            scanner.frame(&blank, 64, 64, start + Duration::from_millis(33)),
+            Outcome::Skipped
+        );
+        assert_eq!(
+            scanner.frame(&blank, 64, 64, start + Duration::from_millis(66)),
+            Outcome::Skipped
+        );
         // At the pace it is looked at again.
-        assert_eq!(scanner.frame(&blank, 64, 64, start + LOOK_EVERY), Outcome::Nothing);
+        assert_eq!(
+            scanner.frame(&blank, 64, 64, start + LOOK_EVERY),
+            Outcome::Nothing
+        );
         assert_eq!(scanner.looked_at(), 2);
         // A clock that goes back (a frame stamped earlier) is not a reason to read: it is skipped, not a panic.
         assert_eq!(scanner.frame(&blank, 64, 64, start), Outcome::Skipped);
@@ -243,7 +283,10 @@ mod tests {
         assert!(!scanner.is_over(), "a link ended the scan");
         // And the real invitation, a moment later, is still found.
         let (frame, side) = frame_of(&invitation());
-        assert_eq!(scanner.frame(&frame, side, side, start + LOOK_EVERY), Outcome::Found(invitation()));
+        assert_eq!(
+            scanner.frame(&frame, side, side, start + LOOK_EVERY),
+            Outcome::Found(invitation())
+        );
     }
 
     #[test]
@@ -253,7 +296,11 @@ mod tests {
         let start = Instant::now();
         scanner.stop();
         assert!(scanner.is_over());
-        assert_eq!(scanner.frame(&frame, side, side, start), Outcome::Skipped, "a frame was read after the person left");
+        assert_eq!(
+            scanner.frame(&frame, side, side, start),
+            Outcome::Skipped,
+            "a frame was read after the person left"
+        );
         assert_eq!(scanner.take(), None);
         assert_eq!(scanner.looked_at(), 0);
     }
@@ -262,9 +309,16 @@ mod tests {
     fn leaving_after_an_invitation_was_read_withdraws_it_so_that_it_is_not_joined_late() {
         let scanner = Scanner::new();
         let (frame, side) = frame_of(&invitation());
-        assert!(matches!(scanner.frame(&frame, side, side, Instant::now()), Outcome::Found(_)));
+        assert!(matches!(
+            scanner.frame(&frame, side, side, Instant::now()),
+            Outcome::Found(_)
+        ));
         scanner.stop();
-        assert_eq!(scanner.take(), None, "an invitation was joined after the person had left");
+        assert_eq!(
+            scanner.take(),
+            None,
+            "an invitation was joined after the person had left"
+        );
     }
 
     #[test]
@@ -273,7 +327,10 @@ mod tests {
         let interface = camera.clone();
         let (frame, side) = frame_of(&invitation());
         camera.frame(&frame, side, side, Instant::now());
-        assert!(interface.is_over(), "the interface did not see the scan end");
+        assert!(
+            interface.is_over(),
+            "the interface did not see the scan end"
+        );
         assert_eq!(interface.take(), Some(invitation()));
     }
 
@@ -286,7 +343,11 @@ mod tests {
         scanner.stop();
         // The reading ends with the invitation found: it must not become a join the person did not ask for.
         assert_eq!(scanner.finish(Some(invitation())), Outcome::Skipped);
-        assert_eq!(scanner.take(), None, "an invitation read after the person left was handed on");
+        assert_eq!(
+            scanner.take(),
+            None,
+            "an invitation read after the person left was handed on"
+        );
         assert!(scanner.is_over());
     }
 
@@ -299,11 +360,21 @@ mod tests {
         assert_eq!(scanner.finish(None), Outcome::Nothing);
         assert!(!scanner.is_over());
         assert!(scanner.begin(start + LOOK_EVERY));
-        assert_eq!(scanner.finish(Some(invitation())), Outcome::Found(invitation()));
+        assert_eq!(
+            scanner.finish(Some(invitation())),
+            Outcome::Found(invitation())
+        );
         // Over: a frame is not even begun, and a second finding is not accepted.
         assert!(!scanner.begin(start + LOOK_EVERY * 5));
-        assert_eq!(scanner.finish(Some("peersus:1:ff".to_owned())), Outcome::Skipped);
-        assert_eq!(scanner.take(), Some(invitation()), "the second finding replaced the first");
+        assert_eq!(
+            scanner.finish(Some("peersus:1:ff".to_owned())),
+            Outcome::Skipped
+        );
+        assert_eq!(
+            scanner.take(),
+            Some(invitation()),
+            "the second finding replaced the first"
+        );
     }
 
     fn blank(side: usize) -> Vec<u8> {
@@ -318,33 +389,63 @@ mod tests {
         assert!(scanner.view_after(0).is_none());
         // A frame comes, looked at or not, and is shown once; asked again with its serial there is nothing new.
         scanner.frame(&blank(32), 32, 32, start);
-        let first = scanner.view_after(0).expect("a frame came and none was to be shown");
+        let first = scanner
+            .view_after(0)
+            .expect("a frame came and none was to be shown");
         assert_eq!((first.frame.width, first.frame.height), (32, 32));
-        assert!(scanner.view_after(first.serial).is_none(), "the same frame was given twice");
+        assert!(
+            scanner.view_after(first.serial).is_none(),
+            "the same frame was given twice"
+        );
         // A frame too soon to be looked at is still shown: the picture must move for the person to aim by it.
         scanner.frame(&blank(32), 32, 32, start + Duration::from_millis(10));
-        let second = scanner.view_after(first.serial).expect("a frame that was not looked at was not shown");
+        let second = scanner
+            .view_after(first.serial)
+            .expect("a frame that was not looked at was not shown");
         assert!(second.serial != first.serial);
     }
 
     #[test]
-    fn the_corners_of_the_last_look_stay_until_the_next_look_and_are_cleared_by_one_that_finds_nothing() {
+    fn the_corners_of_the_last_look_stay_until_the_next_look_and_are_cleared_by_one_that_finds_nothing()
+     {
         let scanner = Scanner::new();
         let start = Instant::now();
         let corners = vec![[(1, 1), (9, 1), (9, 9), (1, 9)]];
         // A look that found a code, as the camera's thread would have recorded it.
-        scanner.show(Arc::new(Frame { luma: blank(16), width: 16, height: 16 }), Some(corners.clone()));
+        scanner.show(
+            Arc::new(Frame {
+                luma: blank(16),
+                width: 16,
+                height: 16,
+            }),
+            Some(corners.clone()),
+        );
         assert_eq!(scanner.view_after(0).unwrap().corners, corners);
         // A frame that was not looked at leaves them: it is no evidence the code went away.
-        scanner.show(Arc::new(Frame { luma: blank(16), width: 16, height: 16 }), None);
-        assert_eq!(scanner.view_after(1).unwrap().corners, corners, "the corners were lost by a frame not looked at");
+        scanner.show(
+            Arc::new(Frame {
+                luma: blank(16),
+                width: 16,
+                height: 16,
+            }),
+            None,
+        );
+        assert_eq!(
+            scanner.view_after(1).unwrap().corners,
+            corners,
+            "the corners were lost by a frame not looked at"
+        );
         // A real look that finds nothing clears them, or a mark would stay on something that is no longer there.
         scanner.frame(&blank(32), 32, 32, start);
-        assert!(scanner.view_after(2).unwrap().corners.is_empty(), "a mark was left where nothing is seen");
+        assert!(
+            scanner.view_after(2).unwrap().corners.is_empty(),
+            "a mark was left where nothing is seen"
+        );
     }
 
     #[test]
-    fn nothing_is_shown_once_the_scan_is_over_and_a_frame_that_is_not_what_it_says_is_never_shown() {
+    fn nothing_is_shown_once_the_scan_is_over_and_a_frame_that_is_not_what_it_says_is_never_shown()
+    {
         let scanner = Scanner::new();
         let start = Instant::now();
         // A frame that does not hold what it says is looked at as nothing and kept as nothing.
@@ -356,8 +457,21 @@ mod tests {
         scanner.frame(&blank(32), 32, 32, start + Duration::from_millis(400));
         assert!(scanner.view_after(0).is_some());
         scanner.stop();
-        assert!(scanner.view_after(0).is_none(), "a picture was shown for a scan that is over");
-        scanner.show(Arc::new(Frame { luma: blank(16), width: 16, height: 16 }), None);
-        assert!(scanner.view_after(0).is_none(), "a late frame was kept after the scan was over");
+        assert!(
+            scanner.view_after(0).is_none(),
+            "a picture was shown for a scan that is over"
+        );
+        scanner.show(
+            Arc::new(Frame {
+                luma: blank(16),
+                width: 16,
+                height: 16,
+            }),
+            None,
+        );
+        assert!(
+            scanner.view_after(0).is_none(),
+            "a late frame was kept after the scan was over"
+        );
     }
 }

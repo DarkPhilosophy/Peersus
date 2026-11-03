@@ -53,8 +53,16 @@ impl Component for Avatar {
         // above compares the picture by digest, the name, the size and the colours), which is exactly when
         // the look must be made again; a memo here would keep the props it first captured and never see a
         // picture that arrives after the first draw.
-        let look = Look::of(self.picture.as_deref(), &self.name, self.size.round() as u32).into_handle();
-        let circle = rect().width(Size::px(self.size)).height(Size::px(self.size)).corner_radius(self.size / 2.);
+        let look = Look::of(
+            self.picture.as_deref(),
+            &self.name,
+            self.size.round() as u32,
+        )
+        .into_handle();
+        let circle = rect()
+            .width(Size::px(self.size))
+            .height(Size::px(self.size))
+            .corner_radius(self.size / 2.);
         let shown: Element = match &look {
             Shown::Picture(handle) => circle
                 .child(

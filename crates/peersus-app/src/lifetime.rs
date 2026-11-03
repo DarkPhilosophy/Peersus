@@ -64,7 +64,9 @@ impl Presence {
     pub fn attach(&self) -> Lease {
         self.ever.store(true, Ordering::SeqCst);
         self.attached.fetch_add(1, Ordering::SeqCst);
-        Lease { attached: self.attached.clone() }
+        Lease {
+            attached: self.attached.clone(),
+        }
     }
 
     /// How many windows are attached now.
@@ -82,7 +84,9 @@ impl Drop for Lease {
     fn drop(&mut self) {
         // Never below zero, whatever the order of events: a lease is dropped once, but a count that went
         // under would read as a huge number of windows and keep an owner for ever.
-        let _ = self.attached.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+        let _ = self
+            .attached
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
     }
 }
 
@@ -148,7 +152,13 @@ mod tests {
     fn an_owner_waits_for_its_first_window_for_a_while_and_then_gives_up() {
         // The window that started it has not attached yet: it is given time to.
         assert!(!should_end(true, 0, false, Duration::ZERO, false));
-        assert!(!should_end(true, 0, false, STARTUP_GRACE - Duration::from_millis(1), false));
+        assert!(!should_end(
+            true,
+            0,
+            false,
+            STARTUP_GRACE - Duration::from_millis(1),
+            false
+        ));
         // It never came: the owner ends at the end of the grace, not before.
         assert!(should_end(true, 0, false, STARTUP_GRACE, false));
         assert!(should_end(true, 0, false, LONG, false));
@@ -161,11 +171,29 @@ mod tests {
         let presence = Presence::default();
         let lease = presence.attach();
         // On, then off, with the window open: nothing ends.
-        assert!(!should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, true));
-        assert!(!should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert!(!should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            true
+        ));
+        assert!(!should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
         // The window goes with the option off: the owner ends. Nothing was let go of for good.
         drop(lease);
-        assert!(should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert!(should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
     }
 
     #[test]
@@ -176,9 +204,21 @@ mod tests {
         assert_eq!(presence.windows(), 2);
         drop(a);
         // A went, B is open: the owner stays for B.
-        assert!(!should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert!(!should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
         drop(b);
-        assert!(should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert!(should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
     }
 
     #[test]
@@ -189,7 +229,13 @@ mod tests {
         assert!(presence.ever_had_a_window());
         let _again = presence.attach();
         assert_eq!(presence.windows(), 1);
-        assert!(!should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert!(!should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
     }
 
     #[test]
@@ -197,11 +243,23 @@ mod tests {
         let presence = Presence::default();
         // A lease made by hand from the same count and dropped twice stands for a double release.
         let lease = presence.attach();
-        let twin = Lease { attached: lease.attached.clone() };
+        let twin = Lease {
+            attached: lease.attached.clone(),
+        };
         drop(lease);
         drop(twin);
-        assert_eq!(presence.windows(), 0, "the count went under zero and would read as many windows");
-        assert!(should_end(true, presence.windows(), presence.ever_had_a_window(), LONG, false));
+        assert_eq!(
+            presence.windows(),
+            0,
+            "the count went under zero and would read as many windows"
+        );
+        assert!(should_end(
+            true,
+            presence.windows(),
+            presence.ever_had_a_window(),
+            LONG,
+            false
+        ));
     }
 
     #[test]

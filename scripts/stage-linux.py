@@ -4,13 +4,21 @@ from pathlib import Path
 import shutil
 import json
 import tomllib
+import os
+from build_layout import cargo_artifact_directory
 root = Path(__file__).resolve().parents[1]
-out = root / "target/distribution/linux"
+build = Path(os.environ.get("CARGO_TARGET_DIR", "target"))
+if not build.is_absolute():
+    build = root / build
+release = cargo_artifact_directory("release")
+if not release.is_absolute():
+    release = root / release
+out = build / "distribution/linux"
 out.mkdir(parents=True, exist_ok=False)
 for name in ("peersus", "peersus-ui", "peersus-wasm-host", "peersus-native-host", "peersus-store-fetch"):
     target = out / "bin" / name
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(root / "target/release" / name, target)
+    shutil.copy2(release / name, target)
 for manifest_path in sorted(path for path in (root / "crates").glob("*/plugin.*") if path.name in ("plugin.json", "plugin.toml")):
     manifest = (json.loads if manifest_path.suffix == ".json" else tomllib.loads)(manifest_path.read_text())
     if manifest.get("platforms") is not None and "linux" not in manifest["platforms"]:
@@ -21,7 +29,7 @@ for manifest_path in sorted(path for path in (root / "crates").glob("*/plugin.*"
     for program in [manifest["program"], *manifest.get("files", [])]:
         if Path(program).name != program or program in (".", ".."):
             raise SystemExit("bundled plugin program/files must be plain filenames")
-        shutil.copy2(root / "target/release" / program, plugin / program)
+        shutil.copy2(release / program, plugin / program)
     shutil.copy2(manifest_path, plugin / manifest_path.name)
 for source, target in (
     ("packaging/linux/io.github.DarkPhilosophy.Peersus.desktop", "share/applications/io.github.DarkPhilosophy.Peersus.desktop"),

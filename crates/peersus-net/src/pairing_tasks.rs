@@ -243,6 +243,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await
@@ -331,10 +332,20 @@ mod tests {
     async fn a_connection_admitted_for_files_is_never_started_as_a_pairing() {
         use iroh::SecretKey;
         use peersus_core::config::NetworkSettings;
-        let policy = NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false };
-        let a = crate::transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = crate::transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let (left, _right) = tokio::join!(a.connect(b.addr(), crate::transport::ALPN), async { b.accept().await.unwrap().await });
+        let policy = NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        };
+        let a = crate::transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = crate::transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let (left, _right) = tokio::join!(a.connect(b.addr(), crate::transport::ALPN), async {
+            b.accept().await.unwrap().await
+        });
         let mut tasks = PairingTasks::new(a.id());
         let admitted = Admitted {
             connection: left.unwrap(),
@@ -344,7 +355,10 @@ mod tests {
             purpose: crate::handshake::Purpose::Files,
         };
         assert_eq!(tasks.start(admitted, Role::Initiator), Err("Not a pairing"));
-        assert!(tasks.prompts().is_empty(), "a files connection reached the pairing ceremony");
+        assert!(
+            tasks.prompts().is_empty(),
+            "a files connection reached the pairing ceremony"
+        );
         a.close().await;
         b.close().await;
     }

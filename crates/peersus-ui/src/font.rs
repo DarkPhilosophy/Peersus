@@ -33,20 +33,36 @@ mod tests {
     #[test]
     fn the_embedded_file_is_a_truetype_font_with_a_weight_axis() {
         // `0x00010000` is the TrueType signature; anything else is not a font the toolkit can load.
-        assert_eq!(&BYTES[..4], &[0x00, 0x01, 0x00, 0x00], "not a TrueType file");
+        assert_eq!(
+            &BYTES[..4],
+            &[0x00, 0x01, 0x00, 0x00],
+            "not a TrueType file"
+        );
         let names = tables(BYTES);
         // `fvar` is the table that holds the variation axes: without it there is one weight only,
         // and every bold title in the application would come out regular.
-        assert!(names.contains(b"fvar"), "no variation axes: the weights would not exist");
+        assert!(
+            names.contains(b"fvar"),
+            "no variation axes: the weights would not exist"
+        );
         assert!(names.contains(b"glyf"), "no outlines");
     }
 
     #[test]
     fn the_licence_beside_the_font_is_the_open_font_licence_for_this_family() {
-        assert!(LICENCE.contains("SIL OPEN FONT LICENSE Version 1.1"), "not the OFL 1.1");
-        assert!(LICENCE.contains("Quicksand"), "not the licence of this family");
+        assert!(
+            LICENCE.contains("SIL OPEN FONT LICENSE Version 1.1"),
+            "not the OFL 1.1"
+        );
+        assert!(
+            LICENCE.contains("Quicksand"),
+            "not the licence of this family"
+        );
         // The licence allows use and embedding in software, which is what is done here.
-        assert!(LICENCE.contains("embed"), "the permission to embed is missing from the text");
+        assert!(
+            LICENCE.contains("embed"),
+            "the permission to embed is missing from the text"
+        );
     }
 
     #[test]

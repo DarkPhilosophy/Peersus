@@ -12,11 +12,34 @@ use crate::{
 use peersus_plugin_api::manifest::Manifest;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
+use zeroize::Zeroize;
 
 /// A peer's authenticated public identity, never its display name or IP address.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct PeerId(pub String);
+
+/// What this device knows of another one right now. Never stored: it is read from a live authenticated connection and from
+/// what that device last said of itself.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Presence {
+    /// No live connection. Nothing can be sent.
+    #[default]
+    Offline,
+    /// Connected, and the device has said that it sleeps (the screen is off, or it has gone idle): it is there, and it answers
+    /// when it wakes, which may take a while.
+    Sleeping,
+    /// Connected and awake: a send to it starts at once.
+    Online,
+}
+
+impl Presence {
+    /// Whether there is a live connection at all. Both `Online` and `Sleeping` are reachable; this is what a plugin or an
+    /// older reader of the saved file knows as `online`.
+    pub fn reachable(self) -> bool {
+        self != Self::Offline
+    }
+}
 
 /// Remembered device; presence is derived from live authenticated connections.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -29,8 +52,18 @@ pub struct Peer {
     pub paired_at: u64,
     /// Last successful authenticated communication.
     pub last_seen: Option<u64>,
-    /// Current connection state, never inferred merely from stored history.
+    /// Whether a live authenticated connection exists (the device may be asleep: see `sleeping`). Kept as the bool it always
+    /// was, because the saved file and the plugins' device lists read it by this name.
     pub online: bool,
+    /// The device has said that it sleeps. Only meaningful with `online`; read through [`Peer::presence`], which never lets
+    /// the two disagree. Never stored: a saved file does not have it and reads it as awake.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sleeping: bool,
+    /// The statuses of plugins that the device says it has now, each with whose it is and the words its author gave it. Open: the
+    /// application does not list what a device may say. Never stored, and only what a live connection brought: a device that is not
+    /// connected says nothing, and a saved file reads it as none. At most [`crate::plugins::MAX_ACTIVE_STATUSES`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub statuses: Vec<crate::plugins::StatusInfo>,
     /// Capabilities the user granted each plugin for this device. Default-deny: a
     /// plugin without an entry may do nothing for this device.
     #[serde(default)]
@@ -38,6 +71,23 @@ pub struct Peer {
     /// Per-device plugin setting values, by plugin id.
     #[serde(default)]
     pub plugin_values: BTreeMap<PluginId, crate::plugins::Values>,
+}
+
+impl Peer {
+    /// How this device is reachable now, from the two flags. A sleeping device that is not connected is offline: there is
+    /// nothing asleep to wake.
+    pub fn presence(&self) -> Presence {
+        match (self.online, self.sleeping) {
+            (false, _) => Presence::Offline,
+            (true, true) => Presence::Sleeping,
+            (true, false) => Presence::Online,
+        }
+    }
+
+    /// What the device says of itself besides being awake or asleep: nothing unless there is a live connection to say it on.
+    pub fn custom_statuses(&self) -> &[crate::plugins::StatusInfo] {
+        if self.online { &self.statuses } else { &[] }
+    }
 }
 
 /// Transfer lifecycle visible to all clients.
@@ -225,7 +275,8 @@ impl SourceDir {
 impl<'de> Deserialize<'de> for SourceDir {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let path = PathBuf::deserialize(deserializer)?;
-        Self::new(path).ok_or_else(|| serde::de::Error::custom("a directory must be an absolute path"))
+        Self::new(path)
+            .ok_or_else(|| serde::de::Error::custom("a directory must be an absolute path"))
     }
 }
 
@@ -235,6 +286,56 @@ impl<'de> Deserialize<'de> for SourceDir {
 pub enum FileDestination {
     Peer { peer: PeerId },
     Invitation { generation: u64 },
+}
+
+/// A secret line of text. It serializes as a plain string, but `Debug` never shows it, it is wiped when dropped, and it
+/// cannot be longer than any token that could be used, so a client cannot make the owner hold or copy more than that.
+#[derive(Clone, Deserialize, Zeroize)]
+#[serde(try_from = "String")]
+pub struct SecretText(String);
+
+/// The longest secret line kept, in bytes: far past any token, and a bound on what a command can carry.
+pub const MAX_SECRET_BYTES: usize = 512;
+
+impl SecretText {
+    /// `None` when it is too long or is not one line, because a token that could not be used must not be sent as if it could.
+    pub fn new(text: &str) -> Option<Self> {
+        let text = text.trim();
+        (text.len() <= MAX_SECRET_BYTES && !text.chars().any(char::is_control))
+            .then(|| Self(text.to_owned()))
+    }
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for SecretText {
+    type Error = &'static str;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let made = Self::new(&value).ok_or("a secret must be one line of at most 512 bytes");
+        let mut value = value;
+        zeroize::Zeroize::zeroize(&mut value);
+        made
+    }
+}
+
+impl Serialize for SecretText {
+    /// Written from the borrowed text, so that no second, unwiped copy of the secret is made on the way out.
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.0)
+    }
+}
+
+impl std::fmt::Debug for SecretText {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("SecretText([redacted])")
+    }
+}
+
+impl Drop for SecretText {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(&mut self.0);
+    }
 }
 
 /// Commands use the same authorization and validation regardless of client.
@@ -272,12 +373,34 @@ pub enum Command {
     /// descriptor). Each is named by the number it was kept under, and by the name to offer it as. The owner takes
     /// each file once by its number; a number that is unknown or was already used is refused. Judged as
     /// [`Command::SendFiles`] is, and a transfer never implies pairing.
-    SendHeld { peer: PeerId, files: Vec<(u64, String)> },
+    SendHeld {
+        peer: PeerId,
+        files: Vec<(u64, String)>,
+    },
+    /// Test the connection to a paired device now, and say what was found in the snapshot (`link_tests`). It asks for nothing about the
+    /// device but whether it answers and knows this one, and changes nothing about it.
+    TestLink { peer: PeerId },
+    /// Forget what the last test of a device found, so that its answer is not shown again.
+    ClearLinkTest { peer: PeerId },
+    /// Say where a paired device can be found: an IP address or a name, with a port or without one, as the person typed it. `None` clears
+    /// what was said. The OWNER reads the text (see [`crate::address::TypedAddress::parse`]) and refuses what is not a place, so no window
+    /// has to be trusted to have done it; the answer to "does it work" is a test of the connection, asked for separately. It only says where
+    /// to look: which device answers is decided by its key. Only a paired device can be given one.
+    SetAddress {
+        peer: PeerId,
+        address: Option<String>,
+    },
     /// Bounded producer handoff. QueueBusy leaves every source untouched so the caller can
     /// wait for an owner update and retry the same batch (at most sixteen files).
-    QueueFiles { destination: FileDestination, paths: Vec<PathBuf> },
+    QueueFiles {
+        destination: FileDestination,
+        paths: Vec<PathBuf>,
+    },
     /// The held-file counterpart of QueueFiles; QueueBusy never takes or releases a number.
-    QueueHeld { destination: FileDestination, files: Vec<(u64, String)> },
+    QueueHeld {
+        destination: FileDestination,
+        files: Vec<(u64, String)>,
+    },
     /// Offer a whole folder, with every folder and file in it, to a paired device. It carries the ONE folder the person chose and
     /// never a list of what is in it: the owner walks the folder as the files go, so that a folder of any size costs a command the
     /// size of a path. What the walk leaves out (a link, a file that cannot be read) is said in the reply, not lost. A transfer
@@ -346,7 +469,11 @@ pub enum Command {
         context: u64,
     },
     /// Withdraw precisely one pending user action; already published external effects cannot be undone.
-    CancelAction { plugin: PluginId, action: String, peer: Option<PeerId> },
+    CancelAction {
+        plugin: PluginId,
+        action: String,
+        peer: Option<PeerId>,
+    },
     /// Stop one plugin's process and start a new one, whether or not anything is wrong with it.
     /// What the old process was doing is withdrawn, as when one of its settings changes.
     RestartPlugin { plugin: PluginId },
@@ -387,8 +514,31 @@ pub enum Command {
     /// Ask for the picture with this digest, as the owner holds it: this device's own, or one a
     /// paired device showed. The answer is the picture; a digest the owner does not hold is refused.
     FetchPicture { digest: Digest },
+    /// This device sleeps (the screen went off, or the system went idle) or is awake again. Sent by a platform, never by a
+    /// person: it is what lets the devices that are connected show this one as sleeping instead of reading its silence as gone.
+    /// Saying what is already so changes nothing.
+    SetAsleep { asleep: bool },
+    /// Set the access token of the personal relay, or forget it when empty. It is a secret: kept apart from every
+    /// preference, never shown in a snapshot, a log or a `Debug`, and it only ever travels to the owner on this one
+    /// local, same-user connection.
+    SetRelayToken { token: SecretText },
     /// Gracefully stop owned work.
     Shutdown {},
+}
+
+/// What a test of the connection to a paired device found, as a closed set. A person is told which of three things it is, because each
+/// means doing something different: nothing, pairing again, or looking at the network.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum LinkTest {
+    /// The test is going on and has not ended.
+    Trying,
+    /// The device answered and knows this one: it is paired and the connection works.
+    Paired,
+    /// The device answered and does not know this one: it must be paired again. Nothing else is wrong.
+    NeedsPairing,
+    /// There was no answer: no route to it, or it did not reply in time. It may be off, asleep out of reach, or at another address.
+    Unreachable,
 }
 
 /// Latest bounded state; consuming it performs no network or disk work.
@@ -432,6 +582,21 @@ pub struct Snapshot {
     /// from an older owner, and when no code is out.
     #[serde(default)]
     pub files_code: Option<FilesCode>,
+    /// What the last test of a connection to a paired device found, by device: only devices that were tested, and only until a window
+    /// clears it. A test is asked for and the answer comes later, so it is told here as a state and not as the answer to the command.
+    #[serde(default)]
+    pub link_tests: BTreeMap<PeerId, LinkTest>,
+    /// Where the person said each paired device can be found, as they would type it again: only for devices that were given one. Told so that
+    /// the window can show what is saved and fill the field with it, without reading any file.
+    #[serde(default)]
+    pub typed_addresses: BTreeMap<PeerId, String>,
+    /// The port this device listens on: what another device writes after its address to find this one. A different one each time the device
+    /// starts, so it is told and not kept. `None` from an owner from before, and when none is bound.
+    #[serde(default)]
+    pub listening_port: Option<u16>,
+    /// Sanitized home-relay health; absent when connected to an older owner.
+    #[serde(default)]
+    pub relay: Option<crate::relay::RelayDiagnostics>,
 }
 
 /// Where the store has got to, as a closed set: what the application says about it is its own text.
@@ -691,7 +856,9 @@ mod tests {
 
     #[test]
     fn giving_up_a_package_names_only_the_plugin_that_was_shown() {
-        let command = Command::CancelInstall { plugin: PluginId::new("clipboard").unwrap() };
+        let command = Command::CancelInstall {
+            plugin: PluginId::new("clipboard").unwrap(),
+        };
         let json = serde_json::to_string(&command).unwrap();
         assert_eq!(json, r#"{"command":"cancel-install","plugin":"clipboard"}"#);
         assert_eq!(serde_json::to_string(&roundtrip(&command)).unwrap(), json);
@@ -700,15 +867,23 @@ mod tests {
             r#"{"command":"cancel-install","plugin":"clipboard","source":"/evil"}"#,
             r#"{"command":"cancel-install","plugin":"a/b"}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(hostile).is_err(), "{hostile}");
+            assert!(
+                serde_json::from_str::<Command>(hostile).is_err(),
+                "{hostile}"
+            );
         }
     }
 
     #[test]
     fn store_commands_name_only_a_plugin_and_nothing_may_ride_along() {
         let refresh = Command::StoreRefresh {};
-        assert_eq!(serde_json::to_string(&refresh).unwrap(), r#"{"command":"store-refresh"}"#);
-        let install = Command::StoreInstall { plugin: PluginId::new("echo").unwrap() };
+        assert_eq!(
+            serde_json::to_string(&refresh).unwrap(),
+            r#"{"command":"store-refresh"}"#
+        );
+        let install = Command::StoreInstall {
+            plugin: PluginId::new("echo").unwrap(),
+        };
         let json = serde_json::to_string(&install).unwrap();
         assert_eq!(json, r#"{"command":"store-install","plugin":"echo"}"#);
         assert_eq!(serde_json::to_string(&roundtrip(&install)).unwrap(), json);
@@ -720,7 +895,10 @@ mod tests {
             r#"{"command":"store-install","plugin":"echo","sha256":"00"}"#,
             r#"{"command":"store-refresh","url":"https://evil.example/c"}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(hostile).is_err(), "{hostile}");
+            assert!(
+                serde_json::from_str::<Command>(hostile).is_err(),
+                "{hostile}"
+            );
         }
     }
 
@@ -751,21 +929,45 @@ mod tests {
         assert!(json.contains(r#""status":"ready""#), "{json}");
         assert!(json.contains(r#""installed_version":"0.9.0""#), "{json}");
         assert_eq!(serde_json::from_str::<StoreState>(&json).unwrap(), state);
-        assert_eq!(serde_json::to_string(&StoreStatus::NotConfigured).unwrap(), r#""not-configured""#);
+        assert_eq!(
+            serde_json::to_string(&StoreStatus::NotConfigured).unwrap(),
+            r#""not-configured""#
+        );
         // A listing from an owner that did not report versions reads as not installed.
         let older = r#"{"status":"ready","listings":[{"plugin":"echo","version":"1.0.0","author":"A","link":"https://example.org/e"}]}"#;
-        assert_eq!(serde_json::from_str::<StoreState>(older).unwrap().listings[0].installed_version, None);
+        assert_eq!(
+            serde_json::from_str::<StoreState>(older).unwrap().listings[0].installed_version,
+            None
+        );
     }
 
     #[test]
     fn removing_enabling_and_disabling_a_plugin_name_it_by_id_and_nothing_else_may_ride_along() {
         for (name, build) in [
-            ("remove-package", Command::RemovePackage { plugin: PluginId::new("any-plugin").unwrap() }),
-            ("enable-plugin", Command::EnablePlugin { plugin: PluginId::new("any-plugin").unwrap() }),
-            ("disable-plugin", Command::DisablePlugin { plugin: PluginId::new("any-plugin").unwrap() }),
+            (
+                "remove-package",
+                Command::RemovePackage {
+                    plugin: PluginId::new("any-plugin").unwrap(),
+                },
+            ),
+            (
+                "enable-plugin",
+                Command::EnablePlugin {
+                    plugin: PluginId::new("any-plugin").unwrap(),
+                },
+            ),
+            (
+                "disable-plugin",
+                Command::DisablePlugin {
+                    plugin: PluginId::new("any-plugin").unwrap(),
+                },
+            ),
         ] {
             let json = serde_json::to_string(&build).unwrap();
-            assert_eq!(json, format!(r#"{{"command":"{name}","plugin":"any-plugin"}}"#));
+            assert_eq!(
+                json,
+                format!(r#"{{"command":"{name}","plugin":"any-plugin"}}"#)
+            );
             assert_eq!(serde_json::to_string(&roundtrip(&build)).unwrap(), json);
             for hostile in [
                 format!(r#"{{"command":"{name}","plugin":"a/b"}}"#),
@@ -773,7 +975,10 @@ mod tests {
                 format!(r#"{{"command":"{name}"}}"#),
                 format!(r#"{{"command":"{name}","plugin":"ok","extra":1}}"#),
             ] {
-                assert!(serde_json::from_str::<Command>(&hostile).is_err(), "{hostile}");
+                assert!(
+                    serde_json::from_str::<Command>(&hostile).is_err(),
+                    "{hostile}"
+                );
             }
         }
     }
@@ -781,17 +986,27 @@ mod tests {
     #[test]
     fn installing_a_package_is_two_steps_and_the_second_names_only_the_plugin_that_was_shown() {
         // Step one reads a package and shows it; it installs nothing.
-        let stage = Command::StageInstall { source: SourceDir::new("/home/me/clipboard").unwrap() };
+        let stage = Command::StageInstall {
+            source: SourceDir::new("/home/me/clipboard").unwrap(),
+        };
         let json = serde_json::to_string(&stage).unwrap();
-        assert_eq!(json, r#"{"command":"stage-install","source":"/home/me/clipboard"}"#);
+        assert_eq!(
+            json,
+            r#"{"command":"stage-install","source":"/home/me/clipboard"}"#
+        );
         assert!(matches!(
             roundtrip(&stage),
             Command::StageInstall { source } if source.as_path() == std::path::Path::new("/home/me/clipboard")
         ));
         // Step two names a plugin and nothing else, so no path can be smuggled in after the look.
-        let confirm = Command::ConfirmInstall { plugin: PluginId::new("clipboard").unwrap() };
+        let confirm = Command::ConfirmInstall {
+            plugin: PluginId::new("clipboard").unwrap(),
+        };
         let json = serde_json::to_string(&confirm).unwrap();
-        assert_eq!(json, r#"{"command":"confirm-install","plugin":"clipboard"}"#);
+        assert_eq!(
+            json,
+            r#"{"command":"confirm-install","plugin":"clipboard"}"#
+        );
         assert_eq!(serde_json::to_string(&roundtrip(&confirm)).unwrap(), json);
         for hostile in [
             r#"{"command":"stage-install"}"#,
@@ -803,7 +1018,10 @@ mod tests {
             r#"{"command":"confirm-install","plugin":"a/b"}"#,
             r#"{"command":"confirm-install"}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(hostile).is_err(), "{hostile}");
+            assert!(
+                serde_json::from_str::<Command>(hostile).is_err(),
+                "{hostile}"
+            );
         }
     }
 
@@ -827,19 +1045,32 @@ mod tests {
     fn the_picture_commands_have_one_exact_form_and_carry_nothing_else() {
         use crate::profile::Picture;
         let picture = Picture::new(2, 1, vec![1, 2, 3, 255, 4, 5, 6, 255]).unwrap();
-        let set = Command::SetProfilePicture { picture: picture.clone() };
+        let set = Command::SetProfilePicture {
+            picture: picture.clone(),
+        };
         assert_eq!(
             serde_json::to_string(&set).unwrap(),
             r#"{"command":"set-profile-picture","picture":{"width":2,"height":1,"rgba":"010203ff040506ff"}}"#
         );
-        assert!(matches!(roundtrip(&set), Command::SetProfilePicture { picture: p } if p == picture));
+        assert!(
+            matches!(roundtrip(&set), Command::SetProfilePicture { picture: p } if p == picture)
+        );
 
-        assert_eq!(serde_json::to_string(&Command::ClearProfilePicture {}).unwrap(), r#"{"command":"clear-profile-picture"}"#);
-        assert!(matches!(roundtrip(&Command::ClearProfilePicture {}), Command::ClearProfilePicture {}));
+        assert_eq!(
+            serde_json::to_string(&Command::ClearProfilePicture {}).unwrap(),
+            r#"{"command":"clear-profile-picture"}"#
+        );
+        assert!(matches!(
+            roundtrip(&Command::ClearProfilePicture {}),
+            Command::ClearProfilePicture {}
+        ));
 
         let digest = picture.digest();
         let fetch = Command::FetchPicture { digest };
-        assert_eq!(serde_json::to_string(&fetch).unwrap(), format!(r#"{{"command":"fetch-picture","digest":"{digest}"}}"#));
+        assert_eq!(
+            serde_json::to_string(&fetch).unwrap(),
+            format!(r#"{{"command":"fetch-picture","digest":"{digest}"}}"#)
+        );
         assert!(matches!(roundtrip(&fetch), Command::FetchPicture { digest: d } if d == digest));
 
         for bad in [
@@ -850,7 +1081,10 @@ mod tests {
             r#"{"command":"fetch-picture","digest":"00"}"#,
             r#"{"command":"fetch-picture"}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(bad).is_err(), "{bad} was accepted");
+            assert!(
+                serde_json::from_str::<Command>(bad).is_err(),
+                "{bad} was accepted"
+            );
         }
     }
 
@@ -858,7 +1092,10 @@ mod tests {
     fn a_picture_over_the_limit_cannot_arrive_as_a_command() {
         use crate::profile::MAX_EDGE;
         let rgba = "00".repeat((MAX_EDGE as usize + 1) * 4);
-        let json = format!(r#"{{"command":"set-profile-picture","picture":{{"width":{},"height":1,"rgba":"{rgba}"}}}}"#, MAX_EDGE + 1);
+        let json = format!(
+            r#"{{"command":"set-profile-picture","picture":{{"width":{},"height":1,"rgba":"{rgba}"}}}}"#,
+            MAX_EDGE + 1
+        );
         assert!(serde_json::from_str::<Command>(&json).is_err());
     }
 
@@ -877,7 +1114,32 @@ mod tests {
             profile_picture: None,
             peer_pictures: Default::default(),
             files_code: None,
+            link_tests: Default::default(),
+            typed_addresses: Default::default(),
+            listening_port: None,
+            relay: None,
         }
+    }
+
+    #[test]
+    fn relay_diagnostics_are_optional_for_old_owners_and_round_trip_live_health() {
+        use crate::relay::{RelayDiagnostics, RelayHealth};
+        let mut snapshot = empty_snapshot();
+        let mut legacy = serde_json::to_value(&snapshot).unwrap();
+        legacy.as_object_mut().unwrap().remove("relay");
+        assert!(
+            serde_json::from_value::<Snapshot>(legacy)
+                .unwrap()
+                .relay
+                .is_none()
+        );
+        snapshot.relay = Some(RelayDiagnostics {
+            active_target: Some(1),
+            health: RelayHealth::Refused,
+        });
+        let decoded: Snapshot =
+            serde_json::from_slice(&serde_json::to_vec(&snapshot).unwrap()).unwrap();
+        assert_eq!(decoded.relay, snapshot.relay);
     }
 
     #[test]
@@ -886,10 +1148,15 @@ mod tests {
         let picture = Picture::new(1, 1, vec![9, 9, 9, 255]).unwrap();
         let mut snapshot = empty_snapshot();
         snapshot.profile_picture = Some(picture.digest());
-        snapshot.peer_pictures.insert(PeerId("peer".into()), picture.digest());
+        snapshot
+            .peer_pictures
+            .insert(PeerId("peer".into()), picture.digest());
         let json = serde_json::to_string(&snapshot).unwrap();
         assert!(json.contains(&picture.digest().to_string()));
-        assert!(!json.contains("rgba"), "pixels travelled in a snapshot: {json}");
+        assert!(
+            !json.contains("rgba"),
+            "pixels travelled in a snapshot: {json}"
+        );
 
         // A snapshot from an owner that knew nothing of pictures has neither field and still reads.
         let mut older = serde_json::to_value(empty_snapshot()).unwrap();
@@ -897,6 +1164,64 @@ mod tests {
         older.as_object_mut().unwrap().remove("peer_pictures");
         let read: Snapshot = serde_json::from_value(older).expect("an older snapshot still reads");
         assert!(read.profile_picture.is_none() && read.peer_pictures.is_empty());
+    }
+
+    #[test]
+    fn a_link_test_is_told_in_the_snapshot_as_one_of_four_words_and_one_from_before_still_reads() {
+        // One closed word each: what a plugin or another window reads is exactly these.
+        for (test, word) in [
+            (LinkTest::Trying, "trying"),
+            (LinkTest::Paired, "paired"),
+            (LinkTest::NeedsPairing, "needs-pairing"),
+            (LinkTest::Unreachable, "unreachable"),
+        ] {
+            assert_eq!(serde_json::to_string(&test).unwrap(), format!("\"{word}\""));
+            assert_eq!(
+                serde_json::from_str::<LinkTest>(&format!("\"{word}\"")).unwrap(),
+                test
+            );
+        }
+        assert!(
+            serde_json::from_str::<LinkTest>("\"ok\"").is_err(),
+            "a word that is not one of the four was accepted"
+        );
+        // It is told by device, and an owner from before had none: the snapshot reads as having tested nothing.
+        let mut snapshot = empty_snapshot();
+        snapshot
+            .link_tests
+            .insert(PeerId("p".into()), LinkTest::NeedsPairing);
+        let json = serde_json::to_value(&snapshot).unwrap();
+        assert_eq!(
+            json["link_tests"],
+            serde_json::json!({ "p": "needs-pairing" })
+        );
+        let mut older = json.clone();
+        older.as_object_mut().unwrap().remove("link_tests");
+        assert!(
+            serde_json::from_value::<Snapshot>(older)
+                .unwrap()
+                .link_tests
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn the_commands_that_test_a_link_name_a_device_and_nothing_rides_along() {
+        let test: Command = serde_json::from_str(r#"{"command":"test-link","peer":"p"}"#).unwrap();
+        assert!(matches!(&test, Command::TestLink { peer } if peer.0 == "p"));
+        let clear: Command =
+            serde_json::from_str(r#"{"command":"clear-link-test","peer":"p"}"#).unwrap();
+        assert!(matches!(&clear, Command::ClearLinkTest { peer } if peer.0 == "p"));
+        for bad in [
+            r#"{"command":"test-link"}"#,
+            r#"{"command":"test-link","peer":"p","address":"10.0.0.1"}"#,
+            r#"{"command":"clear-link-test","peer":5}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<Command>(bad).is_err(),
+                "{bad} was accepted"
+            );
+        }
     }
 
     #[test]
@@ -974,7 +1299,10 @@ mod tests {
         // claim about a plugin nobody has looked at: "ready" says it may run, and the others say something has been found
         // wrong. So it is required, and a record without it is refused.
         let json = r#"{"id":"p","manifest":{"manifest_version":1,"capabilities":{},"imports":[],"exports":[]}}"#;
-        assert!(serde_json::from_str::<PluginInfo>(json).is_err(), "a plugin with no standing was read");
+        assert!(
+            serde_json::from_str::<PluginInfo>(json).is_err(),
+            "a plugin with no standing was read"
+        );
     }
 
     #[test]
@@ -990,8 +1318,20 @@ mod tests {
             assert_eq!(serde_json::from_str::<Standing>(text).unwrap(), standing);
         }
         // Nothing a plugin can print is a standing: a word that is not one of the five does not read.
-        for bad in ["\"Ready\"", "\"running\"", "\"ok\"", "\"\"", "null", "0", "\"ready \"", "\"needs_approval\""] {
-            assert!(serde_json::from_str::<Standing>(bad).is_err(), "{bad} was read as a standing");
+        for bad in [
+            "\"Ready\"",
+            "\"running\"",
+            "\"ok\"",
+            "\"\"",
+            "null",
+            "0",
+            "\"ready \"",
+            "\"needs_approval\"",
+        ] {
+            assert!(
+                serde_json::from_str::<Standing>(bad).is_err(),
+                "{bad} was read as a standing"
+            );
         }
     }
 
@@ -1013,7 +1353,8 @@ mod tests {
     }
 
     #[test]
-    fn the_snapshot_carries_the_packages_waiting_to_be_confirmed_and_an_older_one_without_them_reads() {
+    fn the_snapshot_carries_the_packages_waiting_to_be_confirmed_and_an_older_one_without_them_reads()
+     {
         let json = serde_json::to_value(empty_snapshot()).unwrap();
         assert_eq!(json["staged"], serde_json::json!([]));
         // What an owner that predates the field sends: no `staged` at all.
@@ -1071,14 +1412,20 @@ mod tests {
             on: false,
         };
         let written = serde_json::to_string(&outright).unwrap();
-        assert_eq!(serde_json::to_string(&roundtrip(&outright)).unwrap(), written);
+        assert_eq!(
+            serde_json::to_string(&roundtrip(&outright)).unwrap(),
+            written
+        );
         for hostile in [
             r#"{"command":"allow","plugin":"syncer","permission":{"owner":"a","name":"b"}}"#,
             r#"{"command":"allow","plugin":"syncer","on":true}"#,
             r#"{"command":"allow","plugin":"syncer","permission":{"owner":"a","name":"b"},"on":true,"grants":[]}"#,
             r#"{"command":"allow","plugin":"a/b","permission":{"owner":"a","name":"b"},"on":true}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(hostile).is_err(), "{hostile}");
+            assert!(
+                serde_json::from_str::<Command>(hostile).is_err(),
+                "{hostile}"
+            );
         }
     }
 
@@ -1086,7 +1433,10 @@ mod tests {
     fn a_settings_update_is_written_exactly_as_it_was_before_its_settings_were_boxed() {
         // A window and an owner of different builds talk through this form, and a box must not show in it.
         let settings = Settings::default();
-        let command = Command::UpdateSettings { settings: Box::new(settings.clone()), expected: Box::new(settings.clone()) };
+        let command = Command::UpdateSettings {
+            settings: Box::new(settings.clone()),
+            expected: Box::new(settings.clone()),
+        };
         let written = serde_json::to_string(&command).unwrap();
         let by_hand = format!(
             r#"{{"command":"update-settings","settings":{},"expected":{}}}"#,
@@ -1094,18 +1444,31 @@ mod tests {
             serde_json::to_string(&settings).unwrap()
         );
         assert_eq!(written, by_hand);
-        assert_eq!(serde_json::to_string(&roundtrip(&command)).unwrap(), written);
+        assert_eq!(
+            serde_json::to_string(&roundtrip(&command)).unwrap(),
+            written
+        );
     }
 
     #[test]
     fn the_commands_for_a_files_code_have_one_form_and_nothing_may_ride_along() {
-        let files = Command::CreateFilesInvitation { paths: vec![PathBuf::from("/home/me/a.bin")] };
+        let files = Command::CreateFilesInvitation {
+            paths: vec![PathBuf::from("/home/me/a.bin")],
+        };
         let written = serde_json::to_string(&files).unwrap();
-        assert_eq!(written, r#"{"command":"create-files-invitation","paths":["/home/me/a.bin"]}"#);
+        assert_eq!(
+            written,
+            r#"{"command":"create-files-invitation","paths":["/home/me/a.bin"]}"#
+        );
         assert_eq!(serde_json::to_string(&roundtrip(&files)).unwrap(), written);
-        let held = Command::CreateHeldFilesInvitation { files: vec![(7, "a.bin".into())] };
+        let held = Command::CreateHeldFilesInvitation {
+            files: vec![(7, "a.bin".into())],
+        };
         let written = serde_json::to_string(&held).unwrap();
-        assert_eq!(written, r#"{"command":"create-held-files-invitation","files":[[7,"a.bin"]]}"#);
+        assert_eq!(
+            written,
+            r#"{"command":"create-held-files-invitation","files":[[7,"a.bin"]]}"#
+        );
         assert_eq!(serde_json::to_string(&roundtrip(&held)).unwrap(), written);
         for hostile in [
             r#"{"command":"create-files-invitation","paths":["/a"],"peer":"p"}"#,
@@ -1113,7 +1476,10 @@ mod tests {
             r#"{"command":"create-held-files-invitation","files":[[1,"a"]],"x":1}"#,
             r#"{"command":"create-files-invitation","paths":"/a"}"#,
         ] {
-            assert!(serde_json::from_str::<Command>(hostile).is_err(), "{hostile} was accepted");
+            assert!(
+                serde_json::from_str::<Command>(hostile).is_err(),
+                "{hostile} was accepted"
+            );
         }
     }
 
@@ -1124,16 +1490,30 @@ mod tests {
         assert_eq!(written, r#"{"command":"clear-history"}"#);
         assert_eq!(serde_json::to_string(&roundtrip(&clear)).unwrap(), written);
         // A transfer named in it would make it a cancel, which has its own command and its own rules.
-        assert!(serde_json::from_str::<Command>(r#"{"command":"clear-history","transfer":"x"}"#).is_err());
+        assert!(
+            serde_json::from_str::<Command>(r#"{"command":"clear-history","transfer":"x"}"#)
+                .is_err()
+        );
     }
 
     #[test]
     fn an_older_owners_files_metadata_decodes_without_inventing_pending_source_work() {
         let old: FilesCode = serde_json::from_str(r#"{"generation":7,"live":false}"#).unwrap();
-        assert!(!old.pending, "an older owner must not keep a background service alive for nonexistent source work");
-        let current = FilesCode { generation: 7, live: false, pending: true };
-        let recovered: FilesCode = serde_json::from_str(&serde_json::to_string(&current).unwrap()).unwrap();
-        assert!(recovered.pending, "source work disappeared on the actual IPC representation");
+        assert!(
+            !old.pending,
+            "an older owner must not keep a background service alive for nonexistent source work"
+        );
+        let current = FilesCode {
+            generation: 7,
+            live: false,
+            pending: true,
+        };
+        let recovered: FilesCode =
+            serde_json::from_str(&serde_json::to_string(&current).unwrap()).unwrap();
+        assert!(
+            recovered.pending,
+            "source work disappeared on the actual IPC representation"
+        );
     }
 }
 
@@ -1144,17 +1524,25 @@ mod context_boundary_tests {
     #[test]
     fn selected_input_context_is_internal_only_not_an_external_command() {
         let command = Command::InvokeActionWithContext {
-            plugin: PluginId::new("example").unwrap(), action:"share".into(),
-            peer:Some(PeerId("peer".into())), context:42,
+            plugin: PluginId::new("example").unwrap(),
+            action: "share".into(),
+            peer: Some(PeerId("peer".into())),
+            context: 42,
         };
         assert!(serde_json::to_value(command).is_err());
-        assert!(serde_json::from_value::<Command>(serde_json::json!({
-            "command":"invoke-action-with-context", "plugin":"example", "action":"share",
-            "peer":"peer", "context":42
-        })).is_err());
-        assert!(serde_json::from_value::<Command>(serde_json::json!({
-            "command":"invoke-action", "plugin":"example", "action":"share",
-            "peer":"peer", "context":42
-        })).is_err());
+        assert!(
+            serde_json::from_value::<Command>(serde_json::json!({
+                "command":"invoke-action-with-context", "plugin":"example", "action":"share",
+                "peer":"peer", "context":42
+            }))
+            .is_err()
+        );
+        assert!(
+            serde_json::from_value::<Command>(serde_json::json!({
+                "command":"invoke-action", "plugin":"example", "action":"share",
+                "peer":"peer", "context":42
+            }))
+            .is_err()
+        );
     }
 }

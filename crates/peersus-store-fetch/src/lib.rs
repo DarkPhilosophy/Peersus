@@ -44,7 +44,11 @@ impl Store {
     /// this with `false`.
     pub fn with_base(base: &str, https_only: bool) -> Result<Self, Error> {
         let base = Url::parse(base).map_err(|_| Error::Address)?;
-        if !base.path().ends_with('/') || base.query().is_some() || base.fragment().is_some() || !base.username().is_empty() {
+        if !base.path().ends_with('/')
+            || base.query().is_some()
+            || base.fragment().is_some()
+            || !base.username().is_empty()
+        {
             return Err(Error::Address);
         }
         if https_only && base.scheme() != "https" {
@@ -67,7 +71,9 @@ impl Store {
         let plain = !name.is_empty()
             && name.len() <= 128
             && !name.starts_with('.')
-            && name.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
+            && name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
         if !plain {
             return Err(Error::Name);
         }
@@ -81,7 +87,12 @@ impl Store {
 
     /// The body of `name`, at most `limit` bytes. Counted as it arrives; the declared length is ignored.
     pub async fn get(&self, name: &str, limit: usize) -> Result<Vec<u8>, Error> {
-        let response = self.client.get(self.address(name)?).send().await.map_err(|_| Error::Network)?;
+        let response = self
+            .client
+            .get(self.address(name)?)
+            .send()
+            .await
+            .map_err(|_| Error::Network)?;
         let status = response.status();
         if !status.is_success() {
             return Err(Error::Status(status.as_u16()));
@@ -124,7 +135,11 @@ mod tests {
     }
 
     fn ok(body: &[u8]) -> Vec<u8> {
-        let mut reply = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len()).into_bytes();
+        let mut reply = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes();
         reply.extend_from_slice(body);
         reply
     }
@@ -132,14 +147,39 @@ mod tests {
     #[test]
     fn production_is_https_only_and_names_are_plain() {
         assert!(Store::production().is_ok());
-        assert_eq!(Store::with_base("http://example.org/store/", true).err(), Some(Error::Address));
-        assert_eq!(Store::with_base("https://example.org/store", true).err(), Some(Error::Address), "needs a directory");
-        assert_eq!(Store::with_base("https://user@example.org/store/", true).err(), Some(Error::Address));
+        assert_eq!(
+            Store::with_base("http://example.org/store/", true).err(),
+            Some(Error::Address)
+        );
+        assert_eq!(
+            Store::with_base("https://example.org/store", true).err(),
+            Some(Error::Address),
+            "needs a directory"
+        );
+        assert_eq!(
+            Store::with_base("https://user@example.org/store/", true).err(),
+            Some(Error::Address)
+        );
         let store = Store::production().unwrap();
-        for bad in ["", ".hidden", "../x", "a/b", "a\\b", "a?b", "a#b", "a b", "%2e%2e", "é", &"x".repeat(129)] {
+        for bad in [
+            "",
+            ".hidden",
+            "../x",
+            "a/b",
+            "a\\b",
+            "a?b",
+            "a#b",
+            "a b",
+            "%2e%2e",
+            "é",
+            &"x".repeat(129),
+        ] {
             assert_eq!(store.address(bad), Err(Error::Name), "{bad:?}");
         }
-        assert_eq!(store.address("catalog.json").unwrap().as_str(), format!("{STORE_BASE}catalog.json"));
+        assert_eq!(
+            store.address("catalog.json").unwrap().as_str(),
+            format!("{STORE_BASE}catalog.json")
+        );
     }
 
     #[tokio::test]
@@ -154,7 +194,8 @@ mod tests {
         let store = Store::with_base(&serve(ok(&[0u8; 100])).await, false).unwrap();
         assert_eq!(store.get("a.bin", 99).await, Err(Error::TooLarge));
         // A chunked reply with no length is counted as it streams, too.
-        let mut chunked = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n".to_vec();
+        let mut chunked =
+            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n".to_vec();
         for _ in 0..4 {
             chunked.extend_from_slice(b"19\r\n");
             chunked.extend_from_slice(&[7u8; 25]);
@@ -167,9 +208,21 @@ mod tests {
 
     #[tokio::test]
     async fn an_error_status_and_a_redirect_are_failures_not_followed() {
-        let missing = serve(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec()).await;
-        assert_eq!(Store::with_base(&missing, false).unwrap().get("a", 10).await, Err(Error::Status(404)));
+        let missing = serve(
+            b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+        )
+        .await;
+        assert_eq!(
+            Store::with_base(&missing, false)
+                .unwrap()
+                .get("a", 10)
+                .await,
+            Err(Error::Status(404))
+        );
         let moved = serve(b"HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:9/x\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec()).await;
-        assert_eq!(Store::with_base(&moved, false).unwrap().get("a", 10).await, Err(Error::Status(302)));
+        assert_eq!(
+            Store::with_base(&moved, false).unwrap().get("a", 10).await,
+            Err(Error::Status(302))
+        );
     }
 }

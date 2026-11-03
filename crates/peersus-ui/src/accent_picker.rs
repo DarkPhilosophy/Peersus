@@ -61,7 +61,12 @@ impl Component for Swatch {
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_press(move |_| {
-                link.send(Command::PatchSettings { patch: SettingsPatch { accent: Some(value), ..Default::default() } })
+                link.send(Command::PatchSettings {
+                    patch: SettingsPatch {
+                        accent: Some(value),
+                        ..Default::default()
+                    },
+                })
             })
             .child(
                 rect()
@@ -72,16 +77,32 @@ impl Component for Swatch {
                     // The ring is the page's own text colour, so it shows on any page and is never the colour it surrounds.
                     .border(
                         Border::new()
-                            .fill(if self.selected { palette.text } else if hovered() { palette.muted } else { palette.border })
+                            .fill(if self.selected {
+                                palette.text
+                            } else if hovered() {
+                                palette.muted
+                            } else {
+                                palette.border
+                            })
                             .width(if self.selected { 3. } else { 1.5 })
                             .alignment(BorderAlignment::Outer),
                     )
-                    .child(rect().width(Size::px(30.)).height(Size::px(30.)).corner_radius(15.).background(colour)),
+                    .child(
+                        rect()
+                            .width(Size::px(30.))
+                            .height(Size::px(30.))
+                            .corner_radius(15.)
+                            .background(colour),
+                    ),
             )
             .child(
                 label()
                     .text(i18n::tr(words))
-                    .color(if self.selected { palette.text } else { palette.muted })
+                    .color(if self.selected {
+                        palette.text
+                    } else {
+                        palette.muted
+                    })
                     .font_size(12.),
             )
     }
@@ -99,12 +120,22 @@ impl Component for Picker {
         let chosen = Choices::of(self.settings.accent);
         let mut row = rect().width(Size::fill()).horizontal().spacing(14.);
         for index in 0..Choices::ALL.len() {
-            row = row.child(Swatch { index, selected: Some(index) == chosen, palette: self.palette, link: self.link.clone() });
+            row = row.child(Swatch {
+                index,
+                selected: Some(index) == chosen,
+                palette: self.palette,
+                link: self.link.clone(),
+            });
         }
         rect()
             .width(Size::fill())
             .spacing(10.)
-            .child(label().text(i18n::tr("Accent colour")).color(self.palette.muted).font_size(13.))
+            .child(
+                label()
+                    .text(i18n::tr("Accent colour"))
+                    .color(self.palette.muted)
+                    .font_size(13.),
+            )
             .child(row)
     }
 }
@@ -129,8 +160,13 @@ mod tests {
             for base in [crate::theme::DARK, crate::theme::LIGHT] {
                 let palette = Palette::of_choice(peersus_core::config::Theme::Dark, true, *colour);
                 let _ = base;
-                assert_eq!(palette.send, (colour[0], colour[1], colour[2]), "{name} ({index}) was moved");
-                let ratio = crate::theme::contrast_ratio(palette.send, crate::theme::DARK.background);
+                assert_eq!(
+                    palette.send,
+                    (colour[0], colour[1], colour[2]),
+                    "{name} ({index}) was moved"
+                );
+                let ratio =
+                    crate::theme::contrast_ratio(palette.send, crate::theme::DARK.background);
                 assert!(ratio >= 3.0, "{name} gives only {ratio} on the dark page");
                 let tinted = base.with_accent((colour[0], colour[1], colour[2]));
                 let light = crate::theme::contrast_ratio(tinted.send, base.background);
@@ -160,7 +196,10 @@ mod tests {
     #[test]
     fn every_choice_is_a_colour_the_owner_accepts() {
         for (colour, name) in Choices::ALL {
-            let settings = Settings { accent: colour, ..Settings::default() };
+            let settings = Settings {
+                accent: colour,
+                ..Settings::default()
+            };
             assert_eq!(settings.validate(), Ok(()), "{name} is refused");
         }
     }

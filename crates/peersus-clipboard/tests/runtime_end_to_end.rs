@@ -57,7 +57,7 @@ fn isolated() -> Option<()> {
         .strip_prefix(':')
         .and_then(|rest| rest.split('.').next())
         .and_then(|n| n.parse().ok());
-    if !number.is_some_and(|n| n >= 99) {
+    if number.is_none_or(|n| n < 99) {
         eprintln!("not run: DISPLAY is not a virtual server");
         return None;
     }
@@ -127,6 +127,7 @@ async fn start(root: &Path) -> (Client, tokio::task::JoinHandle<()>) {
         network: NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         },
         ..Settings::default()
     };
@@ -193,6 +194,7 @@ async fn paired_device(root: &Path, runtime: &Client) -> (Device, PeerId) {
     let policy = NetworkSettings {
         bind: Some("127.0.0.1".parse().unwrap()),
         allow_relay: false,
+        ..NetworkSettings::default()
     };
     let endpoint = transport::bind(SecretKey::generate(), &policy)
         .await

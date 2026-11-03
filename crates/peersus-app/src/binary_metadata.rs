@@ -52,7 +52,11 @@ pub fn read(program: &[u8]) -> Result<Package, Absent> {
     if program.len() > MAX_BINARY {
         return Err(Absent::Unreadable);
     }
-    let section = if program.starts_with(b"\0asm") { wasm_section(program)? } else { object_section(program)? };
+    let section = if program.starts_with(b"\0asm") {
+        wasm_section(program)?
+    } else {
+        object_section(program)?
+    };
     parse(section)
 }
 
@@ -67,8 +71,12 @@ fn parse(section: &[u8]) -> Result<Package, Absent> {
     if body[length..].iter().any(|byte| *byte != 0) {
         return Err(Absent::Malformed);
     }
-    let package: Package = serde_json::from_slice(&body[..length]).map_err(|_| Absent::Malformed)?;
-    package.validate().then_some(package).ok_or(Absent::Malformed)
+    let package: Package =
+        serde_json::from_slice(&body[..length]).map_err(|_| Absent::Malformed)?;
+    package
+        .validate()
+        .then_some(package)
+        .ok_or(Absent::Malformed)
 }
 
 fn object_section(program: &[u8]) -> Result<&[u8], Absent> {
@@ -81,7 +89,10 @@ fn object_section(program: &[u8]) -> Result<&[u8], Absent> {
     };
     let mut found = None;
     for section in file.sections() {
-        if section.name_bytes().is_ok_and(|name| name == wanted.as_bytes()) {
+        if section
+            .name_bytes()
+            .is_ok_and(|name| name == wanted.as_bytes())
+        {
             if found.is_some() {
                 return Err(Absent::Missing);
             }
@@ -207,7 +218,11 @@ mod tests {
             ("a self-assigned id", unknown_key),
             ("short", MAGIC[..4].to_vec()),
         ] {
-            assert_eq!(read(&wasm_with(SECTION, &bytes)), Err(Absent::Malformed), "{what} was accepted");
+            assert_eq!(
+                read(&wasm_with(SECTION, &bytes)),
+                Err(Absent::Malformed),
+                "{what} was accepted"
+            );
         }
     }
 
@@ -220,7 +235,12 @@ mod tests {
 
     #[test]
     fn something_that_is_not_a_binary_is_unreadable() {
-        for bytes in [&b""[..], b"#!/bin/sh\necho hi\n", b"PK\x03\x04zip", &[0u8; 64]] {
+        for bytes in [
+            &b""[..],
+            b"#!/bin/sh\necho hi\n",
+            b"PK\x03\x04zip",
+            &[0u8; 64],
+        ] {
             assert_eq!(read(bytes), Err(Absent::Unreadable));
         }
     }

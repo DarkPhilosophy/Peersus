@@ -24,7 +24,11 @@ impl Percent {
     /// The place on the slider (0 to 100) of `scale`: the smallest size is the left end and the largest the right, and a size outside the two is
     /// held at the nearer end, so the slider can always show what it is given.
     pub fn place(scale: f32) -> f64 {
-        let scale = if scale.is_finite() { scale } else { Self::NORMAL };
+        let scale = if scale.is_finite() {
+            scale
+        } else {
+            Self::NORMAL
+        };
         f64::from(((scale - Self::MIN) / (Self::MAX - Self::MIN)).clamp(0., 1.) * 100.)
     }
 
@@ -58,13 +62,21 @@ impl Component for Picker {
         // there: the window is laid out again at each size the owner confirms, and a slider that jumped back to a size from a moment ago would
         // fight the finger. It is let go of as soon as the saved size is the one asked for.
         let mut asked = use_state(|| None::<f32>);
-        if asked.peek().is_some_and(|wanted| (wanted - saved).abs() < 0.001) {
+        if asked
+            .peek()
+            .is_some_and(|wanted| (wanted - saved).abs() < 0.001)
+        {
             asked.set(None);
         }
         let shown = asked().unwrap_or(saved);
         let link = self.link.clone();
         let save = move |scale: f32| {
-            link.send(Command::PatchSettings { patch: SettingsPatch { scale: Some(scale), ..Default::default() } });
+            link.send(Command::PatchSettings {
+                patch: SettingsPatch {
+                    scale: Some(scale),
+                    ..Default::default()
+                },
+            });
         };
         let on_moved = {
             let save = save.clone();
@@ -72,7 +84,10 @@ impl Component for Picker {
                 let scale = Percent::scale(place);
                 // The slider moves a pixel at a time but a size changes in steps: the owner is told only when the step is a new one, so a drag
                 // across the whole slider is at most a few dozen small patches and never one per pixel.
-                if asked.peek().is_none_or(|wanted| (wanted - scale).abs() >= 0.001) {
+                if asked
+                    .peek()
+                    .is_none_or(|wanted| (wanted - scale).abs() >= 0.001)
+                {
                     asked.set(Some(scale));
                     save(scale);
                 }
@@ -141,7 +156,15 @@ mod tests {
         assert_eq!(Percent::scale(0.), Percent::MIN);
         assert_eq!(Percent::scale(100.), Percent::MAX);
         for end in [Percent::MIN, Percent::MAX] {
-            assert_eq!(Settings { scale: end, ..Settings::default() }.validate(), Ok(()), "{end} is refused");
+            assert_eq!(
+                Settings {
+                    scale: end,
+                    ..Settings::default()
+                }
+                .validate(),
+                Ok(()),
+                "{end} is refused"
+            );
         }
     }
 
@@ -149,7 +172,15 @@ mod tests {
     fn every_place_on_the_slider_is_a_size_the_owner_accepts() {
         for place in 0..=1000 {
             let scale = Percent::scale(f64::from(place) / 10.);
-            assert_eq!(Settings { scale, ..Settings::default() }.validate(), Ok(()), "{scale} at {place} is refused");
+            assert_eq!(
+                Settings {
+                    scale,
+                    ..Settings::default()
+                }
+                .validate(),
+                Ok(()),
+                "{scale} at {place} is refused"
+            );
         }
     }
 
@@ -186,7 +217,10 @@ mod tests {
         assert_eq!(Percent::place(0.1), 0.);
         assert_eq!(Percent::place(9.), 100.);
         assert_eq!(Percent::place(f32::NAN), Percent::place(Percent::NORMAL));
-        assert_eq!(Percent::place(f32::INFINITY), Percent::place(Percent::NORMAL));
+        assert_eq!(
+            Percent::place(f32::INFINITY),
+            Percent::place(Percent::NORMAL)
+        );
         // And a place outside the slider is held at its ends.
         assert_eq!(Percent::scale(-30.), Percent::MIN);
         assert_eq!(Percent::scale(400.), Percent::MAX);

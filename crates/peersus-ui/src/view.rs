@@ -4,12 +4,14 @@
 //! each is described, what is waiting for their approval, how far a transfer has got. It is plain
 //! data in and plain data out, so every rule here is tested without a window. The components
 //! only draw it.
+use crate::i18n::{self, Language, TimeUnit};
 use peersus_core::{
     config::Settings,
-    model::{ActionFailure, ActionState, FilesCode, Peer, PluginInfo, Snapshot, Transfer, TransferState},
+    model::{
+        ActionFailure, ActionState, FilesCode, Peer, PluginInfo, Snapshot, Transfer, TransferState,
+    },
     profile::Digest,
 };
-use crate::i18n::{self, Language, TimeUnit};
 pub fn action_words(state: Option<ActionState>) -> &'static str {
     match state {
         Some(ActionState::Running) => "Working…",
@@ -54,12 +56,26 @@ pub struct Tick {
 /// get a code, and that is what they asked for. Nothing found and nothing refused leaves the camera as it is.
 pub fn look(now: Looking, found: Option<String>, refused: bool) -> Tick {
     match (now, found, refused) {
-        (Looking::Shut, ..) => Tick { looking: Looking::Shut, join: None, close: false },
-        (Looking::Scanning | Looking::Refused, Some(code), _) => {
-            Tick { looking: Looking::Shut, join: Some(code), close: true }
-        }
-        (Looking::Scanning, None, true) => Tick { looking: Looking::Refused, join: None, close: true },
-        (looking, None, _) => Tick { looking, join: None, close: false },
+        (Looking::Shut, ..) => Tick {
+            looking: Looking::Shut,
+            join: None,
+            close: false,
+        },
+        (Looking::Scanning | Looking::Refused, Some(code), _) => Tick {
+            looking: Looking::Shut,
+            join: Some(code),
+            close: true,
+        },
+        (Looking::Scanning, None, true) => Tick {
+            looking: Looking::Refused,
+            join: None,
+            close: true,
+        },
+        (looking, None, _) => Tick {
+            looking,
+            join: None,
+            close: false,
+        },
     }
 }
 
@@ -67,8 +83,16 @@ pub fn look(now: Looking, found: Option<String>, refused: bool) -> Tick {
 /// camera is closed; one that is shut already has nothing to close. Nothing is ever joined by it.
 pub fn stop(now: Looking) -> Tick {
     match now {
-        Looking::Scanning | Looking::Refused => Tick { looking: Looking::Shut, join: None, close: true },
-        Looking::Shut => Tick { looking: Looking::Shut, join: None, close: false },
+        Looking::Scanning | Looking::Refused => Tick {
+            looking: Looking::Shut,
+            join: None,
+            close: true,
+        },
+        Looking::Shut => Tick {
+            looking: Looking::Shut,
+            join: None,
+            close: false,
+        },
     }
 }
 
@@ -92,9 +116,10 @@ pub fn circle_for(looking: Looking, has_picture: bool) -> Circle {
         (Looking::Shut, _) => Circle::Words("SCAN", "tap to open the camera"),
         (Looking::Scanning, true) => Circle::Camera,
         (Looking::Scanning, false) => Circle::Starting("starting the camera"),
-        (Looking::Refused, _) => {
-            Circle::Words("NO CAMERA", "allow it for Peersus in the phone's settings, then tap")
-        }
+        (Looking::Refused, _) => Circle::Words(
+            "NO CAMERA",
+            "allow it for Peersus in the phone's settings, then tap",
+        ),
     }
 }
 
@@ -150,7 +175,8 @@ pub const PAIR_EXPLAINS: &str = "Pair: show a code for the other device to scan.
 
 /// What pairing means, said once under the buttons: it is how a device becomes trusted for good, and a file sent by code
 /// alone never does that.
-pub const PAIR_WARNS: &str = "Pairing trusts the other device until you forget it. A file sent by code alone never does.";
+pub const PAIR_WARNS: &str =
+    "Pairing trusts the other device until you forget it. A file sent by code alone never does.";
 
 /// How the files a picker handed over are sent to a device that was chosen: as commands of at most sixteen files each,
 /// which is the most the owner accepts at once, in the order they came, each under a name the owner will accept.
@@ -162,7 +188,12 @@ pub fn held_sends(files: &[(u64, String)], _destination: &str) -> Vec<Vec<(u64, 
     const MOST_AT_ONCE: usize = 16;
     files
         .chunks(MOST_AT_ONCE)
-        .map(|batch| batch.iter().map(|(number, name)| (*number, crate::outgoing::safe_name(name))).collect())
+        .map(|batch| {
+            batch
+                .iter()
+                .map(|(number, name)| (*number, crate::outgoing::safe_name(name)))
+                .collect()
+        })
         .collect()
 }
 
@@ -198,7 +229,10 @@ pub fn picture_choice(files: &[HeldFile]) -> Option<(HeldFile, Vec<HeldFile>)> {
 /// address that gives way. Turning them off changes only that, since routing stays as it is.
 pub fn relay_patch(on: bool) -> peersus_core::config::SettingsPatch {
     use peersus_core::config::{BindChange, SettingsPatch};
-    let mut patch = SettingsPatch { allow_relay: Some(on), ..SettingsPatch::default() };
+    let mut patch = SettingsPatch {
+        allow_relay: Some(on),
+        ..SettingsPatch::default()
+    };
     if on {
         patch.bind = Some(BindChange::Automatic);
     }
@@ -208,10 +242,20 @@ pub fn relay_patch(on: bool) -> peersus_core::config::SettingsPatch {
 /// How a paired device is described.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Presence {
-    /// Connected now: a send to it can start.
+    /// Connected and awake now: a send to it can start at once.
     Online,
+    /// Connected, and it has said that it sleeps (its screen is off, or it has gone idle). It is there: a send waits for it
+    /// and goes when it wakes.
+    Sleeping,
     /// Remembered, but not reachable at the moment.
     Offline,
+}
+
+impl Presence {
+    /// Whether a connection exists at all, awake or not: what lets a send be made.
+    pub fn reachable(&self) -> bool {
+        !matches!(self, Presence::Offline)
+    }
 }
 
 /// One paired device in the row of destinations.
@@ -224,13 +268,18 @@ pub struct Device {
     pub presence: Presence,
     /// What this device has allowed each plugin to do for it. A plugin with nothing allowed has no
     /// entry. Not shown anywhere but the Permissions tab.
-    pub grants: std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Grants>,
+    pub grants:
+        std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Grants>,
     /// The digest of the picture this device last showed, if it showed one.
     pub picture: Option<Digest>,
     /// When the pairing completed, in Unix seconds.
     pub paired_at: u64,
     /// The last time anything authenticated came from it, in Unix seconds, if ever.
     pub last_seen: Option<u64>,
+    /// What the last test of the connection to this device found, if one was made and not cleared.
+    pub link_test: Option<peersus_core::model::LinkTest>,
+    /// Where the person said this device can be found, as they would type it again, if they said.
+    pub typed_address: Option<String>,
 }
 
 /// A request from another device waiting for the person to decide.
@@ -317,16 +366,22 @@ pub struct View {
     pub store: peersus_core::model::StoreState,
     /// Plugin-agnostic action outcomes and declared preferences for each paired device.
     pub actions: Vec<peersus_core::model::ActionStatus>,
-    pub plugin_values: std::collections::BTreeMap<peersus_core::model::PeerId,
-        std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Values>>,
+    pub plugin_values: std::collections::BTreeMap<
+        peersus_core::model::PeerId,
+        std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Values>,
+    >,
     /// What each plugin is allowed outright, for no device in particular. A plugin with nothing
     /// allowed has no entry.
-    pub grants: std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Grants>,
+    pub grants:
+        std::collections::BTreeMap<peersus_core::plugins::PluginId, peersus_core::plugins::Grants>,
     /// The digest of this device's own profile picture. The picture is not here: the window asks for it
     /// by this digest when it does not hold it.
     pub profile_picture: Option<Digest>,
     /// The files code the owner reports as on show, if any. Never the code itself.
     pub files_code: Option<peersus_core::model::FilesCode>,
+    /// The port this device listens on now: what another device writes after its address to find this one. Shown in Settings, read only.
+    pub listening_port: Option<u16>,
+    pub relay: Option<peersus_core::relay::RelayDiagnostics>,
 }
 
 impl View {
@@ -339,9 +394,18 @@ impl View {
     /// refused, cancelled or failed moved no file, and one that is still going has not moved it yet. The record is the one that Clear
     /// forgets, so after Clear the counts start again from nothing, and they say so: they are of what the list still holds.
     pub fn file_totals(&self) -> FileTotals {
-        let done = |incoming: bool| self.transfers.iter().filter(|item| item.incoming == incoming && item.phase == Phase::Done).count();
+        let done = |incoming: bool| {
+            self.transfers
+                .iter()
+                .filter(|item| item.incoming == incoming && item.phase == Phase::Done)
+                .count()
+        };
         let (sent, received) = (done(false), done(true));
-        FileTotals { sent, received, total: sent + received }
+        FileTotals {
+            sent,
+            received,
+            total: sent + received,
+        }
     }
 }
 
@@ -386,19 +450,32 @@ impl View {
             devices: snapshot
                 .peers
                 .iter()
-                .map(|peer| device(peer, snapshot.peer_pictures.get(&peer.id).copied()))
+                .map(|peer| {
+                    device(
+                        peer,
+                        snapshot.peer_pictures.get(&peer.id).copied(),
+                        snapshot.link_tests.get(&peer.id).copied(),
+                        snapshot.typed_addresses.get(&peer.id).cloned(),
+                    )
+                })
                 .collect(),
             approvals,
             transfers: snapshot.transfers.iter().map(progress).collect(),
             transfers_at_start: Vec::new(),
             files_code: snapshot.files_code,
+            listening_port: snapshot.listening_port,
+            relay: snapshot.relay,
             errors: snapshot.errors.clone(),
             settings: snapshot.settings.clone(),
             plugins: snapshot.plugins.clone(),
             staged: snapshot.staged.clone(),
             store: snapshot.store.clone(),
             actions: snapshot.actions.clone(),
-            plugin_values: snapshot.peers.iter().map(|peer| (peer.id.clone(), peer.plugin_values.clone())).collect(),
+            plugin_values: snapshot
+                .peers
+                .iter()
+                .map(|peer| (peer.id.clone(), peer.plugin_values.clone()))
+                .collect(),
             grants: snapshot.grants.clone(),
             profile_picture: snapshot.profile_picture,
         }
@@ -421,14 +498,19 @@ impl View {
         if chosen.is_empty() {
             return None;
         }
-        chosen.iter().map(|id| self.reachable().find(|device| device.id == *id)).collect()
+        chosen
+            .iter()
+            .map(|id| self.reachable().find(|device| device.id == *id))
+            .collect()
     }
 
     /// How a send will go. The one place that decides it, so the words shown and the action
     /// taken can never disagree.
     pub fn send_state(&self, chosen: &[String]) -> SendState {
         match (chosen.is_empty(), self.destinations(chosen)) {
-            (_, Some(devices)) => SendState::Ready(devices.iter().map(|device| device.id.clone()).collect()),
+            (_, Some(devices)) => {
+                SendState::Ready(devices.iter().map(|device| device.id.clone()).collect())
+            }
             (false, None) => SendState::ChosenUnavailable,
             (true, None) => SendState::ByCode,
         }
@@ -506,8 +588,17 @@ pub fn offer_words(offer: &Progress) -> String {
 }
 
 pub fn offer_words_in(language: Language, offer: &Progress) -> String {
-    match offer.from.as_deref().map(str::trim).filter(|name| !name.is_empty()) {
-        Some(name) => i18n::format(language, "{name} wants to send you a file", &[("name", name)]),
+    match offer
+        .from
+        .as_deref()
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        Some(name) => i18n::format(
+            language,
+            "{name} wants to send you a file",
+            &[("name", name)],
+        ),
         None => i18n::translate(language, "A device wants to send you a file").to_owned(),
     }
 }
@@ -519,7 +610,13 @@ pub fn queue_words(waiting: usize) -> Option<String> {
 }
 
 pub fn queue_words_in(language: Language, waiting: usize) -> Option<String> {
-    (waiting > 1).then(|| i18n::format(language, "{files} are waiting in all", &[("files", &i18n::files(language, waiting))]))
+    (waiting > 1).then(|| {
+        i18n::format(
+            language,
+            "{files} are waiting in all",
+            &[("files", &i18n::files(language, waiting))],
+        )
+    })
 }
 
 /// What the circle shows while the files code the window drew is out. Decided from exactly three things the owner reports: the
@@ -559,13 +656,25 @@ impl CodeCircle {
 ///
 /// A code that expires unscanned is not published by the owner as it happens (nothing changes that a snapshot would carry), so
 /// the window also stops drawing it at the deadline the reply carried: see [`code_expired`].
-pub fn code_circle(drawn: u64, files_code: Option<FilesCode>, transfers: &[Progress]) -> CodeCircle {
+pub fn code_circle(
+    drawn: u64,
+    files_code: Option<FilesCode>,
+    transfers: &[Progress],
+) -> CodeCircle {
     code_circle_selection(drawn, files_code, transfers, 0)
 }
 
 /// The denominator includes the whole choice, not just the descriptors opened so far.
-pub fn code_circle_selection(drawn: u64, files_code: Option<FilesCode>, transfers: &[Progress], expected: usize) -> CodeCircle {
-    let sent: Vec<&Progress> = transfers.iter().filter(|item| !item.incoming && item.code == Some(drawn)).collect();
+pub fn code_circle_selection(
+    drawn: u64,
+    files_code: Option<FilesCode>,
+    transfers: &[Progress],
+    expected: usize,
+) -> CodeCircle {
+    let sent: Vec<&Progress> = transfers
+        .iter()
+        .filter(|item| !item.incoming && item.code == Some(drawn))
+        .collect();
     let files = sent.len().max(expected);
     if sent.is_empty() {
         return match files_code {
@@ -575,15 +684,20 @@ pub fn code_circle_selection(drawn: u64, files_code: Option<FilesCode>, transfer
         };
     }
     let done = sent.iter().filter(|item| item.phase == Phase::Done).count();
-    let ended_badly = sent.iter().any(|item| matches!(item.phase, Phase::Cancelled | Phase::Failed(_)));
+    let ended_badly = sent
+        .iter()
+        .any(|item| matches!(item.phase, Phase::Cancelled | Phase::Failed(_)));
     let pending = files_code.is_some_and(|code| code.generation == drawn && code.pending);
-    let still_going = sent.iter().any(|item| matches!(item.phase, Phase::Waiting | Phase::Moving));
+    let still_going = sent
+        .iter()
+        .any(|item| matches!(item.phase, Phase::Waiting | Phase::Moving));
     if still_going || pending {
         // Waiting for approval until anything has begun to move or has finished; then it is sending.
         if sent.iter().all(|item| item.phase == Phase::Waiting) {
             return CodeCircle::WaitingForApproval { files };
         }
-        let percent = (sent.iter().map(|item| u64::from(item.percent)).sum::<u64>() / files as u64).min(if pending { 99 } else { 100 }) as u8;
+        let percent = (sent.iter().map(|item| u64::from(item.percent)).sum::<u64>() / files as u64)
+            .min(if pending { 99 } else { 100 }) as u8;
         return CodeCircle::Sending { files, percent };
     }
     if ended_badly || done < files {
@@ -630,11 +744,25 @@ pub fn circle_view(input: &CircleInputs) -> CircleView {
     let batch = batch_state(input.batch);
     // The stage is the one decision (see [`stage_of`]); what a touch does follows from it and from nothing else.
     match stage_of(input) {
-        Stage::Code { scanned } => CircleView { does: None, shows_code: !scanned, batch },
-        Stage::Going { .. } => CircleView { does: None, shows_code: false, batch },
-        Stage::Ready { .. } | Stage::Empty | Stage::Ended { .. } => {
-            CircleView { does: Some(circle_does(input.listed > 0, &input.aim, input.send_instantly)), shows_code: false, batch }
-        }
+        Stage::Code { scanned } => CircleView {
+            does: None,
+            shows_code: !scanned,
+            batch,
+        },
+        Stage::Going { .. } => CircleView {
+            does: None,
+            shows_code: false,
+            batch,
+        },
+        Stage::Ready { .. } | Stage::Empty | Stage::Ended { .. } => CircleView {
+            does: Some(circle_does(
+                input.listed > 0,
+                &input.aim,
+                input.send_instantly,
+            )),
+            shows_code: false,
+            batch,
+        },
     }
 }
 
@@ -650,28 +778,55 @@ pub struct CircleWords {
     pub asks_for_files: bool,
 }
 
-pub fn circle_view_words_in(language: Language, circle: &CircleView, code: Option<&CodeCircle>, devices: usize, result_shown: bool) -> CircleWords {
+pub fn circle_view_words_in(
+    language: Language,
+    circle: &CircleView,
+    code: Option<&CodeCircle>,
+    devices: usize,
+    result_shown: bool,
+) -> CircleWords {
     // A transfer of the batch that goes, or a code that is waiting for the other device: what is happening, in words.
     if circle.does.is_none() {
-        if let Some(code) = code {
-            if let Some((kicker, headline, line)) = circle_words_in(language, code) {
-                return CircleWords { kicker: kicker.to_owned(), headline, line, asks_for_files: false };
-            }
+        if let Some(code) = code
+            && let Some((kicker, headline, line)) = circle_words_in(language, code)
+        {
+            return CircleWords {
+                kicker: kicker.to_owned(),
+                headline,
+                line,
+                asks_for_files: false,
+            };
         }
         if let Some((kicker, headline, line)) = batch_words_in(language, &circle.batch) {
-            return CircleWords { kicker, headline, line, asks_for_files: false };
+            return CircleWords {
+                kicker,
+                headline,
+                line,
+                asks_for_files: false,
+            };
         }
     }
     let does = circle.does.unwrap_or(CircleDoes::ChooseFiles);
     // Nothing is listed and a batch ended: how it ended, and a touch chooses new files, for as long as the result is shown (see [`shows_result`]);
     // once it has faded the circle asks for files, as it does with no batch at all.
-    if does == CircleDoes::ChooseFiles && result_shown {
-        if let Some((kicker, headline, line)) = batch_words_in(language, &circle.batch) {
-            return CircleWords { kicker, headline, line, asks_for_files: false };
-        }
+    if does == CircleDoes::ChooseFiles
+        && result_shown
+        && let Some((kicker, headline, line)) = batch_words_in(language, &circle.batch)
+    {
+        return CircleWords {
+            kicker,
+            headline,
+            line,
+            asks_for_files: false,
+        };
     }
     let (kicker, headline, line) = circle_does_words_in(language, does, devices);
-    CircleWords { kicker, headline, line, asks_for_files: does == CircleDoes::ChooseFiles }
+    CircleWords {
+        kicker,
+        headline,
+        line,
+        asks_for_files: does == CircleDoes::ChooseFiles,
+    }
 }
 
 /// Whether the time a code was made for has passed: `expires_at` is the seconds the reply to the command that made it carried,
@@ -686,7 +841,10 @@ pub fn until_expiry(expires_at: u64, now: u64) -> std::time::Duration {
     std::time::Duration::from_secs(expires_at.saturating_sub(now))
 }
 
-pub fn circle_words_in(language: Language, circle: &CodeCircle) -> Option<(&'static str, String, String)> {
+pub fn circle_words_in(
+    language: Language,
+    circle: &CodeCircle,
+) -> Option<(&'static str, String, String)> {
     let text = |key: &'static str| i18n::translate(language, key);
     let files = |count| i18n::files(language, count);
     match circle {
@@ -699,31 +857,56 @@ pub fn circle_words_in(language: Language, circle: &CodeCircle) -> Option<(&'sta
         CodeCircle::WaitingForApproval { files: count } => Some((
             text("WAITING FOR APPROVAL"),
             count.to_string(),
-            i18n::format(language, "Waiting for the other device to accept {files}.", &[("files", &files(*count))]),
+            i18n::format(
+                language,
+                "Waiting for the other device to accept {files}.",
+                &[("files", &files(*count))],
+            ),
         )),
-        CodeCircle::Sending { files: count, percent } => Some((
+        CodeCircle::Sending {
+            files: count,
+            percent,
+        } => Some((
             text("SENDING"),
             format!("{percent}%"),
-            if *count == 1 { text("Sending 1 file.").to_owned() }
-            else { i18n::format(language, "Sending {files}.", &[("files", &files(*count))]) },
+            if *count == 1 {
+                text("Sending 1 file.").to_owned()
+            } else {
+                i18n::format(language, "Sending {files}.", &[("files", &files(*count))])
+            },
         )),
         CodeCircle::Sent { files: count } => Some((
             text("DONE"),
-            if *count == 1 { text("1 SENT").to_owned() }
-            else { i18n::format(language, "{count} SENT", &[("count", &count.to_string())]) },
-            if *count == 1 { text("1 file arrived.").to_owned() }
-            else { i18n::format(language, "{files} arrived.", &[("files", &files(*count))]) },
+            if *count == 1 {
+                text("1 SENT").to_owned()
+            } else {
+                i18n::format(language, "{count} SENT", &[("count", &count.to_string())])
+            },
+            if *count == 1 {
+                text("1 file arrived.").to_owned()
+            } else {
+                i18n::format(language, "{files} arrived.", &[("files", &files(*count))])
+            },
         )),
         CodeCircle::Stopped { files: count, done } => Some((
             text("STOPPED"),
             format!("{done}/{count}"),
-            i18n::format(language, "{done} of {files} arrived. The rest was refused, cancelled or failed.",
-                &[("done", &done.to_string()), ("files", &files(*count))]),
+            i18n::format(
+                language,
+                "{done} of {files} arrived. The rest was refused, cancelled or failed.",
+                &[("done", &done.to_string()), ("files", &files(*count))],
+            ),
         )),
     }
 }
 
-pub fn circle_time_in(language: Language, circle: &CodeCircle, drawn: u64, transfers: &[Progress], now: u64) -> Option<String> {
+pub fn circle_time_in(
+    language: Language,
+    circle: &CodeCircle,
+    drawn: u64,
+    transfers: &[Progress],
+    now: u64,
+) -> Option<String> {
     if !matches!(circle, CodeCircle::WaitingForApproval { .. }) {
         return None;
     }
@@ -732,7 +915,13 @@ pub fn circle_time_in(language: Language, circle: &CodeCircle, drawn: u64, trans
         .filter(|item| !item.incoming && item.code == Some(drawn) && item.phase == Phase::Waiting)
         .filter_map(|item| item.expires_at)
         .min()?;
-    time_left(Some(soonest), now).map(|seconds| i18n::format(language, "ENDS IN {time}", &[("time", &clock_words(seconds))]))
+    time_left(Some(soonest), now).map(|seconds| {
+        i18n::format(
+            language,
+            "ENDS IN {time}",
+            &[("time", &clock_words(seconds))],
+        )
+    })
 }
 
 /// How many chosen files are named under the circle before the rest are counted. A bound on what is drawn, not on what is sent:
@@ -752,12 +941,23 @@ pub fn chosen_words_total(names: &[String], total: usize) -> Vec<String> {
 
 pub fn chosen_words_total_in(language: Language, names: &[String], total: usize) -> Vec<String> {
     if names.is_empty() && total > 0 {
-        return vec![if total == 1 { i18n::translate(language, "1 file selected").to_owned() }
-            else { i18n::format(language, "{files} selected", &[("files", &i18n::files(language, total))]) }];
+        return vec![if total == 1 {
+            i18n::translate(language, "1 file selected").to_owned()
+        } else {
+            i18n::format(
+                language,
+                "{files} selected",
+                &[("files", &i18n::files(language, total))],
+            )
+        }];
     }
     let mut lines: Vec<String> = names.iter().take(NAMED_UNDER_CIRCLE).cloned().collect();
     if total > lines.len() {
-        lines.push(i18n::format(language, "+ {count} more", &[("count", &(total - lines.len()).to_string())]));
+        lines.push(i18n::format(
+            language,
+            "+ {count} more",
+            &[("count", &(total - lines.len()).to_string())],
+        ));
     }
     lines
 }
@@ -782,8 +982,17 @@ pub struct Offered {
 pub fn offered_now(view: &View) -> Option<Offered> {
     incoming_offer(&view.transfers).map(|offer| Offered {
         offer: offer.clone(),
-        files: view.transfers.iter().filter(|item| item.acceptable()).cloned().collect(),
-        waiting: view.transfers.iter().filter(|item| item.acceptable()).count(),
+        files: view
+            .transfers
+            .iter()
+            .filter(|item| item.acceptable())
+            .cloned()
+            .collect(),
+        waiting: view
+            .transfers
+            .iter()
+            .filter(|item| item.acceptable())
+            .count(),
         auto_save: view.settings.auto_save,
         save_folder: view.settings.save_folder.clone(),
     })
@@ -827,12 +1036,17 @@ pub const MIN_TOUCH_MS: u64 = 30;
 
 /// One pointer gesture in window coordinates. Once dragged, returning to the start is not a tap.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Tap { began: Option<(f32, f32)> }
+pub struct Tap {
+    began: Option<(f32, f32)>,
+}
 impl Tap {
-    pub fn down(&mut self, window: (f32, f32)) { self.began = Some(window); }
+    pub fn down(&mut self, window: (f32, f32)) {
+        self.began = Some(window);
+    }
     pub fn moved(&mut self, window: (f32, f32)) {
         if let Some(start) = self.began
-            && (window.0 - start.0).hypot(window.1 - start.1) > TAP_SLOP {
+            && (window.0 - start.0).hypot(window.1 - start.1) > TAP_SLOP
+        {
             self.cancel();
         }
     }
@@ -840,7 +1054,9 @@ impl Tap {
         self.moved(window);
         self.began.take().is_some()
     }
-    pub fn cancel(&mut self) { self.began = None; }
+    pub fn cancel(&mut self) {
+        self.began = None;
+    }
 }
 
 /// How long a finger must stay down, without straying, for the touch to be a hold and not a tap, in milliseconds.
@@ -939,7 +1155,11 @@ pub struct Touch {
 
 impl Touch {
     pub fn new(diameter: f32) -> Self {
-        Self { diameter, gesture: Tap::default(), began_at: None }
+        Self {
+            diameter,
+            gesture: Tap::default(),
+            began_at: None,
+        }
     }
 
     fn inside(&self, (x, y): (f32, f32)) -> bool {
@@ -969,7 +1189,10 @@ impl Touch {
     pub fn up(&mut self, in_box: (f32, f32), window: (f32, f32), now_ms: u64) -> bool {
         let began = self.began_at.take();
         let whole = self.gesture.up(window) && self.inside(in_box);
-        whole && began.and_then(|began| now_ms.checked_sub(began)).is_some_and(|held| held >= MIN_TOUCH_MS)
+        whole
+            && began
+                .and_then(|began| now_ms.checked_sub(began))
+                .is_some_and(|held| held >= MIN_TOUCH_MS)
     }
 
     /// Whether the finger was lifted inside the round without having strayed, whatever the time it stayed: the geometry of a press alone. For a
@@ -1021,13 +1244,19 @@ pub enum Destination {
 /// * On, with no folder chosen: there is nowhere to save to on its own, so it asks.
 ///
 /// `chosen_state` is what the disk says of the chosen folder.
-pub fn destination(auto_save: bool, chosen: Option<&std::path::Path>, chosen_state: Folder) -> Destination {
+pub fn destination(
+    auto_save: bool,
+    chosen: Option<&std::path::Path>,
+    chosen_state: Folder,
+) -> Destination {
     if !auto_save {
         return Destination::Ask { lost: None };
     }
     match chosen {
         Some(folder) if chosen_state == Folder::Usable => Destination::Save(folder.to_path_buf()),
-        Some(folder) => Destination::Ask { lost: Some(folder.to_path_buf()) },
+        Some(folder) => Destination::Ask {
+            lost: Some(folder.to_path_buf()),
+        },
         None => Destination::Ask { lost: None },
     }
 }
@@ -1036,12 +1265,18 @@ pub fn destination(auto_save: bool, chosen: Option<&std::path::Path>, chosen_sta
 /// but where the person chose) in which a file can really be made. The permission bits are not trusted, since they say
 /// nothing of a read-only mount: a file is made in it and removed, which is the only proof that one can be saved there.
 pub fn look_at(folder: &std::path::Path) -> Folder {
-    let Ok(metadata) = std::fs::symlink_metadata(folder) else { return Folder::Unusable };
+    let Ok(metadata) = std::fs::symlink_metadata(folder) else {
+        return Folder::Unusable;
+    };
     if !metadata.is_dir() {
         return Folder::Unusable;
     }
     let probe = folder.join(format!(".peersus-probe-{}", std::process::id()));
-    match std::fs::OpenOptions::new().write(true).create_new(true).open(&probe) {
+    match std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&probe)
+    {
         Ok(_) => {
             let _ = std::fs::remove_file(&probe);
             Folder::Usable
@@ -1050,19 +1285,113 @@ pub fn look_at(folder: &std::path::Path) -> Folder {
     }
 }
 
-fn device(peer: &Peer, picture: Option<Digest>) -> Device {
+fn device(
+    peer: &Peer,
+    picture: Option<Digest>,
+    link_test: Option<peersus_core::model::LinkTest>,
+    typed_address: Option<String>,
+) -> Device {
     Device {
         id: peer.id.0.clone(),
         name: peer.name.clone(),
-        presence: if peer.online {
-            Presence::Online
-        } else {
-            Presence::Offline
+        presence: match peer.presence() {
+            peersus_core::model::Presence::Online => Presence::Online,
+            peersus_core::model::Presence::Sleeping => Presence::Sleeping,
+            peersus_core::model::Presence::Offline => Presence::Offline,
         },
         grants: peer.grants.clone(),
         picture,
         paired_at: peer.paired_at,
         last_seen: peer.last_seen,
+        link_test,
+        typed_address,
+    }
+}
+
+/// What a person is told when the connection to a paired device was tested, in their language: a title, what to do about it, and how
+/// serious it is. One of the four results, and for the one that says nothing answered, the advice depends on whether the internet relays
+/// are on: they are what lets two devices on different networks find each other, and without them a network that does not let a
+/// connection in (a phone on a mobile network, most of all) cannot be reached at all, whatever address is known. So the advice there is to
+/// turn them on, and never to look for an address, which would not help.
+///
+/// Plain words and no promise: a test says what happened just now, and a device that answered once may not answer a minute later.
+pub fn link_test_words_in(
+    language: Language,
+    test: peersus_core::model::LinkTest,
+    relays_on: bool,
+) -> (String, String, Tone) {
+    use peersus_core::model::LinkTest;
+    let say = |title: &'static str, advice: &'static str, tone| {
+        (
+            i18n::translate(language, title).to_owned(),
+            i18n::translate(language, advice).to_owned(),
+            tone,
+        )
+    };
+    match test {
+        LinkTest::Trying => say(
+            "Trying to reach the device",
+            "This can take up to half a minute.",
+            Tone::Going,
+        ),
+        LinkTest::Paired => say(
+            "It answers, and it knows this device",
+            "The connection works. Nothing needs to be done.",
+            Tone::Good,
+        ),
+        LinkTest::NeedsPairing => say(
+            "It answers, but it no longer knows this device",
+            "Forget it here and pair the two devices again. Nothing else is wrong.",
+            Tone::Bad,
+        ),
+        LinkTest::Unreachable if relays_on => say(
+            "It does not answer",
+            "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause.",
+            Tone::Bad,
+        ),
+        LinkTest::Unreachable => say(
+            "It does not answer",
+            "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings.",
+            Tone::Bad,
+        ),
+    }
+}
+
+/// The words of the overlay where a person says where a paired device can be found, in their language. One place, so the window only draws
+/// them. What it says under the field is true and limited on purpose: an address helps a device that can be reached AT that address (on the
+/// same network, or one with an address that does not change), and it cannot help one behind a network that does not let a connection in, so
+/// it says that too, and that the relays are what do. A name is worth more than a number, because it is looked up again each time.
+pub struct AddressWords {
+    pub title: String,
+    pub placeholder: String,
+    pub explanation: [String; 4],
+    pub save: String,
+    pub clear: String,
+    pub close: String,
+}
+
+pub fn address_words_in(language: Language) -> AddressWords {
+    let say = |key: &'static str| i18n::translate(language, key).to_owned();
+    AddressWords {
+        title: say("Where is this device?"),
+        placeholder: say("192.168.1.20:5000 or name.example.org:5000"),
+        explanation: [
+            say(
+                "Write where this device can be found when the address it was paired at has changed.",
+            ),
+            say(
+                "A name is better than a number: it is looked up again every time, so it keeps working when the number changes.",
+            ),
+            say(
+                "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used.",
+            ),
+            say(
+                "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it.",
+            ),
+        ],
+        save: say("Save and test"),
+        clear: say("Remove the address"),
+        close: say("Close"),
     }
 }
 
@@ -1075,7 +1404,9 @@ pub fn seen_words(last_seen: Option<u64>, now: u64) -> String {
 }
 
 pub fn seen_words_in(language: Language, last_seen: Option<u64>, now: u64) -> String {
-    let Some(seen) = last_seen else { return i18n::translate(language, "never seen").to_owned() };
+    let Some(seen) = last_seen else {
+        return i18n::translate(language, "never seen").to_owned();
+    };
     let elapsed = now.saturating_sub(seen);
     let (count, unit) = match elapsed {
         0..=59 => return i18n::translate(language, "just now").to_owned(),
@@ -1159,7 +1490,11 @@ pub const MOST_UNDER_DEVICE: usize = 5;
 /// says nothing a person would read, so it is not one.
 pub fn history_with<'a>(peer: &str, transfers: &'a [Progress]) -> Vec<&'a Progress> {
     // The list keeps transfers in the order they were made, so the newest is the last: no time is invented to sort them by.
-    transfers.iter().rev().filter(|item| item.peer == peer && item.phase.is_over() && !item.name.is_empty()).collect()
+    transfers
+        .iter()
+        .rev()
+        .filter(|item| item.peer == peer && item.phase.is_over() && !item.name.is_empty())
+        .collect()
 }
 
 /// The part of [`history_with`] a device's page names, and how many more there are than it names.
@@ -1184,7 +1519,12 @@ pub fn history_line_in(language: Language, item: &Progress) -> String {
         // Only what is over is ever a line of history; a transfer still going is not asked for here.
         Phase::Waiting | Phase::Moving => "going",
     };
-    format!("{} \u{b7} {} \u{b7} {}", i18n::translate(language, way), item.name, i18n::translate(language, state))
+    format!(
+        "{} \u{b7} {} \u{b7} {}",
+        i18n::translate(language, way),
+        item.name,
+        i18n::translate(language, state)
+    )
 }
 
 /// What the window says of the hand-overs that finished since it last looked, given what it said before. A file that could not be
@@ -1202,10 +1542,18 @@ pub fn delivery_note(before: Option<String>, results: &[(String, bool)]) -> Opti
 /// IDENTITY with the name it last gave itself as a label, in the order they first appear. They are shown only to say what was sent
 /// and received; being in this list gives a device no permission and does not make it a saved device. A device is here only while
 /// the list holds something over with it, so when that is forgotten (Clear) the device is no longer here.
-pub fn unpaired_with_history<'a>(devices: &[Device], transfers: &'a [Progress]) -> Vec<(&'a str, Option<&'a str>)> {
+pub fn unpaired_with_history<'a>(
+    devices: &[Device],
+    transfers: &'a [Progress],
+) -> Vec<(&'a str, Option<&'a str>)> {
     let mut seen: Vec<(&str, Option<&str>)> = Vec::new();
-    for item in transfers.iter().filter(|item| item.phase.is_over() && !item.name.is_empty()) {
-        if devices.iter().any(|device| device.id == item.peer) || seen.iter().any(|(peer, _)| *peer == item.peer) {
+    for item in transfers
+        .iter()
+        .filter(|item| item.phase.is_over() && !item.name.is_empty())
+    {
+        if devices.iter().any(|device| device.id == item.peer)
+            || seen.iter().any(|(peer, _)| *peer == item.peer)
+        {
             continue;
         }
         seen.push((item.peer.as_str(), item.from.as_deref()));
@@ -1216,13 +1564,19 @@ pub fn unpaired_with_history<'a>(devices: &[Device], transfers: &'a [Progress]) 
 /// The transfers that are still going or waiting for an answer, which is all the Send page lists: what is over is a memory, and it
 /// is kept under the device it was with (see [`history_with`]) and on Receive, not as a list on the page where files are chosen.
 pub fn going_on(transfers: &[Progress]) -> Vec<Progress> {
-    transfers.iter().filter(|item| !item.phase.is_over()).cloned().collect()
+    transfers
+        .iter()
+        .filter(|item| !item.phase.is_over())
+        .cloned()
+        .collect()
 }
 
 /// Show waiting and running files first, in their original order, then the newest history.
 /// This is presentation only: no transfer is dropped or removed from the shared snapshot.
 pub fn transfer_list(transfers: &[Progress]) -> impl Iterator<Item = &Progress> {
-    transfers.iter().filter(|item| !item.phase.is_over())
+    transfers
+        .iter()
+        .filter(|item| !item.phase.is_over())
         .chain(transfers.iter().rev().filter(|item| item.phase.is_over()))
 }
 
@@ -1247,7 +1601,14 @@ pub enum TransferFilter {
 }
 
 impl TransferFilter {
-    pub const ALL: [TransferFilter; 6] = [Self::All, Self::Active, Self::Done, Self::Stopped, Self::Incoming, Self::Outgoing];
+    pub const ALL: [TransferFilter; 6] = [
+        Self::All,
+        Self::Active,
+        Self::Done,
+        Self::Stopped,
+        Self::Incoming,
+        Self::Outgoing,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -1275,22 +1636,33 @@ impl TransferFilter {
 /// What the Transfers tab lists: the transfers that pass `filter` and whose file name, the name the other device gave itself, or
 /// the device it was with contain `query` (letters of either case count the same; an empty query admits all). Waiting and moving
 /// first, then the newest of what is over, as everywhere else. Presentation only: the record is untouched.
-pub fn find_transfers<'a>(transfers: &'a [Progress], query: &str, filter: TransferFilter) -> Vec<&'a Progress> {
+pub fn find_transfers<'a>(
+    transfers: &'a [Progress],
+    query: &str,
+    filter: TransferFilter,
+) -> Vec<&'a Progress> {
     let needle = query.trim().to_lowercase();
     let matches = |item: &Progress| {
         needle.is_empty()
             || item.name.to_lowercase().contains(&needle)
-            || item.from.as_deref().is_some_and(|from| from.to_lowercase().contains(&needle))
+            || item
+                .from
+                .as_deref()
+                .is_some_and(|from| from.to_lowercase().contains(&needle))
             || item.peer.to_lowercase().starts_with(&needle)
     };
-    transfer_list(transfers).filter(|item| filter.admits(item) && matches(item)).collect()
+    transfer_list(transfers)
+        .filter(|item| filter.admits(item) && matches(item))
+        .collect()
 }
 
 /// The transfers that are over and not yet put away with X. X only hides what is over, for the person's eyes: the record is kept,
 /// and the Transfers tab still lists everything. `put_away` holds the ids that X hid; a transfer that is still going is never hidden,
 /// and one that was hidden stays hidden only as long as it is the same transfer (a new one has a new id, so it appears).
 pub fn not_put_away<'a>(transfers: &'a [Progress], put_away: &[String]) -> Vec<&'a Progress> {
-    transfer_list(transfers).filter(|item| !item.phase.is_over() || !put_away.iter().any(|id| *id == item.id)).collect()
+    transfer_list(transfers)
+        .filter(|item| !item.phase.is_over() || !put_away.contains(&item.id))
+        .collect()
 }
 
 /// The ids of the transfers that were already in the record when the window opened: the history, which Send and Receive never list (the
@@ -1303,7 +1675,11 @@ pub fn ids_at_start(transfers: &[Progress]) -> Vec<String> {
 /// begun before and has not ended is the person's business now). The history that was already there at the start is not, however long. A
 /// transfer keeps its id from the first moment it is listed, so one that appeared after the start stays listed while it goes and when it is over.
 pub fn of_this_run(transfers: &[Progress], at_start: &[String]) -> Vec<Progress> {
-    transfers.iter().filter(|item| !item.phase.is_over() || !at_start.iter().any(|id| *id == item.id)).cloned().collect()
+    transfers
+        .iter()
+        .filter(|item| !item.phase.is_over() || !at_start.contains(&item.id))
+        .cloned()
+        .collect()
 }
 
 /// How long a finger may be down without the toolkit saying anything of it before it is taken to be gone, in milliseconds. A finger that stays
@@ -1323,7 +1699,8 @@ impl Fingers {
     /// A finger went down at `now_ms`. Returns whether this makes a touch of two fingers, and only then: said once, as the second finger arrives.
     pub fn went_down(&mut self, id: u64, now_ms: u64) -> bool {
         // Whatever has not been heard of for too long is gone: it can no longer be one of the two.
-        self.down.retain(|(_, last)| now_ms.saturating_sub(*last) < FINGER_GONE_MS);
+        self.down
+            .retain(|(_, last)| now_ms.saturating_sub(*last) < FINGER_GONE_MS);
         match self.down.iter_mut().find(|(known, _)| *known == id) {
             // The system gave this number again: it is the same finger, down again, and not a second one.
             Some(entry) => entry.1 = now_ms,
@@ -1369,7 +1746,10 @@ pub enum ListRow {
 /// of that name has begun (that transfer is its row from then on, so a file is never listed twice). A name that appears more than once among
 /// the listed files is matched one transfer at a time, so two files with one name are two rows and not one.
 pub fn list_under_circle(listed: &[String], batch: &[Progress]) -> Vec<ListRow> {
-    let mut rows: Vec<ListRow> = transfer_list(batch).cloned().map(ListRow::Transfer).collect();
+    let mut rows: Vec<ListRow> = transfer_list(batch)
+        .cloned()
+        .map(ListRow::Transfer)
+        .collect();
     // A file that is still listed has not been sent: sending empties the listed files. So it is a prepared row, whatever transfers share its name
     // (a file chosen again after it was cancelled is a new one), and the transfers keep their own rows.
     rows.extend(listed.iter().cloned().map(ListRow::Prepared));
@@ -1388,7 +1768,7 @@ pub fn put_away_now(transfers: &[Progress]) -> Vec<String> {
 /// Whether X is offered: something is listed that is over, and nothing is going or waiting.
 pub fn can_put_away(transfers: &[Progress], put_away: &[String]) -> bool {
     transfers.iter().all(|item| item.phase.is_over())
-        && transfers.iter().any(|item| !put_away.iter().any(|id| *id == item.id))
+        && transfers.iter().any(|item| !put_away.contains(&item.id))
 }
 
 /// All the transfers still going taken together, for the big circle: how much there is, how much has moved, and the one that is
@@ -1405,16 +1785,32 @@ pub struct Overall {
 }
 
 pub fn overall(transfers: &[Progress]) -> Overall {
-    let going: Vec<&Progress> = transfers.iter().filter(|item| !item.phase.is_over()).collect();
+    let going: Vec<&Progress> = transfers
+        .iter()
+        .filter(|item| !item.phase.is_over())
+        .collect();
     let bytes: u64 = going.iter().map(|item| item.bytes).sum();
-    let moved: u64 = going.iter().map(|item| item.bytes.saturating_mul(u64::from(item.percent)) / 100).sum();
-    let percent = if bytes == 0 { 100 } else { u8::try_from((u128::from(moved) * 100 / u128::from(bytes)).min(100)).unwrap_or(100) };
+    let moved: u64 = going
+        .iter()
+        .map(|item| item.bytes.saturating_mul(u64::from(item.percent)) / 100)
+        .sum();
+    let percent = if bytes == 0 {
+        100
+    } else {
+        u8::try_from((u128::from(moved) * 100 / u128::from(bytes)).min(100)).unwrap_or(100)
+    };
     let current = going
         .iter()
         .find(|item| item.phase == Phase::Moving)
         .or_else(|| going.first())
         .map(|item| item.name.clone());
-    Overall { files: going.len(), bytes, moved, percent, current }
+    Overall {
+        files: going.len(),
+        bytes,
+        moved,
+        percent,
+        current,
+    }
 }
 
 /// How the transfers of the current batch (see [`of_this_run`]) stand, for the circle: it is the context of the batch, so it says what is happening
@@ -1424,7 +1820,11 @@ pub enum BatchState {
     /// Nothing of this batch is in the record: no transfer made of it yet.
     None,
     /// At least one file is going (or waiting to be accepted): `files` of them, `percent` of the way in all, now `current`.
-    Going { files: usize, percent: u8, current: Option<String> },
+    Going {
+        files: usize,
+        percent: u8,
+        current: Option<String>,
+    },
     /// Every transfer of the batch is over and all arrived: `files` of them.
     Sent { files: usize },
     /// Every transfer of the batch is over and some did not arrive (cancelled or failed): `done` of `files` arrived.
@@ -1439,10 +1839,18 @@ pub fn batch_state(batch: &[Progress]) -> BatchState {
         return BatchState::None;
     }
     let files = batch_files(batch);
-    let going: Vec<&Progress> = mine.iter().copied().filter(|item| !item.phase.is_over()).collect();
+    let going: Vec<&Progress> = mine
+        .iter()
+        .copied()
+        .filter(|item| !item.phase.is_over())
+        .collect();
     if !going.is_empty() {
         let all = overall(batch);
-        return BatchState::Going { files, percent: all.percent, current: all.current };
+        return BatchState::Going {
+            files,
+            percent: all.percent,
+            current: all.current,
+        };
     }
     // Every transfer is over. It arrived whole only if every one of them did, whichever device it went to; otherwise it stopped, and `done` is how
     // many files arrived at EVERY device (a file that reached one device and was refused by the other did not arrive whole).
@@ -1451,7 +1859,17 @@ pub fn batch_state(batch: &[Progress]) -> BatchState {
     if whole {
         return BatchState::Sent { files };
     }
-    let done = devices.iter().map(|device| device.transfers.iter().filter(|item| item.phase == Phase::Done).count()).min().unwrap_or(0);
+    let done = devices
+        .iter()
+        .map(|device| {
+            device
+                .transfers
+                .iter()
+                .filter(|item| item.phase == Phase::Done)
+                .count()
+        })
+        .min()
+        .unwrap_or(0);
     BatchState::Stopped { files, done }
 }
 
@@ -1492,7 +1910,10 @@ pub fn batch_by_device(batch: &[Progress]) -> Vec<DeviceBatch> {
     for item in batch.iter().filter(|item| !item.incoming) {
         match devices.iter_mut().find(|device| device.peer == item.peer) {
             Some(device) => device.transfers.push(item.clone()),
-            None => devices.push(DeviceBatch { peer: item.peer.clone(), transfers: vec![item.clone()] }),
+            None => devices.push(DeviceBatch {
+                peer: item.peer.clone(),
+                transfers: vec![item.clone()],
+            }),
         }
     }
     devices
@@ -1518,8 +1939,18 @@ mod by_device_tests {
 
     fn one(id: &str, name: &str, peer: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.into(), name: name.into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: peer.into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: name.into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: peer.into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
@@ -1528,7 +1959,12 @@ mod by_device_tests {
         let mut all = Vec::new();
         for (device, offset) in [("laptop", 0), ("phone", 10)] {
             for n in 0..3 {
-                all.push(one(&format!("{device}-{n}"), &format!("f{n}.bin"), device, Phase::Moving));
+                all.push(one(
+                    &format!("{device}-{n}"),
+                    &format!("f{n}.bin"),
+                    device,
+                    Phase::Moving,
+                ));
                 let _ = offset;
             }
         }
@@ -1538,8 +1974,16 @@ mod by_device_tests {
     #[test]
     fn three_files_to_two_devices_are_three_files_and_two_devices_of_three_transfers_each() {
         let batch = three_files_two_devices();
-        assert_eq!(batch.len(), 6, "the owner makes one transfer per file per device");
-        assert_eq!(batch_files(&batch), 3, "the circle counted a file once for each device");
+        assert_eq!(
+            batch.len(),
+            6,
+            "the owner makes one transfer per file per device"
+        );
+        assert_eq!(
+            batch_files(&batch),
+            3,
+            "the circle counted a file once for each device"
+        );
         let devices = batch_by_device(&batch);
         assert_eq!(devices.len(), 2);
         assert!(devices.iter().all(|device| device.transfers.len() == 3));
@@ -1549,18 +1993,27 @@ mod by_device_tests {
     fn each_device_stands_by_itself_one_can_be_done_while_the_other_stopped() {
         let mut batch = three_files_two_devices();
         for item in batch.iter_mut() {
-            item.phase = if item.peer == "laptop" { Phase::Done } else { Phase::Cancelled };
+            item.phase = if item.peer == "laptop" {
+                Phase::Done
+            } else {
+                Phase::Cancelled
+            };
         }
         let devices = batch_by_device(&batch);
         assert_eq!(devices[0].peer, "laptop");
         assert_eq!(devices[0].state(), BatchState::Sent { files: 3 });
         assert_eq!(devices[1].peer, "phone");
-        assert_eq!(devices[1].state(), BatchState::Stopped { files: 3, done: 0 });
+        assert_eq!(
+            devices[1].state(),
+            BatchState::Stopped { files: 3, done: 0 }
+        );
     }
 
     #[test]
     fn one_device_alone_is_unchanged_and_no_transfer_means_no_files() {
-        let one_device: Vec<Progress> = (0..3).map(|n| one(&format!("a{n}"), &format!("f{n}"), "laptop", Phase::Done)).collect();
+        let one_device: Vec<Progress> = (0..3)
+            .map(|n| one(&format!("a{n}"), &format!("f{n}"), "laptop", Phase::Done))
+            .collect();
         assert_eq!(batch_files(&one_device), 3);
         assert_eq!(batch_files(&[]), 0);
         assert!(batch_by_device(&[]).is_empty());
@@ -1576,8 +2029,15 @@ mod by_device_tests {
 
     #[test]
     fn the_devices_keep_the_order_they_first_appear_in() {
-        let batch = vec![one("1", "a", "phone", Phase::Moving), one("2", "a", "laptop", Phase::Moving), one("3", "b", "phone", Phase::Moving)];
-        let peers: Vec<String> = batch_by_device(&batch).into_iter().map(|device| device.peer).collect();
+        let batch = vec![
+            one("1", "a", "phone", Phase::Moving),
+            one("2", "a", "laptop", Phase::Moving),
+            one("3", "b", "phone", Phase::Moving),
+        ];
+        let peers: Vec<String> = batch_by_device(&batch)
+            .into_iter()
+            .map(|device| device.peer)
+            .collect();
         assert_eq!(peers, ["phone", "laptop"]);
     }
 }
@@ -1589,8 +2049,18 @@ pub fn device_state_words_in(language: Language, state: &BatchState) -> (String,
     match state {
         BatchState::None => (String::new(), Tone::Quiet),
         BatchState::Going { percent, .. } => (format!("{percent}%"), Tone::Going),
-        BatchState::Sent { files } => (format!("{} \u{b7} {}", i18n::translate(language, "DONE"), i18n::files(language, *files)), Tone::Good),
-        BatchState::Stopped { files, done } => (format!("{} {done}/{files}", i18n::translate(language, "STOPPED")), Tone::Bad),
+        BatchState::Sent { files } => (
+            format!(
+                "{} \u{b7} {}",
+                i18n::translate(language, "DONE"),
+                i18n::files(language, *files)
+            ),
+            Tone::Good,
+        ),
+        BatchState::Stopped { files, done } => (
+            format!("{} {done}/{files}", i18n::translate(language, "STOPPED")),
+            Tone::Bad,
+        ),
     }
 }
 
@@ -1600,12 +2070,31 @@ mod device_state_words_tests {
 
     #[test]
     fn each_state_of_a_device_has_words_and_a_tone_that_says_whether_it_is_good_or_bad() {
-        assert_eq!(device_state_words_in(Language::English, &BatchState::None), (String::new(), Tone::Quiet));
-        assert_eq!(device_state_words_in(Language::English, &BatchState::Going { files: 3, percent: 40, current: None }), ("40%".to_owned(), Tone::Going));
+        assert_eq!(
+            device_state_words_in(Language::English, &BatchState::None),
+            (String::new(), Tone::Quiet)
+        );
+        assert_eq!(
+            device_state_words_in(
+                Language::English,
+                &BatchState::Going {
+                    files: 3,
+                    percent: 40,
+                    current: None
+                }
+            ),
+            ("40%".to_owned(), Tone::Going)
+        );
         let (done, tone) = device_state_words_in(Language::English, &BatchState::Sent { files: 3 });
         assert!(done.starts_with("DONE") && done.contains('3'), "{done}");
         assert_eq!(tone, Tone::Good);
-        assert_eq!(device_state_words_in(Language::English, &BatchState::Stopped { files: 3, done: 1 }), ("STOPPED 1/3".to_owned(), Tone::Bad));
+        assert_eq!(
+            device_state_words_in(
+                Language::English,
+                &BatchState::Stopped { files: 3, done: 1 }
+            ),
+            ("STOPPED 1/3".to_owned(), Tone::Bad)
+        );
     }
 }
 
@@ -1614,25 +2103,48 @@ pub fn batch_words_in(language: Language, state: &BatchState) -> Option<(String,
     let text = |key: &'static str| i18n::translate(language, key).to_owned();
     match state {
         BatchState::None => None,
-        BatchState::Going { files, percent, current } => Some((
+        BatchState::Going {
+            files,
+            percent,
+            current,
+        } => Some((
             text("SENDING"),
             format!("{percent}%"),
             match current {
                 Some(name) => name.clone(),
                 None if *files == 1 => text("Sending 1 file."),
-                None => i18n::format(language, "Sending {files}.", &[("files", &files.to_string())]),
+                None => i18n::format(
+                    language,
+                    "Sending {files}.",
+                    &[("files", &files.to_string())],
+                ),
             },
         )),
         BatchState::Sent { files } => Some((
             text("DONE"),
-            if *files == 1 { text("1 SENT") } else { i18n::format(language, "{count} SENT", &[("count", &files.to_string())]) },
-            if *files == 1 { text("1 file arrived.") } else { i18n::format(language, "{files} arrived.", &[("files", &files.to_string())]) },
+            if *files == 1 {
+                text("1 SENT")
+            } else {
+                i18n::format(language, "{count} SENT", &[("count", &files.to_string())])
+            },
+            if *files == 1 {
+                text("1 file arrived.")
+            } else {
+                i18n::format(
+                    language,
+                    "{files} arrived.",
+                    &[("files", &files.to_string())],
+                )
+            },
         )),
         BatchState::Stopped { files, done } => Some((
             text("STOPPED"),
             format!("{done}/{files}"),
-            i18n::format(language, "{done} of {files} arrived. The rest was refused, cancelled or failed.",
-                &[("done", &done.to_string()), ("files", &files.to_string())]),
+            i18n::format(
+                language,
+                "{done} of {files} arrived. The rest was refused, cancelled or failed.",
+                &[("done", &done.to_string()), ("files", &files.to_string())],
+            ),
         )),
     }
 }
@@ -1651,9 +2163,17 @@ pub enum HeaderAction {
 }
 
 /// The action the head of the list offers, or `None` when there is nothing to act on: a button that does nothing is not shown.
-pub fn header_action(transfers: &[Progress], put_away: &[String], folded: bool) -> Option<HeaderAction> {
+pub fn header_action(
+    transfers: &[Progress],
+    put_away: &[String],
+    folded: bool,
+) -> Option<HeaderAction> {
     if transfers.iter().any(|item| !item.phase.is_over()) {
-        return Some(if folded { HeaderAction::Expand } else { HeaderAction::Minimize });
+        return Some(if folded {
+            HeaderAction::Expand
+        } else {
+            HeaderAction::Minimize
+        });
     }
     can_put_away(transfers, put_away).then_some(HeaderAction::Hide)
 }
@@ -1665,9 +2185,20 @@ pub fn folded_line(transfers: &[Progress]) -> Option<String> {
     if all.files == 0 {
         return None;
     }
-    let files = if all.files == 1 { "1 file".to_owned() } else { format!("{} files", all.files) };
-    let now = all.current.map(|name| format!(" · {name}")).unwrap_or_default();
-    Some(format!("{files} · {}% of {}{now}", all.percent, size_in_words(all.bytes)))
+    let files = if all.files == 1 {
+        "1 file".to_owned()
+    } else {
+        format!("{} files", all.files)
+    };
+    let now = all
+        .current
+        .map(|name| format!(" · {name}"))
+        .unwrap_or_default();
+    Some(format!(
+        "{files} · {}% of {}{now}",
+        all.percent,
+        size_in_words(all.bytes)
+    ))
 }
 
 /// The diameter, in pixels, of the accent disc that grows from the centre of a circle of `disc` pixels while it is held, for a `fill` from 0 to 1:
@@ -1687,7 +2218,9 @@ pub fn fill_of(touch: &Hold, now_ms: u64, can_send: bool) -> f32 {
     if !can_send {
         return 0.;
     }
-    touch.held_for(now_ms).map_or(0., |held| (held as f32 / CONFIRM_MS as f32).clamp(0., 1.))
+    touch
+        .held_for(now_ms)
+        .map_or(0., |held| (held as f32 / CONFIRM_MS as f32).clamp(0., 1.))
 }
 
 /// Where the circle sends, from what the page already holds: the devices that were touched (as `send_state` has judged them: picked, and every
@@ -1744,21 +2277,41 @@ pub fn circle_does(files_listed: bool, aim: &Aim, send_instantly: bool) -> Circl
 
 /// What the circle says in each of its states: the kicker above, the big words, and the line under, in the window's language. The same
 /// [`CircleDoes`] that decides what a touch does decides this, so the words and the touch cannot disagree. `devices` is how many are picked.
-pub fn circle_does_words_in(language: Language, does: CircleDoes, devices: usize) -> (String, String, String) {
+pub fn circle_does_words_in(
+    language: Language,
+    does: CircleDoes,
+    devices: usize,
+) -> (String, String, String) {
     let text = |key: &'static str| i18n::translate(language, key).to_owned();
     let who = || {
         if devices > 1 {
-            i18n::format(language, "{count} DEVICES", &[("count", &devices.to_string())])
+            i18n::format(
+                language,
+                "{count} DEVICES",
+                &[("count", &devices.to_string())],
+            )
         } else {
             text("1 DEVICE")
         }
     };
     match does {
-        CircleDoes::ChooseFiles => (text("THE TRANSFER PORTAL"), text("CHOOSE FILES"), text("TO SEND")),
+        CircleDoes::ChooseFiles => (
+            text("THE TRANSFER PORTAL"),
+            text("CHOOSE FILES"),
+            text("TO SEND"),
+        ),
         CircleDoes::MakeCode => (text("NO DEVICE PICKED"), text("TAP FOR"), text("A QR CODE")),
-        CircleDoes::HoldToSend => (text("HOLD TO SEND"), who(), text("keep holding until it is full")),
+        CircleDoes::HoldToSend => (
+            text("HOLD TO SEND"),
+            who(),
+            text("keep holding until it is full"),
+        ),
         CircleDoes::TapToSend => (text("TAP TO SEND"), who(), text("it sends at once")),
-        CircleDoes::Held => (text("A DEVICE WENT AWAY"), text("PICK AGAIN"), text("nothing is sent until you do")),
+        CircleDoes::Held => (
+            text("A DEVICE WENT AWAY"),
+            text("PICK AGAIN"),
+            text("nothing is sent until you do"),
+        ),
     }
 }
 
@@ -1772,7 +2325,10 @@ pub fn confirm_ms(send_instantly: bool) -> u64 {
 /// What sends while the finger is still down. Decided on whole milliseconds, not on the float the drawing uses, so that rounding cannot send
 /// early or never. The files themselves are not here: the page holds them and sends that selection once, to the devices of the [`Aim`].
 pub fn is_full(touch: &Hold, now_ms: u64, does: CircleDoes) -> bool {
-    does == CircleDoes::HoldToSend && touch.held_for(now_ms).is_some_and(|held| held >= CONFIRM_MS)
+    does == CircleDoes::HoldToSend
+        && touch
+            .held_for(now_ms)
+            .is_some_and(|held| held >= CONFIRM_MS)
 }
 
 /// Whether lifting the finger sends, with Send instantly on: the touch was a whole tap (down and up near the same place, short of a hold) and
@@ -1816,7 +2372,13 @@ pub const FINGER_LIVE_MS: u64 = 400;
 
 impl CircleTouch {
     pub fn new(diameter: f32) -> Self {
-        Self { round: Touch::new(diameter), time: Hold::default(), sent: false, heard_at: None, steady: false }
+        Self {
+            round: Touch::new(diameter),
+            time: Hold::default(),
+            sent: false,
+            heard_at: None,
+            steady: false,
+        }
     }
 
     /// The finger went down: `in_box` is where in the circle's box, `window` where in the window, at `now_ms` on the one clock of this touch.
@@ -1842,7 +2404,10 @@ impl CircleTouch {
     /// Whether a finger that is taken to be down has gone without a sign for longer than a finger may (see [`FINGER_LIVE_MS`]): its lift never reached
     /// the circle, so a new down is a new touch and not a second finger.
     fn silent_for_too_long(&self, now_ms: u64) -> bool {
-        !self.steady && self.heard_at.is_some_and(|heard| now_ms.saturating_sub(heard) > FINGER_LIVE_MS)
+        !self.steady
+            && self
+                .heard_at
+                .is_some_and(|heard| now_ms.saturating_sub(heard) > FINGER_LIVE_MS)
     }
 
     /// The finger moved. Straying past the slop ends the touch for good, for the round and for the clock alike.
@@ -1853,14 +2418,23 @@ impl CircleTouch {
 
     /// How far the circle is filled, from 0 to 1, at `now_ms`. Only a circle that is held fills, and one that has sent is empty.
     pub fn fill(&self, now_ms: u64, does: CircleDoes) -> f32 {
-        if self.sent { 0. } else { fill_of(&self.time, now_ms, does == CircleDoes::HoldToSend) }
+        if self.sent {
+            0.
+        } else {
+            fill_of(&self.time, now_ms, does == CircleDoes::HoldToSend)
+        }
     }
 
     /// The clock moved on while the finger is down: whether the circle is now full and sends. Said once; the lift then sends nothing more.
     pub fn tick(&mut self, now_ms: u64, does: CircleDoes) -> CircleAct {
         // A finger that has not been heard of for [`FINGER_LIVE_MS`] is not known to be there: its lift may never have reached the circle, and a
         // circle that went on filling for it would send, on its own, files nobody was holding. The touch is over, and sends nothing.
-        if self.is_down() && !self.steady && self.heard_at.is_some_and(|heard| now_ms.saturating_sub(heard) > FINGER_LIVE_MS) {
+        if self.is_down()
+            && !self.steady
+            && self
+                .heard_at
+                .is_some_and(|heard| now_ms.saturating_sub(heard) > FINGER_LIVE_MS)
+        {
             self.cancel();
             return CircleAct::Nothing;
         }
@@ -1885,7 +2459,13 @@ impl CircleTouch {
     /// The finger was lifted. A whole tap with nothing listed opens the picker; a whole tap with files listed and no device picked makes a code;
     /// with Send instantly on a whole tap sends to the devices picked. A touch that already sent, was a drag, or was a hold that did not fill does
     /// nothing.
-    pub fn up(&mut self, in_box: (f32, f32), window: (f32, f32), now_ms: u64, does: CircleDoes) -> CircleAct {
+    pub fn up(
+        &mut self,
+        in_box: (f32, f32),
+        window: (f32, f32),
+        now_ms: u64,
+        does: CircleDoes,
+    ) -> CircleAct {
         let sent = std::mem::take(&mut self.sent);
         let inside = self.round.lifted_inside(in_box, window);
         let ended = self.time.up(window, now_ms);
@@ -1930,16 +2510,32 @@ impl CircleTouch {
 /// their file is where `saved_as` says) and for which `tree_for` knows a folder. `tree_for` GIVES the folder up when asked (it
 /// is taken once), so a transfer already handed over, or one that went to a path, answers nothing and is not handed twice.
 /// Returns each as a [`Handoff`](peersus_net::folder_picked::Handoff).
-pub fn handoffs(transfers: &[Progress], mut tree_for: impl FnMut(&str) -> Option<String>) -> Vec<peersus_net::folder_picked::Handoff> {
+pub fn handoffs(
+    transfers: &[Progress],
+    mut tree_for: impl FnMut(&str) -> Option<String>,
+) -> Vec<peersus_net::folder_picked::Handoff> {
     let mut out = Vec::new();
     for transfer in transfers {
         if !transfer.incoming || transfer.phase != Phase::Done {
             continue;
         }
-        let Some(path) = &transfer.saved_as else { continue };
-        let Some(tree) = tree_for(&transfer.id) else { continue };
-        let name = path.file_name().map_or_else(|| transfer.name.clone(), |name| name.to_string_lossy().into_owned());
-        out.push(peersus_net::folder_picked::Handoff { transfer: transfer.id.clone(), path: path.clone(), name, folders: transfer.folders.clone(), tree });
+        let Some(path) = &transfer.saved_as else {
+            continue;
+        };
+        let Some(tree) = tree_for(&transfer.id) else {
+            continue;
+        };
+        let name = path.file_name().map_or_else(
+            || transfer.name.clone(),
+            |name| name.to_string_lossy().into_owned(),
+        );
+        out.push(peersus_net::folder_picked::Handoff {
+            transfer: transfer.id.clone(),
+            path: path.clone(),
+            name,
+            folders: transfer.folders.clone(),
+            tree,
+        });
     }
     out
 }
@@ -2001,12 +2597,36 @@ pub struct SettingEntry {
 /// The built-in preference labels. Plugin contributions, owner-offered permissions and history
 /// are added from live view data by `settings_search`, not maintained in this list.
 pub const SETTING_ENTRIES: &[SettingEntry] = &[
-    SettingEntry { title: "Device name", note: "Device name", tab: SettingsTab::Device },
-    SettingEntry { title: "Language", note: "Language", tab: SettingsTab::Device },
-    SettingEntry { title: "Interface size", note: "Interface size", tab: SettingsTab::Device },
-    SettingEntry { title: "Run in the background", note: "Start without opening a window.", tab: SettingsTab::Device },
-    SettingEntry { title: "Notifications", note: "On: an offer of a file is shown even when the program is closed.", tab: SettingsTab::Device },
-    SettingEntry { title: "Camera", note: "Choose the camera that reads a code, and press Test to see what it shows.", tab: SettingsTab::Device },
+    SettingEntry {
+        title: "Device name",
+        note: "Device name",
+        tab: SettingsTab::Device,
+    },
+    SettingEntry {
+        title: "Language",
+        note: "Language",
+        tab: SettingsTab::Device,
+    },
+    SettingEntry {
+        title: "Interface size",
+        note: "Interface size",
+        tab: SettingsTab::Device,
+    },
+    SettingEntry {
+        title: "Run in the background",
+        note: "Start without opening a window.",
+        tab: SettingsTab::Device,
+    },
+    SettingEntry {
+        title: "Notifications",
+        note: "On: an offer of a file is shown even when the program is closed.",
+        tab: SettingsTab::Device,
+    },
+    SettingEntry {
+        title: "Camera",
+        note: "Choose the camera that reads a code, and press Test to see what it shows.",
+        tab: SettingsTab::Device,
+    },
     SettingEntry {
         title: "Send instantly",
         note: "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once.",
@@ -2017,13 +2637,21 @@ pub const SETTING_ENTRIES: &[SettingEntry] = &[
         note: "Off: you are asked where each file goes. On: files go straight to the folder below, without asking.",
         tab: SettingsTab::Device,
     },
-    SettingEntry { title: "Appearance", note: "Appearance", tab: SettingsTab::Appearance },
+    SettingEntry {
+        title: "Appearance",
+        note: "Appearance",
+        tab: SettingsTab::Appearance,
+    },
     SettingEntry {
         title: "Keep icons when the bar is closed",
         note: "A closed bar shows only its pictures. Off, a closed bar is not shown at all.",
         tab: SettingsTab::Appearance,
     },
-    SettingEntry { title: "Reduce motion", note: "Turn off decorative animation.", tab: SettingsTab::Appearance },
+    SettingEntry {
+        title: "Reduce motion",
+        note: "Turn off decorative animation.",
+        tab: SettingsTab::Appearance,
+    },
     SettingEntry {
         title: "Use internet relays",
         note: "Lets devices connect across networks. Off keeps traffic on this network.",
@@ -2032,8 +2660,17 @@ pub const SETTING_ENTRIES: &[SettingEntry] = &[
 ];
 
 /// Search the current Settings data; the matcher has no installation-specific list.
-pub fn search_settings(query: &str, view: &View, language: Language) -> Vec<crate::settings_search::Entry> {
-    crate::settings_search::search(query, view, language, crate::settings_search::Features::default())
+pub fn search_settings(
+    query: &str,
+    view: &View,
+    language: Language,
+) -> Vec<crate::settings_search::Entry> {
+    crate::settings_search::search(
+        query,
+        view,
+        language,
+        crate::settings_search::Features::default(),
+    )
 }
 
 /// How well `query` matches `text`, or `None` when it does not. Every character of the query must be found in the text, in order and
@@ -2041,32 +2678,47 @@ pub fn search_settings(query: &str, view: &View, language: Language) -> Vec<crat
 /// one before it scores more, so that a match that reads as the words scores higher than one scattered across them. An empty query
 /// matches nothing: there is no search yet, and a list of everything would not be a result.
 pub fn fuzzy_score(query: &str, text: &str) -> Option<u32> {
-    let wanted: Vec<char> = query.chars().filter(|c| !c.is_whitespace()).flat_map(char::to_lowercase).collect();
+    let wanted: Vec<char> = query
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .flat_map(char::to_lowercase)
+        .collect();
     if wanted.is_empty() {
         return None;
     }
     let haystack: Vec<char> = text.chars().flat_map(char::to_lowercase).collect();
     let window = wanted.len().saturating_mul(3).saturating_add(8);
     let mut best = None;
-    for start in haystack.iter().enumerate().filter_map(|(index, c)| (*c == wanted[0]).then_some(index)) {
+    for start in haystack
+        .iter()
+        .enumerate()
+        .filter_map(|(index, c)| (*c == wanted[0]).then_some(index))
+    {
         let end = (start + window).min(haystack.len());
         let (mut at, mut score, mut previous) = (start, 0u32, None);
         let mut matched = true;
         for c in &wanted {
-            let Some(found) = haystack[at..end].iter().position(|h| h == c).map(|offset| at + offset) else {
+            let Some(found) = haystack[at..end]
+                .iter()
+                .position(|h| h == c)
+                .map(|offset| at + offset)
+            else {
                 matched = false;
                 break;
             };
             let starts_word = found == 0 || !haystack[found - 1].is_alphanumeric();
-            score += 1 + u32::from(starts_word) * 3 + u32::from(previous.is_some_and(|p| p + 1 == found)) * 2;
+            score += 1
+                + u32::from(starts_word) * 3
+                + u32::from(previous.is_some_and(|p| p + 1 == found)) * 2;
             previous = Some(found);
             at = found + 1;
         }
-        if matched { best = best.max(Some(score)); }
+        if matched {
+            best = best.max(Some(score));
+        }
     }
     best
 }
-
 
 /// The group a reader is in at a scroll position (`scrolled` pixels from the top of the content, 0 or more): the last whose top has been reached,
 /// with `lead` pixels of the next one already counting as being in it, so that a title that has just come up under the header is the current one.
@@ -2079,7 +2731,12 @@ pub fn current_group(offsets: &[f32], scrolled: f32, lead: f32, at_end: bool) ->
     if at_end {
         return Some(offsets.len() - 1);
     }
-    Some(offsets.iter().rposition(|top| *top <= scrolled + lead).unwrap_or(0))
+    Some(
+        offsets
+            .iter()
+            .rposition(|top| *top <= scrolled + lead)
+            .unwrap_or(0),
+    )
 }
 
 /// How long a code of this device lives, in seconds: what the owner gives an invitation.
@@ -2157,7 +2814,8 @@ fn hashed(seed: u64) -> f32 {
 /// particles, and `age` is how many frames ago it was born (0 is this frame's, on the tip).
 pub fn fuse_particles(frame: u32) -> Vec<Particle> {
     const GRAVITY: f32 = 0.04;
-    const COLOURS: [(u8, u8, u8); 4] = [(255, 230, 0), (255, 136, 0), (255, 255, 255), (255, 51, 0)];
+    const COLOURS: [(u8, u8, u8); 4] =
+        [(255, 230, 0), (255, 136, 0), (255, 255, 255), (255, 51, 0)];
     let mut live = Vec::new();
     for age in 0..FUSE_PARTICLE_FRAMES.min(frame + 1) {
         let born = frame - age;
@@ -2222,7 +2880,11 @@ impl Popup {
 
     /// Whole and in place: what a thing is once it has arrived, or always when motion is reduced.
     pub fn still() -> Popup {
-        Popup { opacity: 1., lift: 0., scale: 1. }
+        Popup {
+            opacity: 1.,
+            lift: 0.,
+            scale: 1.,
+        }
     }
 }
 
@@ -2295,7 +2957,11 @@ impl Motion {
 }
 
 /// What the menu on the settings button offers: shortcuts that open Settings on one of its tabs.
-pub const MENU_SHORTCUTS: [SettingsTab; 3] = [SettingsTab::Overview, SettingsTab::Extensions, SettingsTab::About];
+pub const MENU_SHORTCUTS: [SettingsTab; 3] = [
+    SettingsTab::Overview,
+    SettingsTab::Extensions,
+    SettingsTab::About,
+];
 
 /// One row of the Permissions tab: one permission the owner says can be granted, what it lets a
 /// plugin do, in words a person can read, and whether it is allowed now.
@@ -2344,12 +3010,17 @@ pub enum Install {
 
 impl Install {
     pub const EMPTY: &'static str = "That file is empty, so there is no package in it.";
-    pub const UNREADABLE: &'static str = "That could not be read: it is gone, or this program may not open it.";
-    pub const NOT_A_PACKAGE: &'static str = "That is neither a folder nor a file, so it cannot be a package.";
+    pub const UNREADABLE: &'static str =
+        "That could not be read: it is gone, or this program may not open it.";
+    pub const NOT_A_PACKAGE: &'static str =
+        "That is neither a folder nor a file, so it cannot be a package.";
     pub const ONE_AT_A_TIME: &'static str = "Drop one package at a time.";
 
     /// Judge `paths`, looking at the one that is left with `kind`.
-    pub fn of_drop(paths: Vec<std::path::PathBuf>, kind: impl Fn(&std::path::Path) -> DropKind) -> Self {
+    pub fn of_drop(
+        paths: Vec<std::path::PathBuf>,
+        kind: impl Fn(&std::path::Path) -> DropKind,
+    ) -> Self {
         let mut distinct: Vec<std::path::PathBuf> = Vec::new();
         for path in paths {
             if !distinct.contains(&path) {
@@ -2405,18 +3076,33 @@ impl PermissionRows {
     /// What a permission lets a plugin do, written by whoever owns it: the application wrote the
     /// words for its own, and the plugin wrote the words for its own, in its manifest. A permission
     /// nobody described is said to be that, and is not left blank.
-    pub fn words(plugin: &PluginInfo, permission: &peersus_plugin_api::permission::Permission) -> String {
+    pub fn words(
+        plugin: &PluginInfo,
+        permission: &peersus_plugin_api::permission::Permission,
+    ) -> String {
         Self::words_in(crate::i18n::Language::English, plugin, permission)
     }
 
-    pub fn words_in(language: crate::i18n::Language, plugin: &PluginInfo, permission: &peersus_plugin_api::permission::Permission) -> String {
+    pub fn words_in(
+        language: crate::i18n::Language,
+        plugin: &PluginInfo,
+        permission: &peersus_plugin_api::permission::Permission,
+    ) -> String {
         if permission.owner == peersus_plugin_api::hub::HOST {
             match permission.name.as_str() {
                 peersus_app::runtime::PEERS_SEND_CAPABILITY => {
-                    return crate::i18n::translate(language, peersus_app::runtime::PEERS_SEND_DESCRIPTION).to_owned();
+                    return crate::i18n::translate(
+                        language,
+                        peersus_app::runtime::PEERS_SEND_DESCRIPTION,
+                    )
+                    .to_owned();
                 }
                 peersus_app::runtime::PLUGINS_RESTART_CAPABILITY => {
-                    return crate::i18n::translate(language, peersus_app::runtime::PLUGINS_RESTART_DESCRIPTION).to_owned();
+                    return crate::i18n::translate(
+                        language,
+                        peersus_app::runtime::PLUGINS_RESTART_DESCRIPTION,
+                    )
+                    .to_owned();
                 }
                 _ => {}
             }
@@ -2440,7 +3126,11 @@ pub enum Staging {
 
 impl Staging {
     pub fn of(staged: &PluginInfo, installed: &[PluginInfo]) -> Self {
-        if installed.iter().any(|p| p.id == staged.id) { Self::Replaces } else { Self::New }
+        if installed.iter().any(|p| p.id == staged.id) {
+            Self::Replaces
+        } else {
+            Self::New
+        }
     }
 
     /// The word on the button that confirms.
@@ -2486,8 +3176,12 @@ impl StoreAction {
     /// A line under the row that says what pressing the button costs, where that is not obvious. Fixed words.
     pub fn note(&self) -> Option<&'static str> {
         match self {
-            Self::Update => Some("Updating forgets what the installed version was allowed to do. You decide again afterwards."),
-            Self::NewerInstalled => Some("A newer version than the approved one is installed. Remove it to install the approved version."),
+            Self::Update => Some(
+                "Updating forgets what the installed version was allowed to do. You decide again afterwards.",
+            ),
+            Self::NewerInstalled => Some(
+                "A newer version than the approved one is installed. Remove it to install the approved version.",
+            ),
             Self::Install | Self::Installed => None,
         }
     }
@@ -2503,7 +3197,11 @@ pub struct StoreRow {
 impl StoreRow {
     pub fn of(listing: &peersus_core::model::StoreListing) -> Self {
         use peersus_plugin_api::package::Version;
-        let action = match listing.installed_version.as_deref().map(|have| (Version::parse(have), Version::parse(&listing.version))) {
+        let action = match listing
+            .installed_version
+            .as_deref()
+            .map(|have| (Version::parse(have), Version::parse(&listing.version)))
+        {
             None => StoreAction::Install,
             Some((Some(have), Some(offered))) if offered > have => StoreAction::Update,
             Some((Some(have), Some(offered))) if have > offered => StoreAction::NewerInstalled,
@@ -2512,7 +3210,10 @@ impl StoreRow {
             // a replacement on a guess.
             Some(_) => StoreAction::Installed,
         };
-        Self { listing: listing.clone(), action }
+        Self {
+            listing: listing.clone(),
+            action,
+        }
     }
 }
 
@@ -2526,11 +3227,73 @@ pub fn store_rows(state: &peersus_core::model::StoreState, query: &str) -> Vec<S
         .iter()
         .filter(|listing| {
             needle.is_empty()
-                || [listing.plugin.as_str(), listing.author.as_str(), listing.description.as_str()]
-                    .iter()
-                    .any(|field| field.to_lowercase().contains(&needle))
+                || [
+                    listing.plugin.as_str(),
+                    listing.author.as_str(),
+                    listing.description.as_str(),
+                ]
+                .iter()
+                .any(|field| field.to_lowercase().contains(&needle))
         })
         .map(StoreRow::of)
+        .collect()
+}
+
+/// One extension, whether installed locally, offered by the catalog, or both.
+/// Catalog order is retained across installation/removal; local-only entries follow it.
+pub struct ExtensionRow<'a> {
+    pub id: &'a peersus_core::plugins::PluginId,
+    pub installed: Option<&'a PluginInfo>,
+    pub listing: Option<&'a peersus_core::model::StoreListing>,
+}
+
+pub fn extension_rows<'a>(
+    plugins: &'a [PluginInfo],
+    store: &'a peersus_core::model::StoreState,
+    query: &str,
+) -> Vec<ExtensionRow<'a>> {
+    let needle = query.trim().to_lowercase();
+    let matches = |row: &ExtensionRow<'_>| {
+        needle.is_empty()
+            || row.id.as_str().to_lowercase().contains(&needle)
+            || row.listing.is_some_and(|listing| {
+                [&listing.author, &listing.description]
+                    .iter()
+                    .any(|field| field.to_lowercase().contains(&needle))
+            })
+            || row
+                .installed
+                .and_then(|info| info.package.as_ref())
+                .is_some_and(|package| {
+                    [&package.name, &package.author, &package.description]
+                        .iter()
+                        .any(|field| field.to_lowercase().contains(&needle))
+                })
+    };
+    store
+        .listings
+        .iter()
+        .map(|listing| ExtensionRow {
+            id: &listing.plugin,
+            installed: plugins.iter().find(|info| info.id == listing.plugin),
+            listing: Some(listing),
+        })
+        .chain(
+            plugins
+                .iter()
+                .filter(|info| {
+                    !store
+                        .listings
+                        .iter()
+                        .any(|listing| listing.plugin == info.id)
+                })
+                .map(|info| ExtensionRow {
+                    id: &info.id,
+                    installed: Some(info),
+                    listing: None,
+                }),
+        )
+        .filter(matches)
         .collect()
 }
 
@@ -2543,7 +3306,9 @@ pub fn store_notice(state: &peersus_core::model::StoreState) -> Option<&'static 
         StoreStatus::Idle => Some("Press Refresh to see the extensions the maintainer approved."),
         StoreStatus::Loading => Some("Working…"),
         StoreStatus::Failed => Some("The store could not complete that. Nothing was changed."),
-        StoreStatus::Ready if state.listings.is_empty() => Some("The maintainer has not approved any extension yet."),
+        StoreStatus::Ready if state.listings.is_empty() => {
+            Some("The maintainer has not approved any extension yet.")
+        }
         StoreStatus::Ready => None,
     }
 }
@@ -2552,14 +3317,21 @@ pub fn store_notice(state: &peersus_core::model::StoreState) -> Option<&'static 
 /// while one runs would only be refused by the owner, so the button is not offered.
 pub fn store_can_act(state: &peersus_core::model::StoreState) -> bool {
     use peersus_core::model::StoreStatus;
-    !matches!(state.status, StoreStatus::NotConfigured | StoreStatus::Loading)
+    !matches!(
+        state.status,
+        StoreStatus::NotConfigured | StoreStatus::Loading
+    )
 }
 
 /// Why the list the person sees is empty, as an English message id for `i18n::tr`, or `None` when it is not. Aware of
 /// the search: a search that finds nothing says so, and never claims the maintainer approved nothing, which is a
 /// statement about the store and not about the word typed. Only asked when there are no rows, so a notice about the
 /// store (loading, failed) never hides a listing that is still on show.
-pub fn store_empty(state: &peersus_core::model::StoreState, rows: &[StoreRow], query: &str) -> Option<&'static str> {
+pub fn store_empty(
+    state: &peersus_core::model::StoreState,
+    rows: &[StoreRow],
+    query: &str,
+) -> Option<&'static str> {
     if !rows.is_empty() {
         return None;
     }
@@ -2603,15 +3375,33 @@ impl PluginActions {
             // Nothing of it runs, so there is nothing to switch or restart. It can only be approved, and only if the owner
             // measured it: without a digest there is nothing for the person to have been shown.
             Standing::NeedsApproval | Standing::Changed => Self {
-                main: info.program.clone().map_or(PluginMain::None, |program| PluginMain::Approve { program }),
+                main: info
+                    .program
+                    .clone()
+                    .map_or(PluginMain::None, |program| PluginMain::Approve { program }),
                 can_restart: false,
             },
-            Standing::Broken => Self { main: PluginMain::None, can_restart: false },
-            Standing::Disabled => Self { main: PluginMain::Enable, can_restart: false },
+            Standing::Broken => Self {
+                main: PluginMain::None,
+                can_restart: false,
+            },
+            Standing::Disabled => Self {
+                main: PluginMain::Enable,
+                can_restart: false,
+            },
             Standing::Ready => match info.status {
-                Running => Self { main: PluginMain::Disable, can_restart: true },
-                Starting | Restarting => Self { main: PluginMain::Disable, can_restart: false },
-                Stopped | Failed => Self { main: PluginMain::Enable, can_restart: false },
+                Running => Self {
+                    main: PluginMain::Disable,
+                    can_restart: true,
+                },
+                Starting | Restarting => Self {
+                    main: PluginMain::Disable,
+                    can_restart: false,
+                },
+                Stopped | Failed => Self {
+                    main: PluginMain::Enable,
+                    can_restart: false,
+                },
             },
         }
     }
@@ -2655,13 +3445,15 @@ pub fn plugin_word(info: &PluginInfo) -> (&'static str, Tone) {
 pub fn plugin_note(info: &PluginInfo) -> Option<&'static str> {
     use peersus_core::model::Standing;
     match info.standing {
-        Standing::NeedsApproval => {
-            Some("Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below.")
-        }
+        Standing::NeedsApproval => Some(
+            "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below.",
+        ),
         Standing::Changed => Some(
             "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten.",
         ),
-        Standing::Broken => Some("This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."),
+        Standing::Broken => Some(
+            "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed.",
+        ),
         Standing::Ready | Standing::Disabled => None,
     }
 }
@@ -2806,7 +3598,11 @@ impl Sidebar {
     /// The letter shown on the profile picture when there is no photo: the first letter of the
     /// name in capitals, or a question mark when the name has none.
     pub fn initial(name: &str) -> char {
-        name.trim().chars().next().and_then(|c| c.to_uppercase().next()).unwrap_or('?')
+        name.trim()
+            .chars()
+            .next()
+            .and_then(|c| c.to_uppercase().next())
+            .unwrap_or('?')
     }
 
     /// The width a state is heading for: nothing when the bar is hidden, the narrow width for the
@@ -2856,7 +3652,11 @@ impl Form {
     /// wrong one.
     pub fn of(width: f32, height: f32) -> Self {
         let known = |side: f32| side.is_finite() && side > 0.;
-        if known(width) && known(height) && height > width { Self::Compact } else { Self::Wide }
+        if known(width) && known(height) && height > width {
+            Self::Compact
+        } else {
+            Self::Wide
+        }
     }
 
     /// The places in the bottom bar, in order: the same four as across the top on a desktop, in the same
@@ -2865,7 +3665,12 @@ impl Form {
     /// where the places are across the top.
     pub fn bottom_places(self) -> &'static [BottomPlace] {
         match self {
-            Self::Compact => &[BottomPlace::Send, BottomPlace::Receive, BottomPlace::Peers, BottomPlace::Transfers],
+            Self::Compact => &[
+                BottomPlace::Send,
+                BottomPlace::Receive,
+                BottomPlace::Peers,
+                BottomPlace::Transfers,
+            ],
             Self::Wide => &[],
         }
     }
@@ -2926,7 +3731,11 @@ impl Form {
     /// The largest the portal may be, from the width it has: its own size, or less if the width is smaller,
     /// never past the width. A width not yet known keeps the portal at its own size.
     pub fn portal_extent(own: f32, width: f32) -> f32 {
-        if width.is_finite() && width > 0. { own.min(width) } else { own }
+        if width.is_finite() && width > 0. {
+            own.min(width)
+        } else {
+            own
+        }
     }
 
     /// The width of the line round the disc, in the toolkit's logical pixels, for a screen that has `scale` device pixels to each: a
@@ -3001,6 +3810,13 @@ impl Form {
         }
     }
 
+    /// Whether the buttons of a device's card stand one under the other, below the name. Beside the name they take the width the name
+    /// needs: on a phone that leaves it a column of one letter, and a name and a state written downwards, a letter to a line. On the
+    /// desktop the card is wide enough for all of them in a row, as it always was.
+    pub fn device_card_buttons_stack(self) -> bool {
+        self == Self::Compact
+    }
+
     /// Whether a page puts the explanation beside the portal or under it. Side by side they need more width
     /// than a phone has, and the explanation is what is left with none.
     pub fn page_puts_portal_beside_text(self) -> bool {
@@ -3033,11 +3849,17 @@ impl HeaderHide {
         }
         let top = top.max(0.);
         if top <= 0. {
-            return Self { last: 0., hidden: 0. };
+            return Self {
+                last: 0.,
+                hidden: 0.,
+            };
         }
         // Down is positive: the bar goes up by what the page went down, and comes back by what it went up.
         let moved = top - self.last;
-        Self { last: top, hidden: (self.hidden + moved).clamp(0., HEADER_HEIGHT) }
+        Self {
+            last: top,
+            hidden: (self.hidden + moved).clamp(0., HEADER_HEIGHT),
+        }
     }
 
     /// How much of the bar is out of sight, in pixels, from nothing to all of it.
@@ -3085,7 +3907,12 @@ impl SafeArea {
             return Self::default();
         }
         let logical = |pixels: i32| (f64::from(pixels) / scale) as f32;
-        Self { top: logical(top), left: logical(left), right: logical(width - right), bottom: logical(height - bottom) }
+        Self {
+            top: logical(top),
+            left: logical(left),
+            right: logical(width - right),
+            bottom: logical(height - bottom),
+        }
     }
 }
 
@@ -3136,7 +3963,9 @@ impl Headline {
     /// The size of a title of `characters` in `room`, on a screen of `form`: what fits, held to what the form allows,
     /// and never under [`Headline::SMALLEST`], so that a title is a title and is cut only when nothing else is left.
     pub fn size_in(form: Form, room: f32, characters: usize) -> f32 {
-        Self::size_for(room, characters).min(Self::largest_in(form)).max(Self::SMALLEST)
+        Self::size_for(room, characters)
+            .min(Self::largest_in(form))
+            .max(Self::SMALLEST)
     }
 }
 
@@ -3159,11 +3988,16 @@ mod tests {
 
     #[test]
     fn the_list_of_an_offer_holds_every_file_that_waits_and_only_those() {
-        let waiting = |id: &str| Progress { bytes: 10, ..row(id, true, Phase::Waiting, None) };
+        let waiting = |id: &str| Progress {
+            bytes: 10,
+            ..row(id, true, Phase::Waiting, None)
+        };
         let view = View {
             transfers: vec![
                 waiting("a"),
-                Progress { ..row("done", true, Phase::Done, None) },
+                Progress {
+                    ..row("done", true, Phase::Done, None)
+                },
                 waiting("b"),
                 // Went out and waits for the other device to answer: not something this person answers.
                 row("out", false, Phase::Waiting, None),
@@ -3190,11 +4024,23 @@ mod tests {
     #[test]
     fn the_fuse_never_goes_below_nothing_nor_above_whole_and_never_divides_by_nothing() {
         // A code long past its end, or a clock that went back before the code was shown: nothing, and a whole, and never outside them.
-        assert_eq!(code_fuse(1_000, 1_300, 9_999), 0., "an old code gave a negative share");
-        assert_eq!(code_fuse(1_000, 1_300, 500), 1., "a clock that went back gave more than a whole");
+        assert_eq!(
+            code_fuse(1_000, 1_300, 9_999),
+            0.,
+            "an old code gave a negative share"
+        );
+        assert_eq!(
+            code_fuse(1_000, 1_300, 500),
+            1.,
+            "a clock that went back gave more than a whole"
+        );
         // A deadline that is not after the moment of showing is a code with no life, never a division by zero or a whole fuse.
         assert_eq!(code_fuse(1_000, 1_000, 1_000), 0.);
-        assert_eq!(code_fuse(1_000, 500, 1_000), 0., "a deadline before the code was shown gave a fuse");
+        assert_eq!(
+            code_fuse(1_000, 500, 1_000),
+            0.,
+            "a deadline before the code was shown gave a fuse"
+        );
         // It only ever burns down as the clock goes on.
         let mut last = 1.;
         for now in 1_000..=1_300 {
@@ -3206,7 +4052,8 @@ mod tests {
 
     #[test]
     fn the_tip_of_the_fuse_is_at_the_top_when_whole_and_goes_round_clockwise_as_it_burns() {
-        let near = |a: (f32, f32), b: (f32, f32)| (a.0 - b.0).abs() < 1e-3 && (a.1 - b.1).abs() < 1e-3;
+        let near =
+            |a: (f32, f32), b: (f32, f32)| (a.0 - b.0).abs() < 1e-3 && (a.1 - b.1).abs() < 1e-3;
         // Whole: the tip is where it began, at the top of a ring of radius 100 centred on (100, 100).
         assert!(near(fuse_tip(1., 100., 100.), (100., 0.)));
         // Three quarters left: a quarter has burned, so the tip has gone a quarter round clockwise from the top, to the right.
@@ -3218,7 +4065,8 @@ mod tests {
 
     #[test]
     fn the_lit_arc_starts_exactly_where_the_tip_is_and_sweeps_the_share_that_is_left() {
-        let near = |a: (f32, f32), b: (f32, f32)| (a.0 - b.0).abs() < 1e-2 && (a.1 - b.1).abs() < 1e-2;
+        let near =
+            |a: (f32, f32), b: (f32, f32)| (a.0 - b.0).abs() < 1e-2 && (a.1 - b.1).abs() < 1e-2;
         // On a ring of radius 100 about (100, 100), the point a Skia angle (0 at three o'clock, clockwise) is at.
         let at = |degrees: f32| {
             let radians = degrees.to_radians();
@@ -3227,10 +4075,19 @@ mod tests {
         for left in [1., 0.9, 0.75, 0.5, 0.25, 0.1, 0.01] {
             let (start, sweep) = fuse_arc(left).unwrap();
             // The line begins on the tip: the same place the sparks fly from, for any share left.
-            assert!(near(at(start), fuse_tip(left, 100., 100.)), "the arc began away from the tip at {left}");
-            assert!((sweep - 360. * left).abs() < 1e-3, "it swept {sweep} degrees for a share of {left}");
+            assert!(
+                near(at(start), fuse_tip(left, 100., 100.)),
+                "the arc began away from the tip at {left}"
+            );
+            assert!(
+                (sweep - 360. * left).abs() < 1e-3,
+                "it swept {sweep} degrees for a share of {left}"
+            );
             // And its end is the top, where the burning began, for every share.
-            assert!(near(at(start + sweep), (100., 0.)), "the arc did not end at the top at {left}");
+            assert!(
+                near(at(start + sweep), (100., 0.)),
+                "the arc did not end at the top at {left}"
+            );
         }
     }
 
@@ -3245,24 +4102,41 @@ mod tests {
     }
 
     #[test]
-    fn particles_leave_the_tip_in_every_direction_fall_and_fade_until_gone_and_are_the_same_for_the_same_frame() {
+    fn particles_leave_the_tip_in_every_direction_fall_and_fade_until_gone_and_are_the_same_for_the_same_frame()
+     {
         let a = fuse_particles(300);
         let b = fuse_particles(300);
         assert_eq!(a, b, "the same frame gave other particles");
         assert!(!a.is_empty());
         for particle in &a {
-            assert!((0. ..=1.).contains(&particle.alpha), "alpha out of range: {}", particle.alpha);
+            assert!(
+                (0. ..=1.).contains(&particle.alpha),
+                "alpha out of range: {}",
+                particle.alpha
+            );
             assert!(particle.size > 0.);
             assert!(particle.age < FUSE_PARTICLE_FRAMES);
         }
         // One that was born this very frame is on the tip, whole.
         let newborn: Vec<_> = a.iter().filter(|p| p.age == 0).collect();
         assert_eq!(newborn.len(), FUSE_BORN_PER_FRAME);
-        assert!(newborn.iter().all(|p| p.x == 0. && p.y == 0. && p.alpha == 1.));
+        assert!(
+            newborn
+                .iter()
+                .all(|p| p.x == 0. && p.y == 0. && p.alpha == 1.)
+        );
         // Over many frames they go off in every direction, not all one way: both sides and both above and below the tip are used.
-        let all: Vec<_> = (0..40).flat_map(|frame| fuse_particles(frame + 100)).collect();
-        assert!(all.iter().any(|p| p.x > 5.) && all.iter().any(|p| p.x < -5.), "particles went only one way sideways");
-        assert!(all.iter().any(|p| p.y > 5.) && all.iter().any(|p| p.y < -5.), "particles went only one way up and down");
+        let all: Vec<_> = (0..40)
+            .flat_map(|frame| fuse_particles(frame + 100))
+            .collect();
+        assert!(
+            all.iter().any(|p| p.x > 5.) && all.iter().any(|p| p.x < -5.),
+            "particles went only one way sideways"
+        );
+        assert!(
+            all.iter().any(|p| p.y > 5.) && all.iter().any(|p| p.y < -5.),
+            "particles went only one way up and down"
+        );
         // Gravity: an older particle is lower than a straight flight would put it.
         assert!(a.iter().filter(|p| p.age > 20).count() > 0);
     }
@@ -3275,7 +4149,10 @@ mod tests {
             let left = step as f32 / 100.;
             let (tip_x, tip_y) = fuse_tip(left, ring, centre);
             // The tip itself is on the ring, which lies outside the disc by more than the size of the dot drawn on it.
-            assert!(!point_on_disc(tip_x, tip_y, centre, disc, 8.), "the tip lay on the disc at {left}");
+            assert!(
+                !point_on_disc(tip_x, tip_y, centre, disc, 8.),
+                "the tip lay on the disc at {left}"
+            );
             // And of the sparks that are born at it, none that would lie on the disc is let through.
             for frame in [66, 100, 150, 400] {
                 for particle in fuse_particles(frame) {
@@ -3284,7 +4161,10 @@ mod tests {
                     if !drawn {
                         continue;
                     }
-                    assert!((x - centre).hypot(y - centre) > disc, "a spark that is drawn lay on the disc at {left}, frame {frame}");
+                    assert!(
+                        (x - centre).hypot(y - centre) > disc,
+                        "a spark that is drawn lay on the disc at {left}, frame {frame}"
+                    );
                 }
             }
         }
@@ -3312,7 +4192,15 @@ mod tests {
     }
 
     /// A transfer with its own id, name and device, for the lists of the tests below.
-    fn listed(id: &str, name: &str, peer: &str, incoming: bool, bytes: u64, done: u64, state: TransferState) -> Progress {
+    fn listed(
+        id: &str,
+        name: &str,
+        peer: &str,
+        incoming: bool,
+        bytes: u64,
+        done: u64,
+        state: TransferState,
+    ) -> Progress {
         let mut made = transfer(bytes, done, state);
         made.id = id.into();
         made.name = name.into();
@@ -3325,28 +4213,88 @@ mod tests {
     }
     fn history() -> Vec<Progress> {
         vec![
-            listed("a", "Holiday.mp4", "peer-laptop", false, 100, 100, TransferState::Complete),
-            listed("b", "invoice.pdf", "peer-phone", true, 10, 10, TransferState::Complete),
-            listed("c", "notes.txt", "peer-laptop", false, 5, 0, TransferState::Cancelled),
-            listed("d", "backup.zip", "peer-phone", true, 50, 0, TransferState::Failed { reason: "lost".into() }),
-            listed("e", "photo.jpg", "peer-phone", false, 40, 10, TransferState::Running),
+            listed(
+                "a",
+                "Holiday.mp4",
+                "peer-laptop",
+                false,
+                100,
+                100,
+                TransferState::Complete,
+            ),
+            listed(
+                "b",
+                "invoice.pdf",
+                "peer-phone",
+                true,
+                10,
+                10,
+                TransferState::Complete,
+            ),
+            listed(
+                "c",
+                "notes.txt",
+                "peer-laptop",
+                false,
+                5,
+                0,
+                TransferState::Cancelled,
+            ),
+            listed(
+                "d",
+                "backup.zip",
+                "peer-phone",
+                true,
+                50,
+                0,
+                TransferState::Failed {
+                    reason: "lost".into(),
+                },
+            ),
+            listed(
+                "e",
+                "photo.jpg",
+                "peer-phone",
+                false,
+                40,
+                10,
+                TransferState::Running,
+            ),
         ]
     }
 
     #[test]
     fn the_transfers_tab_lists_what_is_going_first_then_the_newest_of_what_is_over() {
         let items = history();
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::All)), ["e", "d", "c", "b", "a"]);
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::All)),
+            ["e", "d", "c", "b", "a"]
+        );
     }
 
     #[test]
     fn each_filter_keeps_only_its_own_and_none_removes_anything_from_the_record() {
         let items = history();
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::Active)), ["e"]);
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::Done)), ["b", "a"]);
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::Stopped)), ["d", "c"]);
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::Incoming)), ["d", "b"]);
-        assert_eq!(ids(&find_transfers(&items, "", TransferFilter::Outgoing)), ["e", "c", "a"]);
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::Active)),
+            ["e"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::Done)),
+            ["b", "a"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::Stopped)),
+            ["d", "c"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::Incoming)),
+            ["d", "b"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, "", TransferFilter::Outgoing)),
+            ["e", "c", "a"]
+        );
         assert_eq!(items.len(), 5, "a filter changed the record");
     }
 
@@ -3358,8 +4306,12 @@ mod tests {
         // A new filter that is not in ALL could never be chosen: the match below stops compiling when one is added.
         for filter in TransferFilter::ALL {
             match filter {
-                TransferFilter::All | TransferFilter::Active | TransferFilter::Done | TransferFilter::Stopped
-                | TransferFilter::Incoming | TransferFilter::Outgoing => {}
+                TransferFilter::All
+                | TransferFilter::Active
+                | TransferFilter::Done
+                | TransferFilter::Stopped
+                | TransferFilter::Incoming
+                | TransferFilter::Outgoing => {}
             }
         }
         assert_eq!(TransferFilter::default(), TransferFilter::All);
@@ -3368,8 +4320,14 @@ mod tests {
     #[test]
     fn search_finds_by_file_name_whatever_the_case_and_ignores_the_spaces_around_it() {
         let items = history();
-        assert_eq!(ids(&find_transfers(&items, "  HOLIDAY ", TransferFilter::All)), ["a"]);
-        assert_eq!(ids(&find_transfers(&items, ".pdf", TransferFilter::All)), ["b"]);
+        assert_eq!(
+            ids(&find_transfers(&items, "  HOLIDAY ", TransferFilter::All)),
+            ["a"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, ".pdf", TransferFilter::All)),
+            ["b"]
+        );
         assert!(find_transfers(&items, "no such file", TransferFilter::All).is_empty());
     }
 
@@ -3377,52 +4335,108 @@ mod tests {
     fn search_finds_by_the_name_the_sender_gave_and_by_the_start_of_the_device_identity() {
         let mut items = history();
         items[1].from = Some("Maria's phone".into());
-        assert_eq!(ids(&find_transfers(&items, "maria", TransferFilter::All)), ["b"]);
+        assert_eq!(
+            ids(&find_transfers(&items, "maria", TransferFilter::All)),
+            ["b"]
+        );
         // The identity is matched from its start only: a letter in the middle of one is not a reason to list a device's files.
-        assert_eq!(ids(&find_transfers(&items, "peer-lap", TransferFilter::All)), ["c", "a"]);
+        assert_eq!(
+            ids(&find_transfers(&items, "peer-lap", TransferFilter::All)),
+            ["c", "a"]
+        );
         assert!(find_transfers(&items, "laptop", TransferFilter::All).is_empty());
     }
 
     #[test]
     fn search_and_filter_together_keep_only_what_passes_both() {
         let items = history();
-        assert_eq!(ids(&find_transfers(&items, "peer-phone", TransferFilter::Incoming)), ["d", "b"]);
-        assert_eq!(ids(&find_transfers(&items, "peer-phone", TransferFilter::Done)), ["b"]);
+        assert_eq!(
+            ids(&find_transfers(
+                &items,
+                "peer-phone",
+                TransferFilter::Incoming
+            )),
+            ["d", "b"]
+        );
+        assert_eq!(
+            ids(&find_transfers(&items, "peer-phone", TransferFilter::Done)),
+            ["b"]
+        );
         assert!(find_transfers(&items, "holiday", TransferFilter::Incoming).is_empty());
     }
 
     #[test]
     fn x_puts_away_what_is_over_and_only_when_nothing_is_going() {
         let items = history();
-        assert!(put_away_now(&items).is_empty(), "X put things away in the middle of a transfer");
-        assert!(!can_put_away(&items, &[]), "X was offered in the middle of a transfer");
-        let over: Vec<Progress> = items.iter().filter(|item| item.phase.is_over()).cloned().collect();
+        assert!(
+            put_away_now(&items).is_empty(),
+            "X put things away in the middle of a transfer"
+        );
+        assert!(
+            !can_put_away(&items, &[]),
+            "X was offered in the middle of a transfer"
+        );
+        let over: Vec<Progress> = items
+            .iter()
+            .filter(|item| item.phase.is_over())
+            .cloned()
+            .collect();
         assert!(can_put_away(&over, &[]));
         assert_eq!(put_away_now(&over), ["a", "b", "c", "d"]);
     }
 
     #[test]
     fn what_x_put_away_is_not_listed_but_is_never_removed_and_a_new_transfer_appears() {
-        let over: Vec<Progress> = history().into_iter().filter(|item| item.phase.is_over()).collect();
+        let over: Vec<Progress> = history()
+            .into_iter()
+            .filter(|item| item.phase.is_over())
+            .collect();
         let put_away = put_away_now(&over);
         assert!(not_put_away(&over, &put_away).is_empty());
-        assert!(!can_put_away(&over, &put_away), "X was offered with nothing left to put away");
+        assert!(
+            !can_put_away(&over, &put_away),
+            "X was offered with nothing left to put away"
+        );
         // The record is still all there: the Transfers tab lists it.
         assert_eq!(find_transfers(&over, "", TransferFilter::All).len(), 4);
         // A new transfer has a new id, so it is listed, and X is not offered while it goes.
         let mut more = over.clone();
-        more.push(listed("f", "new.bin", "peer-laptop", false, 8, 2, TransferState::Running));
+        more.push(listed(
+            "f",
+            "new.bin",
+            "peer-laptop",
+            false,
+            8,
+            2,
+            TransferState::Running,
+        ));
         assert_eq!(ids(&not_put_away(&more, &put_away)), ["f"]);
         assert!(!can_put_away(&more, &put_away));
         // When it ends it is over and not yet put away: listed, and X is offered again.
-        more[4] = listed("f", "new.bin", "peer-laptop", false, 8, 8, TransferState::Complete);
+        more[4] = listed(
+            "f",
+            "new.bin",
+            "peer-laptop",
+            false,
+            8,
+            8,
+            TransferState::Complete,
+        );
         assert_eq!(ids(&not_put_away(&more, &put_away)), ["f"]);
         assert!(can_put_away(&more, &put_away));
     }
 
     #[test]
     fn a_transfer_that_is_still_going_is_never_hidden_even_if_its_id_was_put_away() {
-        let items = vec![listed("x", "again.bin", "p", false, 10, 5, TransferState::Running)];
+        let items = vec![listed(
+            "x",
+            "again.bin",
+            "p",
+            false,
+            10,
+            5,
+            TransferState::Running,
+        )];
         assert_eq!(ids(&not_put_away(&items, &["x".to_owned()])), ["x"]);
     }
 
@@ -3431,7 +4445,16 @@ mod tests {
         let items = history();
         let all = overall(&items);
         // Only "photo.jpg" is going: 40 bytes, 25 % moved.
-        assert_eq!(all, Overall { files: 1, bytes: 40, moved: 10, percent: 25, current: Some("photo.jpg".into()) });
+        assert_eq!(
+            all,
+            Overall {
+                files: 1,
+                bytes: 40,
+                moved: 10,
+                percent: 25,
+                current: Some("photo.jpg".into())
+            }
+        );
     }
 
     #[test]
@@ -3442,8 +4465,15 @@ mod tests {
         ];
         let all = overall(&items);
         assert_eq!((all.files, all.bytes, all.moved), (2, 1000, 10));
-        assert_eq!(all.percent, 1, "a tiny file that is done made the whole look half done");
-        assert_eq!(all.current.as_deref(), Some("small.bin"), "the first one that moves is the current one");
+        assert_eq!(
+            all.percent, 1,
+            "a tiny file that is done made the whole look half done"
+        );
+        assert_eq!(
+            all.current.as_deref(),
+            Some("small.bin"),
+            "the first one that moves is the current one"
+        );
     }
 
     #[test]
@@ -3457,11 +4487,36 @@ mod tests {
 
     #[test]
     fn with_nothing_going_the_circle_has_nothing_to_say_and_never_divides_by_zero() {
-        assert_eq!(overall(&[]), Overall { files: 0, bytes: 0, moved: 0, percent: 100, current: None });
-        let over = vec![listed("a", "done.bin", "p", false, 10, 10, TransferState::Complete)];
+        assert_eq!(
+            overall(&[]),
+            Overall {
+                files: 0,
+                bytes: 0,
+                moved: 0,
+                percent: 100,
+                current: None
+            }
+        );
+        let over = vec![listed(
+            "a",
+            "done.bin",
+            "p",
+            false,
+            10,
+            10,
+            TransferState::Complete,
+        )];
         assert_eq!(overall(&over).files, 0);
         // Files of nothing, going: complete, not NaN.
-        let empty = vec![listed("e", "empty.bin", "p", false, 0, 0, TransferState::Running)];
+        let empty = vec![listed(
+            "e",
+            "empty.bin",
+            "p",
+            false,
+            0,
+            0,
+            TransferState::Running,
+        )];
         assert_eq!(overall(&empty).percent, 100);
     }
 
@@ -3479,7 +4534,15 @@ mod tests {
     fn going() -> Vec<Progress> {
         vec![
             listed("a", "done.bin", "p", false, 10, 10, TransferState::Complete),
-            listed("b", "moving.bin", "p", false, 2048, 1024, TransferState::Running),
+            listed(
+                "b",
+                "moving.bin",
+                "p",
+                false,
+                2048,
+                1024,
+                TransferState::Running,
+            ),
         ]
     }
     fn all_over() -> Vec<Progress> {
@@ -3492,10 +4555,16 @@ mod tests {
     #[test]
     fn while_something_is_going_the_button_only_folds_and_unfolds_and_never_hides() {
         let items = going();
-        assert_eq!(header_action(&items, &[], false), Some(HeaderAction::Minimize));
+        assert_eq!(
+            header_action(&items, &[], false),
+            Some(HeaderAction::Minimize)
+        );
         assert_eq!(header_action(&items, &[], true), Some(HeaderAction::Expand));
         // Whatever was put away before changes nothing in the middle of a transfer.
-        assert_eq!(header_action(&items, &["a".to_owned()], false), Some(HeaderAction::Minimize));
+        assert_eq!(
+            header_action(&items, &["a".to_owned()], false),
+            Some(HeaderAction::Minimize)
+        );
     }
 
     #[test]
@@ -3505,7 +4574,11 @@ mod tests {
         // Folded or not makes no difference when there is nothing going to fold.
         assert_eq!(header_action(&items, &[], true), Some(HeaderAction::Hide));
         let put_away = put_away_now(&items);
-        assert_eq!(header_action(&items, &put_away, false), None, "a button that does nothing was shown");
+        assert_eq!(
+            header_action(&items, &put_away, false),
+            None,
+            "a button that does nothing was shown"
+        );
     }
 
     #[test]
@@ -3518,23 +4591,67 @@ mod tests {
     fn a_new_transfer_after_x_brings_the_fold_button_back_and_the_old_ones_stay_away() {
         let mut items = all_over();
         let put_away = put_away_now(&items);
-        items.push(listed("c", "new.bin", "p", false, 100, 10, TransferState::Running));
-        assert_eq!(header_action(&items, &put_away, false), Some(HeaderAction::Minimize));
+        items.push(listed(
+            "c",
+            "new.bin",
+            "p",
+            false,
+            100,
+            10,
+            TransferState::Running,
+        ));
+        assert_eq!(
+            header_action(&items, &put_away, false),
+            Some(HeaderAction::Minimize)
+        );
         assert_eq!(ids(&not_put_away(&items, &put_away)), ["c"]);
-        items[2] = listed("c", "new.bin", "p", false, 100, 100, TransferState::Complete);
+        items[2] = listed(
+            "c",
+            "new.bin",
+            "p",
+            false,
+            100,
+            100,
+            TransferState::Complete,
+        );
         // The new one is over and not put away: X is offered again, for it alone.
-        assert_eq!(header_action(&items, &put_away, false), Some(HeaderAction::Hide));
+        assert_eq!(
+            header_action(&items, &put_away, false),
+            Some(HeaderAction::Hide)
+        );
         assert_eq!(ids(&not_put_away(&items, &put_away)), ["c"]);
     }
 
     #[test]
     fn the_folded_line_says_how_many_how_far_how_big_and_which_one_is_moving() {
-        assert_eq!(folded_line(&going()).as_deref(), Some("1 file · 50% of 2.0 KB · moving.bin"));
+        assert_eq!(
+            folded_line(&going()).as_deref(),
+            Some("1 file · 50% of 2.0 KB · moving.bin")
+        );
         let two = vec![
-            listed("a", "first.bin", "p", false, 1024, 0, TransferState::Running),
-            listed("b", "second.bin", "p", false, 1024, 0, TransferState::Offered),
+            listed(
+                "a",
+                "first.bin",
+                "p",
+                false,
+                1024,
+                0,
+                TransferState::Running,
+            ),
+            listed(
+                "b",
+                "second.bin",
+                "p",
+                false,
+                1024,
+                0,
+                TransferState::Offered,
+            ),
         ];
-        assert_eq!(folded_line(&two).as_deref(), Some("2 files · 0% of 2.0 KB · first.bin"));
+        assert_eq!(
+            folded_line(&two).as_deref(),
+            Some("2 files · 0% of 2.0 KB · first.bin")
+        );
     }
 
     #[test]
@@ -3574,12 +4691,19 @@ mod tests {
     fn no_device_picked_means_a_code_and_devices_picked_mean_those_devices_and_never_a_code() {
         assert_eq!(aim_of(&SendState::ByCode), Aim::Code);
         // The devices go in the order the person picked them, as `send_state` judged them.
-        assert_eq!(aim_of(&ready(&["laptop", "phone"])), Aim::Devices(vec!["laptop".into(), "phone".into()]));
-        assert_eq!(aim_of(&ready(&["phone"])), Aim::Devices(vec!["phone".into()]));
+        assert_eq!(
+            aim_of(&ready(&["laptop", "phone"])),
+            Aim::Devices(vec!["laptop".into(), "phone".into()])
+        );
+        assert_eq!(
+            aim_of(&ready(&["phone"])),
+            Aim::Devices(vec!["phone".into()])
+        );
     }
 
     #[test]
-    fn a_picked_device_that_went_away_holds_everything_back_and_the_others_are_not_sent_to_behind_the_persons_back() {
+    fn a_picked_device_that_went_away_holds_everything_back_and_the_others_are_not_sent_to_behind_the_persons_back()
+     {
         assert_eq!(aim_of(&SendState::ChosenUnavailable), Aim::Held);
         for instantly in [false, true] {
             assert_eq!(circle_does(true, &Aim::Held, instantly), CircleDoes::Held);
@@ -3590,10 +4714,22 @@ mod tests {
     fn the_real_send_state_of_a_view_drives_the_aim_for_every_case_of_who_is_online() {
         // End to end over the real rule, not a hand-made state: online devices are a destination, an offline picked one holds the send back.
         let view = view_of(vec![peer("laptop", true), peer("phone", false)]);
-        let owned = |ids: &[&str]| -> Vec<String> { ids.iter().map(|id| (*id).to_owned()).collect() };
-        assert_eq!(aim_of(&view.send_state(&owned(&["id-laptop"]))), Aim::Devices(vec!["id-laptop".into()]));
-        assert_eq!(aim_of(&view.send_state(&owned(&["id-phone"]))), Aim::Held, "an offline device was a destination");
-        assert_eq!(aim_of(&view.send_state(&owned(&["id-laptop", "id-phone"]))), Aim::Held, "one offline device must hold the send back");
+        let owned =
+            |ids: &[&str]| -> Vec<String> { ids.iter().map(|id| (*id).to_owned()).collect() };
+        assert_eq!(
+            aim_of(&view.send_state(&owned(&["id-laptop"]))),
+            Aim::Devices(vec!["id-laptop".into()])
+        );
+        assert_eq!(
+            aim_of(&view.send_state(&owned(&["id-phone"]))),
+            Aim::Held,
+            "an offline device was a destination"
+        );
+        assert_eq!(
+            aim_of(&view.send_state(&owned(&["id-laptop", "id-phone"]))),
+            Aim::Held,
+            "one offline device must hold the send back"
+        );
         assert_eq!(aim_of(&view.send_state(&[])), Aim::Code);
     }
 
@@ -3630,17 +4766,36 @@ mod tests {
         assert_eq!(fill_of(&touch, 1_000, true), 0.);
         let half = fill_of(&touch, 1_000 + CONFIRM_MS / 2, true);
         assert!((half - 0.5).abs() < 0.01, "half the time was {half}");
-        assert!(!is_full(&touch, 1_000 + CONFIRM_MS - 1, CircleDoes::HoldToSend));
-        assert!(is_full(&touch, 1_000 + CONFIRM_MS, CircleDoes::HoldToSend), "the boundary itself is full");
-        assert_eq!(fill_of(&touch, 1_000 + CONFIRM_MS * 4, true), 1., "the fill went past the end");
+        assert!(!is_full(
+            &touch,
+            1_000 + CONFIRM_MS - 1,
+            CircleDoes::HoldToSend
+        ));
+        assert!(
+            is_full(&touch, 1_000 + CONFIRM_MS, CircleDoes::HoldToSend),
+            "the boundary itself is full"
+        );
+        assert_eq!(
+            fill_of(&touch, 1_000 + CONFIRM_MS * 4, true),
+            1.,
+            "the fill went past the end"
+        );
     }
 
     #[test]
     fn only_a_circle_that_is_held_ever_fills_or_sends_by_waiting() {
         let mut touch = Hold::default();
         touch.down((50., 50.), 0);
-        for does in [CircleDoes::ChooseFiles, CircleDoes::MakeCode, CircleDoes::TapToSend, CircleDoes::Held] {
-            assert!(!is_full(&touch, CONFIRM_MS * 10, does), "{does:?} sent by waiting");
+        for does in [
+            CircleDoes::ChooseFiles,
+            CircleDoes::MakeCode,
+            CircleDoes::TapToSend,
+            CircleDoes::Held,
+        ] {
+            assert!(
+                !is_full(&touch, CONFIRM_MS * 10, does),
+                "{does:?} sent by waiting"
+            );
         }
     }
 
@@ -3649,8 +4804,11 @@ mod tests {
         let mut touch = Hold::default();
         touch.down((50., 50.), 0);
         assert!(touch.is_holding(HOLD_MS), "the hold boundary moved");
-        assert!(!is_full(&touch, HOLD_MS, CircleDoes::HoldToSend), "resting a finger for the time of a press sent the files");
-        assert!(CONFIRM_MS > HOLD_MS);
+        assert!(
+            !is_full(&touch, HOLD_MS, CircleDoes::HoldToSend),
+            "resting a finger for the time of a press sent the files"
+        );
+        const { assert!(CONFIRM_MS > HOLD_MS) };
     }
 
     #[test]
@@ -3662,7 +4820,10 @@ mod tests {
         assert_eq!(fill_of(&touch, CONFIRM_MS * 10, true), 0.);
         // Coming back to where it began does not undo it.
         touch.moved((50., 50.));
-        assert!(!is_full(&touch, CONFIRM_MS * 10, CircleDoes::HoldToSend), "a drag sent the files");
+        assert!(
+            !is_full(&touch, CONFIRM_MS * 10, CircleDoes::HoldToSend),
+            "a drag sent the files"
+        );
     }
 
     #[test]
@@ -3670,7 +4831,11 @@ mod tests {
         let mut touch = Hold::default();
         touch.down((50., 50.), 0);
         assert_eq!(touch.up((50., 50.), CONFIRM_MS - 1), Ended::Hold);
-        assert_eq!(touch.held_for(CONFIRM_MS - 1), None, "a lifted finger kept filling the circle");
+        assert_eq!(
+            touch.held_for(CONFIRM_MS - 1),
+            None,
+            "a lifted finger kept filling the circle"
+        );
         assert!(!is_full(&touch, CONFIRM_MS * 3, CircleDoes::HoldToSend));
     }
 
@@ -3678,13 +4843,25 @@ mod tests {
     fn with_send_instantly_a_whole_tap_sends_on_lifting_and_nothing_else_does() {
         assert!(sends_on_lift(Ended::Tap, CircleDoes::TapToSend));
         // A touch that was dragged, cancelled, or held long enough to be a hold is not a tap: no instant send from it.
-        assert!(!sends_on_lift(Ended::Nothing, CircleDoes::TapToSend), "a drag or a cancelled touch sent");
-        assert!(!sends_on_lift(Ended::Hold, CircleDoes::TapToSend), "a long press sent instantly");
+        assert!(
+            !sends_on_lift(Ended::Nothing, CircleDoes::TapToSend),
+            "a drag or a cancelled touch sent"
+        );
+        assert!(
+            !sends_on_lift(Ended::Hold, CircleDoes::TapToSend),
+            "a long press sent instantly"
+        );
     }
 
     #[test]
-    fn only_the_instant_circle_sends_on_a_tap_so_a_hold_circle_a_code_circle_and_a_held_back_one_do_not() {
-        for does in [CircleDoes::HoldToSend, CircleDoes::MakeCode, CircleDoes::ChooseFiles, CircleDoes::Held] {
+    fn only_the_instant_circle_sends_on_a_tap_so_a_hold_circle_a_code_circle_and_a_held_back_one_do_not()
+     {
+        for does in [
+            CircleDoes::HoldToSend,
+            CircleDoes::MakeCode,
+            CircleDoes::ChooseFiles,
+            CircleDoes::Held,
+        ] {
             assert!(!sends_on_lift(Ended::Tap, does), "{does:?} sent on a tap");
         }
     }
@@ -3696,16 +4873,27 @@ mod tests {
     }
 
     #[test]
-    fn the_disc_that_fills_the_circle_grows_with_the_hold_and_is_the_whole_circle_exactly_when_it_sends() {
+    fn the_disc_that_fills_the_circle_grows_with_the_hold_and_is_the_whole_circle_exactly_when_it_sends()
+     {
         const DISC: f32 = 300.;
         let mut touch = Hold::default();
         touch.down((50., 50.), 0);
         let size = |ms: u64| fill_disc(fill_of(&touch, ms, true), DISC);
-        assert_eq!(size(0), 0., "a touch that has just begun already showed a fill");
+        assert_eq!(
+            size(0),
+            0.,
+            "a touch that has just begun already showed a fill"
+        );
         assert_eq!(size(CONFIRM_MS / 2), DISC / 2.);
-        assert!(size(CONFIRM_MS - 1) < DISC, "the circle was full before it sent");
+        assert!(
+            size(CONFIRM_MS - 1) < DISC,
+            "the circle was full before it sent"
+        );
         assert_eq!(size(CONFIRM_MS), DISC);
-        assert!(is_full(&touch, CONFIRM_MS, CircleDoes::HoldToSend), "the disc is whole and the circle did not send");
+        assert!(
+            is_full(&touch, CONFIRM_MS, CircleDoes::HoldToSend),
+            "the disc is whole and the circle did not send"
+        );
         // Never more than the circle however long it is held, and growing all the way (never going back).
         assert_eq!(size(CONFIRM_MS * 10), DISC);
         let mut last = 0.;
@@ -3727,8 +4915,16 @@ mod tests {
 
     #[test]
     fn while_files_go_the_circle_fills_with_how_far_the_batch_has_come_and_not_with_the_finger() {
-        let going = |percent| BatchState::Going { files: 2, percent, current: None };
-        assert_eq!(circle_fill(&going(0), 0.9), 0., "a finger that is no longer the circle's business filled it");
+        let going = |percent| BatchState::Going {
+            files: 2,
+            percent,
+            current: None,
+        };
+        assert_eq!(
+            circle_fill(&going(0), 0.9),
+            0.,
+            "a finger that is no longer the circle's business filled it"
+        );
         assert_eq!(circle_fill(&going(40), 0.), 0.4);
         assert_eq!(circle_fill(&going(100), 0.), 1.);
         // A percent that went past the end is the whole circle, and never more.
@@ -3744,7 +4940,11 @@ mod tests {
 
     #[test]
     fn a_circle_that_is_held_fills_with_the_finger_and_every_other_state_is_empty() {
-        let quiet = [BatchState::None, BatchState::Sent { files: 2 }, BatchState::Stopped { files: 2, done: 1 }];
+        let quiet = [
+            BatchState::None,
+            BatchState::Sent { files: 2 },
+            BatchState::Stopped { files: 2, done: 1 },
+        ];
         for state in &quiet {
             // Held to send: the finger fills it.
             assert_eq!(circle_fill(state, 0.5), 0.5, "{state:?}");
@@ -3775,21 +4975,35 @@ mod tests {
     }
 
     #[test]
-    fn an_offer_already_waiting_when_the_window_opens_is_found_from_that_snapshot_with_the_settings_that_decide_where_it_goes() {
+    fn an_offer_already_waiting_when_the_window_opens_is_found_from_that_snapshot_with_the_settings_that_decide_where_it_goes()
+     {
         let mut waiting = transfer(10, 0, TransferState::Offered);
         waiting.incoming = true;
         waiting.peer_name = Some("Alex's phone".into());
-        let mut snapshot = snapshot_with(vec![], vec![transfer(10, 10, TransferState::Complete), waiting]);
+        let mut snapshot = snapshot_with(
+            vec![],
+            vec![transfer(10, 10, TransferState::Complete), waiting],
+        );
         snapshot.settings.auto_save = true;
         snapshot.settings.save_folder = Some(std::path::PathBuf::from("/home/me/Received"));
         // From the snapshot alone, with no change since: this is what the window opens on.
-        let found = offered_now(&View::of(&snapshot)).expect("an offer that was waiting was not shown");
+        let found =
+            offered_now(&View::of(&snapshot)).expect("an offer that was waiting was not shown");
         assert!(found.offer.acceptable());
         assert_eq!(found.offer.from.as_deref(), Some("Alex's phone"));
         assert!(found.auto_save);
-        assert_eq!(found.save_folder.as_deref(), Some(std::path::Path::new("/home/me/Received")));
+        assert_eq!(
+            found.save_folder.as_deref(),
+            Some(std::path::Path::new("/home/me/Received"))
+        );
         // And nothing is shown when nothing waits.
-        assert_eq!(offered_now(&View::of(&snapshot_with(vec![], vec![transfer(10, 10, TransferState::Complete)]))), None);
+        assert_eq!(
+            offered_now(&View::of(&snapshot_with(
+                vec![],
+                vec![transfer(10, 10, TransferState::Complete)]
+            ))),
+            None
+        );
         assert_eq!(offered_now(&View::default()), None);
     }
 
@@ -3839,6 +5053,8 @@ mod tests {
             paired_at: 0,
             last_seen: None,
             online,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: Default::default(),
             plugin_values: Default::default(),
         }
@@ -3860,10 +5076,18 @@ mod tests {
             profile_picture: None,
             peer_pictures: Default::default(),
             files_code: None,
+            link_tests: Default::default(),
+            typed_addresses: Default::default(),
+            listening_port: None,
+            relay: None,
         }
     }
     fn snapshot_with(peers: Vec<Peer>, transfers: Vec<Transfer>) -> Snapshot {
-        Snapshot { peers, transfers, ..empty_snapshot() }
+        Snapshot {
+            peers,
+            transfers,
+            ..empty_snapshot()
+        }
     }
 
     #[test]
@@ -3930,7 +5154,11 @@ mod tests {
         let mut snapshot = snapshot_with(vec![], vec![]);
         // The old one is listed first, as the owner did in a real run.
         snapshot.pairing = vec![prompt("old", 17), prompt("new", 117), prompt("middle", 60)];
-        let order: Vec<_> = View::of(&snapshot).approvals.iter().map(|a| a.request.clone()).collect();
+        let order: Vec<_> = View::of(&snapshot)
+            .approvals
+            .iter()
+            .map(|a| a.request.clone())
+            .collect();
         assert_eq!(order, ["new", "middle", "old"]);
     }
 
@@ -3996,7 +5224,8 @@ mod tests {
 
     fn destination_of(view: &View, chosen: &[&str]) -> Option<Vec<String>> {
         let chosen: Vec<String> = chosen.iter().map(|id| (*id).to_owned()).collect();
-        view.destinations(&chosen).map(|devices| devices.iter().map(|device| device.name.clone()).collect())
+        view.destinations(&chosen)
+            .map(|devices| devices.iter().map(|device| device.name.clone()).collect())
     }
     fn view_of(peers: Vec<Peer>) -> View {
         View::of(&snapshot_with(peers, vec![]))
@@ -4011,14 +5240,24 @@ mod tests {
         let view = view_of(vec![peer("laptop", true), peer("tablet", true)]);
         assert_eq!(destination_of(&view, &[]), None);
         // None reachable, and none paired.
-        assert_eq!(destination_of(&view_of(vec![peer("laptop", false)]), &[]), None);
+        assert_eq!(
+            destination_of(&view_of(vec![peer("laptop", false)]), &[]),
+            None
+        );
         assert_eq!(destination_of(&view_of(vec![]), &[]), None);
     }
 
     #[test]
     fn picked_devices_are_the_destinations_in_the_order_they_were_picked_while_all_are_reachable() {
-        let view = view_of(vec![peer("laptop", true), peer("tablet", true), peer("phone", true)]);
-        assert_eq!(destination_of(&view, &["id-tablet"]), Some(vec!["tablet".to_owned()]));
+        let view = view_of(vec![
+            peer("laptop", true),
+            peer("tablet", true),
+            peer("phone", true),
+        ]);
+        assert_eq!(
+            destination_of(&view, &["id-tablet"]),
+            Some(vec!["tablet".to_owned()])
+        );
         // The order is the person's, not the order the devices are listed in.
         assert_eq!(
             destination_of(&view, &["id-phone", "id-laptop"]),
@@ -4031,9 +5270,16 @@ mod tests {
         // The person picked the laptop. It drops off the network while the tablet is online:
         // the next files must NOT quietly go to the tablet.
         let before = view_of(vec![peer("laptop", true), peer("tablet", true)]);
-        assert_eq!(destination_of(&before, &["id-laptop"]), Some(vec!["laptop".to_owned()]));
+        assert_eq!(
+            destination_of(&before, &["id-laptop"]),
+            Some(vec!["laptop".to_owned()])
+        );
         let after = view_of(vec![peer("laptop", false), peer("tablet", true)]);
-        assert_eq!(destination_of(&after, &["id-laptop"]), None, "the person's choice was replaced by another device");
+        assert_eq!(
+            destination_of(&after, &["id-laptop"]),
+            None,
+            "the person's choice was replaced by another device"
+        );
         // With two picked and one gone, the one that is left does not get the files alone.
         assert_eq!(
             destination_of(&after, &["id-laptop", "id-tablet"]),
@@ -4054,7 +5300,8 @@ mod tests {
     #[test]
     fn a_send_goes_to_devices_only_when_the_person_picked_them_otherwise_it_is_by_code() {
         use SendState::*;
-        let owned = |ids: &[&str]| -> Vec<String> { ids.iter().map(|id| (*id).to_owned()).collect() };
+        let owned =
+            |ids: &[&str]| -> Vec<String> { ids.iter().map(|id| (*id).to_owned()).collect() };
         let state = |peers: Vec<Peer>, chosen: &[&str]| view_of(peers).send_state(&owned(chosen));
         // Nothing picked: always a code, whatever is paired or online. Even a single online
         // device is NOT chosen for the person: what is being sent is their own files.
@@ -4063,12 +5310,24 @@ mod tests {
         assert_eq!(state(vec![peer("a", true)], &[]), ByCode);
         assert_eq!(state(vec![peer("a", true), peer("b", true)], &[]), ByCode);
         // Picked and reachable: straight to it, or to all of them.
-        assert_eq!(state(vec![peer("a", true), peer("b", true)], &["id-b"]), Ready(owned(&["id-b"])));
-        assert_eq!(state(vec![peer("a", true), peer("b", true)], &["id-b", "id-a"]), Ready(owned(&["id-b", "id-a"])));
+        assert_eq!(
+            state(vec![peer("a", true), peer("b", true)], &["id-b"]),
+            Ready(owned(&["id-b"]))
+        );
+        assert_eq!(
+            state(vec![peer("a", true), peer("b", true)], &["id-b", "id-a"]),
+            Ready(owned(&["id-b", "id-a"]))
+        );
         // One of those picked went away while another is online: say THAT, do not pick for
         // the person and do not quietly switch to a code.
-        assert_eq!(state(vec![peer("a", false), peer("b", true)], &["id-a"]), ChosenUnavailable);
-        assert_eq!(state(vec![peer("a", false), peer("b", true)], &["id-a", "id-b"]), ChosenUnavailable);
+        assert_eq!(
+            state(vec![peer("a", false), peer("b", true)], &["id-a"]),
+            ChosenUnavailable
+        );
+        assert_eq!(
+            state(vec![peer("a", false), peer("b", true)], &["id-a", "id-b"]),
+            ChosenUnavailable
+        );
         // Picked, then forgotten altogether: the same, there is nothing to send to.
         assert_eq!(state(vec![peer("b", true)], &["id-a"]), ChosenUnavailable);
     }
@@ -4078,7 +5337,15 @@ mod tests {
         let titles: Vec<&str> = SettingsTab::ALL.iter().map(|tab| tab.title()).collect();
         assert_eq!(
             titles,
-            ["Overview", "Device", "Appearance", "Network", "Extensions", "Permissions", "About"]
+            [
+                "Overview",
+                "Device",
+                "Appearance",
+                "Network",
+                "Extensions",
+                "Permissions",
+                "About"
+            ]
         );
         let mut sorted = titles.clone();
         sorted.sort_unstable();
@@ -4103,7 +5370,14 @@ mod tests {
 
     #[test]
     fn a_thing_that_is_still_is_whole_and_in_place_from_the_first_frame() {
-        assert_eq!(Popup::still(), Popup { opacity: 1., lift: 0., scale: 1. });
+        assert_eq!(
+            Popup::still(),
+            Popup {
+                opacity: 1.,
+                lift: 0.,
+                scale: 1.
+            }
+        );
         // And it is exactly where a finished opening ends, so reduced motion shows the same picture.
         assert_eq!(Popup::still(), Popup::at(1.));
     }
@@ -4165,9 +5439,13 @@ mod tests {
         use peersus_core::plugins::{Grants, PluginId};
         use peersus_plugin_api::{manifest::Manifest, permission::Permission};
         let mut manifest = Manifest::default();
-        manifest.capabilities.insert("send.use".into(), "Send things for you".into());
+        manifest
+            .capabilities
+            .insert("send.use".into(), "Send things for you".into());
         // Listed in the manifest, and not grantable: the owner does not offer it, so it is no row.
-        manifest.capabilities.insert("just.listed".into(), "Only listed".into());
+        manifest
+            .capabilities
+            .insert("just.listed".into(), "Only listed".into());
         let info = PluginInfo {
             id: PluginId::new("syncer").unwrap(),
             manifest,
@@ -4183,7 +5461,10 @@ mod tests {
 
         let rows = PermissionRows::of(&info, &info.grantable.per_device, &Grants::default());
         assert_eq!(rows.len(), 1, "a name that was only listed became a row");
-        assert_eq!(rows[0].permission, Permission::new("syncer", "send.use").unwrap());
+        assert_eq!(
+            rows[0].permission,
+            Permission::new("syncer", "send.use").unwrap()
+        );
         assert_eq!(rows[0].description, "Send things for you");
         assert!(!rows[0].allowed);
         // Granted: the row is on.
@@ -4208,10 +5489,16 @@ mod tests {
         // Not in the plugin's manifest at all: its owner is the application, which wrote the words.
         let send = Permission::new("host", "peers.send").unwrap();
         let rows = PermissionRows::of(&info, std::slice::from_ref(&send), &Grants::default());
-        assert_eq!(rows[0].description, peersus_app::runtime::PEERS_SEND_DESCRIPTION);
+        assert_eq!(
+            rows[0].description,
+            peersus_app::runtime::PEERS_SEND_DESCRIPTION
+        );
         let restart = Permission::new("host", "plugins.restart").unwrap();
         let rows = PermissionRows::of(&info, std::slice::from_ref(&restart), &Grants::default());
-        assert_eq!(rows[0].description, peersus_app::runtime::PLUGINS_RESTART_DESCRIPTION);
+        assert_eq!(
+            rows[0].description,
+            peersus_app::runtime::PLUGINS_RESTART_DESCRIPTION
+        );
         // A permission nobody described is still shown, and says so, rather than nothing at all.
         let mystery = Permission::new("sender", "unknown.use").unwrap();
         let rows = PermissionRows::of(&info, std::slice::from_ref(&mystery), &Grants::default());
@@ -4230,17 +5517,32 @@ mod tests {
             paired_at: 1,
             last_seen: None,
             online: true,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: Default::default(),
             plugin_values: Default::default(),
         };
-        peer.grants.insert(plugin.clone(), Grants::new([Permission::new("syncer", "send.use").unwrap()]).unwrap());
-        let snapshot = Snapshot { peers: vec![peer], ..empty_snapshot() };
+        peer.grants.insert(
+            plugin.clone(),
+            Grants::new([Permission::new("syncer", "send.use").unwrap()]).unwrap(),
+        );
+        let snapshot = Snapshot {
+            peers: vec![peer],
+            ..empty_snapshot()
+        };
         let view = View::of(&snapshot);
         assert_eq!(view.devices.len(), 1);
-        let held = view.devices[0].grants.get(&plugin).expect("what it granted is kept");
+        let held = view.devices[0]
+            .grants
+            .get(&plugin)
+            .expect("what it granted is kept");
         assert!(held.allows(&Permission::new("syncer", "send.use").unwrap()));
         // A device that granted a plugin nothing has no entry for it.
-        assert!(!view.devices[0].grants.contains_key(&PluginId::new("other").unwrap()));
+        assert!(
+            !view.devices[0]
+                .grants
+                .contains_key(&PluginId::new("other").unwrap())
+        );
     }
 
     #[test]
@@ -4249,9 +5551,16 @@ mod tests {
         use peersus_plugin_api::permission::Permission;
         let mut snapshot = empty_snapshot();
         let id = PluginId::new("syncer").unwrap();
-        snapshot.grants.insert(id.clone(), Grants::new([Permission::new("syncer", "send.use").unwrap()]).unwrap());
+        snapshot.grants.insert(
+            id.clone(),
+            Grants::new([Permission::new("syncer", "send.use").unwrap()]).unwrap(),
+        );
         let view = View::of(&snapshot);
-        assert!(view.grants.get(&id).is_some_and(|g| g.allows(&Permission::new("syncer", "send.use").unwrap())));
+        assert!(
+            view.grants
+                .get(&id)
+                .is_some_and(|g| g.allows(&Permission::new("syncer", "send.use").unwrap()))
+        );
         // A plugin with nothing allowed has no entry, and that is what the window shows as all off.
         assert!(!view.grants.contains_key(&PluginId::new("nothing").unwrap()));
     }
@@ -4272,16 +5581,30 @@ mod tests {
         let theirs = Picture::new(1, 1, vec![9, 8, 7, 255]).unwrap().digest();
         let mut snapshot = snapshot_with(vec![peer("laptop", true), peer("phone", true)], vec![]);
         snapshot.profile_picture = Some(own);
-        snapshot.peer_pictures.insert(snapshot.peers[0].id.clone(), theirs);
+        snapshot
+            .peer_pictures
+            .insert(snapshot.peers[0].id.clone(), theirs);
         let view = View::of(&snapshot);
         assert_eq!(view.profile_picture, Some(own));
-        assert_eq!(view.devices[0].picture, Some(theirs), "the device that showed a picture does not carry its digest");
-        assert_eq!(view.devices[1].picture, None, "a device that showed none was given one");
+        assert_eq!(
+            view.devices[0].picture,
+            Some(theirs),
+            "the device that showed a picture does not carry its digest"
+        );
+        assert_eq!(
+            view.devices[1].picture, None,
+            "a device that showed none was given one"
+        );
         // A picture for a device that is not in the list names nobody and is not carried anywhere.
-        snapshot.peer_pictures.insert(PeerId("stranger".into()), own);
+        snapshot
+            .peer_pictures
+            .insert(PeerId("stranger".into()), own);
         let view = View::of(&snapshot);
         assert!(view.devices.iter().all(|d| d.id != "stranger"));
-        assert_eq!(view.devices.iter().filter(|d| d.picture.is_some()).count(), 1);
+        assert_eq!(
+            view.devices.iter().filter(|d| d.picture.is_some()).count(),
+            1
+        );
     }
 
     #[test]
@@ -4289,25 +5612,41 @@ mod tests {
         use peersus_core::profile::Picture;
         let mut snapshot = snapshot_with(vec![peer("laptop", true)], vec![]);
         let mut view = View::of(&snapshot);
-        assert!(!refresh(&mut view, &snapshot), "a quiet second redrew the window");
+        assert!(
+            !refresh(&mut view, &snapshot),
+            "a quiet second redrew the window"
+        );
         snapshot.profile_picture = Some(Picture::new(1, 1, vec![1, 1, 1, 255]).unwrap().digest());
-        assert!(refresh(&mut view, &snapshot), "a new own picture did not refresh the view");
+        assert!(
+            refresh(&mut view, &snapshot),
+            "a new own picture did not refresh the view"
+        );
         assert!(!refresh(&mut view, &snapshot));
         let id = snapshot.peers[0].id.clone();
-        snapshot.peer_pictures.insert(id, Picture::new(1, 1, vec![2, 2, 2, 255]).unwrap().digest());
-        assert!(refresh(&mut view, &snapshot), "a device's new picture did not refresh the view");
+        snapshot
+            .peer_pictures
+            .insert(id, Picture::new(1, 1, vec![2, 2, 2, 255]).unwrap().digest());
+        assert!(
+            refresh(&mut view, &snapshot),
+            "a device's new picture did not refresh the view"
+        );
     }
 
     #[test]
     fn a_snapshot_makes_the_window_ask_once_for_each_picture_it_names_and_for_no_other() {
-        use crate::shelf::{named_by, Shelf};
+        use crate::shelf::{Shelf, named_by};
         use peersus_core::profile::Picture;
-        let (own, theirs) = (Picture::new(1, 1, vec![1, 2, 3, 255]).unwrap(), Picture::new(1, 1, vec![9, 8, 7, 255]).unwrap());
+        let (own, theirs) = (
+            Picture::new(1, 1, vec![1, 2, 3, 255]).unwrap(),
+            Picture::new(1, 1, vec![9, 8, 7, 255]).unwrap(),
+        );
         let mut snapshot = snapshot_with(vec![peer("laptop", true), peer("phone", true)], vec![]);
         snapshot.profile_picture = Some(own.digest());
         // Two devices showing the same picture name it once: it is fetched once.
         for device in &snapshot.peers.clone() {
-            snapshot.peer_pictures.insert(device.id.clone(), theirs.digest());
+            snapshot
+                .peer_pictures
+                .insert(device.id.clone(), theirs.digest());
         }
         let named = named_by(&View::of(&snapshot));
         assert_eq!(named, [own.digest(), theirs.digest()].into_iter().collect());
@@ -4318,19 +5657,32 @@ mod tests {
         let mut both = vec![own.digest(), theirs.digest()];
         both.sort();
         assert_eq!(asked, both);
-        assert!(shelf.follow(&named).is_empty(), "the same snapshot made the window ask again while it waited");
+        assert!(
+            shelf.follow(&named).is_empty(),
+            "the same snapshot made the window ask again while it waited"
+        );
 
         // One arrives; the same snapshot again asks only for the other.
         shelf.arrived(own.digest(), own.clone());
-        assert_eq!(shelf.follow(&named), Vec::<peersus_core::profile::Digest>::new());
+        assert_eq!(
+            shelf.follow(&named),
+            Vec::<peersus_core::profile::Digest>::new()
+        );
 
         // A picture dropped by the snapshot and named again later is asked for again: it was let go first.
         shelf.arrived(theirs.digest(), theirs.clone());
         assert!(shelf.get(&theirs.digest()).is_some());
         let without: std::collections::BTreeSet<_> = [own.digest()].into_iter().collect();
         assert!(shelf.follow(&without).is_empty());
-        assert!(shelf.get(&theirs.digest()).is_none(), "a picture no snapshot names was kept");
-        assert_eq!(shelf.follow(&named), vec![theirs.digest()], "a picture named again was not asked for again");
+        assert!(
+            shelf.get(&theirs.digest()).is_none(),
+            "a picture no snapshot names was kept"
+        );
+        assert_eq!(
+            shelf.follow(&named),
+            vec![theirs.digest()],
+            "a picture named again was not asked for again"
+        );
     }
 
     #[test]
@@ -4372,10 +5724,18 @@ mod tests {
         let main = |standing, status: PluginStatus, program| card(standing, status, program).main;
         // May run: its process decides. One that runs can be disabled; one that does not can be enabled.
         for status in [Running, Starting, Restarting] {
-            assert_eq!(main(Standing::Ready, status, None), PluginMain::Disable, "{status:?}");
+            assert_eq!(
+                main(Standing::Ready, status, None),
+                PluginMain::Disable,
+                "{status:?}"
+            );
         }
         for status in [Stopped, Failed] {
-            assert_eq!(main(Standing::Ready, status, None), PluginMain::Enable, "{status:?}");
+            assert_eq!(
+                main(Standing::Ready, status, None),
+                PluginMain::Enable,
+                "{status:?}"
+            );
         }
         // Only a plugin that is running has anything to restart.
         assert!(card(Standing::Ready, Running, None).can_restart);
@@ -4386,14 +5746,30 @@ mod tests {
         assert!(!card(Standing::Disabled, Stopped, None).can_restart);
         // Waiting or changed: approved, as the digest it was shown, and nothing is switched or restarted.
         for standing in [Standing::NeedsApproval, Standing::Changed] {
-            assert_eq!(main(standing, Stopped, Some("abc")), PluginMain::Approve { program: "abc".into() }, "{standing:?}");
+            assert_eq!(
+                main(standing, Stopped, Some("abc")),
+                PluginMain::Approve {
+                    program: "abc".into()
+                },
+                "{standing:?}"
+            );
             assert!(!card(standing, Stopped, Some("abc")).can_restart);
             // Nothing was measured: nothing was shown, so there is nothing to approve, and it is not offered.
-            assert_eq!(main(standing, Stopped, None), PluginMain::None, "{standing:?} without a digest");
+            assert_eq!(
+                main(standing, Stopped, None),
+                PluginMain::None,
+                "{standing:?} without a digest"
+            );
         }
         // Broken: only to be removed, even if a digest happens to be there.
-        assert_eq!(main(Standing::Broken, Stopped, Some("abc")), PluginMain::None);
-        assert!(!card(Standing::Broken, Running, None).can_restart, "a broken plugin cannot be restarted");
+        assert_eq!(
+            main(Standing::Broken, Stopped, Some("abc")),
+            PluginMain::None
+        );
+        assert!(
+            !card(Standing::Broken, Running, None).can_restart,
+            "a broken plugin cannot be restarted"
+        );
     }
 
     #[test]
@@ -4411,24 +5787,69 @@ mod tests {
         };
         // What the folder says wins over the process, whatever the process reports.
         for status in [Running, Starting, Restarting, Failed, Stopped] {
-            assert_eq!(plugin_word(&info(Standing::NeedsApproval, status)), ("NEEDS APPROVAL", Tone::Ask), "{status:?}");
-            assert_eq!(plugin_word(&info(Standing::Changed, status)), ("CHANGED", Tone::Bad), "{status:?}");
-            assert_eq!(plugin_word(&info(Standing::Broken, status)), ("BROKEN", Tone::Bad), "{status:?}");
-            assert_eq!(plugin_word(&info(Standing::Disabled, status)), ("OFF", Tone::Quiet), "{status:?}");
+            assert_eq!(
+                plugin_word(&info(Standing::NeedsApproval, status)),
+                ("NEEDS APPROVAL", Tone::Ask),
+                "{status:?}"
+            );
+            assert_eq!(
+                plugin_word(&info(Standing::Changed, status)),
+                ("CHANGED", Tone::Bad),
+                "{status:?}"
+            );
+            assert_eq!(
+                plugin_word(&info(Standing::Broken, status)),
+                ("BROKEN", Tone::Bad),
+                "{status:?}"
+            );
+            assert_eq!(
+                plugin_word(&info(Standing::Disabled, status)),
+                ("OFF", Tone::Quiet),
+                "{status:?}"
+            );
         }
         // One that may run is described by its process.
-        assert_eq!(plugin_word(&info(Standing::Ready, Running)), ("RUNNING", Tone::Good));
-        assert_eq!(plugin_word(&info(Standing::Ready, Starting)), ("STARTING", Tone::Good));
-        assert_eq!(plugin_word(&info(Standing::Ready, Restarting)), ("RESTARTING", Tone::Bad));
-        assert_eq!(plugin_word(&info(Standing::Ready, Failed)), ("FAILED", Tone::Bad));
-        assert_eq!(plugin_word(&info(Standing::Ready, Stopped)), ("STOPPED", Tone::Bad));
+        assert_eq!(
+            plugin_word(&info(Standing::Ready, Running)),
+            ("RUNNING", Tone::Good)
+        );
+        assert_eq!(
+            plugin_word(&info(Standing::Ready, Starting)),
+            ("STARTING", Tone::Good)
+        );
+        assert_eq!(
+            plugin_word(&info(Standing::Ready, Restarting)),
+            ("RESTARTING", Tone::Bad)
+        );
+        assert_eq!(
+            plugin_word(&info(Standing::Ready, Failed)),
+            ("FAILED", Tone::Bad)
+        );
+        assert_eq!(
+            plugin_word(&info(Standing::Ready, Stopped)),
+            ("STOPPED", Tone::Bad)
+        );
         // A sentence is given exactly where the plugin is not running because of its folder, and each says its own thing.
         let notes: Vec<_> = [Standing::NeedsApproval, Standing::Changed, Standing::Broken]
             .into_iter()
-            .map(|standing| plugin_note(&info(standing, Stopped)).expect("no sentence for a plugin held back"))
+            .map(|standing| {
+                plugin_note(&info(standing, Stopped)).expect("no sentence for a plugin held back")
+            })
             .collect();
-        assert!(notes[0].contains("approved") && notes[1].contains("forgotten") && notes[2].contains("removed"), "{notes:?}");
-        assert_eq!(notes.iter().collect::<std::collections::BTreeSet<_>>().len(), 3, "two states share a sentence");
+        assert!(
+            notes[0].contains("approved")
+                && notes[1].contains("forgotten")
+                && notes[2].contains("removed"),
+            "{notes:?}"
+        );
+        assert_eq!(
+            notes
+                .iter()
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            3,
+            "two states share a sentence"
+        );
         assert_eq!(plugin_note(&info(Standing::Ready, Running)), None);
         assert_eq!(plugin_note(&info(Standing::Disabled, Stopped)), None);
     }
@@ -4437,29 +5858,47 @@ mod tests {
     fn with_saving_on_its_own_off_every_file_asks_and_nothing_is_said_to_be_lost() {
         let folder = std::path::Path::new("/home/me/Received");
         // Whatever the folder is like, off asks, and says nothing about a folder: nothing was lost, it is only asked.
-        for (chosen, state) in [(Some(folder), Folder::Usable), (Some(folder), Folder::Unusable), (None, Folder::Usable)] {
-            assert_eq!(destination(false, chosen, state), Destination::Ask { lost: None });
+        for (chosen, state) in [
+            (Some(folder), Folder::Usable),
+            (Some(folder), Folder::Unusable),
+            (None, Folder::Usable),
+        ] {
+            assert_eq!(
+                destination(false, chosen, state),
+                Destination::Ask { lost: None }
+            );
         }
     }
 
     #[test]
     fn a_chosen_folder_that_can_be_used_is_where_the_file_goes() {
         let folder = std::path::Path::new("/home/me/Received");
-        assert_eq!(destination(true, Some(folder), Folder::Usable), Destination::Save(folder.to_path_buf()));
+        assert_eq!(
+            destination(true, Some(folder), Folder::Usable),
+            Destination::Save(folder.to_path_buf())
+        );
     }
 
     #[test]
     fn a_chosen_folder_that_is_lost_is_asked_about_by_name_and_never_replaced_by_another_place() {
         let folder = std::path::Path::new("/home/me/Received");
         // The file does not go anywhere on its own, and the folder that was chosen is named so the person is told.
-        assert_eq!(destination(true, Some(folder), Folder::Unusable), Destination::Ask { lost: Some(folder.to_path_buf()) });
+        assert_eq!(
+            destination(true, Some(folder), Folder::Unusable),
+            Destination::Ask {
+                lost: Some(folder.to_path_buf())
+            }
+        );
     }
 
     #[test]
     fn with_saving_on_but_no_folder_chosen_there_is_nowhere_to_save_to_and_the_file_asks() {
         // There is no default folder: a place nobody chose and nobody can see. Whatever the disk says of "no folder".
         for state in [Folder::Usable, Folder::Unusable] {
-            assert_eq!(destination(true, None, state), Destination::Ask { lost: None });
+            assert_eq!(
+                destination(true, None, state),
+                Destination::Ask { lost: None }
+            );
         }
     }
 
@@ -4468,7 +5907,11 @@ mod tests {
         let folder = tempfile::tempdir().unwrap();
         assert_eq!(look_at(folder.path()), Folder::Usable);
         // Looking made a file to prove it can, and took it away: nothing of the looking stays in the person's folder.
-        assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 0, "the probe was left behind");
+        assert_eq!(
+            std::fs::read_dir(folder.path()).unwrap().count(),
+            0,
+            "the probe was left behind"
+        );
     }
 
     #[test]
@@ -4477,7 +5920,11 @@ mod tests {
         assert_eq!(look_at(&folder.path().join("never-made")), Folder::Unusable);
         let file = folder.path().join("a-file");
         std::fs::write(&file, b"x").unwrap();
-        assert_eq!(look_at(&file), Folder::Unusable, "a file was taken for a folder");
+        assert_eq!(
+            look_at(&file),
+            Folder::Unusable,
+            "a file was taken for a folder"
+        );
     }
 
     #[cfg(unix)]
@@ -4488,8 +5935,16 @@ mod tests {
         let link = links.path().join("chosen");
         std::os::unix::fs::symlink(real.path(), &link).unwrap();
         assert_eq!(look_at(real.path()), Folder::Usable);
-        assert_eq!(look_at(&link), Folder::Unusable, "a link was used as the chosen folder");
-        assert_eq!(std::fs::read_dir(real.path()).unwrap().count(), 0, "the link was written through");
+        assert_eq!(
+            look_at(&link),
+            Folder::Unusable,
+            "a link was used as the chosen folder"
+        );
+        assert_eq!(
+            std::fs::read_dir(real.path()).unwrap().count(),
+            0,
+            "the link was written through"
+        );
     }
 
     #[cfg(unix)]
@@ -4513,7 +5968,10 @@ mod tests {
         let all = [PairMode::Closed, PairMode::Showing, PairMode::Taking];
         for start in all {
             for next in [start.after_pair(), start.after_connect()] {
-                assert!(!(next.shows_code() && next.takes_code()), "{start:?} led to both open");
+                assert!(
+                    !(next.shows_code() && next.takes_code()),
+                    "{start:?} led to both open"
+                );
             }
         }
     }
@@ -4536,12 +5994,16 @@ mod tests {
     }
 
     #[test]
-    fn pair_asks_for_a_code_only_when_none_is_on_show_and_a_second_press_does_not_replace_a_valid_one() {
+    fn pair_asks_for_a_code_only_when_none_is_on_show_and_a_second_press_does_not_replace_a_valid_one()
+     {
         // Nothing shown yet, whichever side was open: the press asks for the code.
         assert!(PairMode::Closed.pair_asks_for_a_code(false));
         assert!(PairMode::Taking.pair_asks_for_a_code(false));
         // Showing and a code is on screen: pressing again changes nothing. This is the press that used to put a new picture under a camera.
-        assert!(!PairMode::Showing.pair_asks_for_a_code(true), "a valid code on show was replaced by a press");
+        assert!(
+            !PairMode::Showing.pair_asks_for_a_code(true),
+            "a valid code on show was replaced by a press"
+        );
         // Showing, but the code is not there (it ran out, or the owner has not answered yet): it asks, or the circle would stay empty.
         assert!(PairMode::Showing.pair_asks_for_a_code(false));
         // Back from the other side with the old code still held: the mode was not showing, so a new one is asked for, and never the stale one reused.
@@ -4551,10 +6013,20 @@ mod tests {
 
     #[test]
     fn the_words_under_the_buttons_name_both_and_say_what_a_file_by_code_is_not() {
-        assert!(PAIR_EXPLAINS.contains("Pair") && PAIR_EXPLAINS.contains("Connect"), "{PAIR_EXPLAINS}");
-        assert!(PAIR_EXPLAINS.to_lowercase().contains("scan") && PAIR_EXPLAINS.to_lowercase().contains("paste"));
+        assert!(
+            PAIR_EXPLAINS.contains("Pair") && PAIR_EXPLAINS.contains("Connect"),
+            "{PAIR_EXPLAINS}"
+        );
+        assert!(
+            PAIR_EXPLAINS.to_lowercase().contains("scan")
+                && PAIR_EXPLAINS.to_lowercase().contains("paste")
+        );
         // Pairing is the trust; sending a file by code is not.
-        assert!(PAIR_WARNS.to_lowercase().contains("trust") && PAIR_WARNS.to_lowercase().contains("file"), "{PAIR_WARNS}");
+        assert!(
+            PAIR_WARNS.to_lowercase().contains("trust")
+                && PAIR_WARNS.to_lowercase().contains("file"),
+            "{PAIR_WARNS}"
+        );
     }
 
     #[test]
@@ -4563,11 +6035,20 @@ mod tests {
         let a = PluginId::new("alpha").unwrap();
         let b = PluginId::new("beta").unwrap();
         // Nothing is being removed until the first press.
-        assert_eq!(RemoveAsk::None.pressed(&a), (RemoveAsk::Asking(a.clone()), false));
+        assert_eq!(
+            RemoveAsk::None.pressed(&a),
+            (RemoveAsk::Asking(a.clone()), false)
+        );
         // Pressing the same plugin again, while it is being asked about, removes it.
-        assert_eq!(RemoveAsk::Asking(a.clone()).pressed(&a), (RemoveAsk::None, true));
+        assert_eq!(
+            RemoveAsk::Asking(a.clone()).pressed(&a),
+            (RemoveAsk::None, true)
+        );
         // Pressing another plugin changes the question to that one and removes nothing.
-        assert_eq!(RemoveAsk::Asking(a.clone()).pressed(&b), (RemoveAsk::Asking(b.clone()), false));
+        assert_eq!(
+            RemoveAsk::Asking(a.clone()).pressed(&b),
+            (RemoveAsk::Asking(b.clone()), false)
+        );
         // Asking can be given up without removing anything.
         assert_eq!(RemoveAsk::Asking(a).cancelled(), RemoveAsk::None);
     }
@@ -4611,10 +6092,17 @@ mod tests {
         // Not pages of their own: each entry opens Settings on one of its tabs.
         assert_eq!(
             MENU_SHORTCUTS,
-            [SettingsTab::Overview, SettingsTab::Extensions, SettingsTab::About]
+            [
+                SettingsTab::Overview,
+                SettingsTab::Extensions,
+                SettingsTab::About
+            ]
         );
         for tab in MENU_SHORTCUTS {
-            assert!(SettingsTab::ALL.contains(&tab), "{tab:?} is not a tab of Settings");
+            assert!(
+                SettingsTab::ALL.contains(&tab),
+                "{tab:?} is not a tab of Settings"
+            );
         }
     }
 
@@ -4650,7 +6138,10 @@ mod tests {
         let part = ms(Sidebar::NARROW, Sidebar::WIDE);
         assert!(part > 0 && part < Motion::DURATION_MS);
         // Turned round in the middle, only the distance that is left is travelled.
-        assert_eq!(ms(Sidebar::WIDE / 2., Sidebar::WIDE), Motion::DURATION_MS / 2);
+        assert_eq!(
+            ms(Sidebar::WIDE / 2., Sidebar::WIDE),
+            Motion::DURATION_MS / 2
+        );
         // Already there is nothing to do, and reduced motion is always at once.
         assert_eq!(ms(Sidebar::NARROW, Sidebar::NARROW), 0);
         assert_eq!(Sidebar::duration_ms(0., Sidebar::WIDE, true), 0);
@@ -4667,31 +6158,48 @@ mod tests {
         // The line fits the room it is given, as far as that is possible at all.
         for room in [320., 420., 520., 640., 780.] {
             let size = at(room);
-            assert!(Headline::width_of(10, size) <= room || size == Headline::SMALLEST, "{size} in {room}");
+            assert!(
+                Headline::width_of(10, size) <= room || size == Headline::SMALLEST,
+                "{size} in {room}"
+            );
         }
         // And there is a floor, so a very narrow window gets a small title, not an invisible one.
         assert_eq!(at(10.), Headline::SMALLEST);
     }
 
     #[test]
-    fn a_title_on_a_phone_is_held_below_what_the_room_alone_would_allow_and_a_desktop_is_unchanged() {
+    fn a_title_on_a_phone_is_held_below_what_the_room_alone_would_allow_and_a_desktop_is_unchanged()
+    {
         // The Asus: a page 346 wide minus its margins. "Ready when" has 10 characters.
         let room = 346. - 2. * Form::Compact.page_side_margin();
         let by_room = Headline::size_for(room, 10);
         let on_phone = Headline::size_in(Form::Compact, room, 10);
-        assert!(on_phone < by_room, "the phone's title ({on_phone}) is as large as the room alone makes it ({by_room})");
+        assert!(
+            on_phone < by_room,
+            "the phone's title ({on_phone}) is as large as the room alone makes it ({by_room})"
+        );
         assert!(on_phone <= Headline::largest_in(Form::Compact));
         // The desktop is exactly what it was: the ceiling is the old one, so the rule gives the old answer.
         for room in [320., 640., 900., 10_000.] {
-            assert_eq!(Headline::size_in(Form::Wide, room, 10), Headline::size_for(room, 10), "room {room}");
+            assert_eq!(
+                Headline::size_in(Form::Wide, room, 10),
+                Headline::size_for(room, 10),
+                "room {room}"
+            );
         }
         assert_eq!(Headline::largest_in(Form::Wide), Headline::LARGEST);
         // A phone's ceiling is lower than the desktop's, and not under the floor, or a title would not be one.
         assert!(Headline::largest_in(Form::Compact) < Headline::largest_in(Form::Wide));
         assert!(Headline::largest_in(Form::Compact) >= Headline::SMALLEST);
         // A phone turned narrower than its ceiling's room still shrinks the title, down to the floor.
-        assert!(Headline::size_in(Form::Compact, 150., 10) <= Headline::size_in(Form::Compact, 300., 10));
-        assert_eq!(Headline::size_in(Form::Compact, 10., 10), Headline::SMALLEST);
+        assert!(
+            Headline::size_in(Form::Compact, 150., 10)
+                <= Headline::size_in(Form::Compact, 300., 10)
+        );
+        assert_eq!(
+            Headline::size_in(Form::Compact, 10., 10),
+            Headline::SMALLEST
+        );
     }
     #[test]
     fn a_turn_in_the_middle_takes_only_the_time_of_the_distance_that_is_left() {
@@ -4700,7 +6208,10 @@ mod tests {
         assert_eq!(Motion::duration_ms(1., 0., false), Motion::DURATION_MS);
         // Turned back at the half: half the distance, half the time, so the speed is the same.
         assert_eq!(Motion::duration_ms(0.5, 0., false), Motion::DURATION_MS / 2);
-        assert_eq!(Motion::duration_ms(0.25, 1., false), Motion::DURATION_MS * 3 / 4);
+        assert_eq!(
+            Motion::duration_ms(0.25, 1., false),
+            Motion::DURATION_MS * 3 / 4
+        );
         // Already there: nothing to do.
         assert_eq!(Motion::duration_ms(1., 1., false), 0);
         // And with motion reduced it is always at once, whatever the distance.
@@ -4721,36 +6232,78 @@ mod tests {
         use std::path::PathBuf;
         let one = |kind| Install::of_drop(vec![PathBuf::from("/a/clip")], |_| kind);
         // A folder and a file are both packages: the owner tells which by looking at the path.
-        assert_eq!(one(DropKind::Folder), Install::Take(PathBuf::from("/a/clip")));
-        assert_eq!(one(DropKind::File { length: 10 }), Install::Take(PathBuf::from("/a/clip")));
+        assert_eq!(
+            one(DropKind::Folder),
+            Install::Take(PathBuf::from("/a/clip"))
+        );
+        assert_eq!(
+            one(DropKind::File { length: 10 }),
+            Install::Take(PathBuf::from("/a/clip"))
+        );
         // Nothing to install in an empty file, a path that is gone, or something that is neither.
-        assert_eq!(one(DropKind::File { length: 0 }), Install::Refuse(Install::EMPTY));
-        assert_eq!(one(DropKind::Unreadable), Install::Refuse(Install::UNREADABLE));
-        assert_eq!(one(DropKind::Other), Install::Refuse(Install::NOT_A_PACKAGE));
+        assert_eq!(
+            one(DropKind::File { length: 0 }),
+            Install::Refuse(Install::EMPTY)
+        );
+        assert_eq!(
+            one(DropKind::Unreadable),
+            Install::Refuse(Install::UNREADABLE)
+        );
+        assert_eq!(
+            one(DropKind::Other),
+            Install::Refuse(Install::NOT_A_PACKAGE)
+        );
         // Nothing dropped is not an error to shout about: there is simply nothing to do.
-        assert_eq!(Install::of_drop(Vec::new(), |_| DropKind::Folder), Install::Nothing);
+        assert_eq!(
+            Install::of_drop(Vec::new(), |_| DropKind::Folder),
+            Install::Nothing
+        );
         // Two or more at once is ambiguous (which one is the package?), so none is taken.
         let two = vec![PathBuf::from("/a/one"), PathBuf::from("/a/two")];
-        assert_eq!(Install::of_drop(two, |_| DropKind::Folder), Install::Refuse(Install::ONE_AT_A_TIME));
+        assert_eq!(
+            Install::of_drop(two, |_| DropKind::Folder),
+            Install::Refuse(Install::ONE_AT_A_TIME)
+        );
         // The same path twice is still one package.
         let same = vec![PathBuf::from("/a/clip"), PathBuf::from("/a/clip")];
-        assert_eq!(Install::of_drop(same, |_| DropKind::Folder), Install::Take(PathBuf::from("/a/clip")));
+        assert_eq!(
+            Install::of_drop(same, |_| DropKind::Folder),
+            Install::Take(PathBuf::from("/a/clip"))
+        );
     }
 
     #[test]
     fn the_interface_follows_orientation_portrait_is_compact_and_landscape_or_square_is_wide() {
         // A phone held upright, in the sizes phones come in.
-        for (width, height) in [(360., 780.), (393., 852.), (412., 915.), (430., 932.), (320., 568.)] {
-            assert_eq!(Form::of(width, height), Form::Compact, "{width} x {height} is upright");
+        for (width, height) in [
+            (360., 780.),
+            (393., 852.),
+            (412., 915.),
+            (430., 932.),
+            (320., 568.),
+        ] {
+            assert_eq!(
+                Form::of(width, height),
+                Form::Compact,
+                "{width} x {height} is upright"
+            );
         }
         // The same phone on its side is landscape, and is not given the portrait arrangement: the
         // width alone (900 here) would have said wide too, but 360 on its side would not.
         for (width, height) in [(780., 360.), (915., 412.), (932., 430.)] {
-            assert_eq!(Form::of(width, height), Form::Wide, "{width} x {height} is on its side");
+            assert_eq!(
+                Form::of(width, height),
+                Form::Wide,
+                "{width} x {height} is on its side"
+            );
         }
         // The desktop window, at its smallest and its usual size, is landscape.
         for (width, height) in [(760., 560.), (1100., 720.), (1920., 1080.)] {
-            assert_eq!(Form::of(width, height), Form::Wide, "{width} x {height} is a desktop window");
+            assert_eq!(
+                Form::of(width, height),
+                Form::Wide,
+                "{width} x {height} is a desktop window"
+            );
         }
         // Square is not taller than wide, so it is not portrait.
         assert_eq!(Form::of(600., 600.), Form::Wide);
@@ -4760,22 +6313,39 @@ mod tests {
         assert_eq!(Form::of(800., 900.), Form::Compact);
         // Not yet measured, or not numbers: the desktop arrangement, never a flash of the other.
         for unknown in [0., -1., f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-            assert_eq!(Form::of(unknown, 800.), Form::Wide, "width {unknown} was taken for a phone");
-            assert_eq!(Form::of(400., unknown), Form::Wide, "height {unknown} was taken for a phone");
+            assert_eq!(
+                Form::of(unknown, 800.),
+                Form::Wide,
+                "width {unknown} was taken for a phone"
+            );
+            assert_eq!(
+                Form::of(400., unknown),
+                Form::Wide,
+                "height {unknown} was taken for a phone"
+            );
         }
     }
 
     #[test]
-    fn the_phone_shows_the_circle_alone_with_all_four_places_at_the_bottom_and_the_desktop_none_of_that() {
+    fn the_phone_shows_the_circle_alone_with_all_four_places_at_the_bottom_and_the_desktop_none_of_that()
+     {
         // On a phone: Send is the circle, and every place has a tab at the bottom, in the order the desktop has
         // them across the top. Without Send there would be no way back to it from the others.
         assert_eq!(
             Form::Compact.bottom_places(),
-            &[BottomPlace::Send, BottomPlace::Receive, BottomPlace::Peers, BottomPlace::Transfers]
+            &[
+                BottomPlace::Send,
+                BottomPlace::Receive,
+                BottomPlace::Peers,
+                BottomPlace::Transfers
+            ]
         );
         let places = Form::Compact.bottom_places();
         for (index, place) in places.iter().enumerate() {
-            assert!(!places[..index].contains(place), "{place:?} is in the bar twice");
+            assert!(
+                !places[..index].contains(place),
+                "{place:?} is in the bar twice"
+            );
         }
         assert!(Form::Compact.send_is_the_circle_alone());
         assert!(!Form::Compact.profile_shows_name());
@@ -4784,7 +6354,10 @@ mod tests {
         assert!(Form::Wide.bottom_places().is_empty());
         assert!(!Form::Wide.send_is_the_circle_alone());
         assert!(Form::Wide.profile_shows_name());
-        assert_eq!(Form::Wide.circle_invitation(), "click to browse your computer");
+        assert_eq!(
+            Form::Wide.circle_invitation(),
+            "click to browse your computer"
+        );
         // A phone is touched, so it never says "click" or names a computer.
         let phone = Form::Compact.circle_invitation();
         assert!(!phone.contains("click") && !phone.contains("computer"));
@@ -4818,7 +6391,11 @@ mod tests {
         assert_eq!(Form::portal_extent(420., 420.), 420.);
         // A width that is not yet known, or not a number: the portal keeps its own size.
         for unknown in [0., -1., f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-            assert_eq!(Form::portal_extent(420., unknown), 420., "width {unknown} changed the portal");
+            assert_eq!(
+                Form::portal_extent(420., unknown),
+                420.,
+                "width {unknown} changed the portal"
+            );
         }
     }
 
@@ -4827,8 +6404,14 @@ mod tests {
         // Whatever the screen, what is drawn is a whole number of device pixels, so it lands on the pixels and not between them.
         for scale in [1., 1.5, 2., 2.625, 3., 3.125, 3.5, 4.] {
             let device = f64::from(Form::portal_line(scale)) * scale;
-            assert!((device - device.round()).abs() < 1e-3, "at {scale} the line is {device} device pixels, not whole");
-            assert!(device.round() >= 2., "at {scale} the line is {device} device pixels, thinner than two");
+            assert!(
+                (device - device.round()).abs() < 1e-3,
+                "at {scale} the line is {device} device pixels, not whole"
+            );
+            assert!(
+                device.round() >= 2.,
+                "at {scale} the line is {device} device pixels, thinner than two"
+            );
         }
         // The phone this was measured on (a scale of 3.125): one logical pixel there is 3.125 device pixels and went missing at
         // times; the line is now five.
@@ -4837,7 +6420,11 @@ mod tests {
         assert_eq!(Form::portal_line(1.), 2.);
         // A scale that cannot be used gives what was measured to hold, not nothing and not a number that is not one.
         for unusable in [0., -2., f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
-            assert_eq!(Form::portal_line(unusable), 2., "scale {unusable} changed the line");
+            assert_eq!(
+                Form::portal_line(unusable),
+                2.,
+                "scale {unusable} changed the line"
+            );
         }
     }
 
@@ -4854,9 +6441,13 @@ mod tests {
     }
 
     #[test]
-    fn a_page_keeps_a_small_margin_on_a_phone_and_its_wide_one_on_a_desktop_and_stacks_its_portal() {
+    fn a_page_keeps_a_small_margin_on_a_phone_and_its_wide_one_on_a_desktop_and_stacks_its_portal()
+    {
         // 56 px at each side takes 112 of a 346-wide screen: a third. On a phone the margin is a fraction of it.
-        assert!(Form::Compact.page_side_margin() * 2. < 346. / 6., "a phone's margins take too much of its width");
+        assert!(
+            Form::Compact.page_side_margin() * 2. < 346. / 6.,
+            "a phone's margins take too much of its width"
+        );
         assert!(Form::Compact.page_side_margin() > 0.);
         // The desktop is exactly what it was.
         assert_eq!(Form::Wide.page_side_margin(), 56.);
@@ -4871,7 +6462,11 @@ mod tests {
         // parameter, as it is in the program: here an example of one, not the phone's.
         let scale = 3.125;
         let area = SafeArea::from_physical((0, 105, 1080, 2400), (1080, 2400), scale);
-        assert!((area.top - 105. / scale as f32).abs() < 1e-3, "the status bar was {} logical px", area.top);
+        assert!(
+            (area.top - 105. / scale as f32).abs() < 1e-3,
+            "the status bar was {} logical px",
+            area.top
+        );
         assert_eq!((area.left, area.right, area.bottom), (0., 0., 0.));
         // The same status bar on a screen of lower density is taller in logical pixels: the answer follows
         // the scale and is not a number kept in the program.
@@ -4880,7 +6475,10 @@ mod tests {
         assert!(coarse.top > area.top);
         // A navigation bar below and a notch at one side are carried the same way.
         let both = SafeArea::from_physical((60, 105, 1080, 2300), (1080, 2400), 2.0);
-        assert_eq!((both.top, both.left, both.right, both.bottom), (52.5, 30.0, 0.0, 50.0));
+        assert_eq!(
+            (both.top, both.left, both.right, both.bottom),
+            (52.5, 30.0, 0.0, 50.0)
+        );
     }
 
     #[test]
@@ -4890,18 +6488,43 @@ mod tests {
         // Not yet given by the system: all zero, which is what the Android entry reads at its very start.
         assert_eq!(SafeArea::from_physical((0, 0, 0, 0), screen, 3.0), none);
         // Empty, inverted, outside the screen, or negative.
-        assert_eq!(SafeArea::from_physical((0, 105, 1080, 105), screen, 3.0), none);
-        assert_eq!(SafeArea::from_physical((500, 105, 100, 2400), screen, 3.0), none);
-        assert_eq!(SafeArea::from_physical((0, 105, 1081, 2400), screen, 3.0), none);
-        assert_eq!(SafeArea::from_physical((0, 105, 1080, 2401), screen, 3.0), none);
-        assert_eq!(SafeArea::from_physical((-1, 105, 1080, 2400), screen, 3.0), none);
-        assert_eq!(SafeArea::from_physical((0, -5, 1080, 2400), screen, 3.0), none);
+        assert_eq!(
+            SafeArea::from_physical((0, 105, 1080, 105), screen, 3.0),
+            none
+        );
+        assert_eq!(
+            SafeArea::from_physical((500, 105, 100, 2400), screen, 3.0),
+            none
+        );
+        assert_eq!(
+            SafeArea::from_physical((0, 105, 1081, 2400), screen, 3.0),
+            none
+        );
+        assert_eq!(
+            SafeArea::from_physical((0, 105, 1080, 2401), screen, 3.0),
+            none
+        );
+        assert_eq!(
+            SafeArea::from_physical((-1, 105, 1080, 2400), screen, 3.0),
+            none
+        );
+        assert_eq!(
+            SafeArea::from_physical((0, -5, 1080, 2400), screen, 3.0),
+            none
+        );
         // A scale that is not a positive number cannot divide anything.
         for scale in [0., -1., f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
-            assert_eq!(SafeArea::from_physical((0, 105, 1080, 2400), screen, scale), none, "scale {scale}");
+            assert_eq!(
+                SafeArea::from_physical((0, 105, 1080, 2400), screen, scale),
+                none,
+                "scale {scale}"
+            );
         }
         // And the whole screen is no margin at all.
-        assert_eq!(SafeArea::from_physical((0, 0, 1080, 2400), screen, 3.0), none);
+        assert_eq!(
+            SafeArea::from_physical((0, 0, 1080, 2400), screen, 3.0),
+            none
+        );
     }
 
     #[test]
@@ -4950,20 +6573,41 @@ mod tests {
     fn on_a_phone_settings_has_no_bar_at_the_side_and_its_places_come_down_from_the_top() {
         use peersus_core::config::Navigation;
         // The desktop shows names beside the pictures in Settings.
-        assert_eq!(Sidebar::state_for(true, true, false, Form::Wide), Navigation::Expanded);
-        assert_eq!(Sidebar::state_for(true, true, true, Form::Wide), Navigation::Expanded);
+        assert_eq!(
+            Sidebar::state_for(true, true, false, Form::Wide),
+            Navigation::Expanded
+        );
+        assert_eq!(
+            Sidebar::state_for(true, true, true, Form::Wide),
+            Navigation::Expanded
+        );
         // A phone has no room for a bar at the side, and so none: its places are a sheet that comes down from the top.
-        assert_eq!(Sidebar::state_for(true, true, false, Form::Compact), Navigation::Hidden);
+        assert_eq!(
+            Sidebar::state_for(true, true, false, Form::Compact),
+            Navigation::Hidden
+        );
         assert!(Form::Compact.settings_places_come_from_the_top());
         assert!(!Form::Wide.settings_places_come_from_the_top());
         // Whoever turned the option for icons on keeps them, on the phone as on the desktop: that was asked for.
-        assert_eq!(Sidebar::state_for(true, true, true, Form::Compact), Navigation::Icons);
+        assert_eq!(
+            Sidebar::state_for(true, true, true, Form::Compact),
+            Navigation::Icons
+        );
         // Outside Settings the phone has no sidebar, as the desktop has none: nothing else is touched.
-        assert_eq!(Sidebar::state_for(true, false, false, Form::Compact), Navigation::Hidden);
-        assert_eq!(Sidebar::state_for(true, false, true, Form::Compact), Navigation::Icons);
+        assert_eq!(
+            Sidebar::state_for(true, false, false, Form::Compact),
+            Navigation::Hidden
+        );
+        assert_eq!(
+            Sidebar::state_for(true, false, true, Form::Compact),
+            Navigation::Icons
+        );
         // What the phone's bar is wide enough for, and what the page keeps of a 346-wide screen.
         assert!(Sidebar::width_for(Navigation::Icons) < 346. / 4.);
-        assert!(Sidebar::width_for(Navigation::Expanded) > 346. / 2.5, "the desktop's bar is no longer too wide for a phone, so this rule is not needed");
+        assert!(
+            Sidebar::width_for(Navigation::Expanded) > 346. / 2.5,
+            "the desktop's bar is no longer too wide for a phone, so this rule is not needed"
+        );
     }
 
     #[test]
@@ -4988,7 +6632,10 @@ mod tests {
     #[test]
     fn the_dark_layer_under_the_sheet_grows_with_it_and_never_hides_the_page_completely() {
         assert_eq!(TopSheet::scrim(0.), 0);
-        assert!(TopSheet::scrim(1.) > 0 && TopSheet::scrim(1.) < 255, "the page must stay visible under the layer");
+        assert!(
+            TopSheet::scrim(1.) > 0 && TopSheet::scrim(1.) < 255,
+            "the page must stay visible under the layer"
+        );
         assert!(TopSheet::scrim(0.5) < TopSheet::scrim(1.));
         assert_eq!(TopSheet::scrim(-3.), 0);
         assert_eq!(TopSheet::scrim(9.), TopSheet::scrim(1.));
@@ -5006,20 +6653,35 @@ mod tests {
     }
 
     #[test]
-    fn turning_the_relays_on_is_accepted_even_when_an_address_was_fixed_and_returns_routing_to_the_systems() {
+    fn turning_the_relays_on_is_accepted_even_when_an_address_was_fixed_and_returns_routing_to_the_systems()
+     {
         use peersus_core::config::SettingsPatch;
         // The case in the screenshot: routing fixed to one local address (as the command line can do), so relays
         // are off. Asking for them on with only "relays on" was refused: the owner will not hold both.
         let mut fixed = Settings::default();
         fixed.network.bind = Some("192.168.1.20".parse().unwrap());
         fixed.network.allow_relay = false;
-        assert!(fixed.validate().is_ok(), "the starting point is not itself valid");
-        let only_relays = SettingsPatch { allow_relay: Some(true), ..SettingsPatch::default() };
-        assert!(only_relays.apply(&fixed).is_err(), "the premise is gone: relays alone are no longer refused");
+        assert!(
+            fixed.validate().is_ok(),
+            "the starting point is not itself valid"
+        );
+        let only_relays = SettingsPatch {
+            allow_relay: Some(true),
+            ..SettingsPatch::default()
+        };
+        assert!(
+            only_relays.apply(&fixed).is_err(),
+            "the premise is gone: relays alone are no longer refused"
+        );
         // What the switch sends now is accepted, and leaves routing the system's and the relays on.
-        let accepted = relay_patch(true).apply(&fixed).expect("the relay switch was refused with an address fixed");
+        let accepted = relay_patch(true)
+            .apply(&fixed)
+            .expect("the relay switch was refused with an address fixed");
         assert!(accepted.network.allow_relay);
-        assert_eq!(accepted.network.bind, None, "routing was not returned to the system's");
+        assert_eq!(
+            accepted.network.bind, None,
+            "routing was not returned to the system's"
+        );
         // On a device with nothing fixed it changes nothing but the relays, which are on by default.
         let plain = relay_patch(true).apply(&Settings::default()).unwrap();
         assert_eq!(plain, Settings::default());
@@ -5029,7 +6691,10 @@ mod tests {
         routed.network.allow_relay = false;
         let off = relay_patch(false).apply(&routed).unwrap();
         assert!(!off.network.allow_relay);
-        assert_eq!(off.network.bind, routed.network.bind, "turning the relays off moved the address");
+        assert_eq!(
+            off.network.bind, routed.network.bind,
+            "turning the relays off moved the address"
+        );
         // And the relays are on by default: the internet is what a new device reaches.
         assert!(Settings::default().network.allow_relay);
         assert_eq!(Settings::default().network.bind, None);
@@ -5037,24 +6702,45 @@ mod tests {
 
     #[test]
     fn desktop_batches_preserve_every_selected_path_in_owner_sized_commands() {
-        let paths: Vec<_> = (0..40).map(|number| std::path::PathBuf::from(format!("selected-{number}.bin"))).collect();
+        let paths: Vec<_> = (0..40)
+            .map(|number| std::path::PathBuf::from(format!("selected-{number}.bin")))
+            .collect();
         let batches: Vec<_> = path_sends(paths.clone()).collect();
-        assert!(batches.iter().all(|batch| (1..=16).contains(&batch.len())), "desktop selection exceeded command capacity");
-        assert_eq!(batches.into_iter().flatten().collect::<Vec<_>>(), paths, "desktop selection was dropped, duplicated or reordered");
+        assert!(
+            batches.iter().all(|batch| (1..=16).contains(&batch.len())),
+            "desktop selection exceeded command capacity"
+        );
+        assert_eq!(
+            batches.into_iter().flatten().collect::<Vec<_>>(),
+            paths,
+            "desktop selection was dropped, duplicated or reordered"
+        );
         assert!(path_sends(Vec::new()).next().is_none());
     }
 
     #[test]
-    fn the_files_a_picker_hands_over_are_sent_to_the_chosen_device_in_batches_under_cleaned_names() {
+    fn the_files_a_picker_hands_over_are_sent_to_the_chosen_device_in_batches_under_cleaned_names()
+    {
         let held: Vec<(u64, String)> = (0..40).map(|n| (n, format!("../f{n}.bin"))).collect();
         let plan = held_sends(&held, "laptop");
         // Never more in one command than the owner accepts, and every file is in exactly one command.
-        assert!(plan.iter().all(|files| (1..=16).contains(&files.len())), "a batch the owner would refuse");
+        assert!(
+            plan.iter().all(|files| (1..=16).contains(&files.len())),
+            "a batch the owner would refuse"
+        );
         assert_eq!(plan.iter().map(Vec::len).sum::<usize>(), 40);
         let numbers: Vec<u64> = plan.iter().flatten().map(|(number, _)| *number).collect();
-        assert_eq!(numbers, (0..40).collect::<Vec<_>>(), "files were lost, repeated or put out of order");
+        assert_eq!(
+            numbers,
+            (0..40).collect::<Vec<_>>(),
+            "files were lost, repeated or put out of order"
+        );
         // The name that goes is the cleaned one: the provider's own name is not trusted, and a path in it is dropped.
-        assert!(plan.iter().flatten().all(|(_, name)| !name.contains('/') && name.ends_with(".bin")));
+        assert!(
+            plan.iter()
+                .flatten()
+                .all(|(_, name)| !name.contains('/') && name.ends_with(".bin"))
+        );
         assert_eq!(plan[0][0].1, "f0.bin");
         // One file is one batch of one; none is none.
         assert_eq!(held_sends(&[(7, "a.jpg".to_owned())], "x").len(), 1);
@@ -5063,13 +6749,29 @@ mod tests {
 
     #[test]
     fn a_name_the_provider_did_not_give_is_a_plain_one_and_not_an_empty_offer() {
-        let plan = held_sends(&[(1, String::new()), (2, "..".to_owned()), (3, "  ".to_owned())], "x");
-        let names: Vec<&str> = plan.iter().flatten().map(|(_, name)| name.as_str()).collect();
-        assert_eq!(names, ["file", "file", "file"], "a file with no name was offered under an empty or dotted one");
+        let plan = held_sends(
+            &[
+                (1, String::new()),
+                (2, "..".to_owned()),
+                (3, "  ".to_owned()),
+            ],
+            "x",
+        );
+        let names: Vec<&str> = plan
+            .iter()
+            .flatten()
+            .map(|(_, name)| name.as_str())
+            .collect();
+        assert_eq!(
+            names,
+            ["file", "file", "file"],
+            "a file with no name was offered under an empty or dotted one"
+        );
     }
 
     #[test]
-    fn a_device_card_keeps_its_width_where_cards_stand_side_by_side_and_none_where_they_would_not_fit() {
+    fn a_device_card_keeps_its_width_where_cards_stand_side_by_side_and_none_where_they_would_not_fit()
+     {
         // The desktop is as it was.
         assert_eq!(Form::Wide.device_card_width(), Some(280.));
         // A phone keeps none: the card is as wide as the screen, with the cards one under another.
@@ -5078,7 +6780,25 @@ mod tests {
         // in common use, so the second would be pushed off the screen.
         let own = Form::Wide.device_card_width().unwrap();
         for screen in [320., 345.6, 360., 412.] {
-            assert!(own * 2. + 14. + 2. * Form::Compact.page_side_margin() > screen - 1., "two cards fit {screen}: the rule is no longer needed");
+            assert!(
+                own * 2. + 14. + 2. * Form::Compact.page_side_margin() > screen - 1.,
+                "two cards fit {screen}: the rule is no longer needed"
+            );
+        }
+    }
+
+    #[test]
+    fn the_buttons_of_a_device_card_stand_under_its_name_on_a_phone_and_beside_it_on_the_desktop() {
+        // The desktop is exactly as it was: the buttons in the row of the card.
+        assert!(!Form::Wide.device_card_buttons_stack());
+        // A phone has no room for them beside the name, which would be left a column of one letter.
+        assert!(Form::Compact.device_card_buttons_stack());
+        // The same shape as the rule for a field and its button, so the two cannot disagree about what a phone is.
+        for form in [Form::Wide, Form::Compact] {
+            assert_eq!(
+                form.device_card_buttons_stack(),
+                form.ask_stacks_field_and_button()
+            );
         }
     }
 
@@ -5088,27 +6808,67 @@ mod tests {
         // Shut: nothing the camera says matters, since no one asked it anything. Nothing is joined, nothing closed.
         for (found, refused) in [(None, false), (None, true), (code(), false), (code(), true)] {
             let tick = look(Looking::Shut, found, refused);
-            assert_eq!(tick, Tick { looking: Looking::Shut, join: None, close: false });
+            assert_eq!(
+                tick,
+                Tick {
+                    looking: Looking::Shut,
+                    join: None,
+                    close: false
+                }
+            );
         }
         // Scanning, nothing yet: it goes on, and the camera stays open.
-        assert_eq!(look(Looking::Scanning, None, false), Tick { looking: Looking::Scanning, join: None, close: false });
+        assert_eq!(
+            look(Looking::Scanning, None, false),
+            Tick {
+                looking: Looking::Scanning,
+                join: None,
+                close: false
+            }
+        );
         // Scanning and a code is read: joined, and the camera is closed, so that it does not read the same code again.
         assert_eq!(
             look(Looking::Scanning, code(), false),
-            Tick { looking: Looking::Shut, join: code(), close: true }
+            Tick {
+                looking: Looking::Shut,
+                join: code(),
+                close: true
+            }
         );
         // Scanning and refused: said in the circle, and the camera is closed.
-        assert_eq!(look(Looking::Scanning, None, true), Tick { looking: Looking::Refused, join: None, close: true });
+        assert_eq!(
+            look(Looking::Scanning, None, true),
+            Tick {
+                looking: Looking::Refused,
+                join: None,
+                close: true
+            }
+        );
         // A code and a refusal together: the code wins, since the person did get a code.
         assert_eq!(
             look(Looking::Scanning, code(), true),
-            Tick { looking: Looking::Shut, join: code(), close: true }
+            Tick {
+                looking: Looking::Shut,
+                join: code(),
+                close: true
+            }
         );
         // Refused already: it stays so with nothing new, and a code that comes late is still joined.
-        assert_eq!(look(Looking::Refused, None, true), Tick { looking: Looking::Refused, join: None, close: false });
+        assert_eq!(
+            look(Looking::Refused, None, true),
+            Tick {
+                looking: Looking::Refused,
+                join: None,
+                close: false
+            }
+        );
         assert_eq!(
             look(Looking::Refused, code(), false),
-            Tick { looking: Looking::Shut, join: code(), close: true }
+            Tick {
+                looking: Looking::Shut,
+                join: code(),
+                close: true
+            }
         );
     }
 
@@ -5118,13 +6878,17 @@ mod tests {
         assert_eq!(circle_for(Looking::Scanning, true), Circle::Camera);
         // A scan with no picture yet: a clear circle with one small line, never a headline like "looking".
         match circle_for(Looking::Scanning, false) {
-            Circle::Starting(line) => assert!(!line.is_empty() && !line.to_lowercase().contains("looking")),
+            Circle::Starting(line) => {
+                assert!(!line.is_empty() && !line.to_lowercase().contains("looking"))
+            }
             other => panic!("a scan with no picture yet was {other:?}"),
         }
         // Shut: an invitation to tap, in words, whether or not a picture is left over from before.
         for has_picture in [false, true] {
             match circle_for(Looking::Shut, has_picture) {
-                Circle::Words(headline, line) => assert!(!headline.is_empty() && line.contains("tap")),
+                Circle::Words(headline, line) => {
+                    assert!(!headline.is_empty() && line.contains("tap"))
+                }
                 other => panic!("a shut camera was {other:?}"),
             }
             // Told no: where to put it right, and a picture left from before does not hide it.
@@ -5134,7 +6898,10 @@ mod tests {
             }
         }
         // The shut and the refused words are not the same words.
-        assert_ne!(circle_for(Looking::Shut, false), circle_for(Looking::Refused, false));
+        assert_ne!(
+            circle_for(Looking::Shut, false),
+            circle_for(Looking::Refused, false)
+        );
         assert_eq!(Looking::default(), Looking::Shut);
     }
 
@@ -5142,7 +6909,10 @@ mod tests {
     fn of_the_files_chosen_for_a_picture_the_first_is_used_and_every_other_is_let_go_of() {
         let file = |number: u64| (number, format!("{number}.png"));
         // One: it is used and nothing is left over.
-        assert_eq!(picture_choice(&[file(7)]), Some(((7, "7.png".to_owned()), Vec::new())));
+        assert_eq!(
+            picture_choice(&[file(7)]),
+            Some(((7, "7.png".to_owned()), Vec::new()))
+        );
         // Several (a provider may hand over more than was asked for): the first in the order they came is used, and
         // each of the others, which nobody will take, is to be released, none is lost and none is used twice.
         let (used, rest) = picture_choice(&[file(3), file(9), file(4)]).unwrap();
@@ -5155,11 +6925,32 @@ mod tests {
     #[test]
     fn stopping_ends_a_scan_that_is_on_and_does_nothing_to_one_that_is_not() {
         // On: back to shut, with the camera closed, and nothing joined.
-        assert_eq!(stop(Looking::Scanning), Tick { looking: Looking::Shut, join: None, close: true });
+        assert_eq!(
+            stop(Looking::Scanning),
+            Tick {
+                looking: Looking::Shut,
+                join: None,
+                close: true
+            }
+        );
         // Told no: stop is also the way back, closing what may still be open and returning to the invitation to tap.
-        assert_eq!(stop(Looking::Refused), Tick { looking: Looking::Shut, join: None, close: true });
+        assert_eq!(
+            stop(Looking::Refused),
+            Tick {
+                looking: Looking::Shut,
+                join: None,
+                close: true
+            }
+        );
         // Shut already: there is nothing to close, and closing a camera that is not open is not asked of the platform.
-        assert_eq!(stop(Looking::Shut), Tick { looking: Looking::Shut, join: None, close: false });
+        assert_eq!(
+            stop(Looking::Shut),
+            Tick {
+                looking: Looking::Shut,
+                join: None,
+                close: false
+            }
+        );
         // Nothing is ever joined by stopping.
         for now in [Looking::Shut, Looking::Scanning, Looking::Refused] {
             assert_eq!(stop(now).join, None);
@@ -5167,7 +6958,20 @@ mod tests {
     }
 
     fn row(id: &str, incoming: bool, phase: Phase, from: Option<&str>) -> Progress {
-        Progress { id: id.into(), peer: format!("peer-{id}"), name: format!("{id}.bin"), folders: Vec::new(), bytes: 0, incoming, from: from.map(str::to_owned), percent: 0, code: None, expires_at: None, saved_as: None, phase }
+        Progress {
+            id: id.into(),
+            peer: format!("peer-{id}"),
+            name: format!("{id}.bin"),
+            folders: Vec::new(),
+            bytes: 0,
+            incoming,
+            from: from.map(str::to_owned),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
+        }
     }
 
     #[test]
@@ -5185,8 +6989,22 @@ mod tests {
             ],
             ..View::default()
         };
-        assert_eq!(view.file_totals(), FileTotals { sent: 2, received: 1, total: 3 });
-        assert_eq!(View::default().file_totals(), FileTotals { sent: 0, received: 0, total: 0 });
+        assert_eq!(
+            view.file_totals(),
+            FileTotals {
+                sent: 2,
+                received: 1,
+                total: 3
+            }
+        );
+        assert_eq!(
+            View::default().file_totals(),
+            FileTotals {
+                sent: 0,
+                received: 0,
+                total: 0
+            }
+        );
     }
 
     #[test]
@@ -5194,8 +7012,17 @@ mod tests {
         // The index is looked in what a person reads, so each title and each note must be a text that the catalog has; one that is not is
         // looked for in English in every language, and drifts from the page that says it.
         for entry in SETTING_ENTRIES {
-            assert!(i18n::has(entry.title), "the title {:?} is not in the catalog", entry.title);
-            assert!(i18n::has(entry.note), "the note of {:?} is not in the catalog: {:?}", entry.title, entry.note);
+            assert!(
+                i18n::has(entry.title),
+                "the title {:?} is not in the catalog",
+                entry.title
+            );
+            assert!(
+                i18n::has(entry.note),
+                "the note of {:?} is not in the catalog: {:?}",
+                entry.title,
+                entry.note
+            );
         }
     }
 
@@ -5203,7 +7030,10 @@ mod tests {
     fn a_few_letters_in_order_find_a_row_and_a_wrong_order_does_not() {
         assert!(fuzzy_score("bkg", "Run in the background").is_some());
         assert!(fuzzy_score("RUN", "Run in the background").is_some());
-        assert!(fuzzy_score("gkb", "Run in the background").is_none(), "letters out of order matched");
+        assert!(
+            fuzzy_score("gkb", "Run in the background").is_none(),
+            "letters out of order matched"
+        );
         assert!(fuzzy_score("zzz", "Run in the background").is_none());
         // Nothing typed is no search: not a list of everything.
         assert_eq!(fuzzy_score("", "Run in the background"), None);
@@ -5222,68 +7052,126 @@ mod tests {
     #[test]
     fn the_search_leads_to_the_tab_of_the_row_and_puts_a_title_before_a_note() {
         let found = search_settings("reduce", &View::default(), Language::English);
-        assert_eq!(found.first().map(|entry| entry.title.as_str()), Some("Reduce motion"));
-        assert_eq!(found.first().map(|entry| entry.target.tab()), Some(SettingsTab::Appearance));
+        assert_eq!(
+            found.first().map(|entry| entry.title.as_str()),
+            Some("Reduce motion")
+        );
+        assert_eq!(
+            found.first().map(|entry| entry.target.tab()),
+            Some(SettingsTab::Appearance)
+        );
         // Nothing typed: nothing found.
         assert!(search_settings("", &View::default(), Language::English).is_empty());
         let romanian = search_settings("limb", &View::default(), Language::Romanian);
-        assert!(romanian.iter().any(|entry| entry.title == "Limbă"), "the translated language row was not found");
+        assert!(
+            romanian.iter().any(|entry| entry.title == "Limbă"),
+            "the translated language row was not found"
+        );
     }
 
     #[test]
     fn settings_search_can_reach_every_group() {
         for tab in SettingsTab::ALL {
-            assert!(search_settings(tab.title(), &View::default(), Language::English).iter().any(|entry| entry.target.tab() == tab),
-                "search could not reach {tab:?}");
+            assert!(
+                search_settings(tab.title(), &View::default(), Language::English)
+                    .iter()
+                    .any(|entry| entry.target.tab() == tab),
+                "search could not reach {tab:?}"
+            );
         }
     }
 
     /// An outgoing transfer that came of the files code of generation `code`, `percent` of the way.
     fn of_code(id: &str, code: u64, phase: Phase, percent: u8) -> Progress {
-        Progress { code: Some(code), percent, ..row(id, false, phase, None) }
+        Progress {
+            code: Some(code),
+            percent,
+            ..row(id, false, phase, None)
+        }
     }
     fn on_show(generation: u64, live: bool) -> Option<FilesCode> {
-        Some(FilesCode { generation, live, pending: false })
+        Some(FilesCode {
+            generation,
+            live,
+            pending: false,
+        })
     }
 
     fn arrived(id: &str, at: &str) -> Progress {
-        Progress { saved_as: Some(std::path::PathBuf::from(at)), ..row(id, true, Phase::Done, None) }
+        Progress {
+            saved_as: Some(std::path::PathBuf::from(at)),
+            ..row(id, true, Phase::Done, None)
+        }
     }
 
     /// A transfer of the device `peer`, in the one list that every page reads.
     fn with(id: &str, peer: &str, name_of_peer: &str, phase: Phase) -> Progress {
-        Progress { peer: peer.into(), from: Some(name_of_peer.into()), name: format!("{id}.txt"), ..row(id, false, phase, None) }
+        Progress {
+            peer: peer.into(),
+            from: Some(name_of_peer.into()),
+            name: format!("{id}.txt"),
+            ..row(id, false, phase, None)
+        }
     }
 
     #[test]
-    fn the_history_of_a_device_is_what_was_with_that_identity_newest_first_and_not_with_one_of_the_same_name() {
+    fn the_history_of_a_device_is_what_was_with_that_identity_newest_first_and_not_with_one_of_the_same_name()
+     {
         let list = [
             with("a", "peer-1", "Phone", Phase::Done),
             with("b", "peer-2", "Phone", Phase::Done),
             with("c", "peer-1", "Phone", Phase::Done),
         ];
-        let names = |peer: &str| history_with(peer, &list).iter().map(|item| item.id.clone()).collect::<Vec<_>>();
-        assert_eq!(names("peer-1"), ["c", "a"], "two devices of one name were mixed together, or the newest was not first");
+        let names = |peer: &str| {
+            history_with(peer, &list)
+                .iter()
+                .map(|item| item.id.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            names("peer-1"),
+            ["c", "a"],
+            "two devices of one name were mixed together, or the newest was not first"
+        );
         assert_eq!(names("peer-2"), ["b"]);
-        assert!(names("peer-3").is_empty(), "a device with no history got someone else's");
+        assert!(
+            names("peer-3").is_empty(),
+            "a device with no history got someone else's"
+        );
     }
 
     #[test]
     fn a_device_has_no_history_of_its_own_once_the_list_forgets_what_was_with_it() {
         // ONE list: Send, Receive, Settings and a device's page all read it. When Clear forgets what is over there is nothing left
         // under the device either, and a device met only by a code is not listed any more.
-        let before = [with("a", "peer-1", "Phone", Phase::Done), with("b", "peer-1", "Phone", Phase::Failed("x".into()))];
+        let before = [
+            with("a", "peer-1", "Phone", Phase::Done),
+            with("b", "peer-1", "Phone", Phase::Failed("x".into())),
+        ];
         assert_eq!(history_with("peer-1", &before).len(), 2);
         assert_eq!(unpaired_with_history(&[], &before).len(), 1);
         let after: Vec<Progress> = Vec::new();
-        assert!(history_with("peer-1", &after).is_empty(), "a device kept a history the list had forgotten");
-        assert!(unpaired_with_history(&[], &after).is_empty(), "a device with nothing in the list was still listed");
+        assert!(
+            history_with("peer-1", &after).is_empty(),
+            "a device kept a history the list had forgotten"
+        );
+        assert!(
+            unpaired_with_history(&[], &after).is_empty(),
+            "a device with nothing in the list was still listed"
+        );
     }
 
     #[test]
     fn what_is_still_going_with_a_device_is_not_a_line_of_its_history() {
-        let list = [with("a", "peer-1", "Phone", Phase::Done), with("b", "peer-1", "Phone", Phase::Moving), with("c", "peer-1", "Phone", Phase::Waiting)];
-        let ids: Vec<_> = history_with("peer-1", &list).iter().map(|item| item.id.clone()).collect();
+        let list = [
+            with("a", "peer-1", "Phone", Phase::Done),
+            with("b", "peer-1", "Phone", Phase::Moving),
+            with("c", "peer-1", "Phone", Phase::Waiting),
+        ];
+        let ids: Vec<_> = history_with("peer-1", &list)
+            .iter()
+            .map(|item| item.id.clone())
+            .collect();
         assert_eq!(ids, ["a"], "a transfer still going was listed as history");
         // A device with only something going is not a device met by a code with a history yet.
         assert!(unpaired_with_history(&[], &list[1..]).is_empty());
@@ -5291,13 +7179,106 @@ mod tests {
 
     #[test]
     fn a_device_page_names_its_latest_five_and_says_how_many_more_there_are() {
-        let many: Vec<Progress> = (0..8).map(|n| with(&format!("t{n}"), "peer-1", "Phone", Phase::Done)).collect();
+        let many: Vec<Progress> = (0..8)
+            .map(|n| with(&format!("t{n}"), "peer-1", "Phone", Phase::Done))
+            .collect();
         let (shown, more) = history_shown("peer-1", &many);
         let ids: Vec<_> = shown.iter().map(|item| item.id.clone()).collect();
-        assert_eq!(ids, ["t7", "t6", "t5", "t4", "t3"], "the latest were not the ones named, newest first");
+        assert_eq!(
+            ids,
+            ["t7", "t6", "t5", "t4", "t3"],
+            "the latest were not the ones named, newest first"
+        );
         assert_eq!(more, 3);
         let (few, none) = history_shown("peer-1", &many[..2]);
-        assert_eq!((few.len(), none), (2, 0), "a device with fewer than the cap was cut or said it had more");
+        assert_eq!(
+            (few.len(), none),
+            (2, 0),
+            "a device with fewer than the cap was cut or said it had more"
+        );
+    }
+
+    #[test]
+    fn every_result_of_a_link_test_is_told_in_every_language_and_only_a_working_connection_is_told_as_good()
+     {
+        use peersus_core::model::LinkTest;
+        for (test, tone) in [
+            (LinkTest::Trying, Tone::Going),
+            (LinkTest::Paired, Tone::Good),
+            (LinkTest::NeedsPairing, Tone::Bad),
+            (LinkTest::Unreachable, Tone::Bad),
+        ] {
+            for relays in [true, false] {
+                for language in Language::ALL {
+                    let (title, advice, said) = link_test_words_in(language, test, relays);
+                    assert!(
+                        !title.is_empty() && !advice.is_empty(),
+                        "{test:?} says nothing in {language:?}"
+                    );
+                    assert_eq!(said, tone, "{test:?} with relays {relays} in {language:?}");
+                    // A sentence that is not in the catalog comes back as it was written, in English: that is a missing translation.
+                    if language != Language::English {
+                        let (english_title, english_advice, _) =
+                            link_test_words_in(Language::English, test, relays);
+                        assert_ne!(
+                            title, english_title,
+                            "the title of {test:?} is not translated into {language:?}"
+                        );
+                        assert_ne!(
+                            advice, english_advice,
+                            "the advice of {test:?} is not translated into {language:?}"
+                        );
+                    }
+                }
+            }
+        }
+        // The two results that need something done ask for different things.
+        let (_, pair_again, _) =
+            link_test_words_in(Language::English, LinkTest::NeedsPairing, true);
+        let (_, wait, _) = link_test_words_in(Language::English, LinkTest::Unreachable, true);
+        assert_ne!(pair_again, wait);
+        assert!(pair_again.contains("pair"), "{pair_again}");
+    }
+
+    #[test]
+    fn a_device_that_does_not_answer_is_told_to_turn_the_relays_on_only_when_they_are_off_and_never_to_look_for_an_address()
+     {
+        use peersus_core::model::LinkTest;
+        let (_, with_relays, _) =
+            link_test_words_in(Language::English, LinkTest::Unreachable, true);
+        let (_, without, _) = link_test_words_in(Language::English, LinkTest::Unreachable, false);
+        // Off: the cause that is probably true is named, and so is what mends it.
+        assert!(
+            without.contains("relays") && without.contains("Settings"),
+            "{without}"
+        );
+        // On: it must not tell a person to turn on what is on.
+        assert!(!with_relays.contains("Turn on"), "{with_relays}");
+        // Neither sends anyone to type an address: across networks a known address does not let a connection in.
+        for words in [&with_relays, &without] {
+            assert!(
+                !words.to_lowercase().contains("ip address")
+                    && !words.to_lowercase().contains("type an"),
+                "{words}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_result_of_a_link_test_in_the_snapshot_reaches_the_device_it_is_about_and_no_other() {
+        use peersus_core::model::{LinkTest, PeerId};
+        let mut snapshot = snapshot_with(vec![peer("Alex", true), peer("Claude", false)], vec![]);
+        let tested = snapshot.peers[1].id.clone();
+        snapshot.link_tests.insert(tested, LinkTest::NeedsPairing);
+        snapshot
+            .link_tests
+            .insert(PeerId("nobody".into()), LinkTest::Paired);
+        let view = View::of(&snapshot);
+        assert_eq!(
+            view.devices[0].link_test, None,
+            "a device that was not tested was given a result"
+        );
+        assert_eq!(view.devices[1].link_test, Some(LinkTest::NeedsPairing));
     }
 
     #[test]
@@ -5310,6 +7291,8 @@ mod tests {
             picture: None,
             paired_at: 0,
             last_seen: None,
+            link_test: None,
+            typed_address: None,
         };
         let list = [
             with("a", "peer-code-1", "Phone", Phase::Done),
@@ -5319,7 +7302,13 @@ mod tests {
             with("d", "peer-code-1", "Phone", Phase::Done),
         ];
         let met = unpaired_with_history(std::slice::from_ref(&saved), &list);
-        assert_eq!(met, vec![("peer-code-1", Some("Phone")), ("peer-code-2", Some("Phone"))]);
+        assert_eq!(
+            met,
+            vec![
+                ("peer-code-1", Some("Phone")),
+                ("peer-code-2", Some("Phone"))
+            ]
+        );
         assert!(unpaired_with_history(&[saved], &[]).is_empty());
     }
 
@@ -5333,7 +7322,11 @@ mod tests {
             row("failed", false, Phase::Failed("x".into()), None),
         ];
         let ids: Vec<_> = going_on(&list).into_iter().map(|item| item.id).collect();
-        assert_eq!(ids, ["moving", "waiting"], "a finished transfer was listed on the page where files are chosen");
+        assert_eq!(
+            ids,
+            ["moving", "waiting"],
+            "a finished transfer was listed on the page where files are chosen"
+        );
         assert!(going_on(&[]).is_empty());
     }
 
@@ -5348,7 +7341,10 @@ mod tests {
         ];
         let shown: Vec<_> = transfer_list(&list).map(|item| item.id.as_str()).collect();
         assert_eq!(shown, ["waiting", "moving", "failed", "cancelled", "old"]);
-        assert_eq!(list[0].id, "old", "presentation must not reorder the shared model");
+        assert_eq!(
+            list[0].id, "old",
+            "presentation must not reorder the shared model"
+        );
         assert!(transfer_list(&[]).next().is_none());
     }
 
@@ -5363,12 +7359,24 @@ mod tests {
 
     #[test]
     fn a_history_line_says_which_way_the_file_went_and_how_it_ended() {
-        let sent = Progress { name: "a.txt".into(), ..row("a", false, Phase::Done, None) };
+        let sent = Progress {
+            name: "a.txt".into(),
+            ..row("a", false, Phase::Done, None)
+        };
         assert_eq!(history_line(&sent), "Sent \u{b7} a.txt \u{b7} done");
-        let failed = Progress { name: "a.txt".into(), ..row("a", true, Phase::Failed("x".into()), None) };
+        let failed = Progress {
+            name: "a.txt".into(),
+            ..row("a", true, Phase::Failed("x".into()), None)
+        };
         assert_eq!(history_line(&failed), "Received \u{b7} a.txt \u{b7} failed");
-        let cancelled = Progress { name: "a.txt".into(), ..row("a", true, Phase::Cancelled, None) };
-        assert_eq!(history_line(&cancelled), "Received \u{b7} a.txt \u{b7} cancelled");
+        let cancelled = Progress {
+            name: "a.txt".into(),
+            ..row("a", true, Phase::Cancelled, None)
+        };
+        assert_eq!(
+            history_line(&cancelled),
+            "Received \u{b7} a.txt \u{b7} cancelled"
+        );
     }
 
     #[test]
@@ -5376,10 +7384,25 @@ mod tests {
         let ok = ("b".to_owned(), true);
         let bad = ("a".to_owned(), false);
         let said = delivery_note(None, &[bad.clone(), ok.clone()]);
-        assert!(said.is_some(), "a failure was lost when a success came in the same look");
-        assert_eq!(delivery_note(None, &[ok.clone(), bad]), said, "the order changed what was said");
-        assert_eq!(delivery_note(said.clone(), std::slice::from_ref(&ok)), said, "another file's success took the failure away");
-        assert_eq!(delivery_note(None, &[ok]), None, "a success alone said something went wrong");
+        assert!(
+            said.is_some(),
+            "a failure was lost when a success came in the same look"
+        );
+        assert_eq!(
+            delivery_note(None, &[ok.clone(), bad]),
+            said,
+            "the order changed what was said"
+        );
+        assert_eq!(
+            delivery_note(said.clone(), std::slice::from_ref(&ok)),
+            said,
+            "another file's success took the failure away"
+        );
+        assert_eq!(
+            delivery_note(None, &[ok]),
+            None,
+            "a success alone said something went wrong"
+        );
     }
 
     #[test]
@@ -5387,9 +7410,15 @@ mod tests {
         let list = [
             arrived("a", "/stage/a.bin"),
             // Not done yet: its file is partial or not there, so it is not handed over.
-            Progress { saved_as: Some("/stage/b.bin".into()), ..row("b", true, Phase::Moving, None) },
+            Progress {
+                saved_as: Some("/stage/b.bin".into()),
+                ..row("b", true, Phase::Moving, None)
+            },
             // Went out, not in: nothing of ours to put anywhere.
-            Progress { saved_as: Some("/stage/c.bin".into()), ..row("c", false, Phase::Done, None) },
+            Progress {
+                saved_as: Some("/stage/c.bin".into()),
+                ..row("c", false, Phase::Done, None)
+            },
             // Done but no file reported: nothing to hand over.
             row("d", true, Phase::Done, None),
             // Done, with a file, but accepted to a path the program can write: no tree, so nothing to do.
@@ -5428,15 +7457,26 @@ mod tests {
         picked.destined("a", "tree-a".into());
         let list = [arrived("a", "/stage/a.bin")];
         assert_eq!(handoffs(&list, |id| picked.tree_for(id)).len(), 1);
-        assert!(handoffs(&list, |id| picked.tree_for(id)).is_empty(), "the same finished transfer was handed over again");
+        assert!(
+            handoffs(&list, |id| picked.tree_for(id)).is_empty(),
+            "the same finished transfer was handed over again"
+        );
     }
 
     #[test]
     fn the_time_left_counts_down_to_the_deadline_and_stops_at_zero_and_says_nothing_without_one() {
-        assert_eq!(time_left(None, 1_000), None, "an offer with no deadline was given one");
+        assert_eq!(
+            time_left(None, 1_000),
+            None,
+            "an offer with no deadline was given one"
+        );
         assert_eq!(time_left(Some(1_120), 1_000), Some(120));
         assert_eq!(time_left(Some(1_120), 1_119), Some(1));
-        assert_eq!(time_left(Some(1_120), 1_120), Some(0), "the deadline itself still said there was time");
+        assert_eq!(
+            time_left(Some(1_120), 1_120),
+            Some(0),
+            "the deadline itself still said there was time"
+        );
         // Gone by: never a negative count, and never a wrapped one.
         assert_eq!(time_left(Some(1_120), 5_000), Some(0));
         assert_eq!(time_left(Some(0), u64::MAX), Some(0));
@@ -5444,16 +7484,31 @@ mod tests {
 
     #[test]
     fn the_clock_is_read_as_minutes_and_two_digit_seconds_and_an_hour_is_sixty_minutes() {
-        for (seconds, words) in [(0, "0:00"), (9, "0:09"), (59, "0:59"), (60, "1:00"), (65, "1:05"), (120, "2:00"), (3_600, "60:00"), (86_400, "1440:00")] {
+        for (seconds, words) in [
+            (0, "0:00"),
+            (9, "0:09"),
+            (59, "0:59"),
+            (60, "1:00"),
+            (65, "1:05"),
+            (120, "2:00"),
+            (3_600, "60:00"),
+            (86_400, "1440:00"),
+        ] {
             assert_eq!(clock_words(seconds), words, "{seconds} s");
         }
     }
 
     #[test]
     fn the_window_carries_the_owners_deadline_as_it_is_and_not_a_count() {
-        let offered = Transfer { expires_at: Some(1_700_000_120), ..transfer(10, 0, TransferState::Offered) };
+        let offered = Transfer {
+            expires_at: Some(1_700_000_120),
+            ..transfer(10, 0, TransferState::Offered)
+        };
         assert_eq!(progress(&offered).expires_at, Some(1_700_000_120));
-        assert_eq!(progress(&transfer(10, 0, TransferState::Offered)).expires_at, None);
+        assert_eq!(
+            progress(&transfer(10, 0, TransferState::Offered)).expires_at,
+            None
+        );
     }
 
     #[test]
@@ -5461,25 +7516,46 @@ mod tests {
         // Going out and waiting: it is the OTHER device that decides, so there is nothing for this person to answer.
         assert!(incoming_offer(&[row("a", false, Phase::Waiting, None)]).is_none());
         // Coming in, but already answered, finished or stopped: nothing left to ask.
-        for phase in [Phase::Moving, Phase::Done, Phase::Cancelled, Phase::Failed("x".into())] {
+        for phase in [
+            Phase::Moving,
+            Phase::Done,
+            Phase::Cancelled,
+            Phase::Failed("x".into()),
+        ] {
             assert!(incoming_offer(&[row("a", true, phase, None)]).is_none());
         }
         // Coming in and waiting: the one thing that is asked.
-        assert_eq!(incoming_offer(&[row("a", true, Phase::Waiting, None)]).map(|offer| offer.id.as_str()), Some("a"));
+        assert_eq!(
+            incoming_offer(&[row("a", true, Phase::Waiting, None)]).map(|offer| offer.id.as_str()),
+            Some("a")
+        );
         assert!(incoming_offer(&[]).is_none());
     }
 
     #[test]
     fn clear_is_offered_only_when_something_is_over_and_never_for_what_is_still_going() {
         let view = |phases: Vec<Phase>| View {
-            transfers: phases.into_iter().enumerate().map(|(n, phase)| row(&format!("t{n}"), n % 2 == 0, phase, None)).collect(),
+            transfers: phases
+                .into_iter()
+                .enumerate()
+                .map(|(n, phase)| row(&format!("t{n}"), n % 2 == 0, phase, None))
+                .collect(),
             ..View::default()
         };
-        assert!(!view(vec![]).has_finished_transfers(), "nothing at all, and there was something to clear");
-        assert!(!view(vec![Phase::Waiting, Phase::Moving]).has_finished_transfers(), "what is still going was offered to be cleared");
+        assert!(
+            !view(vec![]).has_finished_transfers(),
+            "nothing at all, and there was something to clear"
+        );
+        assert!(
+            !view(vec![Phase::Waiting, Phase::Moving]).has_finished_transfers(),
+            "what is still going was offered to be cleared"
+        );
         for over in [Phase::Done, Phase::Cancelled, Phase::Failed("x".into())] {
             assert!(over.is_over(), "{over:?} is over");
-            assert!(view(vec![Phase::Moving, over]).has_finished_transfers(), "one over among those going was not found");
+            assert!(
+                view(vec![Phase::Moving, over]).has_finished_transfers(),
+                "one over among those going was not found"
+            );
         }
         assert!(!Phase::Waiting.is_over() && !Phase::Moving.is_over());
     }
@@ -5489,18 +7565,32 @@ mod tests {
         let sample = sample_offer(1_000);
         // The rule that picks what to show over the window picks it, and it can be answered.
         let list = [sample.offer.clone()];
-        assert_eq!(incoming_offer(&list).map(|offer| offer.id.as_str()), Some("sample"));
+        assert_eq!(
+            incoming_offer(&list).map(|offer| offer.id.as_str()),
+            Some("sample")
+        );
         assert!(sample.offer.acceptable());
         assert_eq!(sample.waiting, 1);
-        assert_eq!(time_left(sample.offer.expires_at, 1_000), Some(u64::from(peersus_core::config::DEFAULT_OFFER_TIMEOUT)));
+        assert_eq!(
+            time_left(sample.offer.expires_at, 1_000),
+            Some(u64::from(peersus_core::config::DEFAULT_OFFER_TIMEOUT))
+        );
     }
 
     #[test]
     fn an_action_with_no_target_is_done_on_the_second_press_and_never_on_the_first() {
         let (asked, now) = Confirm::default().pressed();
-        assert_eq!((asked, now), (Confirm::Asking, false), "the first press did it");
+        assert_eq!(
+            (asked, now),
+            (Confirm::Asking, false),
+            "the first press did it"
+        );
         let (done, now) = asked.pressed();
-        assert_eq!((done, now), (Confirm::Idle, true), "the second press did not do it");
+        assert_eq!(
+            (done, now),
+            (Confirm::Idle, true),
+            "the second press did not do it"
+        );
         // After it is done, the next press asks again: one confirmation is not a standing permission.
         assert_eq!(done.pressed(), (Confirm::Asking, false));
         // Given up, then pressed: asks again and does nothing.
@@ -5514,9 +7604,16 @@ mod tests {
             row("first", true, Phase::Waiting, None),
             row("second", true, Phase::Waiting, None),
         ];
-        assert_eq!(incoming_offer(&list).map(|offer| offer.id.as_str()), Some("first"), "a finished one, or a later one, came first");
+        assert_eq!(
+            incoming_offer(&list).map(|offer| offer.id.as_str()),
+            Some("first"),
+            "a finished one, or a later one, came first"
+        );
         list[1].phase = Phase::Moving;
-        assert_eq!(incoming_offer(&list).map(|offer| offer.id.as_str()), Some("second"));
+        assert_eq!(
+            incoming_offer(&list).map(|offer| offer.id.as_str()),
+            Some("second")
+        );
         list[2].phase = Phase::Cancelled;
         assert!(incoming_offer(&list).is_none());
     }
@@ -5528,18 +7625,31 @@ mod tests {
     }
 
     #[test]
-    fn a_circle_is_pressed_to_its_actuation_point_like_a_key_and_a_brush_of_the_screen_is_not_a_press() {
+    fn a_circle_is_pressed_to_its_actuation_point_like_a_key_and_a_brush_of_the_screen_is_not_a_press()
+     {
         let (b, w) = at_box(100., 100.);
         let mut touch = Touch::new(200.);
         touch.down(b, w, 1_000);
-        assert!(!touch.up(b, w, 1_000), "a contact of no time pressed the circle");
+        assert!(
+            !touch.up(b, w, 1_000),
+            "a contact of no time pressed the circle"
+        );
         touch.down(b, w, 1_000);
-        assert!(!touch.up(b, w, 1_000 + MIN_TOUCH_MS - 1), "a brush pressed the circle");
+        assert!(
+            !touch.up(b, w, 1_000 + MIN_TOUCH_MS - 1),
+            "a brush pressed the circle"
+        );
         touch.down(b, w, 1_000);
-        assert!(touch.up(b, w, 1_000 + MIN_TOUCH_MS), "the actuation point itself is a press");
+        assert!(
+            touch.up(b, w, 1_000 + MIN_TOUCH_MS),
+            "the actuation point itself is a press"
+        );
         // Resting on it long is still a press for a control that has no hold of its own: the circle of Receive.
         touch.down(b, w, 1_000);
-        assert!(touch.up(b, w, 1_000 + HOLD_MS * 4), "a long rest was not a press");
+        assert!(
+            touch.up(b, w, 1_000 + HOLD_MS * 4),
+            "a long rest was not a press"
+        );
     }
 
     #[test]
@@ -5547,7 +7657,10 @@ mod tests {
         let (b, w) = at_box(100., 100.);
         let mut touch = Touch::new(200.);
         touch.down(b, w, 10_000);
-        assert!(!touch.up(b, w, 5), "a clock that ran backwards pressed the circle");
+        assert!(
+            !touch.up(b, w, 5),
+            "a clock that ran backwards pressed the circle"
+        );
     }
 
     #[test]
@@ -5555,10 +7668,16 @@ mod tests {
         let (b, w) = at_box(100., 100.);
         let mut touch = Touch::new(200.);
         touch.down(b, w, 0);
-        assert!(touch.lifted_inside(b, w), "a lift inside the round was refused");
+        assert!(
+            touch.lifted_inside(b, w),
+            "a lift inside the round was refused"
+        );
         let (corner, corner_win) = at_box(2., 2.);
         touch.down(b, w, 0);
-        assert!(!touch.lifted_inside(corner, corner_win), "a lift from a corner counted");
+        assert!(
+            !touch.lifted_inside(corner, corner_win),
+            "a lift from a corner counted"
+        );
     }
 
     #[test]
@@ -5567,12 +7686,18 @@ mod tests {
         let (down_box, down_win) = at_box(100., 100.);
         touch.down(down_box, down_win, 0);
         let (up_box, up_win) = at_box(104., 103.);
-        assert!(touch.up(up_box, up_win, MIN_TOUCH_MS), "a finger that moved a little was not a tap");
+        assert!(
+            touch.up(up_box, up_win, MIN_TOUCH_MS),
+            "a finger that moved a little was not a tap"
+        );
         // A move of exactly the slop is still a tap.
         let mut touch = Touch::new(200.);
         touch.down(down_box, down_win, 0);
         let (up_box, up_win) = at_box(100. + TAP_SLOP, 100.);
-        assert!(touch.up(up_box, up_win, MIN_TOUCH_MS), "a move of exactly the slop was refused");
+        assert!(
+            touch.up(up_box, up_win, MIN_TOUCH_MS),
+            "a move of exactly the slop was refused"
+        );
     }
 
     #[test]
@@ -5581,7 +7706,10 @@ mod tests {
             let mut touch = Touch::new(200.);
             let (b, w) = at_box(corner.0, corner.1);
             touch.down(b, w, 0);
-            assert!(!touch.up(b, w, MIN_TOUCH_MS), "{corner:?} pressed the circle from its corner");
+            assert!(
+                !touch.up(b, w, MIN_TOUCH_MS),
+                "{corner:?} pressed the circle from its corner"
+            );
         }
         // Down in the circle and lifted in a corner is not a press either.
         let mut touch = Touch::new(200.);
@@ -5597,13 +7725,19 @@ mod tests {
         let (db, dw) = at_box(100., 60.);
         touch.down(db, dw, 0);
         let (ub, uw) = at_box(100., 140.);
-        assert!(!touch.up(ub, uw, MIN_TOUCH_MS), "a swipe was taken for a tap");
+        assert!(
+            !touch.up(ub, uw, MIN_TOUCH_MS),
+            "a swipe was taken for a tap"
+        );
         // Just past the slop is already a drag.
         let mut touch = Touch::new(200.);
         let (db, dw) = at_box(100., 100.);
         touch.down(db, dw, 0);
         let (ub, uw) = at_box(100. + TAP_SLOP + 1., 100.);
-        assert!(!touch.up(ub, uw, MIN_TOUCH_MS), "a move just past the slop was a tap");
+        assert!(
+            !touch.up(ub, uw, MIN_TOUCH_MS),
+            "a move just past the slop was a tap"
+        );
     }
 
     #[test]
@@ -5614,7 +7748,10 @@ mod tests {
         // Down 70 px (a swipe), then back to exactly where it began, and lifted there: both ends are the same point.
         touch.moved(at_box(100., 170.).1);
         let (ub, uw) = at_box(100., 100.);
-        assert!(!touch.up(ub, uw, MIN_TOUCH_MS), "an out-and-back swipe ended where it began and was taken for a tap");
+        assert!(
+            !touch.up(ub, uw, MIN_TOUCH_MS),
+            "an out-and-back swipe ended where it began and was taken for a tap"
+        );
     }
 
     #[test]
@@ -5625,12 +7762,18 @@ mod tests {
         touch.down((100., 100.), (150., 400.), 0);
         touch.moved((150., 400.));
         // The finger is where it was, in the window. In the box it reads 80 px further up, which is still inside the circle.
-        assert!(touch.up((100., 20.), (150., 400.), MIN_TOUCH_MS), "scrolling under a still finger cancelled a tap");
+        assert!(
+            touch.up((100., 20.), (150., 400.), MIN_TOUCH_MS),
+            "scrolling under a still finger cancelled a tap"
+        );
         // The same distance moved by the FINGER, in the window, is a drag.
         let mut touch = Touch::new(200.);
         touch.down((100., 100.), (150., 400.), 0);
         touch.moved((150., 480.));
-        assert!(!touch.up((100., 100.), (150., 480.), MIN_TOUCH_MS), "the finger moved 80 px and it was a tap");
+        assert!(
+            !touch.up((100., 100.), (150., 480.), MIN_TOUCH_MS),
+            "the finger moved 80 px and it was a tap"
+        );
     }
 
     #[test]
@@ -5643,24 +7786,34 @@ mod tests {
         let mut touch = Touch::new(200.);
         let (b, w) = at_box(200.5, 100.);
         touch.down(b, w, 0);
-        assert!(!touch.up(b, w, MIN_TOUCH_MS), "a point past the rim pressed");
+        assert!(
+            !touch.up(b, w, MIN_TOUCH_MS),
+            "a point past the rim pressed"
+        );
     }
 
     #[test]
-    fn both_ends_of_the_touch_must_be_in_the_circle_so_one_end_outside_with_a_tiny_move_is_not_a_press() {
+    fn both_ends_of_the_touch_must_be_in_the_circle_so_one_end_outside_with_a_tiny_move_is_not_a_press()
+     {
         // Down on the rim (inside), up 3 px outward (outside): the move is inside the slop, so only the place where the
         // finger came up can refuse it.
         let mut touch = Touch::new(200.);
         let (db, dw) = at_box(200., 100.);
         touch.down(db, dw, 0);
         let (ub, uw) = at_box(203., 100.);
-        assert!(!touch.up(ub, uw, MIN_TOUCH_MS), "a touch that lifted outside the circle pressed");
+        assert!(
+            !touch.up(ub, uw, MIN_TOUCH_MS),
+            "a touch that lifted outside the circle pressed"
+        );
         // The other way: down just outside, up on the rim. Only the place where it began can refuse it.
         let mut touch = Touch::new(200.);
         let (db, dw) = at_box(203., 100.);
         touch.down(db, dw, 0);
         let (ub, uw) = at_box(200., 100.);
-        assert!(!touch.up(ub, uw, MIN_TOUCH_MS), "a touch that began outside the circle pressed");
+        assert!(
+            !touch.up(ub, uw, MIN_TOUCH_MS),
+            "a touch that began outside the circle pressed"
+        );
     }
 
     #[test]
@@ -5672,20 +7825,32 @@ mod tests {
         assert!(!touch.up(b, w, MIN_TOUCH_MS), "a cancelled gesture pressed");
         // A lift that nothing began: the finger came onto the circle from outside and was lifted there.
         let mut touch = Touch::new(200.);
-        assert!(!touch.up(b, w, MIN_TOUCH_MS), "a lift with no touch before it pressed");
+        assert!(
+            !touch.up(b, w, MIN_TOUCH_MS),
+            "a lift with no touch before it pressed"
+        );
         // And one gesture does not carry into the next: after a press the next lift alone is not one.
         let mut touch = Touch::new(200.);
         touch.down(b, w, 0);
         assert!(touch.up(b, w, MIN_TOUCH_MS));
-        assert!(!touch.up(b, w, MIN_TOUCH_MS), "a second lift pressed from the first touch");
+        assert!(
+            !touch.up(b, w, MIN_TOUCH_MS),
+            "a second lift pressed from the first touch"
+        );
     }
 
     #[test]
     fn the_words_name_who_sends_and_never_pretend_when_it_gave_no_name() {
-        assert_eq!(offer_words(&row("a", true, Phase::Waiting, Some("Alex's phone"))), "Alex's phone wants to send you a file");
+        assert_eq!(
+            offer_words(&row("a", true, Phase::Waiting, Some("Alex's phone"))),
+            "Alex's phone wants to send you a file"
+        );
         // Nothing, or only blanks: it is not made up, and no empty name leaves a sentence that begins with a space.
         for none in [None, Some(""), Some("   ")] {
-            assert_eq!(offer_words(&row("a", true, Phase::Waiting, none)), "A device wants to send you a file");
+            assert_eq!(
+                offer_words(&row("a", true, Phase::Waiting, none)),
+                "A device wants to send you a file"
+            );
         }
     }
 
@@ -5693,8 +7858,14 @@ mod tests {
     fn the_queue_is_said_on_a_line_of_its_own_and_only_when_there_is_more_than_one() {
         assert_eq!(queue_words(0), None);
         assert_eq!(queue_words(1), None, "a queue of one was announced");
-        assert_eq!(queue_words(2).as_deref(), Some("2 files are waiting in all"));
-        assert_eq!(queue_words(16).as_deref(), Some("16 files are waiting in all"));
+        assert_eq!(
+            queue_words(2).as_deref(),
+            Some("2 files are waiting in all")
+        );
+        assert_eq!(
+            queue_words(16).as_deref(),
+            Some("16 files are waiting in all")
+        );
     }
 
     #[test]
@@ -5713,9 +7884,19 @@ mod tests {
         };
         let offered = offered_now(&view).expect("three were waiting");
         assert_eq!(offered.offer.id, "alice-1");
-        assert_eq!(offered.waiting, 3, "a finished or an outgoing file was counted as waiting");
-        assert_eq!(offer_words(&offered.offer), "Alice wants to send you a file", "the count was put to one sender's name");
-        assert_eq!(queue_words(offered.waiting).as_deref(), Some("3 files are waiting in all"));
+        assert_eq!(
+            offered.waiting, 3,
+            "a finished or an outgoing file was counted as waiting"
+        );
+        assert_eq!(
+            offer_words(&offered.offer),
+            "Alice wants to send you a file",
+            "the count was put to one sender's name"
+        );
+        assert_eq!(
+            queue_words(offered.waiting).as_deref(),
+            Some("3 files are waiting in all")
+        );
         // Accept answers the first one; when it is answered the next is about Bob, with two waiting.
         view.transfers[2].phase = Phase::Moving;
         let next = offered_now(&view).expect("two were waiting");
@@ -5724,17 +7905,27 @@ mod tests {
     }
 
     #[test]
-    fn the_circle_can_be_pressed_to_choose_again_when_nothing_is_going_on_and_when_a_send_is_over_without_clear() {
+    fn the_circle_can_be_pressed_to_choose_again_when_nothing_is_going_on_and_when_a_send_is_over_without_clear()
+     {
         let can = |circle: CodeCircle| circle.lets_choose();
         // Nothing out, or finished: choosing is open.
         assert!(can(CodeCircle::Gone));
-        assert!(can(CodeCircle::Sent { files: 2 }), "a finished send could not be followed by another without Clear");
-        assert!(can(CodeCircle::Stopped { files: 3, done: 1 }), "a stopped send could not be followed by another without Clear");
+        assert!(
+            can(CodeCircle::Sent { files: 2 }),
+            "a finished send could not be followed by another without Clear"
+        );
+        assert!(
+            can(CodeCircle::Stopped { files: 3, done: 1 }),
+            "a stopped send could not be followed by another without Clear"
+        );
         // A code out, or work going on: a second choice would replace what is being offered or sent.
         assert!(!can(CodeCircle::Code));
         assert!(!can(CodeCircle::Scanned));
         assert!(!can(CodeCircle::WaitingForApproval { files: 1 }));
-        assert!(!can(CodeCircle::Sending { files: 1, percent: 40 }));
+        assert!(!can(CodeCircle::Sending {
+            files: 1,
+            percent: 40
+        }));
         // The same through the rule that makes the circle: a finished transfer of the drawn code is a circle that may be pressed.
         let finished = [of_code("a", 3, Phase::Done, 100)];
         assert!(code_circle(3, on_show(3, false), &finished).lets_choose());
@@ -5746,30 +7937,84 @@ mod tests {
     fn the_code_is_drawn_only_while_it_is_the_one_on_show_and_can_still_admit_a_device() {
         assert_eq!(code_circle(3, on_show(3, true), &[]), CodeCircle::Code);
         // Scanned: the owner says it admits no more, and no file is reported for it yet. NOT drawn.
-        assert_eq!(code_circle(3, on_show(3, false), &[]), CodeCircle::Scanned, "a scanned code stayed on the screen");
+        assert_eq!(
+            code_circle(3, on_show(3, false), &[]),
+            CodeCircle::Scanned,
+            "a scanned code stayed on the screen"
+        );
         // Another code is on show, or none (revoked with the network): what was drawn is gone.
-        assert_eq!(code_circle(3, on_show(4, true), &[]), CodeCircle::Gone, "a replaced code stayed on the screen");
-        assert_eq!(code_circle(3, None, &[]), CodeCircle::Gone, "a revoked code stayed on the screen");
+        assert_eq!(
+            code_circle(3, on_show(4, true), &[]),
+            CodeCircle::Gone,
+            "a replaced code stayed on the screen"
+        );
+        assert_eq!(
+            code_circle(3, None, &[]),
+            CodeCircle::Gone,
+            "a revoked code stayed on the screen"
+        );
     }
 
     #[test]
     fn a_file_that_came_of_the_code_says_where_it_stands_whatever_the_owner_says_of_the_code() {
-        let waiting = [of_code("a", 3, Phase::Waiting, 0), of_code("b", 3, Phase::Waiting, 0)];
-        assert_eq!(code_circle(3, on_show(3, false), &waiting), CodeCircle::WaitingForApproval { files: 2 });
+        let waiting = [
+            of_code("a", 3, Phase::Waiting, 0),
+            of_code("b", 3, Phase::Waiting, 0),
+        ];
+        assert_eq!(
+            code_circle(3, on_show(3, false), &waiting),
+            CodeCircle::WaitingForApproval { files: 2 }
+        );
         // One accepted and is crossing: sending, the mean of the two.
-        let sending = [of_code("a", 3, Phase::Moving, 80), of_code("b", 3, Phase::Waiting, 0)];
-        assert_eq!(code_circle(3, on_show(3, false), &sending), CodeCircle::Sending { files: 2, percent: 40 });
+        let sending = [
+            of_code("a", 3, Phase::Moving, 80),
+            of_code("b", 3, Phase::Waiting, 0),
+        ];
+        assert_eq!(
+            code_circle(3, on_show(3, false), &sending),
+            CodeCircle::Sending {
+                files: 2,
+                percent: 40
+            }
+        );
         // Another code may have been made since: the files of the first still say where THEY stand.
-        assert_eq!(code_circle(3, on_show(4, true), &sending), CodeCircle::Sending { files: 2, percent: 40 });
-        let sent = [of_code("a", 3, Phase::Done, 100), of_code("b", 3, Phase::Done, 100)];
+        assert_eq!(
+            code_circle(3, on_show(4, true), &sending),
+            CodeCircle::Sending {
+                files: 2,
+                percent: 40
+            }
+        );
+        let sent = [
+            of_code("a", 3, Phase::Done, 100),
+            of_code("b", 3, Phase::Done, 100),
+        ];
         assert_eq!(code_circle(3, None, &sent), CodeCircle::Sent { files: 2 });
-        let stopped = [of_code("a", 3, Phase::Done, 100), of_code("b", 3, Phase::Cancelled, 10)];
-        assert_eq!(code_circle(3, None, &stopped), CodeCircle::Stopped { files: 2, done: 1 });
+        let stopped = [
+            of_code("a", 3, Phase::Done, 100),
+            of_code("b", 3, Phase::Cancelled, 10),
+        ];
+        assert_eq!(
+            code_circle(3, None, &stopped),
+            CodeCircle::Stopped { files: 2, done: 1 }
+        );
         let failed = [of_code("a", 3, Phase::Failed("x".into()), 0)];
-        assert_eq!(code_circle(3, None, &failed), CodeCircle::Stopped { files: 1, done: 0 });
+        assert_eq!(
+            code_circle(3, None, &failed),
+            CodeCircle::Stopped { files: 1, done: 0 }
+        );
         // Some still crossing while another failed: still going, not stopped.
-        let mixed = [of_code("a", 3, Phase::Moving, 50), of_code("b", 3, Phase::Failed("x".into()), 0)];
-        assert_eq!(code_circle(3, None, &mixed), CodeCircle::Sending { files: 2, percent: 25 });
+        let mixed = [
+            of_code("a", 3, Phase::Moving, 50),
+            of_code("b", 3, Phase::Failed("x".into()), 0),
+        ];
+        assert_eq!(
+            code_circle(3, None, &mixed),
+            CodeCircle::Sending {
+                files: 2,
+                percent: 25
+            }
+        );
     }
 
     #[test]
@@ -5780,21 +8025,35 @@ mod tests {
             row("paired", false, Phase::Moving, None),
             of_code("older", 2, Phase::Done, 100),
             of_code("newer", 4, Phase::Waiting, 0),
-            Progress { code: Some(3), ..row("in", true, Phase::Done, Some("Alex")) },
+            Progress {
+                code: Some(3),
+                ..row("in", true, Phase::Done, Some("Alex"))
+            },
         ];
-        assert_eq!(code_circle(3, on_show(3, true), &others), CodeCircle::Code, "a transfer of no code was taken for this one's");
-        assert_eq!(code_circle(3, on_show(3, false), &others), CodeCircle::Scanned);
+        assert_eq!(
+            code_circle(3, on_show(3, true), &others),
+            CodeCircle::Code,
+            "a transfer of no code was taken for this one's"
+        );
+        assert_eq!(
+            code_circle(3, on_show(3, false), &others),
+            CodeCircle::Scanned
+        );
     }
 
     #[test]
     fn a_code_is_taken_off_the_screen_at_its_deadline_without_waiting_for_the_owner() {
         assert!(!code_expired(1_000, 999));
-        assert!(code_expired(1_000, 1_000), "a code was still drawn at its deadline");
+        assert!(
+            code_expired(1_000, 1_000),
+            "a code was still drawn at its deadline"
+        );
         assert!(code_expired(1_000, 5_000));
     }
 
     #[test]
-    fn the_circle_says_what_is_happening_to_the_files_in_words_and_says_nothing_while_it_is_the_code() {
+    fn the_circle_says_what_is_happening_to_the_files_in_words_and_says_nothing_while_it_is_the_code()
+     {
         // The code is the picture, and a code that is gone asks for files again: neither has words of its own.
         assert_eq!(circle_words_in(Language::English, &CodeCircle::Code), None);
         assert_eq!(circle_words_in(Language::English, &CodeCircle::Gone), None);
@@ -5802,25 +8061,59 @@ mod tests {
         let (_, headline, line) = circle_words_in(Language::English, &CodeCircle::Scanned).unwrap();
         assert_eq!(headline, "SCANNED");
         assert!(line.contains("Waiting for it to accept"), "{line}");
-        let (kicker, headline, line) = circle_words_in(Language::English, &CodeCircle::WaitingForApproval { files: 1 }).unwrap();
+        let (kicker, headline, line) = circle_words_in(
+            Language::English,
+            &CodeCircle::WaitingForApproval { files: 1 },
+        )
+        .unwrap();
         assert_eq!((kicker, headline.as_str()), ("WAITING FOR APPROVAL", "1"));
         assert_eq!(line, "Waiting for the other device to accept 1 file.");
-        assert_eq!(circle_words_in(Language::English, &CodeCircle::WaitingForApproval { files: 3 }).unwrap().2, "Waiting for the other device to accept 3 files.");
+        assert_eq!(
+            circle_words_in(
+                Language::English,
+                &CodeCircle::WaitingForApproval { files: 3 }
+            )
+            .unwrap()
+            .2,
+            "Waiting for the other device to accept 3 files."
+        );
         // Sending: the percent is the headline, so that how far it is can be read at a glance.
-        let (kicker, headline, line) = circle_words_in(Language::English, &CodeCircle::Sending { files: 2, percent: 40 }).unwrap();
-        assert_eq!((kicker, headline.as_str(), line.as_str()), ("SENDING", "40%", "Sending 2 files."));
-        let (_, headline, line) = circle_words_in(Language::English, &CodeCircle::Sent { files: 2 }).unwrap();
-        assert_eq!((headline.as_str(), line.as_str()), ("2 SENT", "2 files arrived."));
+        let (kicker, headline, line) = circle_words_in(
+            Language::English,
+            &CodeCircle::Sending {
+                files: 2,
+                percent: 40,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            (kicker, headline.as_str(), line.as_str()),
+            ("SENDING", "40%", "Sending 2 files.")
+        );
+        let (_, headline, line) =
+            circle_words_in(Language::English, &CodeCircle::Sent { files: 2 }).unwrap();
+        assert_eq!(
+            (headline.as_str(), line.as_str()),
+            ("2 SENT", "2 files arrived.")
+        );
         // Stopped says how many got there, not just that something went wrong.
-        let (_, headline, line) = circle_words_in(Language::English, &CodeCircle::Stopped { files: 3, done: 1 }).unwrap();
+        let (_, headline, line) = circle_words_in(
+            Language::English,
+            &CodeCircle::Stopped { files: 3, done: 1 },
+        )
+        .unwrap();
         assert_eq!(headline, "1/3");
         assert!(line.starts_with("1 of 3 files arrived."), "{line}");
     }
 
     #[test]
-    fn the_circle_counts_down_to_the_earliest_deadline_of_the_files_of_its_code_that_still_wait_and_only_then() {
+    fn the_circle_counts_down_to_the_earliest_deadline_of_the_files_of_its_code_that_still_wait_and_only_then()
+     {
         let waiting = CodeCircle::WaitingForApproval { files: 2 };
-        let with_deadline = |id: &str, code: u64, phase: Phase, at: Option<u64>| Progress { expires_at: at, ..of_code(id, code, phase, 0) };
+        let with_deadline = |id: &str, code: u64, phase: Phase, at: Option<u64>| Progress {
+            expires_at: at,
+            ..of_code(id, code, phase, 0)
+        };
         let list = [
             with_deadline("late", 3, Phase::Waiting, Some(1_200)),
             with_deadline("soon", 3, Phase::Waiting, Some(1_090)),
@@ -5829,27 +8122,72 @@ mod tests {
             with_deadline("moving", 3, Phase::Moving, Some(1_001)),
             with_deadline("none", 3, Phase::Waiting, None),
         ];
-        assert_eq!(circle_time_in(Language::English, &waiting, 3, &list, 1_000).as_deref(), Some("ENDS IN 1:30"), "not the earliest deadline of this code");
-        assert_eq!(circle_time_in(Language::English, &waiting, 3, &list, 1_085).as_deref(), Some("ENDS IN 0:05"));
+        assert_eq!(
+            circle_time_in(Language::English, &waiting, 3, &list, 1_000).as_deref(),
+            Some("ENDS IN 1:30"),
+            "not the earliest deadline of this code"
+        );
+        assert_eq!(
+            circle_time_in(Language::English, &waiting, 3, &list, 1_085).as_deref(),
+            Some("ENDS IN 0:05")
+        );
         // At the deadline the clock stops at zero (the same contract as the offer's): the owner ends the offer then, and the circle
         // leaves this state by itself. A deadline long past is not a negative number.
-        assert_eq!(circle_time_in(Language::English, &waiting, 3, &list, 1_090).as_deref(), Some("ENDS IN 0:00"), "the clock did not stop at zero");
-        assert_eq!(circle_time_in(Language::English, &waiting, 3, &list, 9_999).as_deref(), Some("ENDS IN 0:00"), "a deadline long past went below zero");
+        assert_eq!(
+            circle_time_in(Language::English, &waiting, 3, &list, 1_090).as_deref(),
+            Some("ENDS IN 0:00"),
+            "the clock did not stop at zero"
+        );
+        assert_eq!(
+            circle_time_in(Language::English, &waiting, 3, &list, 9_999).as_deref(),
+            Some("ENDS IN 0:00"),
+            "a deadline long past went below zero"
+        );
         // Only while waiting: every other state has its own words and no clock.
-        for circle in [CodeCircle::Code, CodeCircle::Scanned, CodeCircle::Sending { files: 1, percent: 5 }, CodeCircle::Sent { files: 1 }, CodeCircle::Gone] {
-            assert_eq!(circle_time_in(Language::English, &circle, 3, &list, 1_000), None, "{circle:?} showed a countdown");
+        for circle in [
+            CodeCircle::Code,
+            CodeCircle::Scanned,
+            CodeCircle::Sending {
+                files: 1,
+                percent: 5,
+            },
+            CodeCircle::Sent { files: 1 },
+            CodeCircle::Gone,
+        ] {
+            assert_eq!(
+                circle_time_in(Language::English, &circle, 3, &list, 1_000),
+                None,
+                "{circle:?} showed a countdown"
+            );
         }
-        assert_eq!(circle_time_in(Language::English, &waiting, 3, &[], 1_000), None, "a circle with no waiting file showed a time");
+        assert_eq!(
+            circle_time_in(Language::English, &waiting, 3, &[], 1_000),
+            None,
+            "a circle with no waiting file showed a time"
+        );
     }
 
     #[test]
-    fn the_circle_names_the_chosen_files_up_to_a_bound_and_counts_the_rest_and_says_nothing_for_none() {
+    fn the_circle_names_the_chosen_files_up_to_a_bound_and_counts_the_rest_and_says_nothing_for_none()
+     {
         let names = |count: usize| (0..count).map(|n| format!("f{n}.txt")).collect::<Vec<_>>();
-        assert!(chosen_words(&[]).is_empty(), "something was said when nothing was chosen");
+        assert!(
+            chosen_words(&[]).is_empty(),
+            "something was said when nothing was chosen"
+        );
         assert_eq!(chosen_words(&names(1)), ["f0.txt"]);
         // Exactly the bound: all named, nothing counted.
-        assert_eq!(chosen_words(&names(NAMED_UNDER_CIRCLE)).len(), NAMED_UNDER_CIRCLE);
-        assert!(!chosen_words(&names(NAMED_UNDER_CIRCLE)).last().unwrap().starts_with('+'), "a file that fits was counted instead of named");
+        assert_eq!(
+            chosen_words(&names(NAMED_UNDER_CIRCLE)).len(),
+            NAMED_UNDER_CIRCLE
+        );
+        assert!(
+            !chosen_words(&names(NAMED_UNDER_CIRCLE))
+                .last()
+                .unwrap()
+                .starts_with('+'),
+            "a file that fits was counted instead of named"
+        );
         // One past the bound: the first ones are named and the rest are counted, so that nothing chosen is hidden without a word.
         let many = chosen_words(&names(NAMED_UNDER_CIRCLE + 3));
         assert_eq!(many.len(), NAMED_UNDER_CIRCLE + 1);
@@ -5859,13 +8197,20 @@ mod tests {
 
     #[test]
     fn what_is_left_of_a_codes_life_runs_to_its_deadline_and_never_goes_below_nothing() {
-        assert_eq!(until_expiry(1_300, 1_000), std::time::Duration::from_secs(300));
+        assert_eq!(
+            until_expiry(1_300, 1_000),
+            std::time::Duration::from_secs(300)
+        );
         assert_eq!(until_expiry(1_000, 1_000), std::time::Duration::ZERO);
         // A clock that is ahead of the deadline is not a debt.
         assert_eq!(until_expiry(1_000, 9_000), std::time::Duration::ZERO);
         // The same rule as `code_expired`: no time left exactly when it is expired.
         for now in [0, 999, 1_000, 1_001] {
-            assert_eq!(until_expiry(1_000, now).is_zero(), code_expired(1_000, now), "at {now}");
+            assert_eq!(
+                until_expiry(1_000, now).is_zero(),
+                code_expired(1_000, now),
+                "at {now}"
+            );
         }
     }
 
@@ -5878,13 +8223,25 @@ mod tests {
         assert_eq!(down.hidden(), 30.);
         assert_eq!(down.height(), HEADER_HEIGHT - 30.);
         let far = down.after(400.);
-        assert_eq!(far.hidden(), HEADER_HEIGHT, "the bar did not go all the way");
+        assert_eq!(
+            far.hidden(),
+            HEADER_HEIGHT,
+            "the bar did not go all the way"
+        );
         assert_eq!(far.height(), 0.);
         // Scrolling up, anywhere on the page and not only at its top: the bar comes back by what the page went up.
         let up = far.after(380.);
-        assert_eq!(up.hidden(), HEADER_HEIGHT - 20., "the bar did not come back as the page went up");
+        assert_eq!(
+            up.hidden(),
+            HEADER_HEIGHT - 20.,
+            "the bar did not come back as the page went up"
+        );
         let back = up.after(300.);
-        assert_eq!(back.hidden(), 0., "scrolling up did not bring the whole bar back");
+        assert_eq!(
+            back.hidden(),
+            0.,
+            "scrolling up did not bring the whole bar back"
+        );
     }
 
     #[test]
@@ -5902,11 +8259,19 @@ mod tests {
         // From a bar that is only partly hidden: a bar that is already all the way up cannot go further whatever the move.
         let at = HeaderHide::default().after(20.);
         let nudged = at.after(23.);
-        assert_eq!(nudged.hidden() - at.hidden(), 3., "a small move was not a small change");
+        assert_eq!(
+            nudged.hidden() - at.hidden(),
+            3.,
+            "a small move was not a small change"
+        );
         // And a bar that is all the way up stays so for a small move down; it comes back only by a move up.
         let gone = HeaderHide::default().after(500.);
         assert_eq!(gone.after(503.).hidden(), HEADER_HEIGHT);
-        assert_eq!(gone.after(498.).hidden(), HEADER_HEIGHT - 2., "a small move up did not bring a small part of the bar back");
+        assert_eq!(
+            gone.after(498.).hidden(),
+            HEADER_HEIGHT - 2.,
+            "a small move up did not bring a small part of the bar back"
+        );
         for bad in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
             assert_eq!(at.after(bad), at, "{bad} changed the bar");
         }
@@ -5915,24 +8280,57 @@ mod tests {
     #[test]
     fn completed_first_batches_never_finish_a_selection_that_is_still_being_opened() {
         let early = [of_code("first", 3, Phase::Done, 100)];
-        let producing = Some(FilesCode { generation: 3, live: false, pending: true });
-        assert_eq!(code_circle_selection(3, producing, &early, 80), CodeCircle::Sending { files: 80, percent: 1 });
+        let producing = Some(FilesCode {
+            generation: 3,
+            live: false,
+            pending: true,
+        });
+        assert_eq!(
+            code_circle_selection(3, producing, &early, 80),
+            CodeCircle::Sending {
+                files: 80,
+                percent: 1
+            }
+        );
         assert!(!code_circle_selection(3, producing, &early, 80).lets_choose());
         // Expiry, closure or producer failure must not turn the partial result into success.
-        assert_eq!(code_circle_selection(3, on_show(3, false), &early, 80), CodeCircle::Stopped { files: 80, done: 1 });
+        assert_eq!(
+            code_circle_selection(3, on_show(3, false), &early, 80),
+            CodeCircle::Stopped { files: 80, done: 1 }
+        );
         // Once unreadable choices were accounted for, the successful remainder can finish.
-        assert_eq!(code_circle_selection(3, on_show(3, false), &early, 1), CodeCircle::Sent { files: 1 });
+        assert_eq!(
+            code_circle_selection(3, on_show(3, false), &early, 1),
+            CodeCircle::Sent { files: 1 }
+        );
     }
 
     #[test]
     fn pending_source_work_cannot_show_one_hundred_percent_even_if_all_visible_rows_are_done() {
         let complete = [of_code("first", 3, Phase::Done, 100)];
-        let producing = Some(FilesCode { generation: 3, live: false, pending: true });
-        assert_eq!(code_circle_selection(3, producing, &complete, 1), CodeCircle::Sending { files: 1, percent: 99 });
-        assert_eq!(code_circle_selection(3, on_show(3, false), &complete, 1), CodeCircle::Sent { files: 1 });
+        let producing = Some(FilesCode {
+            generation: 3,
+            live: false,
+            pending: true,
+        });
+        assert_eq!(
+            code_circle_selection(3, producing, &complete, 1),
+            CodeCircle::Sending {
+                files: 1,
+                percent: 99
+            }
+        );
+        assert_eq!(
+            code_circle_selection(3, on_show(3, false), &complete, 1),
+            CodeCircle::Sent { files: 1 }
+        );
     }
 
-    fn listing(name: &str, version: &str, installed: Option<&str>) -> peersus_core::model::StoreListing {
+    fn listing(
+        name: &str,
+        version: &str,
+        installed: Option<&str>,
+    ) -> peersus_core::model::StoreListing {
         peersus_core::model::StoreListing {
             plugin: peersus_core::plugins::PluginId::new(name).unwrap(),
             version: version.into(),
@@ -5944,27 +8342,126 @@ mod tests {
     }
 
     #[test]
+    fn unified_extensions_keep_catalog_positions_across_install_and_removal() {
+        use peersus_core::model::{PluginStatus, Standing, StoreState, StoreStatus};
+        let plugin = |name: &str| PluginInfo {
+            id: peersus_core::plugins::PluginId::new(name).unwrap(),
+            manifest: Default::default(),
+            standing: Standing::Ready,
+            status: PluginStatus::Stopped,
+            grantable: Default::default(),
+            program: None,
+            package: None,
+        };
+        let store = StoreState {
+            status: StoreStatus::Ready,
+            listings: vec![
+                listing("echo", "1.0.0", None),
+                listing("other", "1.0.0", None),
+            ],
+            error: None,
+        };
+        let plugins = [plugin("local"), plugin("echo")];
+        let rows = extension_rows(&plugins, &store, "");
+        assert_eq!(
+            rows.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(),
+            ["echo", "other", "local"]
+        );
+        assert!(rows[0].installed.is_some());
+        assert!(rows[0].listing.is_some());
+        assert!(rows[1].installed.is_none());
+        assert!(rows[2].listing.is_none());
+        let after = extension_rows(&plugins[..1], &store, "");
+        assert_eq!(
+            after.iter().map(|row| row.id.as_str()).collect::<Vec<_>>(),
+            ["echo", "other", "local"]
+        );
+        assert!(after[0].installed.is_none());
+        assert!(after[0].listing.is_some());
+        for status in [StoreStatus::Loading, StoreStatus::Failed] {
+            let cached = StoreState {
+                status,
+                ..store.clone()
+            };
+            assert_eq!(
+                extension_rows(&plugins, &cached, "")
+                    .iter()
+                    .map(|row| row.id.as_str())
+                    .collect::<Vec<_>>(),
+                ["echo", "other", "local"]
+            );
+        }
+        assert_eq!(
+            extension_rows(&plugins, &store, " ECHO ")
+                .iter()
+                .map(|row| row.id.as_str())
+                .collect::<Vec<_>>(),
+            ["echo"]
+        );
+        assert_eq!(
+            extension_rows(&plugins, &store, "local")
+                .iter()
+                .map(|row| row.id.as_str())
+                .collect::<Vec<_>>(),
+            ["local"]
+        );
+        assert_eq!(
+            extension_rows(&plugins, &store, "someone")
+                .iter()
+                .map(|row| row.id.as_str())
+                .collect::<Vec<_>>(),
+            ["echo", "other"]
+        );
+        assert!(extension_rows(&plugins, &store, "missing").is_empty());
+    }
+
+    #[test]
     fn a_store_row_offers_install_update_or_nothing_from_the_two_versions() {
         use StoreAction::{Install, Installed, NewerInstalled, Update};
-        let action = |offered: &str, installed: Option<&str>| StoreRow::of(&listing("echo", offered, installed)).action;
+        let action = |offered: &str, installed: Option<&str>| {
+            StoreRow::of(&listing("echo", offered, installed)).action
+        };
         assert_eq!(action("1.2.0", None), Install);
         assert_eq!(action("1.2.0", Some("1.1.9")), Update);
-        assert_eq!(action("1.2.0", Some("1.2.0")), Installed, "the same version is not an update");
-        assert_eq!(action("1.2.0", Some("1.3.0")), NewerInstalled, "a newer one is never downgraded by a click");
+        assert_eq!(
+            action("1.2.0", Some("1.2.0")),
+            Installed,
+            "the same version is not an update"
+        );
+        assert_eq!(
+            action("1.2.0", Some("1.3.0")),
+            NewerInstalled,
+            "a newer one is never downgraded by a click"
+        );
         // By number and not by text: 1.10.0 is later than 1.9.0 even though "1.10.0" sorts first as text.
         assert_eq!(action("1.10.0", Some("1.9.0")), Update);
         assert_eq!(action("1.9.0", Some("1.10.0")), NewerInstalled);
         // A version that cannot be compared is never turned into an offered replacement.
         assert_eq!(action("1.2.0", Some("not-a-version")), Installed);
-        assert_eq!(action("1.2.0", Some("01.2.0")), Installed, "a leading zero is not a version");
+        assert_eq!(
+            action("1.2.0", Some("01.2.0")),
+            Installed,
+            "a leading zero is not a version"
+        );
     }
 
     #[test]
     fn only_install_and_update_have_a_button_and_only_what_is_installed_can_be_removed() {
         use StoreAction::{Install, Installed, NewerInstalled, Update};
-        assert_eq!((Install.button(), Update.button()), (Some("Install"), Some("Update")));
+        assert_eq!(
+            (Install.button(), Update.button()),
+            (Some("Install"), Some("Update"))
+        );
         assert_eq!((Installed.button(), NewerInstalled.button()), (None, None));
-        assert_eq!([Install.can_remove(), Update.can_remove(), Installed.can_remove(), NewerInstalled.can_remove()], [false, true, true, true]);
+        assert_eq!(
+            [
+                Install.can_remove(),
+                Update.can_remove(),
+                Installed.can_remove(),
+                NewerInstalled.can_remove()
+            ],
+            [false, true, true, true]
+        );
         // The cost of an update is said where it is pressed: what the old version was allowed is forgotten.
         assert!(Update.note().is_some_and(|words| words.contains("forgets")));
         assert!(Install.note().is_none() && Installed.note().is_none());
@@ -5982,12 +8479,29 @@ mod tests {
             }],
             error: None,
         };
-        let names = |query: &str| store_rows(&state, query).iter().map(|row| row.listing.plugin.as_str().to_owned()).collect::<Vec<_>>();
-        assert_eq!(names(""), ["echo", "zeta"], "an empty search shows everything, in the catalog's order");
-        assert_eq!(names("  ECHO "), ["echo"], "case and surrounding space are ignored");
+        let names = |query: &str| {
+            store_rows(&state, query)
+                .iter()
+                .map(|row| row.listing.plugin.as_str().to_owned())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            names(""),
+            ["echo", "zeta"],
+            "an empty search shows everything, in the catalog's order"
+        );
+        assert_eq!(
+            names("  ECHO "),
+            ["echo"],
+            "case and surrounding space are ignored"
+        );
         assert_eq!(names("maria"), ["zeta"], "by author");
         assert_eq!(names("uploads"), ["zeta"], "by description");
-        assert_eq!(names("copies"), ["echo"], "echo's description only: zeta's was changed");
+        assert_eq!(
+            names("copies"),
+            ["echo"],
+            "echo's description only: zeta's was changed"
+        );
         assert!(names("nothing like this").is_empty());
     }
 
@@ -5996,18 +8510,38 @@ mod tests {
         use peersus_core::model::{StoreState, StoreStatus::*};
         let state = |status, listings: usize| StoreState {
             status,
-            listings: (0..listings).map(|n| listing(&format!("p{n}"), "1.0.0", None)).collect(),
+            listings: (0..listings)
+                .map(|n| listing(&format!("p{n}"), "1.0.0", None))
+                .collect(),
             error: Some("what a download said".into()),
         };
-        assert_eq!(store_notice(&state(NotConfigured, 0)), Some("The extension store is not set up in this build."));
-        assert!(store_notice(&state(Idle, 0)).is_some() && store_notice(&state(Loading, 0)).is_some());
-        assert_eq!(store_notice(&state(Ready, 0)), Some("The maintainer has not approved any extension yet."));
-        assert_eq!(store_notice(&state(Ready, 2)), None, "a list needs no sentence above it");
+        assert_eq!(
+            store_notice(&state(NotConfigured, 0)),
+            Some("The extension store is not set up in this build.")
+        );
+        assert!(
+            store_notice(&state(Idle, 0)).is_some() && store_notice(&state(Loading, 0)).is_some()
+        );
+        assert_eq!(
+            store_notice(&state(Ready, 0)),
+            Some("The maintainer has not approved any extension yet.")
+        );
+        assert_eq!(
+            store_notice(&state(Ready, 2)),
+            None,
+            "a list needs no sentence above it"
+        );
         // Whatever a download or a package said (`error`) is never repeated: only the application's own words.
         for status in [NotConfigured, Idle, Loading, Ready, Failed] {
-            assert!(store_notice(&state(status, 0)).is_none_or(|words| !words.contains("download said")));
+            assert!(
+                store_notice(&state(status, 0))
+                    .is_none_or(|words| !words.contains("download said"))
+            );
         }
-        assert_eq!([NotConfigured, Idle, Loading, Ready, Failed].map(|s| store_can_act(&state(s, 0))), [false, true, false, true, true]);
+        assert_eq!(
+            [NotConfigured, Idle, Loading, Ready, Failed].map(|s| store_can_act(&state(s, 0))),
+            [false, true, false, true, true]
+        );
     }
 
     #[test]
@@ -6015,32 +8549,53 @@ mod tests {
         use peersus_core::model::{StoreState, StoreStatus::*};
         let state = |status, listings: usize| StoreState {
             status,
-            listings: (0..listings).map(|n| listing(&format!("p{n}"), "1.0.0", None)).collect(),
+            listings: (0..listings)
+                .map(|n| listing(&format!("p{n}"), "1.0.0", None))
+                .collect(),
             error: None,
         };
         let ready = state(Ready, 2);
         // Ready, with approved extensions, and the search matched none: it is the SEARCH that found nothing.
         let none = store_rows(&ready, "zzz");
         assert!(none.is_empty());
-        assert_eq!(store_empty(&ready, &none, "zzz"), Some("No extension matches your search."));
+        assert_eq!(
+            store_empty(&ready, &none, "zzz"),
+            Some("No extension matches your search.")
+        );
         // No search, and rows to show: nothing to explain.
         let all = store_rows(&ready, "");
         assert_eq!(store_empty(&ready, &all, ""), None);
         // The maintainer approved nothing: that is about the store, whatever is typed.
         let empty = state(Ready, 0);
-        assert_eq!(store_empty(&empty, &[], ""), Some("The maintainer has not approved any extension yet."));
-        assert_eq!(store_empty(&empty, &[], "zzz"), Some("The maintainer has not approved any extension yet."));
+        assert_eq!(
+            store_empty(&empty, &[], ""),
+            Some("The maintainer has not approved any extension yet.")
+        );
+        assert_eq!(
+            store_empty(&empty, &[], "zzz"),
+            Some("The maintainer has not approved any extension yet.")
+        );
         // Not set up, loading, failed: the store's own words come first, with or without a search.
         for (status, words) in [
-            (NotConfigured, "The extension store is not set up in this build."),
+            (
+                NotConfigured,
+                "The extension store is not set up in this build.",
+            ),
             (Loading, "Working…"),
-            (Failed, "The store could not complete that. Nothing was changed."),
+            (
+                Failed,
+                "The store could not complete that. Nothing was changed.",
+            ),
         ] {
             assert_eq!(store_empty(&state(status, 0), &[], "zzz"), Some(words));
         }
         // A notice about the store (loading, failed) never hides rows that are still on show.
         let loading = state(Loading, 2);
-        assert_eq!(store_empty(&loading, &store_rows(&loading, ""), ""), None, "the last verified listing stays visible");
+        assert_eq!(
+            store_empty(&loading, &store_rows(&loading, ""), ""),
+            None,
+            "the last verified listing stays visible"
+        );
     }
 
     /// The words the store rules RETURN are translated where they are drawn, so a scan of the call sites cannot see them.
@@ -6053,7 +8608,9 @@ mod tests {
             for listings in [0, 2] {
                 let state = StoreState {
                     status,
-                    listings: (0..listings).map(|n| listing(&format!("p{n}"), "1.0.0", None)).collect(),
+                    listings: (0..listings)
+                        .map(|n| listing(&format!("p{n}"), "1.0.0", None))
+                        .collect(),
                     error: None,
                 };
                 ids.extend(store_notice(&state));
@@ -6062,13 +8619,24 @@ mod tests {
                 }
             }
         }
-        for action in [StoreAction::Install, StoreAction::Update, StoreAction::Installed, StoreAction::NewerInstalled] {
+        for action in [
+            StoreAction::Install,
+            StoreAction::Update,
+            StoreAction::Installed,
+            StoreAction::NewerInstalled,
+        ] {
             ids.extend(action.button());
             ids.extend(action.note());
         }
-        assert!(ids.len() >= 12, "the rules produced too few words to be exercising them: {ids:?}");
+        assert!(
+            ids.len() >= 12,
+            "the rules produced too few words to be exercising them: {ids:?}"
+        );
         let missing: Vec<&str> = ids.into_iter().filter(|id| !crate::i18n::has(id)).collect();
-        assert!(missing.is_empty(), "add these to the catalog in every language: {missing:?}");
+        assert!(
+            missing.is_empty(),
+            "add these to the catalog in every language: {missing:?}"
+        );
     }
 }
 
@@ -6078,22 +8646,53 @@ mod circle_view_tests {
 
     fn one(id: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.into(), name: format!("{id}.txt"), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: format!("{id}.txt"),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn devices() -> Aim {
         Aim::Devices(vec!["laptop".into()])
     }
-    fn view_of<'a>(listed: usize, aim: Aim, code: Option<CodeCircle>, batch: &'a [Progress]) -> CircleView {
-        circle_view(&CircleInputs { listed, aim, send_instantly: false, code, batch, handed_over: 0 })
+    fn view_of(
+        listed: usize,
+        aim: Aim,
+        code: Option<CodeCircle>,
+        batch: &[Progress],
+    ) -> CircleView {
+        circle_view(&CircleInputs {
+            listed,
+            aim,
+            send_instantly: false,
+            code,
+            batch,
+            handed_over: 0,
+        })
     }
 
     #[test]
     fn with_nothing_at_all_it_asks_for_files_and_with_files_listed_it_does_what_they_call_for() {
-        assert_eq!(view_of(0, Aim::Code, None, &[]).does, Some(CircleDoes::ChooseFiles));
-        assert_eq!(view_of(2, Aim::Code, None, &[]).does, Some(CircleDoes::MakeCode));
-        assert_eq!(view_of(2, devices(), None, &[]).does, Some(CircleDoes::HoldToSend));
+        assert_eq!(
+            view_of(0, Aim::Code, None, &[]).does,
+            Some(CircleDoes::ChooseFiles)
+        );
+        assert_eq!(
+            view_of(2, Aim::Code, None, &[]).does,
+            Some(CircleDoes::MakeCode)
+        );
+        assert_eq!(
+            view_of(2, devices(), None, &[]).does,
+            Some(CircleDoes::HoldToSend)
+        );
     }
 
     #[test]
@@ -6101,14 +8700,23 @@ mod circle_view_tests {
         let batch = [one("a", Phase::Moving)];
         let shut = view_of(0, Aim::Code, None, &batch);
         assert_eq!(shut.does, None);
-        assert!(matches!(shut.batch, BatchState::Going { files: 1, .. }), "{:?}", shut.batch);
+        assert!(
+            matches!(shut.batch, BatchState::Going { files: 1, .. }),
+            "{:?}",
+            shut.batch
+        );
     }
 
     #[test]
-    fn after_a_cancel_the_circle_is_open_again_and_still_says_how_it_ended_and_a_touch_chooses_new_files() {
+    fn after_a_cancel_the_circle_is_open_again_and_still_says_how_it_ended_and_a_touch_chooses_new_files()
+     {
         let batch = [one("a", Phase::Cancelled)];
         let open = view_of(0, Aim::Code, None, &batch);
-        assert_eq!(open.does, Some(CircleDoes::ChooseFiles), "a circle with nothing going was dead");
+        assert_eq!(
+            open.does,
+            Some(CircleDoes::ChooseFiles),
+            "a circle with nothing going was dead"
+        );
         assert_eq!(open.batch, BatchState::Stopped { files: 1, done: 0 });
     }
 
@@ -6116,9 +8724,18 @@ mod circle_view_tests {
     fn new_files_chosen_after_a_cancel_make_the_circle_what_they_call_for_whatever_failed_before() {
         let batch = [one("a", Phase::Cancelled)];
         // The failure: a stale code said Sending and the circle stayed on what it saw before, instead of what is chosen now.
-        let stale = Some(CodeCircle::Sending { files: 1, percent: 99 });
-        assert_eq!(view_of(1, devices(), stale.clone(), &batch).does, Some(CircleDoes::HoldToSend));
-        assert_eq!(view_of(1, Aim::Code, stale, &batch).does, Some(CircleDoes::MakeCode));
+        let stale = Some(CodeCircle::Sending {
+            files: 1,
+            percent: 99,
+        });
+        assert_eq!(
+            view_of(1, devices(), stale.clone(), &batch).does,
+            Some(CircleDoes::HoldToSend)
+        );
+        assert_eq!(
+            view_of(1, Aim::Code, stale, &batch).does,
+            Some(CircleDoes::MakeCode)
+        );
     }
 
     #[test]
@@ -6132,12 +8749,19 @@ mod circle_view_tests {
     }
 
     #[test]
-    fn a_code_that_is_still_sending_with_no_transfer_yet_holds_the_circle_shut_until_the_transfers_say_otherwise() {
-        let sending = Some(CodeCircle::Sending { files: 2, percent: 10 });
+    fn a_code_that_is_still_sending_with_no_transfer_yet_holds_the_circle_shut_until_the_transfers_say_otherwise()
+     {
+        let sending = Some(CodeCircle::Sending {
+            files: 2,
+            percent: 10,
+        });
         assert_eq!(view_of(0, Aim::Code, sending.clone(), &[]).does, None);
         // Once its transfers have all ended, the code's word no longer holds it shut.
         let ended = [one("a", Phase::Done), one("b", Phase::Cancelled)];
-        assert_eq!(view_of(0, Aim::Code, sending, &ended).does, Some(CircleDoes::ChooseFiles));
+        assert_eq!(
+            view_of(0, Aim::Code, sending, &ended).does,
+            Some(CircleDoes::ChooseFiles)
+        );
     }
 
     #[test]
@@ -6151,8 +8775,24 @@ mod circle_view_tests {
     #[test]
     fn the_same_inputs_always_give_the_same_answer() {
         let batch = [one("a", Phase::Moving), one("b", Phase::Done)];
-        let a = view_of(2, devices(), Some(CodeCircle::Sending { files: 2, percent: 50 }), &batch);
-        let b = view_of(2, devices(), Some(CodeCircle::Sending { files: 2, percent: 50 }), &batch);
+        let a = view_of(
+            2,
+            devices(),
+            Some(CodeCircle::Sending {
+                files: 2,
+                percent: 50,
+            }),
+            &batch,
+        );
+        let b = view_of(
+            2,
+            devices(),
+            Some(CodeCircle::Sending {
+                files: 2,
+                percent: 50,
+            }),
+            &batch,
+        );
         assert_eq!(a, b);
     }
 }
@@ -6163,12 +8803,29 @@ mod circle_view_words_tests {
 
     fn one(phase: Phase) -> Progress {
         Progress {
-            id: "t".into(), name: "a.txt".into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 40, code: None, expires_at: None, saved_as: None, phase,
+            id: "t".into(),
+            name: "a.txt".into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 40,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn words(listed: usize, aim: Aim, code: Option<CodeCircle>, batch: &[Progress]) -> CircleWords {
-        let circle = circle_view(&CircleInputs { listed, aim, send_instantly: false, code: code.clone(), batch, handed_over: 0 });
+        let circle = circle_view(&CircleInputs {
+            listed,
+            aim,
+            send_instantly: false,
+            code: code.clone(),
+            batch,
+            handed_over: 0,
+        });
         circle_view_words_in(Language::English, &circle, code.as_ref(), 1, true)
     }
 
@@ -6182,7 +8839,10 @@ mod circle_view_words_tests {
     #[test]
     fn while_a_file_goes_it_says_so_and_never_asks_for_files() {
         let w = words(0, Aim::Code, None, &[one(Phase::Moving)]);
-        assert!(!w.asks_for_files, "a circle with a transfer going asked for files");
+        assert!(
+            !w.asks_for_files,
+            "a circle with a transfer going asked for files"
+        );
         assert_eq!(w.kicker, "SENDING");
         assert_eq!(w.headline, "40%");
     }
@@ -6197,7 +8857,12 @@ mod circle_view_words_tests {
 
     #[test]
     fn files_listed_say_what_the_circle_will_do_whatever_ended_before() {
-        let hold = words(2, Aim::Devices(vec!["x".into()]), None, &[one(Phase::Cancelled)]);
+        let hold = words(
+            2,
+            Aim::Devices(vec!["x".into()]),
+            None,
+            &[one(Phase::Cancelled)],
+        );
         assert_eq!(hold.kicker, "HOLD TO SEND");
         assert!(!hold.asks_for_files);
         let code = words(2, Aim::Code, None, &[one(Phase::Cancelled)]);
@@ -6236,7 +8901,11 @@ mod tap_tests {
         hold.down((50., 50.), 1_000);
         assert_eq!(hold.up((50., 50.), 1_000 + HOLD_MS - 1), Ended::Tap);
         hold.down((50., 50.), 1_000);
-        assert_eq!(hold.up((50., 50.), 1_000 + HOLD_MS), Ended::Hold, "the boundary itself is a hold");
+        assert_eq!(
+            hold.up((50., 50.), 1_000 + HOLD_MS),
+            Ended::Hold,
+            "the boundary itself is a hold"
+        );
         // One touch ends once: a second lift with no touch before it is nothing.
         assert_eq!(hold.up((50., 50.), 9_999), Ended::Nothing);
     }
@@ -6278,26 +8947,51 @@ mod tap_tests {
         assert!(!hold.is_holding(HOLD_MS * 2));
         assert_eq!(hold.up((10., 10.), HOLD_MS * 2), Ended::Nothing);
         hold.down((10., 10.), 5_000);
-        assert_eq!(hold.up((10., 10.), 5_000 + MIN_TOUCH_MS), Ended::Tap, "the cancelled touch's clock was kept");
+        assert_eq!(
+            hold.up((10., 10.), 5_000 + MIN_TOUCH_MS),
+            Ended::Tap,
+            "the cancelled touch's clock was kept"
+        );
     }
 
     #[test]
     fn a_clock_that_runs_backwards_never_makes_a_hold() {
         let mut hold = Hold::default();
         hold.down((10., 10.), 10_000);
-        assert_eq!(hold.up((10., 10.), 5), Ended::Nothing, "a clock that ran backwards made a touch");
+        assert_eq!(
+            hold.up((10., 10.), 5),
+            Ended::Nothing,
+            "a clock that ran backwards made a touch"
+        );
     }
 
     #[test]
     fn a_brush_of_the_screen_is_not_a_touch_and_a_meant_one_is_whatever_the_circle() {
         let mut hold = Hold::default();
         hold.down((50., 50.), 1_000);
-        assert_eq!(hold.up((50., 50.), 1_000), Ended::Nothing, "a contact of no time was a tap");
+        assert_eq!(
+            hold.up((50., 50.), 1_000),
+            Ended::Nothing,
+            "a contact of no time was a tap"
+        );
         hold.down((50., 50.), 1_000);
-        assert_eq!(hold.up((50., 50.), 1_000 + MIN_TOUCH_MS - 1), Ended::Nothing, "a brush was a tap");
+        assert_eq!(
+            hold.up((50., 50.), 1_000 + MIN_TOUCH_MS - 1),
+            Ended::Nothing,
+            "a brush was a tap"
+        );
         hold.down((50., 50.), 1_000);
-        assert_eq!(hold.up((50., 50.), 1_000 + MIN_TOUCH_MS), Ended::Tap, "the boundary itself is a meant touch");
-        assert!(MIN_TOUCH_MS * 5 < HOLD_MS, "the guard is so long that a person tapping would feel it");
+        assert_eq!(
+            hold.up((50., 50.), 1_000 + MIN_TOUCH_MS),
+            Ended::Tap,
+            "the boundary itself is a meant touch"
+        );
+        const {
+            assert!(
+                MIN_TOUCH_MS * 5 < HOLD_MS,
+                "the guard is so long that a person tapping would feel it"
+            )
+        };
     }
 }
 
@@ -6307,32 +9001,65 @@ mod list_under_the_circle_tests {
 
     fn one(id: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.to_owned(), name: format!("{id}.bin"), folders: Vec::new(), bytes: 10, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.to_owned(),
+            name: format!("{id}.bin"),
+            folders: Vec::new(),
+            bytes: 10,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
-    fn the_file_that_is_going_is_first_so_nobody_has_to_scroll_for_it_and_what_is_over_follows_newest_first() {
+    fn the_file_that_is_going_is_first_so_nobody_has_to_scroll_for_it_and_what_is_over_follows_newest_first()
+     {
         // The record keeps transfers in the order they were made: the oldest first.
-        let all = vec![one("a", Phase::Done), one("b", Phase::Done), one("c", Phase::Moving), one("d", Phase::Done), one("e", Phase::Waiting)];
+        let all = vec![
+            one("a", Phase::Done),
+            one("b", Phase::Done),
+            one("c", Phase::Moving),
+            one("d", Phase::Done),
+            one("e", Phase::Waiting),
+        ];
         let ids: Vec<&str> = transfer_list(&all).map(|item| item.id.as_str()).collect();
-        assert_eq!(&ids[..2], ["c", "e"], "a file that is going was not on top: {ids:?}");
-        assert_eq!(&ids[2..], ["d", "b", "a"], "what is over was not newest first: {ids:?}");
+        assert_eq!(
+            &ids[..2],
+            ["c", "e"],
+            "a file that is going was not on top: {ids:?}"
+        );
+        assert_eq!(
+            &ids[2..],
+            ["d", "b", "a"],
+            "what is over was not newest first: {ids:?}"
+        );
     }
 
     #[test]
-    fn after_the_transfer_ends_the_file_stays_with_its_status_until_it_is_hidden_and_then_it_is_gone_from_the_list_not_from_the_record() {
+    fn after_the_transfer_ends_the_file_stays_with_its_status_until_it_is_hidden_and_then_it_is_gone_from_the_list_not_from_the_record()
+     {
         let start: Vec<String> = Vec::new();
         let mut all = vec![one("now", Phase::Moving)];
         assert_eq!(of_this_run(&all, &start).len(), 1);
         all[0].phase = Phase::Failed("the other device left".into());
         let kept = of_this_run(&all, &start);
         assert_eq!(kept.len(), 1, "a failed file vanished by itself");
-        assert_eq!(kept[0].phase, Phase::Failed("the other device left".into()), "the status was lost");
+        assert_eq!(
+            kept[0].phase,
+            Phase::Failed("the other device left".into()),
+            "the status was lost"
+        );
         // X puts away what is over; the record itself is untouched.
         let hidden = put_away_now(&all);
-        assert!(not_put_away(&all, &hidden).is_empty(), "the hidden file was still listed");
+        assert!(
+            not_put_away(&all, &hidden).is_empty(),
+            "the hidden file was still listed"
+        );
         assert_eq!(all.len(), 1, "hiding changed the record");
     }
 }
@@ -6345,7 +9072,10 @@ mod fingers_tests {
     fn one_finger_is_not_two_and_the_second_finger_is_two_once() {
         let mut fingers = Fingers::default();
         assert!(!fingers.went_down(1, 0));
-        assert!(fingers.went_down(2, 10), "the second finger was not a touch of two");
+        assert!(
+            fingers.went_down(2, 10),
+            "the second finger was not a touch of two"
+        );
         assert!(!fingers.went_down(3, 20), "a third finger said two again");
     }
 
@@ -6356,7 +9086,10 @@ mod fingers_tests {
         assert!(!fingers.went_down(7, 0));
         // A later, ordinary touch, long after, with one finger only.
         let later = FINGER_GONE_MS + 1;
-        assert!(!fingers.went_down(9, later), "a ghost finger made an ordinary touch open Settings");
+        assert!(
+            !fingers.went_down(9, later),
+            "a ghost finger made an ordinary touch open Settings"
+        );
         assert_eq!(fingers.count(), 1);
     }
 
@@ -6373,7 +9106,10 @@ mod fingers_tests {
     fn the_system_giving_a_number_again_is_one_finger_and_not_two() {
         let mut fingers = Fingers::default();
         fingers.went_down(4, 0);
-        assert!(!fingers.went_down(4, 100), "the same finger twice was a touch of two");
+        assert!(
+            !fingers.went_down(4, 100),
+            "the same finger twice was a touch of two"
+        );
         assert_eq!(fingers.count(), 1);
     }
 
@@ -6405,18 +9141,36 @@ mod one_batch_tests {
 
     fn one(id: &str, name: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.to_owned(), name: name.to_owned(), folders: Vec::new(), bytes: 10, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.to_owned(),
+            name: name.to_owned(),
+            folders: Vec::new(),
+            bytes: 10,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
-    fn choosing_new_files_starts_a_new_list_and_the_cancelled_or_sent_batch_before_it_is_not_in_it() {
-        let mut all = vec![one("t1", "a.txt", Phase::Cancelled), one("t2", "b.txt", Phase::Done)];
+    fn choosing_new_files_starts_a_new_list_and_the_cancelled_or_sent_batch_before_it_is_not_in_it()
+    {
+        let mut all = vec![
+            one("t1", "a.txt", Phase::Cancelled),
+            one("t2", "b.txt", Phase::Done),
+        ];
         // The person chooses c.txt: the batch before is no longer the circle's list.
         let before = ids_at_start(&all);
         let rows = list_under_circle(&["c.txt".into()], &of_this_run(&all, &before));
-        assert_eq!(rows, [ListRow::Prepared("c.txt".into())], "an earlier batch stayed under the circle: {rows:?}");
+        assert_eq!(
+            rows,
+            [ListRow::Prepared("c.txt".into())],
+            "an earlier batch stayed under the circle: {rows:?}"
+        );
         // c.txt is sent and goes: its transfer is the batch's, and only it.
         all.push(one("t3", "c.txt", Phase::Moving));
         let rows = list_under_circle(&[], &of_this_run(&all, &before));
@@ -6425,11 +9179,16 @@ mod one_batch_tests {
     }
 
     #[test]
-    fn a_file_chosen_again_after_it_was_cancelled_is_one_prepared_row_and_not_a_cancelled_one_beside_it() {
+    fn a_file_chosen_again_after_it_was_cancelled_is_one_prepared_row_and_not_a_cancelled_one_beside_it()
+     {
         let all = vec![one("t1", "a.txt", Phase::Cancelled)];
         let before = ids_at_start(&all);
         let rows = list_under_circle(&["a.txt".into()], &of_this_run(&all, &before));
-        assert_eq!(rows, [ListRow::Prepared("a.txt".into())], "the cancelled file stayed beside the prepared one: {rows:?}");
+        assert_eq!(
+            rows,
+            [ListRow::Prepared("a.txt".into())],
+            "the cancelled file stayed beside the prepared one: {rows:?}"
+        );
     }
 
     #[test]
@@ -6442,10 +9201,19 @@ mod one_batch_tests {
 
     #[test]
     fn the_list_never_holds_more_than_the_batch_however_many_were_sent_before() {
-        let history: Vec<Progress> = (0..5_000).map(|n| one(&format!("old-{n}"), &format!("f{n}.bin"), Phase::Done)).collect();
+        let history: Vec<Progress> = (0..5_000)
+            .map(|n| one(&format!("old-{n}"), &format!("f{n}.bin"), Phase::Done))
+            .collect();
         let before = ids_at_start(&history);
         assert!(list_under_circle(&[], &of_this_run(&history, &before)).is_empty());
-        assert_eq!(list_under_circle(&["x.txt".into(), "y.txt".into()], &of_this_run(&history, &before)).len(), 2);
+        assert_eq!(
+            list_under_circle(
+                &["x.txt".into(), "y.txt".into()],
+                &of_this_run(&history, &before)
+            )
+            .len(),
+            2
+        );
     }
 }
 
@@ -6455,15 +9223,27 @@ mod list_of_the_circle_tests {
 
     fn sent(id: &str, name: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.to_owned(), name: name.to_owned(), folders: Vec::new(), bytes: 10, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.to_owned(),
+            name: name.to_owned(),
+            folders: Vec::new(),
+            bytes: 10,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn names(rows: &[ListRow]) -> Vec<String> {
-        rows.iter().map(|row| match row {
-            ListRow::Prepared(name) => format!("prepared:{name}"),
-            ListRow::Transfer(item) => format!("{:?}:{}", item.phase, item.name),
-        }).collect()
+        rows.iter()
+            .map(|row| match row {
+                ListRow::Prepared(name) => format!("prepared:{name}"),
+                ListRow::Transfer(item) => format!("{:?}:{}", item.phase, item.name),
+            })
+            .collect()
     }
 
     #[test]
@@ -6482,23 +9262,38 @@ mod list_of_the_circle_tests {
 
     #[test]
     fn the_file_that_is_going_is_first_then_what_is_over_then_what_is_still_to_go() {
-        let all = vec![sent("t1", "a.txt", Phase::Done), sent("t2", "b.txt", Phase::Moving)];
+        let all = vec![
+            sent("t1", "a.txt", Phase::Done),
+            sent("t2", "b.txt", Phase::Moving),
+        ];
         let rows = list_under_circle(&["c.txt".into()], &of_this_run(&all, &[]));
-        assert_eq!(names(&rows), ["Moving:b.txt", "Done:a.txt", "prepared:c.txt"]);
+        assert_eq!(
+            names(&rows),
+            ["Moving:b.txt", "Done:a.txt", "prepared:c.txt"]
+        );
     }
 
     #[test]
     fn two_listed_files_with_one_name_are_two_rows() {
-        let rows = list_under_circle(&["same.txt".into(), "same.txt".into()], &of_this_run(&[], &[]));
+        let rows = list_under_circle(
+            &["same.txt".into(), "same.txt".into()],
+            &of_this_run(&[], &[]),
+        );
         assert_eq!(names(&rows), ["prepared:same.txt", "prepared:same.txt"]);
     }
 
     #[test]
     fn the_history_of_the_start_is_never_in_it_and_a_failed_file_keeps_its_reason() {
-        let old: Vec<Progress> = (0..50).map(|n| sent(&format!("old-{n}"), "old.bin", Phase::Done)).collect();
+        let old: Vec<Progress> = (0..50)
+            .map(|n| sent(&format!("old-{n}"), "old.bin", Phase::Done))
+            .collect();
         let start = ids_at_start(&old);
         let mut all = old;
-        all.push(sent("now", "a.txt", Phase::Failed("the other device left".into())));
+        all.push(sent(
+            "now",
+            "a.txt",
+            Phase::Failed("the other device left".into()),
+        ));
         // Sent, so no longer listed: the file is the transfer, with its reason.
         let rows = list_under_circle(&[], &of_this_run(&all, &start));
         assert_eq!(rows.len(), 1, "history was listed: {rows:?}");
@@ -6510,14 +9305,29 @@ mod list_of_the_circle_tests {
         // The person chose a.txt, cancelled its transfer, and chose a.txt again: the new choice is a file that has not been sent.
         let all = vec![sent("t1", "a.txt", Phase::Cancelled)];
         let rows = list_under_circle(&["a.txt".into()], &of_this_run(&all, &[]));
-        assert_eq!(names(&rows), ["Cancelled:a.txt", "prepared:a.txt"], "a file chosen again was taken for the cancelled one");
+        assert_eq!(
+            names(&rows),
+            ["Cancelled:a.txt", "prepared:a.txt"],
+            "a file chosen again was taken for the cancelled one"
+        );
     }
 
     #[test]
     fn a_file_chosen_while_others_are_going_or_over_is_listed_after_them_and_is_never_lost() {
-        let all = vec![sent("t1", "a.txt", Phase::Cancelled), sent("t2", "c.txt", Phase::Moving)];
+        let all = vec![
+            sent("t1", "a.txt", Phase::Cancelled),
+            sent("t2", "c.txt", Phase::Moving),
+        ];
         let rows = list_under_circle(&["b.txt".into(), "d.txt".into()], &of_this_run(&all, &[]));
-        assert_eq!(names(&rows), ["Moving:c.txt", "Cancelled:a.txt", "prepared:b.txt", "prepared:d.txt"]);
+        assert_eq!(
+            names(&rows),
+            [
+                "Moving:c.txt",
+                "Cancelled:a.txt",
+                "prepared:b.txt",
+                "prepared:d.txt"
+            ]
+        );
     }
 
     #[test]
@@ -6525,7 +9335,11 @@ mod list_of_the_circle_tests {
         let mut incoming = sent("in", "a.txt", Phase::Moving);
         incoming.incoming = true;
         let rows = list_under_circle(&["a.txt".into()], &of_this_run(&[incoming], &[]));
-        assert_eq!(names(&rows), ["Moving:a.txt", "prepared:a.txt"], "a file received took the place of one to be sent");
+        assert_eq!(
+            names(&rows),
+            ["Moving:a.txt", "prepared:a.txt"],
+            "a file received took the place of one to be sent"
+        );
     }
 }
 
@@ -6535,21 +9349,38 @@ mod this_run_tests {
 
     fn transfer(id: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.to_owned(), name: format!("{id}.bin"), folders: Vec::new(), bytes: 0, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.to_owned(),
+            name: format!("{id}.bin"),
+            folders: Vec::new(),
+            bytes: 0,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
     fn the_history_that_was_there_at_the_start_is_never_listed_however_long_it_is() {
-        let history: Vec<Progress> = (0..5_000).map(|n| transfer(&format!("old-{n}"), Phase::Done)).collect();
+        let history: Vec<Progress> = (0..5_000)
+            .map(|n| transfer(&format!("old-{n}"), Phase::Done))
+            .collect();
         let start = ids_at_start(&history);
-        assert!(of_this_run(&history, &start).is_empty(), "the old record was listed on Send or Receive");
+        assert!(
+            of_this_run(&history, &start).is_empty(),
+            "the old record was listed on Send or Receive"
+        );
     }
 
     #[test]
     fn one_file_sent_now_is_one_row_not_the_record_and_it_stays_when_it_is_over() {
-        let mut all: Vec<Progress> = (0..200).map(|n| transfer(&format!("old-{n}"), Phase::Done)).collect();
+        let mut all: Vec<Progress> = (0..200)
+            .map(|n| transfer(&format!("old-{n}"), Phase::Done))
+            .collect();
         let start = ids_at_start(&all);
         all.push(transfer("now", Phase::Moving));
         let going = of_this_run(&all, &start);
@@ -6562,10 +9393,15 @@ mod this_run_tests {
     }
 
     #[test]
-    fn a_transfer_begun_before_the_start_and_still_going_is_listed_until_it_ends_and_then_it_is_history() {
+    fn a_transfer_begun_before_the_start_and_still_going_is_listed_until_it_ends_and_then_it_is_history()
+     {
         let mut all = vec![transfer("early", Phase::Moving)];
         let start = ids_at_start(&all);
-        assert_eq!(of_this_run(&all, &start).len(), 1, "a transfer in progress was hidden");
+        assert_eq!(
+            of_this_run(&all, &start).len(),
+            1,
+            "a transfer in progress was hidden"
+        );
         all[0].phase = Phase::Done;
         assert!(of_this_run(&all, &start).is_empty());
     }
@@ -6577,8 +9413,18 @@ mod batch_state_tests {
 
     fn one(id: &str, name: &str, phase: Phase, percent: u8) -> Progress {
         Progress {
-            id: id.to_owned(), name: name.to_owned(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent, code: None, expires_at: None, saved_as: None, phase,
+            id: id.to_owned(),
+            name: name.to_owned(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
@@ -6587,13 +9433,27 @@ mod batch_state_tests {
         assert_eq!(batch_state(&[]), BatchState::None);
         let mut incoming = one("in", "a.txt", Phase::Moving, 10);
         incoming.incoming = true;
-        assert_eq!(batch_state(&[incoming]), BatchState::None, "a file that came in made a batch that went out");
+        assert_eq!(
+            batch_state(&[incoming]),
+            BatchState::None,
+            "a file that came in made a batch that went out"
+        );
     }
 
     #[test]
     fn while_a_file_goes_the_batch_is_going_with_its_percent_and_the_file_that_is_going() {
-        let batch = [one("a", "a.txt", Phase::Done, 100), one("b", "b.txt", Phase::Moving, 40)];
-        let BatchState::Going { files, percent, current } = batch_state(&batch) else { panic!("not going") };
+        let batch = [
+            one("a", "a.txt", Phase::Done, 100),
+            one("b", "b.txt", Phase::Moving, 40),
+        ];
+        let BatchState::Going {
+            files,
+            percent,
+            current,
+        } = batch_state(&batch)
+        else {
+            panic!("not going")
+        };
         assert_eq!(files, 2);
         assert_eq!(current.as_deref(), Some("b.txt"));
         assert!(percent > 0 && percent < 100, "{percent}");
@@ -6602,17 +9462,32 @@ mod batch_state_tests {
     #[test]
     fn a_file_still_waiting_to_be_accepted_is_going_too_so_the_circle_does_not_ask_for_files() {
         let batch = [one("a", "a.txt", Phase::Waiting, 0)];
-        assert!(matches!(batch_state(&batch), BatchState::Going { files: 1, .. }));
+        assert!(matches!(
+            batch_state(&batch),
+            BatchState::Going { files: 1, .. }
+        ));
     }
 
     #[test]
     fn when_all_arrived_it_is_sent_and_when_some_did_not_it_says_how_many_did() {
-        assert_eq!(batch_state(&[one("a", "a", Phase::Done, 100), one("b", "b", Phase::Done, 100)]), BatchState::Sent { files: 2 });
         assert_eq!(
-            batch_state(&[one("a", "a", Phase::Done, 100), one("b", "b", Phase::Cancelled, 10)]),
+            batch_state(&[
+                one("a", "a", Phase::Done, 100),
+                one("b", "b", Phase::Done, 100)
+            ]),
+            BatchState::Sent { files: 2 }
+        );
+        assert_eq!(
+            batch_state(&[
+                one("a", "a", Phase::Done, 100),
+                one("b", "b", Phase::Cancelled, 10)
+            ]),
             BatchState::Stopped { files: 2, done: 1 }
         );
-        assert_eq!(batch_state(&[one("a", "a", Phase::Failed("x".into()), 0)]), BatchState::Stopped { files: 1, done: 0 });
+        assert_eq!(
+            batch_state(&[one("a", "a", Phase::Failed("x".into()), 0)]),
+            BatchState::Stopped { files: 1, done: 0 }
+        );
     }
 }
 
@@ -6624,26 +9499,53 @@ mod batch_words_tests {
     fn every_state_of_a_batch_has_words_and_no_batch_has_none() {
         assert_eq!(batch_words_in(Language::English, &BatchState::None), None);
         for state in [
-            BatchState::Going { files: 2, percent: 40, current: Some("b.txt".into()) },
-            BatchState::Going { files: 2, percent: 40, current: None },
+            BatchState::Going {
+                files: 2,
+                percent: 40,
+                current: Some("b.txt".into()),
+            },
+            BatchState::Going {
+                files: 2,
+                percent: 40,
+                current: None,
+            },
             BatchState::Sent { files: 1 },
             BatchState::Sent { files: 3 },
             BatchState::Stopped { files: 3, done: 1 },
         ] {
-            let (kicker, headline, line) = batch_words_in(Language::English, &state).expect("a batch had no words");
-            assert!(!kicker.is_empty() && !headline.is_empty() && !line.is_empty(), "{state:?} left a line empty");
+            let (kicker, headline, line) =
+                batch_words_in(Language::English, &state).expect("a batch had no words");
+            assert!(
+                !kicker.is_empty() && !headline.is_empty() && !line.is_empty(),
+                "{state:?} left a line empty"
+            );
         }
     }
 
     #[test]
     fn while_it_goes_the_percent_and_the_file_that_is_going_are_said() {
-        let (kicker, headline, line) = batch_words_in(Language::English, &BatchState::Going { files: 3, percent: 40, current: Some("b.txt".into()) }).unwrap();
-        assert_eq!((kicker.as_str(), headline.as_str(), line.as_str()), ("SENDING", "40%", "b.txt"));
+        let (kicker, headline, line) = batch_words_in(
+            Language::English,
+            &BatchState::Going {
+                files: 3,
+                percent: 40,
+                current: Some("b.txt".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            (kicker.as_str(), headline.as_str(), line.as_str()),
+            ("SENDING", "40%", "b.txt")
+        );
     }
 
     #[test]
     fn when_it_stopped_it_says_how_many_arrived_and_not_a_bare_error() {
-        let (kicker, headline, line) = batch_words_in(Language::English, &BatchState::Stopped { files: 1, done: 0 }).unwrap();
+        let (kicker, headline, line) = batch_words_in(
+            Language::English,
+            &BatchState::Stopped { files: 1, done: 0 },
+        )
+        .unwrap();
         assert_eq!((kicker.as_str(), headline.as_str()), ("STOPPED", "0/1"));
         assert!(line.contains("0 of 1"), "{line}");
     }
@@ -6655,16 +9557,30 @@ mod circle_words_tests {
 
     #[test]
     fn every_thing_the_circle_can_do_has_its_own_words_and_none_is_left_empty() {
-        for does in [CircleDoes::ChooseFiles, CircleDoes::MakeCode, CircleDoes::HoldToSend, CircleDoes::TapToSend, CircleDoes::Held] {
+        for does in [
+            CircleDoes::ChooseFiles,
+            CircleDoes::MakeCode,
+            CircleDoes::HoldToSend,
+            CircleDoes::TapToSend,
+            CircleDoes::Held,
+        ] {
             let (kicker, headline, line) = circle_does_words_in(Language::English, does, 2);
-            assert!(!kicker.is_empty() && !headline.is_empty() && !line.is_empty(), "{does:?} left a line empty");
+            assert!(
+                !kicker.is_empty() && !headline.is_empty() && !line.is_empty(),
+                "{does:?} left a line empty"
+            );
         }
     }
 
     #[test]
     fn a_code_a_hold_an_instant_send_and_a_held_back_circle_each_say_something_different() {
         let words = |does| circle_does_words_in(Language::English, does, 1);
-        let all = [CircleDoes::MakeCode, CircleDoes::HoldToSend, CircleDoes::TapToSend, CircleDoes::Held];
+        let all = [
+            CircleDoes::MakeCode,
+            CircleDoes::HoldToSend,
+            CircleDoes::TapToSend,
+            CircleDoes::Held,
+        ];
         for (i, a) in all.iter().enumerate() {
             for b in &all[i + 1..] {
                 assert_ne!(words(*a), words(*b), "{a:?} and {b:?} say the same");
@@ -6693,7 +9609,12 @@ mod circle_touch_tests {
 
     /// A finger that went down at `from_ms` and rests on the circle until `until_ms`, heard of every 100 ms as a real one is (it trembles, and the
     /// toolkit says so): the last thing the clock said.
-    fn held_until(touch: &mut CircleTouch, from_ms: u64, until_ms: u64, does: CircleDoes) -> CircleAct {
+    fn held_until(
+        touch: &mut CircleTouch,
+        from_ms: u64,
+        until_ms: u64,
+        does: CircleDoes,
+    ) -> CircleAct {
         let mut last = CircleAct::Nothing;
         let mut at = from_ms;
         while at < until_ms {
@@ -6708,13 +9629,28 @@ mod circle_touch_tests {
     }
 
     #[test]
-    fn holding_fills_and_sends_once_when_full_without_waiting_for_the_lift_and_the_lift_then_sends_nothing() {
+    fn holding_fills_and_sends_once_when_full_without_waiting_for_the_lift_and_the_lift_then_sends_nothing()
+     {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 1_000);
-        assert_eq!(held_until(&mut touch, 1_000, 1_000 + CONFIRM_MS - 1, HOLD), CircleAct::Nothing);
-        assert_eq!(held_until(&mut touch, 1_000 + CONFIRM_MS - 1, 1_000 + CONFIRM_MS, HOLD), CircleAct::Send);
-        assert_eq!(touch.tick(1_000 + CONFIRM_MS + 50, HOLD), CircleAct::Nothing, "a touch sent twice");
-        assert_eq!(touch.up(MID, (200., 300.), 1_000 + CONFIRM_MS + 80, HOLD), CircleAct::Nothing, "the lift sent a second time");
+        assert_eq!(
+            held_until(&mut touch, 1_000, 1_000 + CONFIRM_MS - 1, HOLD),
+            CircleAct::Nothing
+        );
+        assert_eq!(
+            held_until(&mut touch, 1_000 + CONFIRM_MS - 1, 1_000 + CONFIRM_MS, HOLD),
+            CircleAct::Send
+        );
+        assert_eq!(
+            touch.tick(1_000 + CONFIRM_MS + 50, HOLD),
+            CircleAct::Nothing,
+            "a touch sent twice"
+        );
+        assert_eq!(
+            touch.up(MID, (200., 300.), 1_000 + CONFIRM_MS + 80, HOLD),
+            CircleAct::Nothing,
+            "the lift sent a second time"
+        );
     }
 
     #[test]
@@ -6722,8 +9658,15 @@ mod circle_touch_tests {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
         assert!(touch.fill(CONFIRM_MS / 2, HOLD) > 0.4);
-        assert_eq!(touch.up(MID, (200., 300.), CONFIRM_MS - 1, HOLD), CircleAct::Nothing);
-        assert_eq!(touch.fill(CONFIRM_MS * 3, HOLD), 0., "a lifted finger kept the circle filling");
+        assert_eq!(
+            touch.up(MID, (200., 300.), CONFIRM_MS - 1, HOLD),
+            CircleAct::Nothing
+        );
+        assert_eq!(
+            touch.fill(CONFIRM_MS * 3, HOLD),
+            0.,
+            "a lifted finger kept the circle filling"
+        );
         assert!(!touch.is_down());
     }
 
@@ -6733,7 +9676,10 @@ mod circle_touch_tests {
         down_at(&mut touch, (2., 2.), 0);
         assert!(!touch.is_down(), "a corner of the square started a hold");
         assert_eq!(touch.tick(CONFIRM_MS * 5, HOLD), CircleAct::Nothing);
-        assert_eq!(touch.up(MID, (200., 300.), CONFIRM_MS * 5, CircleDoes::TapToSend), CircleAct::Nothing);
+        assert_eq!(
+            touch.up(MID, (200., 300.), CONFIRM_MS * 5, CircleDoes::TapToSend),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
@@ -6743,29 +9689,55 @@ mod circle_touch_tests {
         touch.moved((200., 300. + TAP_SLOP + 1.));
         touch.moved((200., 300.));
         assert!(!touch.is_down());
-        assert_eq!(touch.tick(CONFIRM_MS * 2, HOLD), CircleAct::Nothing, "a drag sent the files");
-        assert_eq!(touch.up(MID, (200., 300.), CONFIRM_MS * 2, HOLD), CircleAct::Nothing);
+        assert_eq!(
+            touch.tick(CONFIRM_MS * 2, HOLD),
+            CircleAct::Nothing,
+            "a drag sent the files"
+        );
+        assert_eq!(
+            touch.up(MID, (200., 300.), CONFIRM_MS * 2, HOLD),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
     fn with_no_device_picked_a_whole_tap_makes_a_code_and_nothing_fills_or_waits() {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.fill(CONFIRM_MS, CircleDoes::MakeCode), 0., "a circle for a code filled");
-        assert_eq!(touch.tick(CONFIRM_MS * 3, CircleDoes::MakeCode), CircleAct::Nothing, "a code was made by waiting");
+        assert_eq!(
+            touch.fill(CONFIRM_MS, CircleDoes::MakeCode),
+            0.,
+            "a circle for a code filled"
+        );
+        assert_eq!(
+            touch.tick(CONFIRM_MS * 3, CircleDoes::MakeCode),
+            CircleAct::Nothing,
+            "a code was made by waiting"
+        );
         // The person has to touch it for the code: a whole tap.
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.up(MID, (200., 300.), 80, CircleDoes::MakeCode), CircleAct::MakeCode);
+        assert_eq!(
+            touch.up(MID, (200., 300.), 80, CircleDoes::MakeCode),
+            CircleAct::MakeCode
+        );
         // A long press is not the tap that asks for it, and a drag never is.
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.up(MID, (200., 300.), HOLD_MS + 10, CircleDoes::MakeCode), CircleAct::Nothing, "a long press made a code");
+        assert_eq!(
+            touch.up(MID, (200., 300.), HOLD_MS + 10, CircleDoes::MakeCode),
+            CircleAct::Nothing,
+            "a long press made a code"
+        );
     }
 
     #[test]
     fn with_devices_picked_a_tap_does_not_send_for_holding_is_the_confirmation() {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.up(MID, (200., 300.), 80, HOLD), CircleAct::Nothing, "a tap sent without the hold the person kept on");
+        assert_eq!(
+            touch.up(MID, (200., 300.), 80, HOLD),
+            CircleAct::Nothing,
+            "a tap sent without the hold the person kept on"
+        );
     }
 
     #[test]
@@ -6773,17 +9745,29 @@ mod circle_touch_tests {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
         assert_eq!(touch.fill(CONFIRM_MS, CircleDoes::Held), 0.);
-        assert_eq!(touch.tick(CONFIRM_MS * 3, CircleDoes::Held), CircleAct::Nothing);
-        assert_eq!(touch.up(MID, (200., 300.), 80, CircleDoes::Held), CircleAct::Nothing);
+        assert_eq!(
+            touch.tick(CONFIRM_MS * 3, CircleDoes::Held),
+            CircleAct::Nothing
+        );
+        assert_eq!(
+            touch.up(MID, (200., 300.), 80, CircleDoes::Held),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
     fn with_nothing_listed_a_tap_chooses_files_and_a_long_hold_does_not() {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.up(MID, (200., 300.), 100, CircleDoes::ChooseFiles), CircleAct::Choose);
+        assert_eq!(
+            touch.up(MID, (200., 300.), 100, CircleDoes::ChooseFiles),
+            CircleAct::Choose
+        );
         down_at(&mut touch, MID, 0);
-        assert_eq!(touch.up(MID, (200., 300.), HOLD_MS + 10, CircleDoes::ChooseFiles), CircleAct::Nothing);
+        assert_eq!(
+            touch.up(MID, (200., 300.), HOLD_MS + 10, CircleDoes::ChooseFiles),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
@@ -6791,12 +9775,28 @@ mod circle_touch_tests {
         let mut touch = CircleTouch::new(100.);
         down_at(&mut touch, MID, 0);
         assert_eq!(touch.fill(CONFIRM_MS * 4, CircleDoes::TapToSend), 0.);
-        assert_eq!(held_until(&mut touch, 0, CONFIRM_MS * 4, CircleDoes::TapToSend), CircleAct::Nothing, "a finger resting on the circle sent in the instant mode");
+        assert_eq!(
+            held_until(&mut touch, 0, CONFIRM_MS * 4, CircleDoes::TapToSend),
+            CircleAct::Nothing,
+            "a finger resting on the circle sent in the instant mode"
+        );
         // The touch above went on for so long that it was a hold: a new one is the tap.
         down_at(&mut touch, MID, 10_000);
-        assert_eq!(touch.up(MID, (200., 300.), 10_080, CircleDoes::TapToSend), CircleAct::Send);
+        assert_eq!(
+            touch.up(MID, (200., 300.), 10_080, CircleDoes::TapToSend),
+            CircleAct::Send
+        );
         down_at(&mut touch, MID, 20_000);
-        assert_eq!(touch.up(MID, (200., 300.), 20_000 + HOLD_MS + 10, CircleDoes::TapToSend), CircleAct::Nothing, "a long press sent instantly");
+        assert_eq!(
+            touch.up(
+                MID,
+                (200., 300.),
+                20_000 + HOLD_MS + 10,
+                CircleDoes::TapToSend
+            ),
+            CircleAct::Nothing,
+            "a long press sent instantly"
+        );
     }
 
     #[test]
@@ -6807,9 +9807,16 @@ mod circle_touch_tests {
         touch.up(MID, (200., 300.), CONFIRM_MS + 1, HOLD);
         down_at(&mut touch, MID, 5_000);
         touch.cancel();
-        assert_eq!(touch.tick(5_000 + CONFIRM_MS * 2, HOLD), CircleAct::Nothing, "a cancelled touch sent");
+        assert_eq!(
+            touch.tick(5_000 + CONFIRM_MS * 2, HOLD),
+            CircleAct::Nothing,
+            "a cancelled touch sent"
+        );
         down_at(&mut touch, MID, 9_000);
-        assert_eq!(held_until(&mut touch, 9_000, 9_000 + CONFIRM_MS, HOLD), CircleAct::Send);
+        assert_eq!(
+            held_until(&mut touch, 9_000, 9_000 + CONFIRM_MS, HOLD),
+            CircleAct::Send
+        );
     }
 }
 
@@ -6823,9 +9830,19 @@ mod finger_life_tests {
         // The finger went down and its lift never reached the circle: nothing says it is gone but the silence.
         let mut touch = CircleTouch::new(100.);
         touch.down(MID, (200., 300.), 0);
-        assert_eq!(touch.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend), CircleAct::Nothing);
-        assert!(!touch.is_down(), "a silent finger was still taken to be down");
-        assert_eq!(touch.tick(CONFIRM_MS * 5, CircleDoes::HoldToSend), CircleAct::Nothing, "the circle sent files nobody was holding");
+        assert_eq!(
+            touch.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
+        assert!(
+            !touch.is_down(),
+            "a silent finger was still taken to be down"
+        );
+        assert_eq!(
+            touch.tick(CONFIRM_MS * 5, CircleDoes::HoldToSend),
+            CircleAct::Nothing,
+            "the circle sent files nobody was holding"
+        );
     }
 
     #[test]
@@ -6836,7 +9853,11 @@ mod finger_life_tests {
         assert!(touch.fill(100 + FINGER_LIVE_MS / 2, CircleDoes::HoldToSend) > 0.);
         // Silence: the next tick ends it, and what the circle shows is empty, for good.
         touch.tick(100 + FINGER_LIVE_MS + 1, CircleDoes::HoldToSend);
-        assert_eq!(touch.fill(100 + FINGER_LIVE_MS + 2, CircleDoes::HoldToSend), 0., "the circle went on charging for a finger that was gone");
+        assert_eq!(
+            touch.fill(100 + FINGER_LIVE_MS + 2, CircleDoes::HoldToSend),
+            0.,
+            "the circle went on charging for a finger that was gone"
+        );
         assert!(!touch.is_down());
     }
 
@@ -6845,16 +9866,21 @@ mod finger_life_tests {
         let mut touch = CircleTouch::new(100.);
         touch.seen(1_000);
         assert!(!touch.is_down());
-        assert_eq!(touch.tick(1_000 + CONFIRM_MS, CircleDoes::HoldToSend), CircleAct::Nothing);
+        assert_eq!(
+            touch.tick(1_000 + CONFIRM_MS, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
-    fn the_life_of_a_finger_is_shorter_than_the_hold_so_a_lost_lift_is_noticed_before_it_could_send() {
-        assert!(FINGER_LIVE_MS < HOLD_MS && HOLD_MS < CONFIRM_MS);
+    fn the_life_of_a_finger_is_shorter_than_the_hold_so_a_lost_lift_is_noticed_before_it_could_send()
+     {
+        const { assert!(FINGER_LIVE_MS < HOLD_MS && HOLD_MS < CONFIRM_MS) };
     }
 
     #[test]
-    fn a_mouse_held_perfectly_still_fills_and_sends_for_it_says_nothing_while_it_rests_and_that_is_not_a_lost_lift() {
+    fn a_mouse_held_perfectly_still_fills_and_sends_for_it_says_nothing_while_it_rests_and_that_is_not_a_lost_lift()
+     {
         let mut mouse = CircleTouch::new(100.);
         mouse.down(MID, (200., 300.), 0);
         mouse.steady();
@@ -6865,10 +9891,16 @@ mod finger_life_tests {
                 sent_at = Some(ms);
                 break;
             }
-            assert!(mouse.is_down(), "a mouse that rests was taken to be gone at {ms} ms");
+            assert!(
+                mouse.is_down(),
+                "a mouse that rests was taken to be gone at {ms} ms"
+            );
         }
         let sent_at = sent_at.expect("a mouse held for the whole time never sent");
-        assert!(sent_at >= CONFIRM_MS && sent_at < CONFIRM_MS + 100, "it sent at {sent_at} ms, not when it was full");
+        assert!(
+            (CONFIRM_MS..CONFIRM_MS + 100).contains(&sent_at),
+            "it sent at {sent_at} ms, not when it was full"
+        );
     }
 
     #[test]
@@ -6880,21 +9912,36 @@ mod finger_life_tests {
         assert!(!lifted.is_down(), "a released mouse was still down");
         // After a release the mark is gone: the next touch is judged on its own, by the pointer that makes it.
         lifted.down(MID, (200., 300.), 5_000);
-        assert_eq!(lifted.tick(5_000 + FINGER_LIVE_MS + 1, CircleDoes::HoldToSend), CircleAct::Nothing);
-        assert!(!lifted.is_down(), "the mark of a mouse outlived its touch and spared a finger");
+        assert_eq!(
+            lifted.tick(5_000 + FINGER_LIVE_MS + 1, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
+        assert!(
+            !lifted.is_down(),
+            "the mark of a mouse outlived its touch and spared a finger"
+        );
         let mut strayed = CircleTouch::new(100.);
         strayed.down(MID, (200., 300.), 0);
         strayed.steady();
         strayed.moved((900., 900.));
-        assert!(!strayed.is_down(), "a mouse that left the circle was still held");
-        assert_eq!(strayed.tick(CONFIRM_MS * 5, CircleDoes::HoldToSend), CircleAct::Nothing);
+        assert!(
+            !strayed.is_down(),
+            "a mouse that left the circle was still held"
+        );
+        assert_eq!(
+            strayed.tick(CONFIRM_MS * 5, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
     }
 
     #[test]
     fn a_finger_is_still_judged_by_its_silence_for_only_a_finger_can_lose_its_lift() {
         let mut finger = CircleTouch::new(100.);
         finger.down(MID, (200., 300.), 0);
-        assert_eq!(finger.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend), CircleAct::Nothing);
+        assert_eq!(
+            finger.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
         assert!(!finger.is_down(), "a finger that went silent was kept");
     }
 
@@ -6903,13 +9950,22 @@ mod finger_life_tests {
         let mut mouse = CircleTouch::new(100.);
         mouse.down(MID, (200., 300.), 0);
         mouse.steady();
-        assert!(!mouse.down(MID, (200., 300.), 10_000), "a second pointer restarted a hold that was in progress");
+        assert!(
+            !mouse.down(MID, (200., 300.), 10_000),
+            "a second pointer restarted a hold that was in progress"
+        );
         // Said of a touch that is not down, it marks nothing: a later finger is not spared by it.
         let mut none = CircleTouch::new(100.);
         none.steady();
         none.down(MID, (200., 300.), 0);
-        assert_eq!(none.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend), CircleAct::Nothing);
-        assert!(!none.is_down(), "steady, said before any touch, spared the finger that came after");
+        assert_eq!(
+            none.tick(FINGER_LIVE_MS + 1, CircleDoes::HoldToSend),
+            CircleAct::Nothing
+        );
+        assert!(
+            !none.is_down(),
+            "steady, said before any touch, spared the finger that came after"
+        );
     }
 }
 
@@ -6919,20 +9975,51 @@ mod nothing_to_send_tests {
 
     fn one(phase: Phase) -> Progress {
         Progress {
-            id: "t".into(), name: "a.txt".into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: "t".into(),
+            name: "a.txt".into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
-    fn with_nothing_listed_the_circle_is_never_held_to_send_or_asked_for_a_code_whoever_is_picked_and_whatever_ended() {
+    fn with_nothing_listed_the_circle_is_never_held_to_send_or_asked_for_a_code_whoever_is_picked_and_whatever_ended()
+     {
         let devices = Aim::Devices(vec!["laptop".into()]);
         for aim in [Aim::Code, devices, Aim::Held] {
-            for batch in [vec![], vec![one(Phase::Cancelled)], vec![one(Phase::Done)], vec![one(Phase::Failed("x".into()))]] {
+            for batch in [
+                vec![],
+                vec![one(Phase::Cancelled)],
+                vec![one(Phase::Done)],
+                vec![one(Phase::Failed("x".into()))],
+            ] {
                 for send_instantly in [false, true] {
-                    let view = circle_view(&CircleInputs { listed: 0, aim: aim.clone(), send_instantly, code: None, batch: &batch, handed_over: 0 });
+                    let view = circle_view(&CircleInputs {
+                        listed: 0,
+                        aim: aim.clone(),
+                        send_instantly,
+                        code: None,
+                        batch: &batch,
+                        handed_over: 0,
+                    });
                     assert!(
-                        !matches!(view.does, Some(CircleDoes::HoldToSend | CircleDoes::TapToSend | CircleDoes::MakeCode | CircleDoes::Held)),
+                        !matches!(
+                            view.does,
+                            Some(
+                                CircleDoes::HoldToSend
+                                    | CircleDoes::TapToSend
+                                    | CircleDoes::MakeCode
+                                    | CircleDoes::Held
+                            )
+                        ),
                         "a circle with nothing listed offered to send or make a code ({aim:?}, {batch:?}, instantly={send_instantly}): {:?}",
                         view.does
                     );
@@ -6942,9 +10029,15 @@ mod nothing_to_send_tests {
     }
 
     #[test]
-    fn after_a_cancel_with_devices_still_picked_a_touch_chooses_files_and_does_not_start_charging() {
+    fn after_a_cancel_with_devices_still_picked_a_touch_chooses_files_and_does_not_start_charging()
+    {
         let view = circle_view(&CircleInputs {
-            listed: 0, aim: Aim::Devices(vec!["laptop".into()]), send_instantly: false, code: None, batch: &[one(Phase::Cancelled)], handed_over: 0,
+            listed: 0,
+            aim: Aim::Devices(vec!["laptop".into()]),
+            send_instantly: false,
+            code: None,
+            batch: &[one(Phase::Cancelled)],
+            handed_over: 0,
         });
         assert_eq!(view.does, Some(CircleDoes::ChooseFiles));
         // And nothing in the touch model charges for it: only a circle that is held to send ever fills.
@@ -6952,8 +10045,16 @@ mod nothing_to_send_tests {
         touch.down((50., 50.), (200., 300.), 0);
         for at in (100..=3_000).step_by(100) {
             touch.seen(at);
-            assert_eq!(touch.tick(at, view.does.unwrap()), CircleAct::Nothing, "it sent with nothing to send at {at}");
-            assert_eq!(touch.fill(at, view.does.unwrap()), 0., "the circle charged with nothing to send at {at}");
+            assert_eq!(
+                touch.tick(at, view.does.unwrap()),
+                CircleAct::Nothing,
+                "it sent with nothing to send at {at}"
+            );
+            assert_eq!(
+                touch.fill(at, view.does.unwrap()),
+                0.,
+                "the circle charged with nothing to send at {at}"
+            );
         }
     }
 }
@@ -6965,9 +10066,15 @@ mod second_down_tests {
     #[test]
     fn a_second_down_while_the_first_is_alive_is_refused_and_leaves_the_touch_as_it_was() {
         let mut touch = CircleTouch::new(100.);
-        assert!(touch.down((50., 50.), (200., 300.), 0), "the first down was refused");
+        assert!(
+            touch.down((50., 50.), (200., 300.), 0),
+            "the first down was refused"
+        );
         touch.seen(100);
-        assert!(!touch.down((50., 50.), (200., 300.), 150), "a second finger down on a live touch restarted it");
+        assert!(
+            !touch.down((50., 50.), (200., 300.), 150),
+            "a second finger down on a live touch restarted it"
+        );
         // The hold goes on from the FIRST down: it sends at the confirmation time counted from 0, and only once.
         let mut sent = Vec::new();
         for at in (200..=CONFIRM_MS + 300).step_by(100) {
@@ -6977,7 +10084,10 @@ mod second_down_tests {
             }
         }
         assert_eq!(sent.len(), 1, "{sent:?}");
-        assert!(sent[0] >= CONFIRM_MS && sent[0] < CONFIRM_MS + 150, "{sent:?}");
+        assert!(
+            sent[0] >= CONFIRM_MS && sent[0] < CONFIRM_MS + 150,
+            "{sent:?}"
+        );
     }
 
     #[test]
@@ -6985,7 +10095,10 @@ mod second_down_tests {
         let mut touch = CircleTouch::new(100.);
         assert!(touch.down((50., 50.), (200., 300.), 0));
         touch.up((50., 50.), (200., 300.), 200, CircleDoes::HoldToSend);
-        assert!(touch.down((50., 50.), (200., 300.), 300), "a down after the lift was refused");
+        assert!(
+            touch.down((50., 50.), (200., 300.), 300),
+            "a down after the lift was refused"
+        );
     }
 
     #[test]
@@ -7009,7 +10122,11 @@ pub enum Stage {
     /// A code is drawn (or scanned and waiting): the circle is the code.
     Code { scanned: bool },
     /// The batch goes: `files` of it, `percent` of the way, `current` the file that is moving now.
-    Going { files: usize, percent: u8, current: Option<String> },
+    Going {
+        files: usize,
+        percent: u8,
+        current: Option<String>,
+    },
     /// Every transfer of the batch is over: how it ended.
     Ended { files: usize, arrived: usize },
 }
@@ -7019,7 +10136,9 @@ impl Stage {
     pub fn files(&self) -> usize {
         match self {
             Stage::Empty | Stage::Code { .. } => 0,
-            Stage::Ready { files, .. } | Stage::Going { files, .. } | Stage::Ended { files, .. } => *files,
+            Stage::Ready { files, .. }
+            | Stage::Going { files, .. }
+            | Stage::Ended { files, .. } => *files,
         }
     }
 }
@@ -7033,10 +10152,21 @@ pub fn stage_of(input: &CircleInputs) -> Stage {
         _ => {}
     }
     let batch = batch_state(input.batch);
-    let code_goes = matches!(input.code, Some(CodeCircle::WaitingForApproval { .. } | CodeCircle::Sending { .. }))
-        && !matches!(batch, BatchState::Sent { .. } | BatchState::Stopped { .. });
-    if let BatchState::Going { files, percent, current } = &batch {
-        return Stage::Going { files: *files, percent: *percent, current: current.clone() };
+    let code_goes = matches!(
+        input.code,
+        Some(CodeCircle::WaitingForApproval { .. } | CodeCircle::Sending { .. })
+    ) && !matches!(batch, BatchState::Sent { .. } | BatchState::Stopped { .. });
+    if let BatchState::Going {
+        files,
+        percent,
+        current,
+    } = &batch
+    {
+        return Stage::Going {
+            files: *files,
+            percent: *percent,
+            current: current.clone(),
+        };
     }
     if code_goes {
         let (files, percent) = match input.code {
@@ -7044,17 +10174,34 @@ pub fn stage_of(input: &CircleInputs) -> Stage {
             Some(CodeCircle::Sending { files, percent }) => (files, percent),
             _ => (0, 0),
         };
-        return Stage::Going { files, percent, current: None };
+        return Stage::Going {
+            files,
+            percent,
+            current: None,
+        };
     }
     if input.listed > 0 {
-        return Stage::Ready { files: input.listed, aim: input.aim.clone() };
+        return Stage::Ready {
+            files: input.listed,
+            aim: input.aim.clone(),
+        };
     }
     match batch {
-        BatchState::Sent { files } => Stage::Ended { files, arrived: files },
-        BatchState::Stopped { files, done } => Stage::Ended { files, arrived: done },
+        BatchState::Sent { files } => Stage::Ended {
+            files,
+            arrived: files,
+        },
+        BatchState::Stopped { files, done } => Stage::Ended {
+            files,
+            arrived: done,
+        },
         // Nothing of the batch is in the record yet, but files were just handed over and the owner has not answered: they are on their way, and the
         // circle says so instead of going back to asking for files. The owner's own transfers, once there, take over from this count.
-        BatchState::None | BatchState::Going { .. } if input.handed_over > 0 => Stage::Going { files: input.handed_over, percent: 0, current: None },
+        BatchState::None | BatchState::Going { .. } if input.handed_over > 0 => Stage::Going {
+            files: input.handed_over,
+            percent: 0,
+            current: None,
+        },
         BatchState::None | BatchState::Going { .. } => Stage::Empty,
     }
 }
@@ -7065,28 +10212,79 @@ mod stage_tests {
 
     fn one(id: &str, phase: Phase, percent: u8) -> Progress {
         Progress {
-            id: id.into(), name: format!("{id}.txt"), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent, code: None, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: format!("{id}.txt"),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn stage(listed: usize, aim: Aim, code: Option<CodeCircle>, batch: &[Progress]) -> Stage {
-        stage_of(&CircleInputs { listed, aim, send_instantly: false, code, batch, handed_over: 0 })
+        stage_of(&CircleInputs {
+            listed,
+            aim,
+            send_instantly: false,
+            code,
+            batch,
+            handed_over: 0,
+        })
     }
 
     #[test]
-    fn one_whole_lap_the_circle_goes_empty_ready_going_ended_and_ready_again_each_with_its_own_count() {
+    fn one_whole_lap_the_circle_goes_empty_ready_going_ended_and_ready_again_each_with_its_own_count()
+     {
         let devices = Aim::Devices(vec!["laptop".into()]);
         assert_eq!(stage(0, devices.clone(), None, &[]), Stage::Empty);
         let ready = stage(2, devices.clone(), None, &[]);
-        assert_eq!(ready, Stage::Ready { files: 2, aim: devices.clone() });
+        assert_eq!(
+            ready,
+            Stage::Ready {
+                files: 2,
+                aim: devices.clone()
+            }
+        );
         assert_eq!(ready.files(), 2);
-        let going = stage(0, devices.clone(), None, &[one("a", Phase::Moving, 50), one("b", Phase::Waiting, 0)]);
+        let going = stage(
+            0,
+            devices.clone(),
+            None,
+            &[one("a", Phase::Moving, 50), one("b", Phase::Waiting, 0)],
+        );
         assert!(matches!(going, Stage::Going { files: 2, .. }), "{going:?}");
         assert_eq!(going.files(), 2);
-        let ended = stage(0, devices.clone(), None, &[one("a", Phase::Cancelled, 10), one("b", Phase::Done, 100)]);
-        assert_eq!(ended, Stage::Ended { files: 2, arrived: 1 });
-        let again = stage(3, devices.clone(), None, &[one("a", Phase::Cancelled, 10), one("b", Phase::Done, 100)]);
-        assert_eq!(again, Stage::Ready { files: 3, aim: devices });
+        let ended = stage(
+            0,
+            devices.clone(),
+            None,
+            &[one("a", Phase::Cancelled, 10), one("b", Phase::Done, 100)],
+        );
+        assert_eq!(
+            ended,
+            Stage::Ended {
+                files: 2,
+                arrived: 1
+            }
+        );
+        let again = stage(
+            3,
+            devices.clone(),
+            None,
+            &[one("a", Phase::Cancelled, 10), one("b", Phase::Done, 100)],
+        );
+        assert_eq!(
+            again,
+            Stage::Ready {
+                files: 3,
+                aim: devices
+            }
+        );
         assert_eq!(again.files(), 3);
     }
 
@@ -7094,30 +10292,72 @@ mod stage_tests {
     fn the_count_is_the_one_of_the_stage_and_never_the_one_of_another_stage() {
         let batch = [one("a", Phase::Done, 100), one("b", Phase::Cancelled, 10)];
         let ready = stage(1, Aim::Code, None, &batch);
-        assert_eq!(ready.files(), 1, "the circle counted the files of the batch that ended");
+        assert_eq!(
+            ready.files(),
+            1,
+            "the circle counted the files of the batch that ended"
+        );
         let going = stage(0, Aim::Code, None, &[one("c", Phase::Moving, 20)]);
         assert_eq!(going.files(), 1);
     }
 
     #[test]
-    fn a_cancel_with_nothing_listed_ends_the_lap_and_never_goes_back_to_ready_with_nothing_to_send() {
-        let ended = stage(0, Aim::Devices(vec!["x".into()]), None, &[one("a", Phase::Cancelled, 5)]);
-        assert_eq!(ended, Stage::Ended { files: 1, arrived: 0 });
-        assert!(!matches!(ended, Stage::Ready { .. }), "a circle with nothing listed was Ready to send");
+    fn a_cancel_with_nothing_listed_ends_the_lap_and_never_goes_back_to_ready_with_nothing_to_send()
+    {
+        let ended = stage(
+            0,
+            Aim::Devices(vec!["x".into()]),
+            None,
+            &[one("a", Phase::Cancelled, 5)],
+        );
+        assert_eq!(
+            ended,
+            Stage::Ended {
+                files: 1,
+                arrived: 0
+            }
+        );
+        assert!(
+            !matches!(ended, Stage::Ready { .. }),
+            "a circle with nothing listed was Ready to send"
+        );
     }
 
     #[test]
     fn a_code_is_its_own_stage_and_beats_everything_while_it_is_shown() {
-        assert_eq!(stage(4, Aim::Code, Some(CodeCircle::Code), &[]), Stage::Code { scanned: false });
-        assert_eq!(stage(4, Aim::Code, Some(CodeCircle::Scanned), &[]), Stage::Code { scanned: true });
+        assert_eq!(
+            stage(4, Aim::Code, Some(CodeCircle::Code), &[]),
+            Stage::Code { scanned: false }
+        );
+        assert_eq!(
+            stage(4, Aim::Code, Some(CodeCircle::Scanned), &[]),
+            Stage::Code { scanned: true }
+        );
     }
 
     #[test]
-    fn a_code_still_producing_is_going_even_before_its_transfers_are_in_the_record_and_not_after_they_all_ended() {
-        let sending = Some(CodeCircle::Sending { files: 5, percent: 20 });
-        assert!(matches!(stage(0, Aim::Code, sending.clone(), &[]), Stage::Going { files: 5, percent: 20, .. }));
+    fn a_code_still_producing_is_going_even_before_its_transfers_are_in_the_record_and_not_after_they_all_ended()
+     {
+        let sending = Some(CodeCircle::Sending {
+            files: 5,
+            percent: 20,
+        });
+        assert!(matches!(
+            stage(0, Aim::Code, sending.clone(), &[]),
+            Stage::Going {
+                files: 5,
+                percent: 20,
+                ..
+            }
+        ));
         let ended = [one("a", Phase::Done, 100), one("b", Phase::Done, 100)];
-        assert_eq!(stage(0, Aim::Code, sending, &ended), Stage::Ended { files: 2, arrived: 2 });
+        assert_eq!(
+            stage(0, Aim::Code, sending, &ended),
+            Stage::Ended {
+                files: 2,
+                arrived: 2
+            }
+        );
     }
 }
 
@@ -7127,7 +10367,9 @@ mod stage_tests {
 pub fn batch_of(transfers: &[Progress], ids: &[String], code: Option<u64>) -> Vec<Progress> {
     transfers
         .iter()
-        .filter(|item| !item.incoming && (ids.iter().any(|id| *id == item.id) || (code.is_some() && item.code == code)))
+        .filter(|item| {
+            !item.incoming && (ids.contains(&item.id) || (code.is_some() && item.code == code))
+        })
         .cloned()
         .collect()
 }
@@ -7138,8 +10380,18 @@ mod batch_of_tests {
 
     fn one(id: &str, name: &str, phase: Phase, code: Option<u64>) -> Progress {
         Progress {
-            id: id.into(), name: name.into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: name.into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
@@ -7153,23 +10405,38 @@ mod batch_of_tests {
         ];
         let batch = batch_of(&record, &["a".into(), "b".into()], None);
         let ids: Vec<&str> = batch.iter().map(|item| item.id.as_str()).collect();
-        assert_eq!(ids, ["a", "b"], "the batch took a transfer the owner did not name: {ids:?}");
+        assert_eq!(
+            ids,
+            ["a", "b"],
+            "the batch took a transfer the owner did not name: {ids:?}"
+        );
     }
 
     #[test]
     fn each_transfer_of_the_batch_carries_the_state_it_has_now() {
         let record = vec![one("a", "a.txt", Phase::Cancelled, None)];
         let batch = batch_of(&record, &["a".into()], None);
-        assert_eq!(batch[0].phase, Phase::Cancelled, "the batch kept a state from when it was named");
+        assert_eq!(
+            batch[0].phase,
+            Phase::Cancelled,
+            "the batch kept a state from when it was named"
+        );
     }
 
     #[test]
     fn the_transfers_of_the_batchs_code_are_its_own_by_the_generation_and_another_codes_are_not() {
-        let record = vec![one("a", "a.txt", Phase::Moving, Some(3)), one("b", "b.txt", Phase::Moving, Some(4)), one("c", "c.txt", Phase::Done, None)];
+        let record = vec![
+            one("a", "a.txt", Phase::Moving, Some(3)),
+            one("b", "b.txt", Phase::Moving, Some(4)),
+            one("c", "c.txt", Phase::Done, None),
+        ];
         let batch = batch_of(&record, &[], Some(3));
         assert_eq!(batch.len(), 1);
         assert_eq!(batch[0].id, "a");
-        assert!(batch_of(&record, &[], None).is_empty(), "no ids and no code made a batch out of the record");
+        assert!(
+            batch_of(&record, &[], None).is_empty(),
+            "no ids and no code made a batch out of the record"
+        );
     }
 
     #[test]
@@ -7181,7 +10448,9 @@ mod batch_of_tests {
 
     #[test]
     fn a_record_of_thousands_costs_nothing_the_batch_is_only_what_was_named() {
-        let record: Vec<Progress> = (0..5_000).map(|n| one(&format!("old-{n}"), "x.bin", Phase::Done, None)).collect();
+        let record: Vec<Progress> = (0..5_000)
+            .map(|n| one(&format!("old-{n}"), "x.bin", Phase::Done, None))
+            .collect();
         assert!(batch_of(&record, &[], None).is_empty());
         assert_eq!(batch_of(&record, &["old-7".into()], None).len(), 1);
     }
@@ -7190,7 +10459,11 @@ mod batch_of_tests {
 /// The ids of the batch that stay when new files are chosen: only the transfers that still go (moving, or waiting for an answer). What is over (done,
 /// cancelled, failed) is the lap that ended and is let go of; what still goes is not forgotten, so the circle and the list never lose a send in flight
 /// because the person began choosing the next files.
-pub fn ids_kept_on_new_choice(transfers: &[Progress], ids: &[String], code: Option<u64>) -> Vec<String> {
+pub fn ids_kept_on_new_choice(
+    transfers: &[Progress],
+    ids: &[String],
+    code: Option<u64>,
+) -> Vec<String> {
     batch_of(transfers, ids, code)
         .into_iter()
         .filter(|item| !item.phase.is_over())
@@ -7204,21 +10477,47 @@ mod new_choice_tests {
 
     fn one(id: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.into(), name: format!("{id}.txt"), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: format!("{id}.txt"),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
     fn choosing_new_files_keeps_what_still_goes_and_lets_go_of_what_is_over() {
-        let record = vec![one("a", Phase::Moving), one("b", Phase::Cancelled), one("c", Phase::Done), one("d", Phase::Waiting)];
-        let kept = ids_kept_on_new_choice(&record, &["a".into(), "b".into(), "c".into(), "d".into()], None);
-        assert_eq!(kept, ["a", "d"], "a send in flight was forgotten, or one that was over was kept: {kept:?}");
+        let record = vec![
+            one("a", Phase::Moving),
+            one("b", Phase::Cancelled),
+            one("c", Phase::Done),
+            one("d", Phase::Waiting),
+        ];
+        let kept = ids_kept_on_new_choice(
+            &record,
+            &["a".into(), "b".into(), "c".into(), "d".into()],
+            None,
+        );
+        assert_eq!(
+            kept,
+            ["a", "d"],
+            "a send in flight was forgotten, or one that was over was kept: {kept:?}"
+        );
     }
 
     #[test]
     fn a_batch_that_is_all_over_is_let_go_of_entirely() {
-        let record = vec![one("a", Phase::Cancelled), one("b", Phase::Failed("x".into()))];
+        let record = vec![
+            one("a", Phase::Cancelled),
+            one("b", Phase::Failed("x".into())),
+        ];
         assert!(ids_kept_on_new_choice(&record, &["a".into(), "b".into()], None).is_empty());
     }
 }
@@ -7230,26 +10529,80 @@ mod handed_over_not_yet_answered_tests {
     #[test]
     fn between_the_send_and_the_owners_answer_the_circle_is_going_and_never_asks_for_files() {
         // Nothing is listed any more (the files were taken), no transfer is named yet, no code: only the knowledge that N files were handed over.
-        let inputs = CircleInputs { listed: 0, aim: Aim::Code, send_instantly: false, code: None, batch: &[], handed_over: 3 };
+        let inputs = CircleInputs {
+            listed: 0,
+            aim: Aim::Code,
+            send_instantly: false,
+            code: None,
+            batch: &[],
+            handed_over: 3,
+        };
         let stage = stage_of(&inputs);
-        assert_eq!(stage, Stage::Going { files: 3, percent: 0, current: None }, "the circle fell back to asking for files in the gap");
-        assert_eq!(circle_view(&inputs).does, None, "a circle in the gap answered a touch");
+        assert_eq!(
+            stage,
+            Stage::Going {
+                files: 3,
+                percent: 0,
+                current: None
+            },
+            "the circle fell back to asking for files in the gap"
+        );
+        assert_eq!(
+            circle_view(&inputs).does,
+            None,
+            "a circle in the gap answered a touch"
+        );
     }
 
     #[test]
     fn once_the_transfers_are_named_the_real_batch_takes_over_from_the_count() {
         let moving = Progress {
-            id: "a".into(), name: "a.txt".into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: "peer".into(),
-            percent: 40, code: None, expires_at: None, saved_as: None, phase: Phase::Moving,
+            id: "a".into(),
+            name: "a.txt".into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 40,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase: Phase::Moving,
         };
         let batch = [moving];
-        let inputs = CircleInputs { listed: 0, aim: Aim::Code, send_instantly: false, code: None, batch: &batch, handed_over: 3 };
-        assert!(matches!(stage_of(&inputs), Stage::Going { files: 1, percent: 40, .. }), "{:?}", stage_of(&inputs));
+        let inputs = CircleInputs {
+            listed: 0,
+            aim: Aim::Code,
+            send_instantly: false,
+            code: None,
+            batch: &batch,
+            handed_over: 3,
+        };
+        assert!(
+            matches!(
+                stage_of(&inputs),
+                Stage::Going {
+                    files: 1,
+                    percent: 40,
+                    ..
+                }
+            ),
+            "{:?}",
+            stage_of(&inputs)
+        );
     }
 
     #[test]
     fn nothing_handed_over_and_nothing_else_is_empty() {
-        let inputs = CircleInputs { listed: 0, aim: Aim::Code, send_instantly: false, code: None, batch: &[], handed_over: 0 };
+        let inputs = CircleInputs {
+            listed: 0,
+            aim: Aim::Code,
+            send_instantly: false,
+            code: None,
+            batch: &[],
+            handed_over: 0,
+        };
         assert_eq!(stage_of(&inputs), Stage::Empty);
     }
 }
@@ -7260,34 +10613,93 @@ mod three_files_two_devices_tests {
 
     fn transfer(device: &str, n: usize, phase: Phase, percent: u8) -> Progress {
         Progress {
-            id: format!("{device}-{n}"), name: format!("f{n}.bin"), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: device.into(),
-            percent, code: None, expires_at: None, saved_as: None, phase,
+            id: format!("{device}-{n}"),
+            name: format!("f{n}.bin"),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: device.into(),
+            percent,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn batch_of_six(phase_of: impl Fn(&str) -> Phase, percent: u8) -> Vec<Progress> {
-        ["laptop", "phone"].iter().flat_map(|device| (0..3).map(move |n| (*device, n))).map(|(device, n)| transfer(device, n, phase_of(device), percent)).collect()
+        ["laptop", "phone"]
+            .iter()
+            .flat_map(|device| (0..3).map(move |n| (*device, n)))
+            .map(|(device, n)| transfer(device, n, phase_of(device), percent))
+            .collect()
     }
     fn inputs<'a>(batch: &'a [Progress], handed_over: usize) -> CircleInputs<'a> {
-        CircleInputs { listed: 0, aim: Aim::Devices(vec!["laptop".into(), "phone".into()]), send_instantly: false, code: None, batch, handed_over }
+        CircleInputs {
+            listed: 0,
+            aim: Aim::Devices(vec!["laptop".into(), "phone".into()]),
+            send_instantly: false,
+            code: None,
+            batch,
+            handed_over,
+        }
     }
 
     #[test]
     fn the_circle_says_three_files_in_the_gap_while_it_goes_and_when_it_ends_never_six() {
-        assert!(matches!(stage_of(&inputs(&[], 3)), Stage::Going { files: 3, .. }));
+        assert!(matches!(
+            stage_of(&inputs(&[], 3)),
+            Stage::Going { files: 3, .. }
+        ));
         let going = batch_of_six(|_| Phase::Moving, 40);
         let stage = stage_of(&inputs(&going, 0));
-        assert!(matches!(stage, Stage::Going { files: 3, percent: 40, .. }), "the circle counted a file once for each device: {stage:?}");
+        assert!(
+            matches!(
+                stage,
+                Stage::Going {
+                    files: 3,
+                    percent: 40,
+                    ..
+                }
+            ),
+            "the circle counted a file once for each device: {stage:?}"
+        );
         let done = batch_of_six(|_| Phase::Done, 100);
-        assert_eq!(stage_of(&inputs(&done, 0)), Stage::Ended { files: 3, arrived: 3 });
+        assert_eq!(
+            stage_of(&inputs(&done, 0)),
+            Stage::Ended {
+                files: 3,
+                arrived: 3
+            }
+        );
     }
 
     #[test]
     fn when_one_device_refused_the_batch_stopped_and_says_how_many_files_arrived_everywhere() {
-        let mixed = batch_of_six(|device| if device == "laptop" { Phase::Done } else { Phase::Cancelled }, 100);
-        assert_eq!(stage_of(&inputs(&mixed, 0)), Stage::Ended { files: 3, arrived: 0 }, "a file refused by one device was counted as arrived");
+        let mixed = batch_of_six(
+            |device| {
+                if device == "laptop" {
+                    Phase::Done
+                } else {
+                    Phase::Cancelled
+                }
+            },
+            100,
+        );
+        assert_eq!(
+            stage_of(&inputs(&mixed, 0)),
+            Stage::Ended {
+                files: 3,
+                arrived: 0
+            },
+            "a file refused by one device was counted as arrived"
+        );
         let devices = batch_by_device(&mixed);
         assert_eq!(devices[0].state(), BatchState::Sent { files: 3 });
-        assert_eq!(devices[1].state(), BatchState::Stopped { files: 3, done: 0 });
+        assert_eq!(
+            devices[1].state(),
+            BatchState::Stopped { files: 3, done: 0 }
+        );
     }
 }
 
@@ -7297,8 +10709,18 @@ mod uneven_devices_tests {
 
     fn transfer(device: &str, name: &str) -> Progress {
         Progress {
-            id: format!("{device}-{name}"), name: name.into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: device.into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase: Phase::Moving,
+            id: format!("{device}-{name}"),
+            name: name.into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: device.into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase: Phase::Moving,
         }
     }
 
@@ -7306,12 +10728,22 @@ mod uneven_devices_tests {
     fn a_device_that_was_given_fewer_files_does_not_make_the_batch_smaller() {
         // Three files; the laptop got all three, the phone only one (the others were refused before a transfer was made for them).
         let batch = vec![
-            transfer("laptop", "a"), transfer("laptop", "b"), transfer("laptop", "c"),
+            transfer("laptop", "a"),
+            transfer("laptop", "b"),
+            transfer("laptop", "c"),
             transfer("phone", "a"),
         ];
-        assert_eq!(batch_files(&batch), 3, "the count followed the device that had the fewest transfers or the most");
+        assert_eq!(
+            batch_files(&batch),
+            3,
+            "the count followed the device that had the fewest transfers or the most"
+        );
         // And it does not follow the device with the MOST either: the phone alone had three different files.
-        let other = vec![transfer("phone", "x"), transfer("phone", "y"), transfer("laptop", "x")];
+        let other = vec![
+            transfer("phone", "x"),
+            transfer("phone", "y"),
+            transfer("laptop", "x"),
+        ];
         assert_eq!(batch_files(&other), 2);
     }
 
@@ -7332,7 +10764,11 @@ mod uneven_devices_tests {
 pub enum BatchRow {
     /// The heading of one device's part. Only when the batch went to more than one device: with one, the device is not news. `name` is what the device
     /// can be shown by (the name its own transfers carry, or its id when none does).
-    Device { peer: String, name: String, state: BatchState },
+    Device {
+        peer: String,
+        name: String,
+        state: BatchState,
+    },
     /// A transfer of the batch, for the device named just above it when there is one.
     Transfer(Progress),
 }
@@ -7340,7 +10776,10 @@ pub enum BatchRow {
 impl DeviceBatch {
     /// What the device is shown by: the name its transfers carry (the device's own word for itself, kept on each), else the id the owner gave it.
     pub fn shown_name(&self) -> String {
-        self.transfers.iter().find_map(|item| item.from.clone().filter(|name| !name.is_empty())).unwrap_or_else(|| self.peer.clone())
+        self.transfers
+            .iter()
+            .find_map(|item| item.from.clone().filter(|name| !name.is_empty()))
+            .unwrap_or_else(|| self.peer.clone())
     }
 }
 
@@ -7349,12 +10788,23 @@ impl DeviceBatch {
 pub fn batch_rows(batch: &[Progress]) -> Vec<BatchRow> {
     let devices = batch_by_device(batch);
     if devices.len() < 2 {
-        return transfer_list(batch).cloned().map(BatchRow::Transfer).collect();
+        return transfer_list(batch)
+            .cloned()
+            .map(BatchRow::Transfer)
+            .collect();
     }
     let mut rows = Vec::new();
     for device in &devices {
-        rows.push(BatchRow::Device { peer: device.peer.clone(), name: device.shown_name(), state: device.state() });
-        rows.extend(transfer_list(&device.transfers).cloned().map(BatchRow::Transfer));
+        rows.push(BatchRow::Device {
+            peer: device.peer.clone(),
+            name: device.shown_name(),
+            state: device.state(),
+        });
+        rows.extend(
+            transfer_list(&device.transfers)
+                .cloned()
+                .map(BatchRow::Transfer),
+        );
     }
     rows
 }
@@ -7365,8 +10815,18 @@ mod batch_rows_tests {
 
     fn transfer(device: &str, name: &str, phase: Phase) -> Progress {
         Progress {
-            id: format!("{device}-{name}"), name: name.into(), folders: Vec::new(), bytes: 100, incoming: false, from: None, peer: device.into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: format!("{device}-{name}"),
+            name: name.into(),
+            folders: Vec::new(),
+            bytes: 100,
+            incoming: false,
+            from: None,
+            peer: device.into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
     fn shape(rows: &[BatchRow]) -> Vec<String> {
@@ -7381,24 +10841,46 @@ mod batch_rows_tests {
     #[test]
     fn with_two_devices_each_gets_a_heading_and_its_own_files_together() {
         let batch = vec![
-            transfer("laptop", "a", Phase::Done), transfer("phone", "a", Phase::Moving),
-            transfer("laptop", "b", Phase::Done), transfer("phone", "b", Phase::Moving),
+            transfer("laptop", "a", Phase::Done),
+            transfer("phone", "a", Phase::Moving),
+            transfer("laptop", "b", Phase::Done),
+            transfer("phone", "b", Phase::Moving),
         ];
         // Inside each device the order is the list's own everywhere (going first, then what is over, newest first).
-        assert_eq!(shape(&batch_rows(&batch)), ["[laptop]", "b", "a", "[phone]", "a", "b"]);
+        assert_eq!(
+            shape(&batch_rows(&batch)),
+            ["[laptop]", "b", "a", "[phone]", "a", "b"]
+        );
     }
 
     #[test]
     fn a_heading_says_how_that_device_stands_by_itself() {
-        let batch = vec![transfer("laptop", "a", Phase::Done), transfer("phone", "a", Phase::Cancelled)];
+        let batch = vec![
+            transfer("laptop", "a", Phase::Done),
+            transfer("phone", "a", Phase::Cancelled),
+        ];
         let rows = batch_rows(&batch);
-        assert_eq!(rows[0], BatchRow::Device { peer: "laptop".into(), name: "laptop".into(), state: BatchState::Sent { files: 1 } });
-        assert!(matches!(&rows[2], BatchRow::Device { peer, state: BatchState::Stopped { files: 1, done: 0 }, .. } if peer == "phone"), "{:?}", rows[2]);
+        assert_eq!(
+            rows[0],
+            BatchRow::Device {
+                peer: "laptop".into(),
+                name: "laptop".into(),
+                state: BatchState::Sent { files: 1 }
+            }
+        );
+        assert!(
+            matches!(&rows[2], BatchRow::Device { peer, state: BatchState::Stopped { files: 1, done: 0 }, .. } if peer == "phone"),
+            "{:?}",
+            rows[2]
+        );
     }
 
     #[test]
     fn with_one_device_the_rows_are_as_they_always_were_with_no_heading() {
-        let batch = vec![transfer("laptop", "a", Phase::Done), transfer("laptop", "b", Phase::Moving)];
+        let batch = vec![
+            transfer("laptop", "a", Phase::Done),
+            transfer("laptop", "b", Phase::Moving),
+        ];
         assert_eq!(shape(&batch_rows(&batch)), ["b", "a"]);
     }
 
@@ -7408,14 +10890,29 @@ mod batch_rows_tests {
         named.from = Some("Alex's laptop".into());
         let batch = vec![named, transfer("id-2", "a", Phase::Done)];
         let rows = batch_rows(&batch);
-        assert!(matches!(&rows[0], BatchRow::Device { name, .. } if name == "Alex's laptop"), "{:?}", rows[0]);
-        assert!(matches!(&rows[2], BatchRow::Device { name, .. } if name == "id-2"), "no name known, so the id: {:?}", rows[2]);
+        assert!(
+            matches!(&rows[0], BatchRow::Device { name, .. } if name == "Alex's laptop"),
+            "{:?}",
+            rows[0]
+        );
+        assert!(
+            matches!(&rows[2], BatchRow::Device { name, .. } if name == "id-2"),
+            "no name known, so the id: {:?}",
+            rows[2]
+        );
     }
 
     #[test]
     fn every_transfer_is_in_the_rows_exactly_once_and_no_batch_has_no_rows() {
-        let batch = vec![transfer("laptop", "a", Phase::Done), transfer("phone", "a", Phase::Cancelled), transfer("tablet", "a", Phase::Moving)];
-        let transfers = batch_rows(&batch).into_iter().filter(|row| matches!(row, BatchRow::Transfer(_))).count();
+        let batch = vec![
+            transfer("laptop", "a", Phase::Done),
+            transfer("phone", "a", Phase::Cancelled),
+            transfer("tablet", "a", Phase::Moving),
+        ];
+        let transfers = batch_rows(&batch)
+            .into_iter()
+            .filter(|row| matches!(row, BatchRow::Transfer(_)))
+            .count();
         assert_eq!(transfers, 3);
         assert!(batch_rows(&[]).is_empty());
     }
@@ -7444,7 +10941,12 @@ mod touch_number_tests {
     use super::*;
 
     /// What the circle does with a clock: it ticks the touch it finds, but only while the number it started with is still the current one.
-    fn tick_as_the_page_does(current: TouchNumber, touch: &mut CircleTouch, claimed: TouchNumber, now: u64) -> Option<CircleAct> {
+    fn tick_as_the_page_does(
+        current: TouchNumber,
+        touch: &mut CircleTouch,
+        claimed: TouchNumber,
+        now: u64,
+    ) -> Option<CircleAct> {
         if !current.is_current(claimed) {
             return None;
         }
@@ -7463,11 +10965,21 @@ mod touch_number_tests {
         touch.cancel();
         touch.down((50., 50.), (200., 300.), 600);
         // The old clock beats at 900 ms and later: it must not fill, send or empty the new touch.
-        assert_eq!(tick_as_the_page_does(current, &mut touch, first, 900), None, "a clock of the earlier touch acted on the new one");
-        assert_eq!(tick_as_the_page_does(current, &mut touch, first, 1_500), None);
+        assert_eq!(
+            tick_as_the_page_does(current, &mut touch, first, 900),
+            None,
+            "a clock of the earlier touch acted on the new one"
+        );
+        assert_eq!(
+            tick_as_the_page_does(current, &mut touch, first, 1_500),
+            None
+        );
         // The new touch's own clock does act, from its own start (held 400 ms at 1,000 ms: not full yet).
         touch.seen(1_000);
-        assert_eq!(tick_as_the_page_does(current, &mut touch, current, 1_000), Some(CircleAct::Nothing));
+        assert_eq!(
+            tick_as_the_page_does(current, &mut touch, current, 1_000),
+            Some(CircleAct::Nothing)
+        );
     }
 
     #[test]
@@ -7482,7 +10994,11 @@ mod touch_number_tests {
     #[test]
     fn the_number_wraps_rather_than_failing_after_a_very_long_run() {
         let last = TouchNumber(u64::MAX);
-        assert_ne!(last, last.next(), "the number did not move on at the end of its range");
+        assert_ne!(
+            last,
+            last.next(),
+            "the number did not move on at the end of its range"
+        );
     }
 }
 
@@ -7550,7 +11066,10 @@ mod waiting_tests {
     use super::*;
 
     fn paths(names: &[&str]) -> Vec<std::path::PathBuf> {
-        names.iter().map(|name| std::path::PathBuf::from(format!("/files/{name}"))).collect()
+        names
+            .iter()
+            .map(|name| std::path::PathBuf::from(format!("/files/{name}")))
+            .collect()
     }
 
     #[test]
@@ -7563,7 +11082,11 @@ mod waiting_tests {
     #[test]
     fn a_file_chosen_again_is_not_listed_twice_and_is_not_counted_as_added() {
         let mut waiting = Waiting::new(paths(&["a", "b"]));
-        assert_eq!(waiting.add(paths(&["b", "c", "a"])), 1, "a file already in the list was counted as new");
+        assert_eq!(
+            waiting.add(paths(&["b", "c", "a"])),
+            1,
+            "a file already in the list was counted as new"
+        );
         assert_eq!(waiting.files(), paths(&["a", "b", "c"]).as_slice());
     }
 
@@ -7572,7 +11095,10 @@ mod waiting_tests {
         let mut waiting = Waiting::new(paths(&["a", "b", "c"]));
         assert!(waiting.remove(1));
         assert_eq!(waiting.files(), paths(&["a", "c"]).as_slice());
-        assert!(!waiting.remove(9), "an index that is not there removed something");
+        assert!(
+            !waiting.remove(9),
+            "an index that is not there removed something"
+        );
         assert_eq!(waiting.files().len(), 2);
     }
 
@@ -7583,7 +11109,10 @@ mod waiting_tests {
         assert!(waiting.offers_more_and_clear());
         assert!(waiting.remove(0));
         assert!(waiting.is_empty());
-        assert!(waiting.lets_the_circle_choose(), "an empty list did not let the circle choose files");
+        assert!(
+            waiting.lets_the_circle_choose(),
+            "an empty list did not let the circle choose files"
+        );
         assert!(!waiting.offers_more_and_clear());
     }
 
@@ -7619,15 +11148,33 @@ mod every_circle_answers_alike_tests {
     #[test]
     fn a_short_tap_on_a_press_only_circle_answers_at_the_actuation_point_and_not_later() {
         // The circle of Receive: its one act is its press. It answers a tap as soon as it is a meant touch, with no waiting for anything else.
-        assert_eq!(lift_after(MIN_TOUCH_MS - 1, CircleDoes::ChooseFiles), CircleAct::Nothing, "a brush pressed it");
-        assert_eq!(lift_after(MIN_TOUCH_MS, CircleDoes::ChooseFiles), CircleAct::Choose, "a meant tap did not press it");
-        assert_eq!(lift_after(HOLD_MS - 1, CircleDoes::ChooseFiles), CircleAct::Choose, "a tap just short of a hold did not press it");
+        assert_eq!(
+            lift_after(MIN_TOUCH_MS - 1, CircleDoes::ChooseFiles),
+            CircleAct::Nothing,
+            "a brush pressed it"
+        );
+        assert_eq!(
+            lift_after(MIN_TOUCH_MS, CircleDoes::ChooseFiles),
+            CircleAct::Choose,
+            "a meant tap did not press it"
+        );
+        assert_eq!(
+            lift_after(HOLD_MS - 1, CircleDoes::ChooseFiles),
+            CircleAct::Choose,
+            "a tap just short of a hold did not press it"
+        );
     }
 
     #[test]
     fn a_press_that_lasts_as_long_as_a_hold_is_not_a_tap_for_any_circle_that_only_chooses() {
-        assert_eq!(lift_after(HOLD_MS, CircleDoes::ChooseFiles), CircleAct::Nothing);
-        assert_eq!(lift_after(HOLD_MS + 200, CircleDoes::ChooseFiles), CircleAct::Nothing);
+        assert_eq!(
+            lift_after(HOLD_MS, CircleDoes::ChooseFiles),
+            CircleAct::Nothing
+        );
+        assert_eq!(
+            lift_after(HOLD_MS + 200, CircleDoes::ChooseFiles),
+            CircleAct::Nothing
+        );
     }
 }
 
@@ -7650,8 +11197,12 @@ pub struct Sections<'a> {
 }
 
 pub fn sections<'a>(found: &'a [Progress]) -> Sections<'a> {
-    let going: Vec<&Progress> = transfer_list(found).filter(|item| !item.phase.is_over()).collect();
-    let history: Vec<&Progress> = transfer_list(found).filter(|item| item.phase.is_over()).collect();
+    let going: Vec<&Progress> = transfer_list(found)
+        .filter(|item| !item.phase.is_over())
+        .collect();
+    let history: Vec<&Progress> = transfer_list(found)
+        .filter(|item| item.phase.is_over())
+        .collect();
     Sections { going, history }
 }
 
@@ -7661,19 +11212,36 @@ mod history_sections_tests {
 
     fn one(id: &str, phase: Phase) -> Progress {
         Progress {
-            id: id.into(), name: format!("{id}.bin"), folders: Vec::new(), bytes: 10, incoming: false, from: None, peer: "peer".into(),
-            percent: 0, code: None, expires_at: None, saved_as: None, phase,
+            id: id.into(),
+            name: format!("{id}.bin"),
+            folders: Vec::new(),
+            bytes: 10,
+            incoming: false,
+            from: None,
+            peer: "peer".into(),
+            percent: 0,
+            code: None,
+            expires_at: None,
+            saved_as: None,
+            phase,
         }
     }
 
     #[test]
     fn a_transfer_is_in_exactly_one_of_going_and_history_and_none_is_lost() {
         let all = vec![
-            one("a", Phase::Done), one("b", Phase::Moving), one("c", Phase::Cancelled),
-            one("d", Phase::Waiting), one("e", Phase::Failed("x".into())),
+            one("a", Phase::Done),
+            one("b", Phase::Moving),
+            one("c", Phase::Cancelled),
+            one("d", Phase::Waiting),
+            one("e", Phase::Failed("x".into())),
         ];
         let parts = sections(&all);
-        assert_eq!(parts.going.len() + parts.history.len(), all.len(), "a transfer was lost or counted twice");
+        assert_eq!(
+            parts.going.len() + parts.history.len(),
+            all.len(),
+            "a transfer was lost or counted twice"
+        );
         let mut going: Vec<&str> = parts.going.iter().map(|item| item.id.as_str()).collect();
         going.sort_unstable();
         assert_eq!(going, ["b", "d"]);
@@ -7682,18 +11250,40 @@ mod history_sections_tests {
 
     #[test]
     fn the_history_is_newest_first_and_the_going_ones_never_sit_in_it() {
-        let all = vec![one("old", Phase::Done), one("mid", Phase::Done), one("new", Phase::Done), one("now", Phase::Moving)];
-        let ids: Vec<&str> = sections(&all).history.iter().map(|item| item.id.as_str()).collect();
+        let all = vec![
+            one("old", Phase::Done),
+            one("mid", Phase::Done),
+            one("new", Phase::Done),
+            one("now", Phase::Moving),
+        ];
+        let ids: Vec<&str> = sections(&all)
+            .history
+            .iter()
+            .map(|item| item.id.as_str())
+            .collect();
         assert_eq!(ids, ["new", "mid", "old"]);
     }
 
     #[test]
     fn however_long_the_history_is_no_more_than_the_bound_of_rows_are_made() {
-        let all: Vec<Progress> = (0..5_000).map(|n| one(&format!("t{n}"), Phase::Done)).collect();
-        let made = sections(&all).history.into_iter().take(HISTORY_ROWS_MADE).count();
+        let all: Vec<Progress> = (0..5_000)
+            .map(|n| one(&format!("t{n}"), Phase::Done))
+            .collect();
+        let made = sections(&all)
+            .history
+            .into_iter()
+            .take(HISTORY_ROWS_MADE)
+            .count();
         assert_eq!(made, HISTORY_ROWS_MADE, "the cost grew with the history");
         let few: Vec<Progress> = (0..3).map(|n| one(&format!("t{n}"), Phase::Done)).collect();
-        assert_eq!(sections(&few).history.into_iter().take(HISTORY_ROWS_MADE).count(), 3);
+        assert_eq!(
+            sections(&few)
+                .history
+                .into_iter()
+                .take(HISTORY_ROWS_MADE)
+                .count(),
+            3
+        );
     }
 
     #[test]
@@ -7722,7 +11312,9 @@ impl Lap {
 /// How clear the result on the circle is at `now_ms`, from 1 (clear) to 0 (gone), for a lap that ended at `ended_ms`. Clear while it is shown, then a
 /// straight fade, then gone. A clock that ran backwards leaves it clear: nothing disappears by a wrong time.
 pub fn result_opacity(ended_ms: u64, now_ms: u64) -> f32 {
-    let Some(since) = now_ms.checked_sub(ended_ms) else { return 1. };
+    let Some(since) = now_ms.checked_sub(ended_ms) else {
+        return 1.;
+    };
     if since <= RESULT_SHOWN_MS {
         return 1.;
     }
@@ -7746,11 +11338,22 @@ mod fade_tests {
     #[test]
     fn the_result_is_clear_for_the_time_it_is_shown_then_fades_in_a_straight_line_and_is_gone() {
         assert_eq!(result_opacity(1_000, 1_000), 1.);
-        assert_eq!(result_opacity(1_000, 1_000 + RESULT_SHOWN_MS), 1., "it began to fade before its time was up");
+        assert_eq!(
+            result_opacity(1_000, 1_000 + RESULT_SHOWN_MS),
+            1.,
+            "it began to fade before its time was up"
+        );
         let half = result_opacity(1_000, 1_000 + RESULT_SHOWN_MS + FADE_MS / 2);
-        assert!((half - 0.5).abs() < 0.01, "half way through the fade it was {half}");
+        assert!(
+            (half - 0.5).abs() < 0.01,
+            "half way through the fade it was {half}"
+        );
         assert_eq!(result_opacity(1_000, 1_000 + RESULT_SHOWN_MS + FADE_MS), 0.);
-        assert_eq!(result_opacity(1_000, 1_000 + RESULT_SHOWN_MS * 10), 0., "a long gone result came back");
+        assert_eq!(
+            result_opacity(1_000, 1_000 + RESULT_SHOWN_MS * 10),
+            0.,
+            "a long gone result came back"
+        );
     }
 
     #[test]
@@ -7763,7 +11366,10 @@ mod fade_tests {
         let mut last = 1.;
         for step in (0..=(RESULT_SHOWN_MS + FADE_MS + 500)).step_by(50) {
             let now = result_opacity(0, step);
-            assert!(now <= last + f32::EPSILON, "it grew again at {step} ms: {last} then {now}");
+            assert!(
+                now <= last + f32::EPSILON,
+                "it grew again at {step} ms: {last} then {now}"
+            );
             last = now;
         }
     }
@@ -7773,8 +11379,14 @@ mod fade_tests {
         // The first lap ended long ago and has faded; the person chose new files (a newer lap): the old result is not shown.
         let first = Lap::default().next();
         let second = first.next();
-        assert!(shows_result(first, first, 0, 100), "the result of the current lap was not shown while it is clear");
-        assert!(!shows_result(first, second, 0, 100), "an earlier lap's result was shown over a newer lap");
+        assert!(
+            shows_result(first, first, 0, 100),
+            "the result of the current lap was not shown while it is clear"
+        );
+        assert!(
+            !shows_result(first, second, 0, 100),
+            "an earlier lap's result was shown over a newer lap"
+        );
         // And a newer lap's own result is shown from its own start, whatever the old one did.
         assert!(shows_result(second, second, 50_000, 50_100));
     }

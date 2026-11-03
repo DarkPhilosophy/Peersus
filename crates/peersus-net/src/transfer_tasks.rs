@@ -115,14 +115,21 @@ impl TransferTasks {
             started_at: now,
             code,
             // A queued file has not been offered yet: its answer deadline starts only when a stream becomes available.
-            expires_at: self.has_room().then(|| now.saturating_add(self.wait.as_secs())),
+            expires_at: self
+                .has_room()
+                .then(|| now.saturating_add(self.wait.as_secs())),
             saved_as: None,
         };
         history.record(record.clone())?;
         if self.has_room() {
             self.start_send(record, connection, source);
         } else {
-            self.queued.push_back(Queued { record, connection, source, since: Instant::now() });
+            self.queued.push_back(Queued {
+                record,
+                connection,
+                source,
+                since: Instant::now(),
+            });
         }
         Ok(id)
     }
@@ -199,8 +206,14 @@ impl TransferTasks {
         let abort = self.tasks.spawn(async move {
             let (prompt, shown) = oneshot::channel();
             let (result, ()) = tokio::join!(
-                file_session::receive_offered(incoming, prompt, selected, wait, Some(connection), |value| counter
-                    .store(value, Ordering::Relaxed)),
+                file_session::receive_offered(
+                    incoming,
+                    prompt,
+                    selected,
+                    wait,
+                    Some(connection),
+                    |value| counter.store(value, Ordering::Relaxed)
+                ),
                 async {
                     if let Ok(offer) = shown.await {
                         let _ = offers.send((task_id.clone(), offer)).await;
@@ -283,7 +296,12 @@ impl TransferTasks {
             .iter()
             .filter(|(_, pending)| &pending.record.peer == peer)
             .map(|(id, _)| id.clone())
-            .chain(self.queued.iter().filter(|queued| &queued.record.peer == peer).map(|queued| queued.record.id.clone()))
+            .chain(
+                self.queued
+                    .iter()
+                    .filter(|queued| &queued.record.peer == peer)
+                    .map(|queued| queued.record.id.clone()),
+            )
             .collect();
         let mut stopped = 0;
         for id in ids {
@@ -387,7 +405,11 @@ impl TransferTasks {
     /// Capacity for an atomic producer batch without consuming any of its sources.
     pub(crate) fn can_queue(&self, count: usize) -> bool {
         let active = self.active_in_direction(false);
-        let immediately = if self.queued.is_empty() { LIMIT.saturating_sub(active) } else { 0 };
+        let immediately = if self.queued.is_empty() {
+            LIMIT.saturating_sub(active)
+        } else {
+            0
+        };
         count <= QUEUED_LIMIT.saturating_sub(self.queued.len()) + immediately
     }
 
@@ -396,7 +418,10 @@ impl TransferTasks {
     }
 
     fn active_in_direction(&self, incoming: bool) -> usize {
-        self.pending.values().filter(|pending| pending.record.incoming == incoming).count()
+        self.pending
+            .values()
+            .filter(|pending| pending.record.incoming == incoming)
+            .count()
     }
 
     fn capacity(&self) -> io::Result<()> {
@@ -410,13 +435,20 @@ impl TransferTasks {
     fn start_queued(&mut self, history: &mut History) -> io::Result<Option<Transfer>> {
         let mut started = None;
         while self.active_in_direction(false) < LIMIT {
-            let Some(queued) = self.queued.front() else { break };
+            let Some(queued) = self.queued.front() else {
+                break;
+            };
             let mut record = queued.record.clone();
-            record.started_at = record.started_at.saturating_add(queued.since.elapsed().as_secs());
+            record.started_at = record
+                .started_at
+                .saturating_add(queued.since.elapsed().as_secs());
             record.expires_at = Some(record.started_at.saturating_add(self.wait.as_secs()));
             // Retain the source and its place in the queue if persistence fails.
             history.record(record.clone())?;
-            let queued = self.queued.pop_front().expect("front was retained while recording");
+            let queued = self
+                .queued
+                .pop_front()
+                .expect("front was retained while recording");
             started = Some(record.clone());
             self.start_send(record, queued.connection, queued.source);
         }
@@ -435,7 +467,10 @@ fn failure_reason(error: &file_session::Error) -> String {
     if let file_session::Error::Transfer(crate::transfer::Error::Io(error)) = error {
         return match error.raw_os_error() {
             Some(code) => format!("Could not read or write the selected file (OS error {code})"),
-            None => format!("Could not read or write the selected file ({:?})", error.kind()),
+            None => format!(
+                "Could not read or write the selected file ({:?})",
+                error.kind()
+            ),
         };
     }
     error.to_string()
@@ -469,14 +504,31 @@ mod tests {
 
     #[test]
     fn failure_diagnostics_preserve_categories_without_leaking_provider_paths() {
-        let private = io::Error::new(io::ErrorKind::PermissionDenied, "/private/provider/document");
-        let reason = failure_reason(&file_session::Error::Transfer(crate::transfer::Error::Io(private)));
+        let private = io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "/private/provider/document",
+        );
+        let reason = failure_reason(&file_session::Error::Transfer(crate::transfer::Error::Io(
+            private,
+        )));
         assert!(reason.contains("PermissionDenied"));
         assert!(!reason.contains("/private"));
-        let numeric = failure_reason(&file_session::Error::Transfer(crate::transfer::Error::Io(io::Error::from_raw_os_error(13))));
+        let numeric = failure_reason(&file_session::Error::Transfer(crate::transfer::Error::Io(
+            io::Error::from_raw_os_error(13),
+        )));
         assert!(numeric.contains("OS error 13"));
-        assert!(failure_reason(&file_session::Error::Transfer(crate::transfer::Error::Integrity)).contains("checksum"));
-        assert!(failure_reason(&file_session::Error::Transport(crate::transport::Error::Timeout)).contains("timed out"));
+        assert!(
+            failure_reason(&file_session::Error::Transfer(
+                crate::transfer::Error::Integrity
+            ))
+            .contains("checksum")
+        );
+        assert!(
+            failure_reason(&file_session::Error::Transport(
+                crate::transport::Error::Timeout
+            ))
+            .contains("timed out")
+        );
     }
 
     fn record(id: &str, peer: &str, state: TransferState) -> Transfer {
@@ -522,7 +574,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stopping_a_device_removes_its_transfers_even_one_whose_task_finished_unread_and_leaves_another_device_alone() {
+    async fn stopping_a_device_removes_its_transfers_even_one_whose_task_finished_unread_and_leaves_another_device_alone()
+     {
         let directory = tempfile::tempdir().unwrap();
         let mut history = History::open(directory.path().join("history.json")).unwrap();
         let mut tasks = TransferTasks::default();
@@ -530,29 +583,74 @@ mod tests {
         register(&mut tasks, "finished-a", "a", true);
         register(&mut tasks, "waiting-b", "b", false);
         for id in ["waiting-a", "finished-a", "waiting-b"] {
-            history.record(record(id, if id.ends_with('b') { "b" } else { "a" }, TransferState::Offered)).unwrap();
+            history
+                .record(record(
+                    id,
+                    if id.ends_with('b') { "b" } else { "a" },
+                    TransferState::Offered,
+                ))
+                .unwrap();
         }
         // Let the finished task actually finish, with its result left unread in the set.
         tokio::task::yield_now().await;
         tokio::task::yield_now().await;
 
-        tasks.cancel_peer(&PeerId("a".into()), &mut history).unwrap();
+        tasks
+            .cancel_peer(&PeerId("a".into()), &mut history)
+            .unwrap();
 
-        assert!(!tasks.pending.contains_key("waiting-a"), "a waiting transfer of the device was left registered");
-        assert!(!tasks.pending.contains_key("finished-a"), "a finished task of the device was left registered, to be written later");
-        assert!(tasks.pending.contains_key("waiting-b"), "another device's transfer was stopped");
+        assert!(
+            !tasks.pending.contains_key("waiting-a"),
+            "a waiting transfer of the device was left registered"
+        );
+        assert!(
+            !tasks.pending.contains_key("finished-a"),
+            "a finished task of the device was left registered, to be written later"
+        );
+        assert!(
+            tasks.pending.contains_key("waiting-b"),
+            "another device's transfer was stopped"
+        );
         // The queued result of the finished task finds no entry: it is read and ignored, and writes nothing to the history.
-        let before: Vec<_> = history.entries().iter().map(|item| (item.id.clone(), item.state.clone())).collect();
+        let before: Vec<_> = history
+            .entries()
+            .iter()
+            .map(|item| (item.id.clone(), item.state.clone()))
+            .collect();
         let read = tokio::time::timeout(Duration::from_millis(200), tasks.next(&mut history)).await;
-        assert!(read.is_err(), "a result of the stopped device was turned into a change");
-        let after: Vec<_> = history.entries().iter().map(|item| (item.id.clone(), item.state.clone())).collect();
-        assert_eq!(before, after, "the history changed when the finished task's result was read");
+        assert!(
+            read.is_err(),
+            "a result of the stopped device was turned into a change"
+        );
+        let after: Vec<_> = history
+            .entries()
+            .iter()
+            .map(|item| (item.id.clone(), item.state.clone()))
+            .collect();
+        assert_eq!(
+            before, after,
+            "the history changed when the finished task's result was read"
+        );
         // The device's rows go too, all of them: none is left with no task to end it, to open as failed at the next start and be
         // noted again. The other device's row stays, here and after the history is opened again from its file.
         history.forget_peer(&PeerId("a".into())).unwrap();
-        let rows = |history: &History| history.entries().iter().map(|item| item.peer.0.clone()).collect::<Vec<_>>();
-        assert_eq!(rows(&history), ["b"], "a row of the forgotten device was left in the list");
+        let rows = |history: &History| {
+            history
+                .entries()
+                .iter()
+                .map(|item| item.peer.0.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            rows(&history),
+            ["b"],
+            "a row of the forgotten device was left in the list"
+        );
         let reopened = History::open(directory.path().join("history.json")).unwrap();
-        assert_eq!(rows(&reopened), ["b"], "a row of the forgotten device came back when the history was opened again");
+        assert_eq!(
+            rows(&reopened),
+            ["b"],
+            "a row of the forgotten device came back when the history was opened again"
+        );
     }
 }

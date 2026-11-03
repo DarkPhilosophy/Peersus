@@ -97,7 +97,10 @@ impl Shelf {
 
 /// Every picture a snapshot names: the own one and each peer's, once each.
 pub fn named_by(view: &crate::view::View) -> BTreeSet<Digest> {
-    view.profile_picture.into_iter().chain(view.devices.iter().filter_map(|device| device.picture)).collect()
+    view.profile_picture
+        .into_iter()
+        .chain(view.devices.iter().filter_map(|device| device.picture))
+        .collect()
 }
 
 impl Shelf {
@@ -160,7 +163,12 @@ mod tests {
     use super::*;
 
     fn picture(seed: u8) -> Picture {
-        Picture::new(2, 2, (0..16).map(|n| (n as u8).wrapping_add(seed)).collect()).unwrap()
+        Picture::new(
+            2,
+            2,
+            (0..16).map(|n| (n as u8).wrapping_add(seed)).collect(),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -169,8 +177,14 @@ mod tests {
         let own = picture(1);
         shelf.to_ask([own.digest()]);
         shelf.arrived(own.digest(), own.clone());
-        let (first, second) = (shelf.get(&own.digest()).unwrap(), shelf.get(&own.digest()).unwrap());
-        assert!(std::sync::Arc::ptr_eq(&first, &second), "reading a picture made a second copy of its pixels");
+        let (first, second) = (
+            shelf.get(&own.digest()).unwrap(),
+            shelf.get(&own.digest()).unwrap(),
+        );
+        assert!(
+            std::sync::Arc::ptr_eq(&first, &second),
+            "reading a picture made a second copy of its pixels"
+        );
         assert_eq!(*first, own);
     }
 
@@ -196,7 +210,10 @@ mod tests {
         shelf.to_ask([own.digest()]);
         assert!(shelf.arrived(own.digest(), own.clone()));
         assert_eq!(shelf.get(&own.digest()).as_deref(), Some(&own));
-        assert!(shelf.to_ask([own.digest()]).is_empty(), "a picture the window holds was asked for again");
+        assert!(
+            shelf.to_ask([own.digest()]).is_empty(),
+            "a picture the window holds was asked for again"
+        );
     }
 
     #[test]
@@ -204,9 +221,16 @@ mod tests {
         let mut shelf = Shelf::default();
         let (asked, given) = (picture(1), picture(2));
         shelf.to_ask([asked.digest()]);
-        assert!(!shelf.arrived(asked.digest(), given.clone()), "a different picture was kept");
+        assert!(
+            !shelf.arrived(asked.digest(), given.clone()),
+            "a different picture was kept"
+        );
         assert_eq!(shelf.get(&asked.digest()), None);
-        assert_eq!(shelf.get(&given.digest()), None, "a picture nobody asked for was kept under its own digest");
+        assert_eq!(
+            shelf.get(&given.digest()),
+            None,
+            "a picture nobody asked for was kept under its own digest"
+        );
         // And the digest can be asked for again, since nothing was gained.
         assert_eq!(shelf.to_ask([asked.digest()]), vec![asked.digest()]);
     }
@@ -230,8 +254,14 @@ mod tests {
             shelf.arrived(p.digest(), p.clone());
         }
         shelf.trim(&BTreeSet::from([a.digest()]));
-        assert!(shelf.get(&a.digest()).is_some(), "a picture still named was let go");
-        assert!(shelf.get(&b.digest()).is_none(), "a picture no longer named was kept");
+        assert!(
+            shelf.get(&a.digest()).is_some(),
+            "a picture still named was let go"
+        );
+        assert!(
+            shelf.get(&b.digest()).is_none(),
+            "a picture no longer named was kept"
+        );
         // Something awaited that is no longer named is not awaited any more either, so naming it again asks.
         let c = picture(3).digest();
         shelf.to_ask([c]);
@@ -243,16 +273,25 @@ mod tests {
     fn the_held_state_changes_when_a_picture_comes_or_goes_and_not_when_nothing_did() {
         let mut shelf = Shelf::default();
         let before = shelf.held();
-        assert!(before == shelf.held(), "an unchanged shelf looked changed, so the window would redraw for nothing");
+        assert!(
+            before == shelf.held(),
+            "an unchanged shelf looked changed, so the window would redraw for nothing"
+        );
         let a = picture(1);
         shelf.to_ask([a.digest()]);
         shelf.arrived(a.digest(), a.clone());
         let with = shelf.held();
-        assert!(before != with, "a picture arrived and the window would not redraw");
+        assert!(
+            before != with,
+            "a picture arrived and the window would not redraw"
+        );
         assert_eq!(with.get(&a.digest()).as_deref(), Some(&a));
         assert!(with == shelf.held());
         shelf.trim(&BTreeSet::new());
-        assert!(with != shelf.held(), "a picture went and the window would not redraw");
+        assert!(
+            with != shelf.held(),
+            "a picture went and the window would not redraw"
+        );
     }
 
     #[test]
@@ -265,7 +304,10 @@ mod tests {
         let only: BTreeSet<_> = [stays.digest()].into_iter().collect();
         assert!(shelf.follow(&only).is_empty());
         // The late answer is refused, and the one still named is taken as ever.
-        assert!(!shelf.arrived(goes.digest(), goes.clone()), "a picture nobody names was let back in");
+        assert!(
+            !shelf.arrived(goes.digest(), goes.clone()),
+            "a picture nobody names was let back in"
+        );
         assert!(shelf.get(&goes.digest()).is_none());
         assert!(shelf.arrived(stays.digest(), stays.clone()));
         assert!(shelf.get(&stays.digest()).is_some());
@@ -276,7 +318,10 @@ mod tests {
 
     /// Run futures to completion without an executor: the ones here never wait on anything outside.
     fn run_all<T>(futures: Vec<impl std::future::Future<Output = T>>) -> Vec<T> {
-        use std::{pin::pin, task::{Context, Poll, Waker}};
+        use std::{
+            pin::pin,
+            task::{Context, Poll, Waker},
+        };
         let mut context = Context::from_waker(Waker::noop());
         futures
             .into_iter()
@@ -288,8 +333,12 @@ mod tests {
     }
 
     #[test]
-    fn a_picture_saved_before_the_window_opened_is_fetched_and_a_failed_fetch_is_tried_again_on_the_same_snapshot() {
-        use std::{cell::{Cell, RefCell}, rc::Rc};
+    fn a_picture_saved_before_the_window_opened_is_fetched_and_a_failed_fetch_is_tried_again_on_the_same_snapshot()
+     {
+        use std::{
+            cell::{Cell, RefCell},
+            rc::Rc,
+        };
         let saved = picture(7);
         let named: BTreeSet<_> = [saved.digest()].into_iter().collect();
         let driven = Driven::default();
@@ -313,13 +362,37 @@ mod tests {
 
         // The first snapshot: nothing has changed in the view, and the picture is still asked for.
         run_all(driven.follow(&named, fetch.clone(), publish.clone()));
-        assert_eq!(asks.get(), 1, "a picture saved before the window opened was never asked for");
-        assert!(published.borrow().last().unwrap().get(&saved.digest()).is_none(), "a refused fetch was taken for a picture");
+        assert_eq!(
+            asks.get(),
+            1,
+            "a picture saved before the window opened was never asked for"
+        );
+        assert!(
+            published
+                .borrow()
+                .last()
+                .unwrap()
+                .get(&saved.digest())
+                .is_none(),
+            "a refused fetch was taken for a picture"
+        );
 
         // The same snapshot again: the owner is asked once more, and this time it gives the picture.
         run_all(driven.follow(&named, fetch.clone(), publish.clone()));
-        assert_eq!(asks.get(), 2, "a fetch that failed was not tried again on an unchanged snapshot");
-        assert_eq!(published.borrow().last().unwrap().get(&saved.digest()).as_deref(), Some(&saved));
+        assert_eq!(
+            asks.get(),
+            2,
+            "a fetch that failed was not tried again on an unchanged snapshot"
+        );
+        assert_eq!(
+            published
+                .borrow()
+                .last()
+                .unwrap()
+                .get(&saved.digest())
+                .as_deref(),
+            Some(&saved)
+        );
 
         // And once held, the same snapshot again asks for nothing.
         run_all(driven.follow(&named, fetch, publish));
@@ -327,7 +400,8 @@ mod tests {
     }
 
     #[test]
-    fn a_picture_a_snapshot_stops_naming_leaves_what_the_window_holds_at_once_with_nothing_to_fetch() {
+    fn a_picture_a_snapshot_stops_naming_leaves_what_the_window_holds_at_once_with_nothing_to_fetch()
+     {
         use std::{cell::RefCell, rc::Rc};
         let kept = picture(3);
         let named: BTreeSet<_> = [kept.digest()].into_iter().collect();
@@ -345,13 +419,25 @@ mod tests {
             }
         };
         run_all(driven.follow(&named, give.clone(), publish.clone()));
-        assert!(published.borrow().last().unwrap().get(&kept.digest()).is_some());
+        assert!(
+            published
+                .borrow()
+                .last()
+                .unwrap()
+                .get(&kept.digest())
+                .is_some()
+        );
         // The next snapshot names nothing: there is nothing to fetch, and what is held must still go.
         let nothing = BTreeSet::new();
         let to_run = driven.follow(&nothing, give, publish);
         assert!(to_run.is_empty());
         assert!(
-            published.borrow().last().unwrap().get(&kept.digest()).is_none(),
+            published
+                .borrow()
+                .last()
+                .unwrap()
+                .get(&kept.digest())
+                .is_none(),
             "a picture no snapshot names stayed in what the window draws from"
         );
     }

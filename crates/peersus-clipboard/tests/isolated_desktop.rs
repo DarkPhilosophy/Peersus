@@ -56,7 +56,7 @@ fn isolated() -> Option<()> {
         .strip_prefix(':')
         .and_then(|rest| rest.split('.').next())
         .and_then(|n| n.parse().ok());
-    if !number.is_some_and(|n| n >= 99) {
+    if number.is_none_or(|n| n < 99) {
         eprintln!("not run: DISPLAY is not a virtual server");
         return None;
     }

@@ -123,7 +123,9 @@ pub fn write(directory: &Path, approval: &Approval) -> std::io::Result<()> {
     temporary.write_all(b"\n")?;
     temporary.as_file().sync_all()?;
     fs::set_permissions(temporary.path(), fs::Permissions::from_mode(0o600))?;
-    temporary.persist(directory.join(FILE)).map_err(|error| error.error)?;
+    temporary
+        .persist(directory.join(FILE))
+        .map_err(|error| error.error)?;
     Ok(())
 }
 
@@ -133,9 +135,16 @@ pub fn write(directory: &Path, approval: &Approval) -> std::io::Result<()> {
 ///
 /// Capabilities are compared by NAME. The text that describes a capability is for the person to read and anyone may
 /// rewrite it, so a changed description asks nothing new; a capability that was not approved before does.
-pub fn compare(approved: &Approval, manifest: &Manifest, program_name: &str, digest_now: Option<&str>, asked: &BTreeSet<String>) -> Given {
+pub fn compare(
+    approved: &Approval,
+    manifest: &Manifest,
+    program_name: &str,
+    digest_now: Option<&str>,
+    asked: &BTreeSet<String>,
+) -> Given {
     Given {
-        program_unchanged: approved.program == program_name && approved.execution == manifest.execution
+        program_unchanged: approved.program == program_name
+            && approved.execution == manifest.execution
             && digest_now == Some(approved.sha256.as_str()),
         covers_what_is_asked: covers(approved, manifest, asked),
     }
@@ -148,10 +157,12 @@ pub fn guards_of(manifest: &Manifest) -> BTreeMap<String, Option<String>> {
         .exports
         .iter()
         .flat_map(|export| {
-            export
-                .methods
-                .iter()
-                .map(|(method, member)| (format!("{}/{method}", export.service), member.capability.clone()))
+            export.methods.iter().map(|(method, member)| {
+                (
+                    format!("{}/{method}", export.service),
+                    member.capability.clone(),
+                )
+            })
         })
         .collect()
 }
@@ -168,12 +179,16 @@ pub fn covers(approved: &Approval, manifest: &Manifest, asked: &BTreeSet<String>
     if !asked.is_subset(&approved.capabilities) {
         return false;
     }
-    guards_of(manifest).iter().all(|(method, guard_now)| match approved.guards.get(method) {
-        // Approved before: the guard it had is the guard it must still have.
-        Some(guard_then) => guard_then == guard_now,
-        // New: it must be guarded, and by something that was approved.
-        None => guard_now.as_ref().is_some_and(|guard| approved.capabilities.contains(guard)),
-    })
+    guards_of(manifest)
+        .iter()
+        .all(|(method, guard_now)| match approved.guards.get(method) {
+            // Approved before: the guard it had is the guard it must still have.
+            Some(guard_then) => guard_then == guard_now,
+            // New: it must be guarded, and by something that was approved.
+            None => guard_now
+                .as_ref()
+                .is_some_and(|guard| approved.capabilities.contains(guard)),
+        })
 }
 
 #[cfg(test)]
@@ -227,34 +242,58 @@ mod tests {
 
     #[test]
     fn changing_executor_requires_new_approval_even_when_bytes_and_permissions_match() {
-        use peersus_plugin_api::manifest::{Execution, EXECUTION_ABI_VERSION};
+        use peersus_plugin_api::manifest::{EXECUTION_ABI_VERSION, Execution};
         let mut manifest = manifest_with(r#""capability":"thing.use","description":"Goes.""#);
         let approved = approval_of(&manifest);
         let asked = manifest.capabilities.keys().cloned().collect();
         assert!(compare(&approved, &manifest, "plug", Some(SHA), &asked).program_unchanged);
-        for execution in [Execution::Wasm { abi: EXECUTION_ABI_VERSION }, Execution::NativeLibrary { abi: EXECUTION_ABI_VERSION }] {
+        for execution in [
+            Execution::Wasm {
+                abi: EXECUTION_ABI_VERSION,
+            },
+            Execution::NativeLibrary {
+                abi: EXECUTION_ABI_VERSION,
+            },
+        ] {
             manifest.execution = execution;
-            assert!(!compare(&approved, &manifest, "plug", Some(SHA), &asked).program_unchanged, "an executable approval must not authorize a different executor");
+            assert!(
+                !compare(&approved, &manifest, "plug", Some(SHA), &asked).program_unchanged,
+                "an executable approval must not authorize a different executor"
+            );
         }
     }
 
     #[test]
-    fn a_plugin_that_loosens_its_own_guards_is_asked_about_again_and_a_changed_description_is_not() {
+    fn a_plugin_that_loosens_its_own_guards_is_asked_about_again_and_a_changed_description_is_not()
+    {
         let guarded = manifest_with(r#""capability":"thing.use","description":"Goes.""#);
         let approved = approval_of(&guarded);
-        let asks = |m: &peersus_plugin_api::manifest::Manifest| m.capabilities.keys().cloned().collect::<BTreeSet<_>>();
+        let asks = |m: &peersus_plugin_api::manifest::Manifest| {
+            m.capabilities.keys().cloned().collect::<BTreeSet<_>>()
+        };
         let covered = |m: &peersus_plugin_api::manifest::Manifest| covers(&approved, m, &asks(m));
         // The same manifest is covered, and so is one with only its words changed: the text is for a person and anyone may
         // rewrite it.
         assert!(covered(&guarded));
-        assert!(covered(&manifest_with(r#""capability":"thing.use","description":"Wins a billion.""#)));
+        assert!(covered(&manifest_with(
+            r#""capability":"thing.use","description":"Wins a billion.""#
+        )));
         // The guard removed: the method is open to anyone, which is less safe than what was approved, and capability NAMES
         // are unchanged, so only the guards can tell.
         let unguarded = manifest_with(r#""description":"Goes.""#);
-        assert_eq!(asks(&unguarded), asks(&guarded), "the capability names alone do not tell, which is the point");
-        assert!(!covered(&unguarded), "a method lost its guard and the plugin still counted as approved");
+        assert_eq!(
+            asks(&unguarded),
+            asks(&guarded),
+            "the capability names alone do not tell, which is the point"
+        );
+        assert!(
+            !covered(&unguarded),
+            "a method lost its guard and the plugin still counted as approved"
+        );
         // The guard swapped for another capability: a different question, not one the application may answer.
-        assert!(!covered(&manifest_with(r#""capability":"other.use","description":"Goes.""#)));
+        assert!(!covered(&manifest_with(
+            r#""capability":"other.use","description":"Goes.""#
+        )));
     }
 
     #[test]
@@ -269,7 +308,9 @@ mod tests {
             );
             serde_json::from_str::<peersus_plugin_api::manifest::Manifest>(&text).unwrap()
         };
-        let asks = |m: &peersus_plugin_api::manifest::Manifest| m.capabilities.keys().cloned().collect::<BTreeSet<_>>();
+        let asks = |m: &peersus_plugin_api::manifest::Manifest| {
+            m.capabilities.keys().cloned().collect::<BTreeSet<_>>()
+        };
         // New and guarded by something already approved: nothing more is asked of anyone.
         let guarded = with_second(r#""capability":"thing.use","description":"More.""#);
         assert!(covers(&approved, &guarded, &asks(&guarded)));
@@ -277,7 +318,10 @@ mod tests {
         let open = with_second(r#""description":"More.""#);
         assert!(!covers(&approved, &open, &asks(&open)));
         // New and guarded by a capability that was not approved at all.
-        let narrower = Approval { capabilities: caps(&["thing.use"]), ..approved.clone() };
+        let narrower = Approval {
+            capabilities: caps(&["thing.use"]),
+            ..approved.clone()
+        };
         let by_other = with_second(r#""capability":"other.use","description":"More.""#);
         assert!(!covers(&narrower, &by_other, &asks(&by_other)));
     }
@@ -288,14 +332,25 @@ mod tests {
         let wrote = approval("plug", SHA, &["clipboard.use", "net.use"]);
         write(folder.path(), &wrote).unwrap();
         assert_eq!(read(folder.path()), Some(wrote));
-        let mode = fs::metadata(folder.path().join(FILE)).unwrap().permissions().mode() & 0o777;
+        let mode = fs::metadata(folder.path().join(FILE))
+            .unwrap()
+            .permissions()
+            .mode()
+            & 0o777;
         assert_eq!(mode, 0o600, "the approval is readable by others");
         // Written again, it is replaced whole, and no temporary file is left in the folder.
         let again = approval("plug", SHA, &["clipboard.use"]);
         write(folder.path(), &again).unwrap();
         assert_eq!(read(folder.path()), Some(again));
-        let left: Vec<_> = fs::read_dir(folder.path()).unwrap().map(|e| e.unwrap().file_name()).collect();
-        assert_eq!(left, [std::ffi::OsString::from(FILE)], "something besides the approval was left behind");
+        let left: Vec<_> = fs::read_dir(folder.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        assert_eq!(
+            left,
+            [std::ffi::OsString::from(FILE)],
+            "something besides the approval was left behind"
+        );
     }
 
     #[test]
@@ -304,7 +359,11 @@ mod tests {
         let approved = approval("plug", SHA, &[]);
         let mut legacy = serde_json::to_value(&approved).unwrap();
         legacy.as_object_mut().unwrap().remove("execution");
-        fs::write(folder.path().join(FILE), serde_json::to_vec(&legacy).unwrap()).unwrap();
+        fs::write(
+            folder.path().join(FILE),
+            serde_json::to_vec(&legacy).unwrap(),
+        )
+        .unwrap();
         assert_eq!(read(folder.path()), Some(approved));
     }
 
@@ -320,18 +379,33 @@ mod tests {
             ("not json", "this is not json {{{".to_owned()),
             ("not utf-8", "\u{fffd}".to_owned()),
             ("a list", "[]".to_owned()),
-            ("a field nobody declared", good.replace("\"program\"", "\"extra\":1,\"program\"")),
+            (
+                "a field nobody declared",
+                good.replace("\"program\"", "\"extra\":1,\"program\""),
+            ),
             ("a short digest", good.replace(SHA, "abc")),
-            ("a digest that is not hex", good.replace(SHA, &"z".repeat(64))),
-            ("a program that is a path", good.replace("\"plug\"", "\"../plug\"")),
+            (
+                "a digest that is not hex",
+                good.replace(SHA, &"z".repeat(64)),
+            ),
+            (
+                "a program that is a path",
+                good.replace("\"plug\"", "\"../plug\""),
+            ),
             ("a program with no name", good.replace("\"plug\"", "\"\"")),
-            ("too large", format!("{good}{}", " ".repeat(MAX_BYTES as usize))),
+            (
+                "too large",
+                format!("{good}{}", " ".repeat(MAX_BYTES as usize)),
+            ),
         ] {
             fs::write(&file, text).unwrap();
             assert_eq!(read(folder.path()), None, "{what} was read as an approval");
         }
         fs::write(&file, &good).unwrap();
-        assert!(read(folder.path()).is_some(), "the control was not read, so the cases above prove nothing");
+        assert!(
+            read(folder.path()).is_some(),
+            "the control was not read, so the cases above prove nothing"
+        );
     }
 
     #[test]
@@ -344,7 +418,11 @@ mod tests {
         assert_eq!(read(folder.path()), None, "a link was followed");
         fs::remove_file(folder.path().join(FILE)).unwrap();
         fs::create_dir(folder.path().join(FILE)).unwrap();
-        assert_eq!(read(folder.path()), None, "a directory was read as an approval");
+        assert_eq!(
+            read(folder.path()),
+            None,
+            "a directory was read as an approval"
+        );
     }
 
     #[test]
@@ -359,23 +437,49 @@ mod tests {
         fs::write(folder.path().join("readme.txt"), b"anything").unwrap();
         let renamed = folder.path().join("renamed");
         fs::rename(&path, &renamed).unwrap();
-        assert_eq!(program_digest(&renamed, 1 << 20).unwrap(), base, "the name or what is beside it changed the digest");
+        assert_eq!(
+            program_digest(&renamed, 1 << 20).unwrap(),
+            base,
+            "the name or what is beside it changed the digest"
+        );
         // One byte different.
         let changed = program(folder.path(), b"#!/bin/sh\necho two\n", 0o700);
-        assert_ne!(program_digest(&changed, 1 << 20).unwrap(), base, "a changed byte was not noticed");
+        assert_ne!(
+            program_digest(&changed, 1 << 20).unwrap(),
+            base,
+            "a changed byte was not noticed"
+        );
         // The same bytes but no longer runnable.
         let unrunnable = program(folder.path(), b"#!/bin/sh\necho one\n", 0o600);
-        assert_ne!(program_digest(&unrunnable, 1 << 20).unwrap(), base, "losing the right to run was not noticed");
+        assert_ne!(
+            program_digest(&unrunnable, 1 << 20).unwrap(),
+            base,
+            "losing the right to run was not noticed"
+        );
     }
 
     #[test]
     fn a_program_that_cannot_be_measured_has_no_digest() {
         let folder = tempfile::tempdir().unwrap();
-        assert_eq!(program_digest(&folder.path().join("missing"), 1 << 20), None);
-        assert_eq!(program_digest(folder.path(), 1 << 20), None, "a directory was measured");
+        assert_eq!(
+            program_digest(&folder.path().join("missing"), 1 << 20),
+            None
+        );
+        assert_eq!(
+            program_digest(folder.path(), 1 << 20),
+            None,
+            "a directory was measured"
+        );
         let path = program(folder.path(), &[7; 100], 0o700);
-        assert!(program_digest(&path, 100).is_some(), "a file exactly at the limit is not over it");
-        assert_eq!(program_digest(&path, 99), None, "a file over the limit was measured");
+        assert!(
+            program_digest(&path, 100).is_some(),
+            "a file exactly at the limit is not over it"
+        );
+        assert_eq!(
+            program_digest(&path, 99),
+            None,
+            "a file over the limit was measured"
+        );
         // A link is not followed: its target is a different file, and the digest says nothing of it.
         let link = folder.path().join("link");
         std::os::unix::fs::symlink(&path, &link).unwrap();
@@ -383,19 +487,43 @@ mod tests {
     }
 
     #[test]
-    fn comparing_says_whether_the_program_is_the_approved_one_and_whether_everything_asked_was_approved() {
+    fn comparing_says_whether_the_program_is_the_approved_one_and_whether_everything_asked_was_approved()
+     {
         // A manifest with no methods, so that only the names and the program are in question here (the guards of methods
         // have their own tests).
         let none = Manifest::default();
         let approved = approval("plug", SHA, &["clipboard.use"]);
-        let same = compare(&approved, &none, "plug", Some(SHA), &caps(&["clipboard.use"]));
-        assert_eq!(same, Given { program_unchanged: true, covers_what_is_asked: true });
+        let same = compare(
+            &approved,
+            &none,
+            "plug",
+            Some(SHA),
+            &caps(&["clipboard.use"]),
+        );
+        assert_eq!(
+            same,
+            Given {
+                program_unchanged: true,
+                covers_what_is_asked: true
+            }
+        );
         // Asking for less than was approved is covered.
         assert!(compare(&approved, &none, "plug", Some(SHA), &caps(&[])).covers_what_is_asked);
         // Asking for something that was not approved is not.
-        assert!(!compare(&approved, &none, "plug", Some(SHA), &caps(&["clipboard.use", "net.use"])).covers_what_is_asked);
+        assert!(
+            !compare(
+                &approved,
+                &none,
+                "plug",
+                Some(SHA),
+                &caps(&["clipboard.use", "net.use"])
+            )
+            .covers_what_is_asked
+        );
         // A different digest, a different name, or none to be had, is not the approved program.
-        assert!(!compare(&approved, &none, "plug", Some(&"f".repeat(64)), &caps(&[])).program_unchanged);
+        assert!(
+            !compare(&approved, &none, "plug", Some(&"f".repeat(64)), &caps(&[])).program_unchanged
+        );
         assert!(!compare(&approved, &none, "other", Some(SHA), &caps(&[])).program_unchanged);
         assert!(!compare(&approved, &none, "plug", None, &caps(&[])).program_unchanged);
     }

@@ -22,6 +22,11 @@ const MAX_BYTES: u64 = 1024 * 1024;
 pub struct Remembered {
     pub peer: Peer,
     pub address: EndpointAddr,
+    /// Where the person said this device can be found, kept as typed (a name stays a name, looked up at each connection). Absent until one
+    /// is given, and absent from the file when there is none, so a file from before is read as it was. The device is only ever the one whose
+    /// KEY answers: this says where to look, never who it is.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typed: Option<peersus_core::address::TypedAddress>,
 }
 /// The version of the saved document. 2 stores grants as permissions with an owner; version
 /// 1 stored bare names with the owner implied and is refused rather than guessed at.
@@ -67,6 +72,8 @@ impl Peers {
             }
             validate_name(&remembered.peer.name)?;
             remembered.peer.online = false;
+            remembered.peer.sleeping = false;
+            remembered.peer.statuses.clear();
         }
         Ok(Self { path, document })
     }
@@ -88,6 +95,63 @@ impl Peers {
             .ok_or_else(invalid)?;
         remembered.address = address;
         self.publish(candidate)
+    }
+
+    /// The most direct (IP) addresses kept for one device. A phone that changes network often must not fill the file with the addresses
+    /// it had: only the ones it is known by now are useful, so the bound is small.
+    pub const MAX_DIRECT_ADDRESSES: usize = 4;
+
+    /// The address a remembered device was just seen at, learnt from a connection that it made and that proved who it is. Only a device
+    /// that is already remembered can be given an address, and only a direct (IP) one: nothing about who the device is changes, its relay and
+    /// every other hint are kept, and an address that cannot be dialled (unspecified, multicast) is refused. Returns whether anything was
+    /// stored; nothing is written when the address is already known.
+    ///
+    /// When there are more direct addresses than [`Self::MAX_DIRECT_ADDRESSES`] the new one stays and the older ones go: a device seen at a
+    /// new address has left the old ones, which is the case this exists for (a phone that moved from one network to another).
+    pub fn learn_address(&mut self, id: &PeerId, seen: std::net::SocketAddr) -> io::Result<bool> {
+        if seen.ip().is_unspecified() || seen.ip().is_multicast() || seen.port() == 0 {
+            return Err(invalid());
+        }
+        let remembered = self.document.peers.get(&id.0).ok_or_else(invalid)?;
+        let known = |address: &EndpointAddr| address.addrs.contains(&iroh::TransportAddr::Ip(seen));
+        if known(&remembered.address) {
+            return Ok(false);
+        }
+        let mut candidate = self.document.clone();
+        let entry = candidate.peers.get_mut(&id.0).ok_or_else(invalid)?;
+        let direct = entry
+            .address
+            .addrs
+            .iter()
+            .filter(|addr| addr.is_ip())
+            .count();
+        if direct >= Self::MAX_DIRECT_ADDRESSES {
+            // The device has moved: what it was known by before is not it any more, and only the relay and the new address are kept.
+            entry.address.addrs.retain(|addr| !addr.is_ip());
+        }
+        entry.address.addrs.insert(iroh::TransportAddr::Ip(seen));
+        self.publish(candidate)?;
+        Ok(true)
+    }
+
+    /// The name a remembered device now gives itself. Only a device that is already remembered can have its name changed, and only its name:
+    /// no identity is introduced and no grant, setting or address is touched. The name must pass the same check as at pairing. Returns
+    /// whether the stored name changed; nothing is written when it did not.
+    pub fn rename(&mut self, id: &PeerId, name: &str) -> io::Result<bool> {
+        validate_name(name)?;
+        let remembered = self.document.peers.get(&id.0).ok_or_else(invalid)?;
+        if remembered.peer.name == name {
+            return Ok(false);
+        }
+        let mut candidate = self.document.clone();
+        candidate
+            .peers
+            .get_mut(&id.0)
+            .ok_or_else(invalid)?
+            .peer
+            .name = name.to_owned();
+        self.publish(candidate)?;
+        Ok(true)
     }
 
     /// Only a completed consent ceremony can introduce a remembered identity.
@@ -114,12 +178,40 @@ impl Peers {
             paired_at: existing.map_or(now, |entry| entry.peer.paired_at),
             last_seen: Some(now),
             online: false,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: existing.map_or_else(Default::default, |entry| entry.peer.grants.clone()),
             plugin_values: existing
                 .map_or_else(Default::default, |entry| entry.peer.plugin_values.clone()),
         };
-        candidate.peers.insert(id, Remembered { peer, address });
+        // What the person typed for this device is theirs and survives a new pairing, as its grants do.
+        let typed = existing.and_then(|entry| entry.typed.clone());
+        candidate.peers.insert(
+            id,
+            Remembered {
+                peer,
+                address,
+                typed,
+            },
+        );
         self.publish(candidate)
+    }
+
+    /// Set where the person says a remembered device can be found, or clear it with `None`. Only a device that is already remembered, and only
+    /// this: no identity, grant or other address is touched. Returns whether anything changed; nothing is written when it did not.
+    pub fn set_typed(
+        &mut self,
+        id: &PeerId,
+        typed: Option<peersus_core::address::TypedAddress>,
+    ) -> io::Result<bool> {
+        let remembered = self.document.peers.get(&id.0).ok_or_else(invalid)?;
+        if remembered.typed == typed {
+            return Ok(false);
+        }
+        let mut candidate = self.document.clone();
+        candidate.peers.get_mut(&id.0).ok_or_else(invalid)?.typed = typed;
+        self.publish(candidate)?;
+        Ok(true)
     }
 
     pub fn forget(&mut self, id: &PeerId) -> io::Result<()> {
@@ -208,8 +300,14 @@ impl Peers {
     }
 }
 
+/// Whether a device may call itself this: not blank, at most 128 bytes, no control characters. The one rule, at pairing and when a device
+/// later says that it has been renamed, so a name that could not be given then cannot be given now either.
+pub fn is_valid_name(name: &str) -> bool {
+    !(name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control))
+}
+
 fn validate_name(name: &str) -> io::Result<()> {
-    if name.trim().is_empty() || name.len() > 128 || name.chars().any(char::is_control) {
+    if !is_valid_name(name) {
         return Err(invalid());
     }
     Ok(())
@@ -276,6 +374,92 @@ mod tests {
             scope,
             kind: Kind::Toggle { default: false },
         }
+    }
+
+    #[test]
+    fn the_store_learns_an_address_by_adding_it_and_only_for_a_device_it_already_remembers() {
+        let directory = tempfile::tempdir().unwrap();
+        let (mut store, id, _, remote) = remembered(&directory.path().join("peers.json"), 100);
+        let relay: iroh::RelayUrl = "https://relay.example.org/".parse().unwrap();
+        store
+            .update_address(
+                EndpointAddr::new(remote)
+                    .with_relay_url(relay)
+                    .with_ip_addr("192.0.2.1:4000".parse().unwrap()),
+            )
+            .unwrap();
+        let ips = |store: &Peers| -> Vec<std::net::SocketAddr> {
+            store
+                .get(&id)
+                .unwrap()
+                .address
+                .ip_addrs()
+                .copied()
+                .collect()
+        };
+        let relays = |store: &Peers| store.get(&id).unwrap().address.relay_urls().count();
+
+        // Added to what is held, and the relay is kept: an address seen on a connection must never make the device harder to reach.
+        assert!(
+            store
+                .learn_address(&id, "198.51.100.7:5000".parse().unwrap())
+                .unwrap()
+        );
+        assert_eq!(
+            ips(&store).len(),
+            2,
+            "the address was not added to the one already held"
+        );
+        assert_eq!(relays(&store), 1, "learning an address lost the relay");
+        // The same one again is nothing: nothing is written.
+        assert!(
+            !store
+                .learn_address(&id, "198.51.100.7:5000".parse().unwrap())
+                .unwrap()
+        );
+        // Only a device that is remembered: nobody is introduced by being seen.
+        assert!(
+            store
+                .learn_address(
+                    &PeerId("nobody".into()),
+                    "198.51.100.8:5000".parse().unwrap()
+                )
+                .is_err()
+        );
+        // An address that cannot be dialled is refused, and nothing changed.
+        for bad in ["0.0.0.0:5000", "224.0.0.1:5000", "198.51.100.9:0"] {
+            assert!(
+                store.learn_address(&id, bad.parse().unwrap()).is_err(),
+                "{bad} was learnt"
+            );
+        }
+        assert_eq!(ips(&store).len(), 2);
+        // Past its bound the newest stays and the ones before it go, and the relay stays: a device that moved has left the places it was at.
+        for port in 5001..5010 {
+            store
+                .learn_address(&id, format!("198.51.100.7:{port}").parse().unwrap())
+                .unwrap();
+        }
+        assert!(
+            ips(&store).len() <= Peers::MAX_DIRECT_ADDRESSES,
+            "{:?}",
+            ips(&store)
+        );
+        assert!(
+            ips(&store).contains(&"198.51.100.7:5009".parse().unwrap()),
+            "the newest address was not kept"
+        );
+        assert_eq!(relays(&store), 1, "making room lost the relay");
+        // What was learnt is on disc: it is what the next start will use.
+        let reopened = Peers::open(directory.path().join("peers.json")).unwrap();
+        assert!(
+            reopened
+                .get(&id)
+                .unwrap()
+                .address
+                .ip_addrs()
+                .any(|a| a.to_string() == "198.51.100.7:5009")
+        );
     }
 
     #[test]

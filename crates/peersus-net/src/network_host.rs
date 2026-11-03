@@ -1,17 +1,17 @@
 //! Toolkit-independent network owner. No network future runs on a UI thread.
 use crate::{
     file_session::Incoming,
-    handshake::{self, Admitted},
     folder_sender::FolderSender,
+    handshake::{self, Admitted},
     history::History,
     invitation::Invitation,
     invitations::{Invitations, Purpose},
     pairing_tasks::{self, PairingTasks},
     peers::Peers,
-    reconnect,
     picture_owners::PictureOwners,
     pictures::Pictures,
     profile_exchange::{self, Outcome},
+    reconnect,
     streams::{self, Request},
     transfer::Source,
     transfer_tasks::TransferTasks,
@@ -22,8 +22,9 @@ use iroh::{
     endpoint::{Connection, RecvStream, SendStream},
 };
 use peersus_core::{
-    model::{FilesCode, PairingPrompt, Peer, PeerId, Transfer},
+    model::{FilesCode, LinkTest, PairingPrompt, Peer, PeerId, Transfer},
     pairing::Role,
+    plugins::{MAX_ACTIVE_STATUSES, PluginStateError, StatusInfo},
     profile::{Digest, Picture},
 };
 use std::{
@@ -62,6 +63,12 @@ struct Session {
     connection: Connection,
     generation: u64,
     preferred: bool,
+    /// What the device said of itself last: that it sleeps. Starts awake and is only ever set by that device over this very
+    /// connection, so a new connection (it woke, or came back) is awake until it says otherwise.
+    asleep: bool,
+    /// The statuses of plugins that the device said it has, the whole set it last said over this connection. Empty until it says
+    /// otherwise, and gone with the connection.
+    statuses: Vec<StatusInfo>,
 }
 type Routed = Result<(SendStream, RecvStream, Request), ()>;
 
@@ -82,17 +89,27 @@ impl FileLink {
     const LIFE: Duration = Duration::from_secs(300);
 
     fn new(now: tokio::time::Instant) -> Self {
-        Self { taken: 0, limit: Self::MOST_OFFERS, deadline: now + Self::LIFE }
+        Self {
+            taken: 0,
+            limit: Self::MOST_OFFERS,
+            deadline: now + Self::LIFE,
+        }
     }
 
     fn for_selection(now: tokio::time::Instant, files: u32) -> Self {
-        Self { limit: files as usize, ..Self::new(now) }
+        Self {
+            limit: files as usize,
+            ..Self::new(now)
+        }
     }
 
     /// The allowance after one more offer is taken at `now`, or `None` when it may not be: the time is up, or that many have
     /// been taken already.
     fn after_one_more(self, now: tokio::time::Instant) -> Option<Self> {
-        (now < self.deadline && self.taken < self.limit).then_some(Self { taken: self.taken + 1, ..self })
+        (now < self.deadline && self.taken < self.limit).then_some(Self {
+            taken: self.taken + 1,
+            ..self
+        })
     }
 }
 
@@ -151,6 +168,32 @@ enum Work {
     Announced(Result<bool, ()>),
     /// A profile exchange another device started with this host, finished.
     Picture(PeerId, Result<Outcome, ()>),
+    /// This host told a device that it sleeps or is awake again, and nothing came back: there is nothing to wait for or to count.
+    Told,
+    /// A connection settled on a direct path: where the device is, for the session of that generation. `None` when the connection ended, or
+    /// it never left the relay, before it did.
+    Located(PeerId, u64, Option<std::net::SocketAddr>),
+    /// A test of the connection to a device ended, and what it found.
+    Probed(PeerId, LinkTest),
+}
+
+/// How long a connection is given to move from a relay to a direct path before it is taken as staying on the relay: finding a way through
+/// takes seconds, and a minute is far past it. And how often it is looked at meanwhile.
+const LOCATE_FOR: Duration = Duration::from_secs(60);
+const LOCATE_EVERY: Duration = Duration::from_millis(500);
+
+/// The direct (IP) address that a connection is using, from its paths given as `(is it the selected one, where it goes)`; `None` when the
+/// selected path is a relay or there is none yet. Only the SELECTED path says where the device is reached now: another one that is open
+/// may be a route that is about to be dropped. Pure, so it is tried with plain values.
+fn selected_direct(
+    paths: impl IntoIterator<Item = (bool, iroh::TransportAddr)>,
+) -> Option<std::net::SocketAddr> {
+    paths
+        .into_iter()
+        .find_map(|(selected, address)| match address {
+            iroh::TransportAddr::Ip(address) if selected => Some(address),
+            _ => None,
+        })
 }
 
 pub struct NetworkHost {
@@ -193,6 +236,20 @@ pub struct NetworkHost {
     folders: Vec<FolderRun>,
     /// How many folders this host has begun, to give each an id.
     folder_serial: u64,
+    /// Whether THIS device sleeps (its screen is off, or it has gone idle), which it tells every device that is connected, and
+    /// each one that connects later. Awake until a platform says otherwise.
+    own_asleep: bool,
+    /// The statuses of plugins this device says it has, told to every device that is connected and to each one that connects later.
+    /// None until a plugin sets one.
+    own_statuses: Vec<StatusInfo>,
+    /// What the last test of the connection to each remembered device found. Only a device that was tested has an entry, and it is gone
+    /// when the window clears it or the device is forgotten.
+    link_tests: BTreeMap<PeerId, LinkTest>,
+    /// The access token of the personal relay, when there is one. A secret: it is not part of any preference, snapshot or
+    /// command, and `Debug` never shows it. Only [`NetworkHost::set_relay_access`] changes it, after a transport that uses it was bound.
+    relay_access: Option<crate::transport::RelayAccess>,
+    relay_policy: Option<crate::relay_policy::Coordinator>,
+    relay_tick: tokio::time::Interval,
 }
 
 impl NetworkHost {
@@ -227,7 +284,19 @@ impl NetworkHost {
             selection: None,
             folders: Vec::new(),
             folder_serial: 0,
+            own_asleep: false,
+            own_statuses: Vec::new(),
+            link_tests: BTreeMap::new(),
+            relay_access: None,
+            relay_policy: None,
+            relay_tick: tokio::time::interval(Duration::from_secs(1)),
         }
+    }
+
+    /// Coordinate the ordered home-relay tiers on this host's supervised event loop.
+    pub fn with_network_settings(mut self, settings: &peersus_core::NetworkSettings) -> Self {
+        self.relay_policy = crate::relay_policy::Coordinator::new(settings);
+        self
     }
 
     pub fn invite(&self, now: u64) -> Result<Invitation, crate::invitation::Error> {
@@ -237,8 +306,14 @@ impl NetworkHost {
     /// A code to hand over files, and the files it is for. The sources are parked with the code: when a device that was
     /// shown it is admitted, THIS host offers them on that connection by itself, so nothing waits on a window. A new files
     /// code replaces the previous one, with what was parked for it. Never a pairing: it has its own gate.
-    pub fn invite_for_files(&mut self, sources: Vec<Source>, now: u64) -> Result<Invitation, crate::invitation::Error> {
-        let (invitation, generation) = self.invitations.create_for_file_selection(&self.endpoint, now, sources.len())?;
+    pub fn invite_for_files(
+        &mut self,
+        sources: Vec<Source>,
+        now: u64,
+    ) -> Result<Invitation, crate::invitation::Error> {
+        let (invitation, generation) =
+            self.invitations
+                .create_for_file_selection(&self.endpoint, now, sources.len())?;
         // Kept with the generation of THIS code: an admission that was made with an earlier one, and has not finished yet,
         // finds a plan that is not its own and takes nothing.
         self.parked = Some((generation, sources));
@@ -247,14 +322,23 @@ impl NetworkHost {
     }
 
     /// Show one code before opening files. Batches cannot renew its count or lifetime.
-    pub fn begin_files_selection(&mut self, count: usize, now: u64) -> Result<Invitation, crate::invitation::Error> {
-        if count == 0 { return Err(crate::invitation::Error::Invalid); }
-        let (invitation, generation) = self.invitations.create_for_file_selection(&self.endpoint, now, count)?;
+    pub fn begin_files_selection(
+        &mut self,
+        count: usize,
+        now: u64,
+    ) -> Result<Invitation, crate::invitation::Error> {
+        if count == 0 {
+            return Err(crate::invitation::Error::Invalid);
+        }
+        let (invitation, generation) =
+            self.invitations
+                .create_for_file_selection(&self.endpoint, now, count)?;
         self.parked = None;
         self.selection = Some(FileSelection {
             generation,
             remaining: count,
-            until: tokio::time::Instant::now() + Duration::from_secs(invitation.expires_at.saturating_sub(now)),
+            until: tokio::time::Instant::now()
+                + Duration::from_secs(invitation.expires_at.saturating_sub(now)),
             admitted: None,
             pending: VecDeque::new(),
             finished: false,
@@ -263,9 +347,18 @@ impl NetworkHost {
     }
 
     /// False means backpressure, with no source consumed. An invalid target is an error.
-    pub fn can_queue_selection(&self, generation: u64, count: usize, _now: u64) -> io::Result<bool> {
-        let selection = self.selection.as_ref()
-            .filter(|s| s.generation == generation && !s.finished && tokio::time::Instant::now() < s.until)
+    pub fn can_queue_selection(
+        &self,
+        generation: u64,
+        count: usize,
+        _now: u64,
+    ) -> io::Result<bool> {
+        let selection = self
+            .selection
+            .as_ref()
+            .filter(|s| {
+                s.generation == generation && !s.finished && tokio::time::Instant::now() < s.until
+            })
             .ok_or_else(|| io::Error::other("Files selection is no longer active"))?;
         if count == 0 || count > selection.remaining {
             return Err(io::Error::other("Files selection allowance exceeded"));
@@ -279,7 +372,12 @@ impl NetworkHost {
         Ok(reserved <= crate::transfer_tasks::QUEUED_LIMIT && self.transfers.can_queue(reserved))
     }
 
-    pub fn queue_selection(&mut self, generation: u64, sources: Vec<Source>, now: u64) -> io::Result<()> {
+    pub fn queue_selection(
+        &mut self,
+        generation: u64,
+        sources: Vec<Source>,
+        now: u64,
+    ) -> io::Result<()> {
         if !self.can_queue_selection(generation, sources.len(), now)? {
             return Err(io::Error::other("The transfer queue is full"));
         }
@@ -291,10 +389,15 @@ impl NetworkHost {
 
     /// Finishing cannot revoke files already queued or reopen a producer.
     pub fn finish_files_selection(&mut self, generation: u64, refused: usize) -> io::Result<()> {
-        let selection = self.selection.as_mut().filter(|s| s.generation == generation && !s.finished)
+        let selection = self
+            .selection
+            .as_mut()
+            .filter(|s| s.generation == generation && !s.finished)
             .ok_or_else(|| io::Error::other("Files selection is no longer active"))?;
         if selection.remaining != refused {
-            return Err(io::Error::other("Files selection is not fully accounted for"));
+            return Err(io::Error::other(
+                "Files selection is not fully accounted for",
+            ));
         }
         selection.remaining = 0;
         selection.finished = true;
@@ -302,19 +405,38 @@ impl NetworkHost {
     }
 
     fn feed_file_selection(&mut self, now: u64) -> io::Result<bool> {
-        let Some(selection) = self.selection.as_mut() else { return Ok(false) };
+        let Some(selection) = self.selection.as_mut() else {
+            return Ok(false);
+        };
         if tokio::time::Instant::now() >= selection.until
-            || selection.admitted.as_ref().is_some_and(|(connection, _)| connection.close_reason().is_some())
-            || (selection.finished && selection.pending.is_empty()) {
+            || selection
+                .admitted
+                .as_ref()
+                .is_some_and(|(connection, _)| connection.close_reason().is_some())
+            || (selection.finished && selection.pending.is_empty())
+        {
             self.selection = None;
             return Ok(true);
         }
-        let Some((connection, name)) = &selection.admitted else { return Ok(false) };
+        let Some((connection, name)) = &selection.admitted else {
+            return Ok(false);
+        };
         let mut changed = false;
         for _ in 0..16 {
-            if !self.transfers.can_queue(1) { break; }
-            let Some(source) = selection.pending.pop_front() else { break };
-            self.transfers.send(connection.clone(), Some(name.clone()), Some(selection.generation), source, &mut self.history, now)?;
+            if !self.transfers.can_queue(1) {
+                break;
+            }
+            let Some(source) = selection.pending.pop_front() else {
+                break;
+            };
+            self.transfers.send(
+                connection.clone(),
+                Some(name.clone()),
+                Some(selection.generation),
+                source,
+                &mut self.history,
+                now,
+            )?;
             changed = true;
         }
         Ok(changed)
@@ -343,10 +465,16 @@ impl NetworkHost {
     /// the name of a device, so that it can be written into the diagnostics and shown to the person as it is.
     fn why(error: handshake::Error) -> &'static str {
         match error {
-            handshake::Error::Connection => "The other device could not be reached with this invitation",
-            handshake::Error::Refused => "The invitation was refused: it is expired, already used, or not the one this device showed",
+            handshake::Error::Connection => {
+                "The other device could not be reached with this invitation"
+            }
+            handshake::Error::Refused => {
+                "The invitation was refused: it is expired, already used, or not the one this device showed"
+            }
             handshake::Error::Name => "The other device sent a name that is not valid",
-            handshake::Error::Transport(_) => "The connection to the other device failed while it was being set up",
+            handshake::Error::Transport(_) => {
+                "The connection to the other device failed while it was being set up"
+            }
         }
     }
 
@@ -354,8 +482,12 @@ impl NetworkHost {
     /// code, an address or a device's name, but a sentence is chosen here and not passed on as it came, so that nothing else can ever be written.
     fn why_pairing(reason: &str) -> &'static str {
         match reason {
-            "Pairing task stopped unexpectedly" => "Pairing stopped unexpectedly before the two devices agreed",
-            "Could not save paired device" => "The two devices agreed, but the paired device could not be saved",
+            "Pairing task stopped unexpectedly" => {
+                "Pairing stopped unexpectedly before the two devices agreed"
+            }
+            "Could not save paired device" => {
+                "The two devices agreed, but the paired device could not be saved"
+            }
             _ => "Pairing was refused, expired, or the two devices did not show the same numbers",
         }
     }
@@ -374,15 +506,17 @@ impl NetworkHost {
     }
     /// The files code on show, for a screen to draw from: see [`Invitations::files_code`]. Never the code itself.
     pub fn files_code(&self) -> Option<FilesCode> {
-        self.invitations.files_code().map(|(generation, live)| FilesCode {
-            generation,
-            live,
-            pending: self.selection.as_ref().is_some_and(|selection| {
-                selection.generation == generation
-                    && tokio::time::Instant::now() < selection.until
-                    && (!selection.finished || !selection.pending.is_empty())
-            }),
-        })
+        self.invitations
+            .files_code()
+            .map(|(generation, live)| FilesCode {
+                generation,
+                live,
+                pending: self.selection.as_ref().is_some_and(|selection| {
+                    selection.generation == generation
+                        && tokio::time::Instant::now() < selection.until
+                        && (!selection.finished || !selection.pending.is_empty())
+                }),
+            })
     }
     pub fn peers(&self) -> Vec<Peer> {
         self.peers
@@ -393,6 +527,21 @@ impl NetworkHost {
                     .sessions
                     .get(&peer.id)
                     .is_some_and(|session| session.connection.close_reason().is_none());
+                // Asleep only while connected: a device that said it sleeps and then lost its connection is not asleep, it is gone.
+                peer.sleeping = peer.online
+                    && self
+                        .sessions
+                        .get(&peer.id)
+                        .is_some_and(|session| session.asleep);
+                // What a device says of itself is only what its live connection brought: gone with the connection.
+                peer.statuses = if peer.online {
+                    self.sessions
+                        .get(&peer.id)
+                        .map(|session| session.statuses.clone())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
                 peer
             })
             .collect()
@@ -401,11 +550,17 @@ impl NetworkHost {
     /// Test a producer batch before opening or taking its sources. Unknown and disconnected
     /// peers are errors, not backpressure: a producer must not wait forever for a stale target.
     pub fn can_queue_files(&self, peer: &PeerId, count: usize) -> io::Result<bool> {
-        let session = self.sessions.get(peer).ok_or_else(|| io::Error::other("Device is offline"))?;
+        let session = self
+            .sessions
+            .get(peer)
+            .ok_or_else(|| io::Error::other("Device is offline"))?;
         if session.connection.close_reason().is_some() {
             return Err(io::Error::other("Device is offline"));
         }
-        let reserved = self.selection.as_ref().map_or(0, |selection| selection.pending.len());
+        let reserved = self
+            .selection
+            .as_ref()
+            .map_or(0, |selection| selection.pending.len());
         Ok(self.transfers.can_queue(reserved.saturating_add(count)))
     }
 
@@ -414,8 +569,14 @@ impl NetworkHost {
             .sessions
             .get(peer)
             .ok_or_else(|| io::Error::other("Device is offline"))?;
-        self.transfers
-            .send(session.connection.clone(), None, None, source, &mut self.history, now)
+        self.transfers.send(
+            session.connection.clone(),
+            None,
+            None,
+            source,
+            &mut self.history,
+            now,
+        )
     }
 
     /// Begin sending the folder `root` to the paired device `peer`: every file in it, with the folders it sits in. Nothing is opened and
@@ -429,12 +590,25 @@ impl NetworkHost {
             return Err(io::Error::other("Device is offline"));
         }
         // Directory walks keep capabilities open. Bound active walks separately from file-transfer slots.
-        if self.folders.iter().filter(|run| !run.sender.is_done()).count() >= 16 {
-            return Err(io::Error::new(io::ErrorKind::WouldBlock, "Folder queue is full"));
+        if self
+            .folders
+            .iter()
+            .filter(|run| !run.sender.is_done())
+            .count()
+            >= 16
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::WouldBlock,
+                "Folder queue is full",
+            ));
         }
         let sender = FolderSender::new(root)?;
         // Bound recent completed results; callers may also dismiss one with stop_folder.
-        let mut completed = self.folders.iter().filter(|run| run.sender.is_done()).count();
+        let mut completed = self
+            .folders
+            .iter()
+            .filter(|run| run.sender.is_done())
+            .count();
         self.folders.retain(|run| {
             if run.sender.is_done() && completed >= 16 {
                 completed -= 1;
@@ -444,7 +618,11 @@ impl NetworkHost {
             }
         });
         self.folder_serial += 1;
-        self.folders.push(FolderRun { id: self.folder_serial, peer: peer.clone(), sender });
+        self.folders.push(FolderRun {
+            id: self.folder_serial,
+            peer: peer.clone(),
+            sender,
+        });
         Ok(self.folder_serial)
     }
 
@@ -455,11 +633,14 @@ impl NetworkHost {
     /// A folder whose device is gone is let go of. Finished walks remain as bounded recent results in
     /// [`Self::folder_state`]; starting another folder evicts the oldest completed results.
     pub async fn feed_folders(&mut self, now: u64) -> bool {
-        self.folders.retain(|run| self.sessions.contains_key(&run.peer));
+        self.folders
+            .retain(|run| self.sessions.contains_key(&run.peer));
         if !self.transfers.has_room() {
             return false;
         }
-        let Some(index) = self.folders.iter().position(|run| !run.sender.is_done()) else { return false };
+        let Some(index) = self.folders.iter().position(|run| !run.sender.is_done()) else {
+            return false;
+        };
         let peer = self.folders[index].peer.clone();
         let Some(source) = self.folders[index].sender.next().await else {
             // The walk is complete; preserve its counters among the bounded recent results.
@@ -475,10 +656,26 @@ impl NetworkHost {
 
     /// How the folders being sent stand: for each, its id, what has been offered and what could not be, and what the walk left out.
     /// At most thirty-two retained walks, no more than sixteen of them still active.
-    pub fn folder_state(&self) -> Vec<(u64, PeerId, crate::folder_sender::Sent, crate::walk::Passed, bool)> {
+    pub fn folder_state(
+        &self,
+    ) -> Vec<(
+        u64,
+        PeerId,
+        crate::folder_sender::Sent,
+        crate::walk::Passed,
+        bool,
+    )> {
         self.folders
             .iter()
-            .map(|run| (run.id, run.peer.clone(), run.sender.sent(), run.sender.passed(), run.sender.is_done()))
+            .map(|run| {
+                (
+                    run.id,
+                    run.peer.clone(),
+                    run.sender.sent(),
+                    run.sender.passed(),
+                    run.sender.is_done(),
+                )
+            })
             .collect()
     }
 
@@ -507,6 +704,7 @@ impl NetworkHost {
     }
     pub fn forget(&mut self, peer: &PeerId) -> io::Result<()> {
         self.peers.forget(peer)?;
+        self.link_tests.remove(peer);
         // The device is no longer trusted from here on: its connection is closed BEFORE anything else is done, so that nothing
         // that can fail after this point (the metadata below) can leave a device that was forgotten still connected. The
         // caller withdraws its work in flight when this returns Ok, which it must always do once the device is gone.
@@ -582,21 +780,67 @@ impl NetworkHost {
         candidate: peersus_core::Settings,
     ) -> Result<(), &'static str> {
         candidate.validate().map_err(|_| "Invalid preferences")?;
+        self.rebind_for(store, candidate, None).await
+    }
+
+    /// The access token in use for the personal relay, to put back after a change that could not be kept. Borrowed, so a
+    /// caller that only looks makes no copy of a secret.
+    pub fn relay_access(&self) -> Option<&crate::transport::RelayAccess> {
+        self.relay_access.as_ref()
+    }
+
+    /// Use this access token (or none) for the personal relay, binding a replacement transport with it the way a change of
+    /// network does, and with the same refusals. The token is kept only here, apart from every preference, so no snapshot,
+    /// file or command line can carry it. A token that changes nothing is not a reason to disturb the connections.
+    pub async fn set_relay_access(
+        &mut self,
+        store: &mut crate::settings::SettingsStore,
+        access: Option<crate::transport::RelayAccess>,
+    ) -> Result<(), &'static str> {
+        if access == self.relay_access {
+            return Ok(());
+        }
+        let current = store.current().clone();
+        // Only a personal relay uses the token. Without one it is only remembered, for when one is chosen.
+        if !current.network.has_custom_relay() {
+            self.relay_access = access;
+            return Ok(());
+        }
+        self.rebind_for(store, current, Some(access)).await
+    }
+
+    /// The one guarded path to a replacement transport, for a change of network or of the token of a personal relay.
+    async fn rebind_for(
+        &mut self,
+        store: &mut crate::settings::SettingsStore,
+        candidate: peersus_core::Settings,
+        new_access: Option<Option<crate::transport::RelayAccess>>,
+    ) -> Result<(), &'static str> {
+        let access_changed = new_access
+            .as_ref()
+            .is_some_and(|access| *access != self.relay_access);
         let network_changed = candidate.network != store.current().network;
-        let replacement = if network_changed {
-            if !self.waiting_files.is_empty() || self.transfers().iter().any(|transfer| {
-                matches!(
-                    transfer.state,
-                    peersus_core::model::TransferState::Offered
-                        | peersus_core::model::TransferState::Running
-                )
-            }) {
+        let replacement = if network_changed || access_changed {
+            if !self.waiting_files.is_empty()
+                || self.transfers().iter().any(|transfer| {
+                    matches!(
+                        transfer.state,
+                        peersus_core::model::TransferState::Offered
+                            | peersus_core::model::TransferState::Running
+                    )
+                })
+            {
                 return Err("Finish or cancel transfers before changing the network");
             }
+            let access = new_access.as_ref().unwrap_or(&self.relay_access).as_ref();
             Some(
-                transport::bind(self.endpoint.secret_key().clone(), &candidate.network)
-                    .await
-                    .map_err(|_| "Could not bind the selected network")?,
+                transport::bind_with(
+                    self.endpoint.secret_key().clone(),
+                    &candidate.network,
+                    access,
+                )
+                .await
+                .map_err(|_| "Could not bind the selected network")?,
             )
         } else {
             None
@@ -607,9 +851,21 @@ impl NetworkHost {
             }
             return Err("Could not save preferences");
         }
+        let renamed = self.name != candidate.device_name;
         self.name = candidate.device_name;
+        // A device that is renamed is told to every device that is connected, the way a changed picture is: the others do not look for it.
+        if renamed {
+            let online: Vec<PeerId> = self.sessions.keys().cloned().collect();
+            for peer in online {
+                self.tell_presence(&peer);
+            }
+        }
         self.set_offer_wait(candidate.offer_timeout_seconds);
+        if let Some(access) = new_access {
+            self.relay_access = access;
+        }
         if let Some(endpoint) = replacement {
+            self.relay_policy = crate::relay_policy::Coordinator::new(&candidate.network);
             self.invitations.revoke();
             // The files parked for a revoked code go with it, so that no old plan can attach to a code shown later.
             self.parked = None;
@@ -643,6 +899,23 @@ impl NetworkHost {
                 return Event::Error("Could not admit an incoming transfer");
             }
             tokio::select! {
+                _ = self.relay_tick.tick(), if self.relay_policy.is_some() => {
+                    let may_retry = self.admissions == 0
+                        && self.work.is_empty()
+                        && self.waiting_files.is_empty()
+                        && self.sessions.values().all(|session| transport::selected_ip(&session.connection))
+                        && !self.transfers().iter().any(|transfer| matches!(
+                            transfer.state,
+                            peersus_core::model::TransferState::Offered | peersus_core::model::TransferState::Running
+                        ));
+                    if let Some(policy) = &mut self.relay_policy {
+                        match policy.tick(&self.endpoint, self.relay_access.as_ref(), may_retry).await {
+                            Ok(true) => return Event::Changed,
+                            Ok(false) => {},
+                            Err(_) => return Event::Error("Could not update relay fallback"),
+                        }
+                    }
+                }
                 Some(incoming) = self.endpoint.accept() => {
                     if self.admissions >= 8 {
                         // Refused with no word to anyone. If this counter ever stays high (a connection that is counted in and never out), every
@@ -797,6 +1070,33 @@ impl NetworkHost {
                                     self.listen(peer.clone(), generation);
                                     return Event::Plugin { peer, service, version, send, receive };
                                 }
+                                Request::Presence { asleep, statuses, name } => {
+                                    self.listen(peer.clone(), generation);
+                                    let mut changed = false;
+                                    if let Some(session) = self.sessions.get_mut(&peer)
+                                        && session.generation == generation
+                                    {
+                                        // The whole of what the device says of itself, replacing what was known: never added up from pieces.
+                                        changed = session.asleep != asleep || session.statuses != statuses;
+                                        session.asleep = asleep;
+                                        session.statuses = statuses;
+                                        // The name of THIS session's device only, which the connection already proved: one device can never rename
+                                        // another. It was judged where it was read; a name the store refuses changes nothing.
+                                        if let Some(name) = name
+                                            && self.peers.rename(&peer, &name).unwrap_or(false)
+                                        {
+                                            changed = true;
+                                        }
+                                    }
+                                    if changed {
+                                        return Event::Changed;
+                                    }
+                                }
+                                // A kind a newer device sent and this build cannot read: let go of the stream and listen again. The
+                                // connection is fine and nothing is wrong, so nothing is shown.
+                                Request::Unknown => {
+                                    self.listen(peer, generation);
+                                }
                                 Request::Profile {} => {
                                     self.listen(peer.clone(), generation);
                                     // Taken only by a host that keeps pictures: another is not asked to
@@ -809,6 +1109,26 @@ impl NetworkHost {
                                         });
                                     }
                                 }
+                            }
+                        }
+                        Work::Told => {}
+                        Work::Located(peer, generation, found) => {
+                            // Only for the session that is still the one this device is connected through: a search that began on a connection
+                            // that was since replaced must not write where a device WAS, over where it is. A device that is no longer remembered, or
+                            // an address that cannot be dialled, is refused by the store and is not worth an error.
+                            if let Some(seen) = found
+                                && self.sessions.get(&peer).is_some_and(|session| session.generation == generation)
+                                && self.peers.learn_address(&peer, seen).unwrap_or(false)
+                            {
+                                return Event::Changed;
+                            }
+                        }
+                        Work::Probed(peer, found) => {
+                            // A device forgotten while its test went on has nothing to be told of: the answer would be about a device that is
+                            // not there, and a window must not be shown one.
+                            if self.peers.get(&peer).is_some() {
+                                self.link_tests.insert(peer, found);
+                                return Event::Changed;
                             }
                         }
                         Work::Announced(result) => {
@@ -842,12 +1162,17 @@ impl NetworkHost {
 
     async fn promote_waiting_files(&mut self, now: u64) -> io::Result<()> {
         while self.transfers.can_receive() {
-            let Some(waiting) = self.waiting_files.pop_front() else { break };
+            let Some(waiting) = self.waiting_files.pop_front() else {
+                break;
+            };
             if waiting.connection.close_reason().is_some() {
                 continue;
             }
             if let FileOrigin::Paired(generation) = &waiting.origin
-                && !self.sessions.get(&waiting.peer).is_some_and(|session| session.generation == *generation)
+                && self
+                    .sessions
+                    .get(&waiting.peer)
+                    .is_none_or(|session| session.generation != *generation)
             {
                 continue;
             }
@@ -858,13 +1183,19 @@ impl NetworkHost {
                 _ = waiting.incoming.tx.stopped() => true,
                 () = std::future::ready(()) => false,
             };
-            let WaitingFile { peer, incoming, connection, origin } = waiting;
+            let WaitingFile {
+                peer,
+                incoming,
+                connection,
+                origin,
+            } = waiting;
             if !cancelled {
                 let name = match &origin {
                     FileOrigin::Paired(_) => None,
                     FileOrigin::Files { name, .. } => Some(name.clone()),
                 };
-                self.transfers.receive(peer.clone(), name, incoming, connection.clone(), now)?;
+                self.transfers
+                    .receive(peer.clone(), name, incoming, connection.clone(), now)?;
             }
             match origin {
                 FileOrigin::Paired(generation) => self.listen(peer, generation),
@@ -873,7 +1204,6 @@ impl NetworkHost {
         }
         Ok(())
     }
-
 
     fn install(&mut self, connection: Connection, preferred: bool) {
         let peer = PeerId(connection.remote_id().to_string());
@@ -892,15 +1222,58 @@ impl NetworkHost {
                 connection,
                 generation,
                 preferred,
+                asleep: false,
+                statuses: Vec::new(),
             },
         ) {
             old.connection.close(0_u32.into(), b"replaced session");
-            self.waiting_files.retain(|waiting| waiting.peer != peer || !matches!(waiting.origin, FileOrigin::Paired(_)));
+            self.waiting_files.retain(|waiting| {
+                waiting.peer != peer || !matches!(waiting.origin, FileOrigin::Paired(_))
+            });
         }
         self.listen(peer.clone(), generation);
         // A device that is online is told which picture this one holds: its digest, and the picture
         // itself only if the device turns out not to have it.
-        self.announce(peer);
+        self.announce(peer.clone());
+        // Told to every device that connects, awake or not and with statuses or not: the name is part of what a device says of itself, and a
+        // device that was renamed while this one was away would otherwise keep the name it knew.
+        self.tell_presence(&peer);
+        self.learn_where_it_is(&peer);
+    }
+
+    /// What a device that has just connected tells of where it is: the direct (IP) address that the connection settled on, remembered so that
+    /// this device can find it again if the address it was paired at is gone. It makes a phone that went from one network to another findable
+    /// by whichever side still knows where the other is: either of them connects, the connection proves who it is, and both learn the new place
+    /// without anything being typed.
+    ///
+    /// A connection often starts through a relay and only moves to a direct path once the two sides have found a way through to each other,
+    /// which can be seconds later: so this looks at once and then now and then, for as long as such a move can take. A connection that never
+    /// gets a direct path (it stays on a relay, or it ends first) has no address worth keeping, and the search ends with nothing.
+    fn learn_where_it_is(&mut self, peer: &PeerId) {
+        let Some(session) = self.sessions.get(peer) else {
+            return;
+        };
+        let (connection, generation, peer) =
+            (session.connection.clone(), session.generation, peer.clone());
+        self.work.spawn(async move {
+            let deadline = tokio::time::Instant::now() + LOCATE_FOR;
+            let mut found = None;
+            while found.is_none()
+                && connection.close_reason().is_none()
+                && tokio::time::Instant::now() < deadline
+            {
+                found = selected_direct(
+                    connection
+                        .paths()
+                        .iter()
+                        .map(|path| (path.is_selected(), path.remote_addr().clone())),
+                );
+                if found.is_none() {
+                    tokio::time::sleep(LOCATE_EVERY).await;
+                }
+            }
+            Work::Located(peer, generation, found)
+        });
     }
 
     fn listen(&mut self, peer: PeerId, generation: u64) {
@@ -958,6 +1331,14 @@ impl NetworkHost {
         self
     }
 
+    /// The access token the transport was already bound with, when there is one, so that the host knows what is in use and a later change
+    /// of token is told apart from no change. It binds nothing: the endpoint given to [`NetworkHost::new`] is the one in use.
+    #[must_use]
+    pub fn with_relay_access(mut self, access: Option<crate::transport::RelayAccess>) -> Self {
+        self.relay_access = access;
+        self
+    }
+
     /// Whether this device's own picture is on disk but cannot be read. It is then not announced to
     /// anyone, so a fault in a file here never changes what other devices show for this one.
     pub fn picture_problem(&self) -> bool {
@@ -984,6 +1365,74 @@ impl NetworkHost {
         Ok(())
     }
 
+    /// This device sleeps (its screen went off, or it has gone idle) or is awake again. Every device that is connected is told, and
+    /// so is each one that connects later while this holds. An unchanged state is not told again: nothing would differ.
+    pub fn set_asleep(&mut self, asleep: bool) {
+        if self.own_asleep == asleep {
+            return;
+        }
+        self.own_asleep = asleep;
+        let online: Vec<PeerId> = self.sessions.keys().cloned().collect();
+        for peer in online {
+            self.tell_presence(&peer);
+        }
+    }
+
+    /// Whether this device has said that it sleeps.
+    pub fn is_asleep(&self) -> bool {
+        self.own_asleep
+    }
+
+    /// Tell one connected device whether this one sleeps, in the background. One small request, never answered. A device that does
+    /// not know it (an older one) drops it and keeps the connection, so telling is always safe.
+    fn tell_presence(&mut self, peer: &PeerId) {
+        let Some(session) = self.sessions.get(peer) else {
+            return;
+        };
+        let connection = session.connection.clone();
+        let request = Request::Presence {
+            asleep: self.own_asleep,
+            statuses: self.own_statuses.clone(),
+            name: Some(self.name.clone()),
+        };
+        self.work.spawn(async move {
+            if let Ok((mut send, _receive)) = connection.open_bi().await
+                && streams::send(&mut send, &request).await.is_ok()
+            {
+                let _ = send.finish();
+            }
+            Work::Told
+        });
+    }
+
+    /// The statuses of plugins this device says it has, replacing what it said before: the set is always the whole of it. Every device
+    /// that is connected is told, and so is each one that connects later. The same set again says nothing. More than the limit, or one
+    /// status twice, is refused and changes nothing.
+    pub fn set_statuses(&mut self, statuses: Vec<StatusInfo>) -> Result<(), PluginStateError> {
+        let mut seen = std::collections::BTreeSet::new();
+        if statuses.len() > MAX_ACTIVE_STATUSES
+            || !statuses
+                .iter()
+                .all(|status| seen.insert(status.key.clone()))
+        {
+            return Err(PluginStateError::TooManyStatuses);
+        }
+        if self.own_statuses == statuses {
+            return Ok(());
+        }
+        self.own_statuses = statuses;
+        let online: Vec<PeerId> = self.sessions.keys().cloned().collect();
+        for peer in online {
+            self.tell_presence(&peer);
+        }
+        Ok(())
+    }
+
+    /// The statuses of plugins this device says it has.
+    pub fn own_statuses(&self) -> &[StatusInfo] {
+        &self.own_statuses
+    }
+
     /// This device's own picture, as it holds it.
     pub fn own_picture(&self) -> Option<&Picture> {
         self.own.as_ref()
@@ -998,8 +1447,14 @@ impl NetworkHost {
     /// The digest of the picture each paired device last showed, only for those that showed one and
     /// whose picture is still kept: a digest is never reported for a picture that cannot be produced.
     pub fn peer_digests(&self) -> BTreeMap<PeerId, Digest> {
-        let Some(pictures) = self.pictures.as_ref() else { return BTreeMap::new() };
-        self.held.iter().filter(|(_, digest)| pictures.has(digest)).map(|(peer, digest)| (peer.clone(), *digest)).collect()
+        let Some(pictures) = self.pictures.as_ref() else {
+            return BTreeMap::new();
+        };
+        self.held
+            .iter()
+            .filter(|(_, digest)| pictures.has(digest))
+            .map(|(peer, digest)| (peer.clone(), *digest))
+            .collect()
     }
 
     /// How many times this host has sent its picture, as opposed to announcing it. Measured by the
@@ -1020,18 +1475,135 @@ impl NetworkHost {
         if self.pictures.is_none() || self.damaged {
             return;
         }
-        let Some(session) = self.sessions.get(&peer) else { return };
+        let Some(session) = self.sessions.get(&peer) else {
+            return;
+        };
         let connection = session.connection.clone();
         let own = self.own.clone();
         self.work.spawn(async move {
             let result = async {
                 let (mut send, mut receive) = connection.open_bi().await.map_err(|_| ())?;
-                streams::send(&mut send, &Request::Profile {}).await.map_err(|_| ())?;
-                profile_exchange::announce(&mut send, &mut receive, own.as_ref()).await.map_err(|_| ())
+                streams::send(&mut send, &Request::Profile {})
+                    .await
+                    .map_err(|_| ())?;
+                profile_exchange::announce(&mut send, &mut receive, own.as_ref())
+                    .await
+                    .map_err(|_| ())
             }
             .await;
             Work::Announced(result)
         });
+    }
+
+    /// Test the connection to a remembered device now, in the background, and say what was found in [`Self::link_tests`] when it is known. A
+    /// device that is connected already is found paired at once, without opening another connection beside the one it is on. Only a device
+    /// that is remembered can be tested, and a test that is going on is not started again.
+    pub fn test_link(&mut self, peer: &PeerId) -> Result<(), &'static str> {
+        let remembered = self.peers.get(peer).ok_or("Device is not paired")?.clone();
+        if self.link_tests.get(peer) == Some(&LinkTest::Trying) {
+            return Ok(());
+        }
+        if self
+            .sessions
+            .get(peer)
+            .is_some_and(|session| session.connection.close_reason().is_none())
+        {
+            self.link_tests.insert(peer.clone(), LinkTest::Paired);
+            return Ok(());
+        }
+        self.link_tests.insert(peer.clone(), LinkTest::Trying);
+        let endpoint = self.endpoint.clone();
+        let peer = peer.clone();
+        self.work.spawn(async move {
+            Work::Probed(peer, reconnect::probe(&endpoint, &remembered).await)
+        });
+        Ok(())
+    }
+
+    /// Forget what the last test of a device found, so that it is not shown again. A test that is still going on is let finish and is
+    /// not forgotten: its answer has not come.
+    pub fn clear_link_test(&mut self, peer: &PeerId) {
+        if self.link_tests.get(peer) != Some(&LinkTest::Trying) {
+            self.link_tests.remove(peer);
+        }
+    }
+
+    /// What the last test of each device found, only for devices that were tested.
+    pub fn link_tests(&self) -> BTreeMap<PeerId, LinkTest> {
+        self.link_tests.clone()
+    }
+
+    /// Say where a remembered device can be found, as typed, or clear it with `None`. Read here, at the boundary: what is not a place is
+    /// refused with a sentence that says why. A device is only ever found at an address with a PORT, and the port of a device changes each time
+    /// it starts, so an address typed without one is taken only when the device has been seen at a port (that is the one used); with none seen
+    /// the person is asked to write it, instead of saving something that could never be tried. A test of the connection from before is
+    /// cleared: it was about the old place.
+    pub fn set_address(&mut self, peer: &PeerId, text: Option<&str>) -> Result<(), &'static str> {
+        use peersus_core::address::{AddressError, TypedAddress};
+        let remembered = self.peers.get(peer).ok_or("Device is not paired")?;
+        let typed = match text.map(str::trim).filter(|text| !text.is_empty()) {
+            None => None,
+            Some(text) => {
+                let read = TypedAddress::parse(text).map_err(|error| match error {
+                    AddressError::Empty => "Write an address",
+                    AddressError::NotAnAddress => "That is not an IP address or a name",
+                    AddressError::Port => "The port must be a number from 1 to 65535",
+                    AddressError::NotRoutable => {
+                        "That address cannot be reached from another device"
+                    }
+                })?;
+                if read.port.is_none() && remembered.address.ip_addrs().next().is_none() {
+                    return Err(
+                        "This device has not been seen at any port yet: write the port as well, like 192.168.1.20:5000",
+                    );
+                }
+                Some(read)
+            }
+        };
+        self.peers
+            .set_typed(peer, typed)
+            .map_err(|_| "Could not save the address")?;
+        self.link_tests.remove(peer);
+        Ok(())
+    }
+
+    /// Where the person said a device can be found, as they would type it again, if they said.
+    pub fn typed_address(&self, peer: &PeerId) -> Option<String> {
+        self.peers
+            .get(peer)
+            .and_then(|remembered| remembered.typed.as_ref())
+            .map(|typed| typed.shown())
+    }
+
+    /// Every address a person typed, by device, as they would type it again: only for devices that were given one.
+    pub fn typed_addresses(&self) -> BTreeMap<PeerId, String> {
+        self.peers
+            .entries()
+            .filter_map(|remembered| {
+                remembered
+                    .typed
+                    .as_ref()
+                    .map(|typed| (remembered.peer.id.clone(), typed.shown()))
+            })
+            .collect()
+    }
+
+    /// The port this device listens on, the one another device writes after its address to find this one. It is chosen by the system when
+    /// the device starts and is a different one each time, so it is read from the endpoint and not kept. `None` when it is not bound.
+    pub fn listening_port(&self) -> Option<u16> {
+        self.endpoint
+            .bound_sockets()
+            .iter()
+            .find(|socket| socket.is_ipv4())
+            .map(|socket| socket.port())
+    }
+
+    /// Home-relay health, not a claim about any individual peer's selected traffic path.
+    pub fn relay_diagnostics(&self) -> peersus_core::relay::RelayDiagnostics {
+        self.relay_policy
+            .as_ref()
+            .map(|policy| policy.diagnostics(&self.endpoint))
+            .unwrap_or_default()
     }
 
     fn reconnect(&mut self) {
@@ -1102,11 +1674,19 @@ mod tests {
     }
 
     #[test]
-    fn an_admission_made_with_an_older_code_takes_nothing_and_leaves_the_newer_plan_for_its_own_code() {
+    fn an_admission_made_with_an_older_code_takes_nothing_and_leaves_the_newer_plan_for_its_own_code()
+     {
         // The plan on hand is the one of generation 2: the code of generation 1 was replaced after it was used.
         let mut parked = Some((2, vec!["private to the second code"]));
-        assert!(plan_for(&mut parked, 1).is_empty(), "files of a newer code went to a device admitted with an older one");
-        assert_eq!(parked, Some((2, vec!["private to the second code"])), "the newer plan was spent by the older admission");
+        assert!(
+            plan_for(&mut parked, 1).is_empty(),
+            "files of a newer code went to a device admitted with an older one"
+        );
+        assert_eq!(
+            parked,
+            Some((2, vec!["private to the second code"])),
+            "the newer plan was spent by the older admission"
+        );
         // The device that scanned the newer code still gets them.
         assert_eq!(plan_for(&mut parked, 2), vec!["private to the second code"]);
     }
@@ -1125,9 +1705,14 @@ mod tests {
         let now = tokio::time::Instant::now();
         let mut link = FileLink::new(now);
         for taken in 0..FileLink::MOST_OFFERS {
-            link = link.after_one_more(now).unwrap_or_else(|| panic!("offer {taken} was refused before the limit"));
+            link = link
+                .after_one_more(now)
+                .unwrap_or_else(|| panic!("offer {taken} was refused before the limit"));
         }
-        assert!(link.after_one_more(now).is_none(), "an offer past the most one code carries was taken");
+        assert!(
+            link.after_one_more(now).is_none(),
+            "an offer past the most one code carries was taken"
+        );
     }
 
     #[test]
@@ -1136,11 +1721,20 @@ mod tests {
         let now = tokio::time::Instant::now();
         let link = FileLink::new(now);
         // Still inside its time: an offer is taken.
-        assert!(link.after_one_more(now + FileLink::LIFE - std::time::Duration::from_secs(1)).is_some());
+        assert!(
+            link.after_one_more(now + FileLink::LIFE - std::time::Duration::from_secs(1))
+                .is_some()
+        );
         // At the moment the code stops being good, and after: nothing, however few were taken. A sender that keeps its
         // connection open past this offers nothing the receiver will take.
-        assert!(link.after_one_more(now + FileLink::LIFE).is_none(), "an offer was taken at the deadline");
-        assert!(link.after_one_more(now + FileLink::LIFE * 3).is_none(), "an offer was taken long after the deadline");
+        assert!(
+            link.after_one_more(now + FileLink::LIFE).is_none(),
+            "an offer was taken at the deadline"
+        );
+        assert!(
+            link.after_one_more(now + FileLink::LIFE * 3).is_none(),
+            "an offer was taken long after the deadline"
+        );
     }
 
     #[test]
@@ -1149,12 +1743,19 @@ mod tests {
         let now = tokio::time::Instant::now();
         let mut link = FileLink::for_selection(now, 40);
         for _ in 0..40 {
-            link = link.after_one_more(now).expect("a selected file was refused");
+            link = link
+                .after_one_more(now)
+                .expect("a selected file was refused");
         }
-        assert!(link.after_one_more(now).is_none(), "the authenticated selection allowance was exceeded");
+        assert!(
+            link.after_one_more(now).is_none(),
+            "the authenticated selection allowance was exceeded"
+        );
         let fresh = FileLink::for_selection(now, 40);
-        assert!(fresh.after_one_more(now + FileLink::LIFE).is_none(),
-            "larger selections extended the files-only authorization window");
+        assert!(
+            fresh.after_one_more(now + FileLink::LIFE).is_none(),
+            "larger selections extended the files-only authorization window"
+        );
     }
 
     #[test]

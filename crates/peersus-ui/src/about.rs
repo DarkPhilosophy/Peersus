@@ -45,8 +45,18 @@ pub const DISCLAIMER: &[&str] = &[
     "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived.",
 ];
 
-const fn credit(name: &'static str, purpose: &'static str, licence: &'static str, url: &'static str) -> Credit {
-    Credit { name, purpose, licence, url }
+const fn credit(
+    name: &'static str,
+    purpose: &'static str,
+    licence: &'static str,
+    url: &'static str,
+) -> Credit {
+    Credit {
+        name,
+        purpose,
+        licence,
+        url,
+    }
 }
 
 /// Every project the application stands on that a person would want to know of, grouped by what
@@ -56,39 +66,135 @@ pub const SECTIONS: &[Section] = &[
     Section {
         title: "INTERFACE",
         credits: &[
-            credit("Freya", "The windows, layout and components of this application.", "MIT", "https://github.com/marc2332/freya"),
-            credit("rfd", "The file and folder choosers of the operating system.", "MIT", "https://github.com/PolyMeilex/rfd"),
-            credit("qrcodegen", "Makes the code that another device scans to join.", "MIT", "https://github.com/nayuki/QR-Code-generator"),
+            credit(
+                "Freya",
+                "The windows, layout and components of this application.",
+                "MIT",
+                "https://github.com/marc2332/freya",
+            ),
+            credit(
+                "rfd",
+                "The file and folder choosers of the operating system.",
+                "MIT",
+                "https://github.com/PolyMeilex/rfd",
+            ),
+            credit(
+                "qrcodegen",
+                "Makes the code that another device scans to join.",
+                "MIT",
+                "https://github.com/nayuki/QR-Code-generator",
+            ),
         ],
     },
     Section {
         title: "RENDERING",
         credits: &[
-            credit("Skia", "Draws everything on the screen, text and shapes alike.", "BSD-3-Clause", "https://skia.org"),
-            credit("FreeType", "Shapes the letters of the text.", "FTL", "https://freetype.org"),
-            credit("tiny-skia", "A small drawing library used where Skia is not.", "BSD-3-Clause", "https://github.com/RazrFalcon/tiny-skia"),
+            credit(
+                "Skia",
+                "Draws everything on the screen, text and shapes alike.",
+                "BSD-3-Clause",
+                "https://skia.org",
+            ),
+            credit(
+                "FreeType",
+                "Shapes the letters of the text.",
+                "FTL",
+                "https://freetype.org",
+            ),
+            credit(
+                "tiny-skia",
+                "A small drawing library used where Skia is not.",
+                "BSD-3-Clause",
+                "https://github.com/RazrFalcon/tiny-skia",
+            ),
         ],
     },
     Section {
         title: "NETWORK",
         credits: &[
-            credit("iroh", "Encrypted connections between your devices.", "MIT OR Apache-2.0", "https://github.com/n0-computer/iroh"),
-            credit("rustls", "The encryption of those connections.", "Apache-2.0 OR ISC OR MIT", "https://github.com/rustls/rustls"),
-            credit("ring", "The cryptographic building blocks under rustls.", "Apache-2.0 AND ISC", "https://github.com/briansmith/ring"),
-            credit("attohttpc", "Fetches what the application needs over HTTPS.", "MPL-2.0", "https://github.com/sbstp/attohttpc"),
-            credit("reqwest", "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS.", "MIT OR Apache-2.0", "https://github.com/seanmonstar/reqwest"),
+            credit(
+                "iroh",
+                "Encrypted connections between your devices.",
+                "MIT OR Apache-2.0",
+                "https://github.com/n0-computer/iroh",
+            ),
+            credit(
+                "rustls",
+                "The encryption of those connections.",
+                "Apache-2.0 OR ISC OR MIT",
+                "https://github.com/rustls/rustls",
+            ),
+            credit(
+                "ring",
+                "The cryptographic building blocks under rustls.",
+                "Apache-2.0 AND ISC",
+                "https://github.com/briansmith/ring",
+            ),
+            credit(
+                "attohttpc",
+                "Fetches what the application needs over HTTPS.",
+                "MPL-2.0",
+                "https://github.com/sbstp/attohttpc",
+            ),
+            credit(
+                "reqwest",
+                "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS.",
+                "MIT OR Apache-2.0",
+                "https://github.com/seanmonstar/reqwest",
+            ),
         ],
     },
     Section {
         title: "ENGINE",
         credits: &[
-            credit("Tokio", "Runs many transfers at once without waiting on each other.", "MIT", "https://github.com/tokio-rs/tokio"),
-            credit("Serde", "Reads and writes the application's saved files and messages.", "MIT OR Apache-2.0", "https://github.com/serde-rs/serde"),
-            credit("keyring", "Keeps this device's identity in the system keyring.", "MIT OR Apache-2.0", "https://github.com/hwchen/keyring-rs"),
-            credit("RustCrypto", "Hashes and message codes that check files and pairing.", "MIT OR Apache-2.0", "https://github.com/RustCrypto"),
-            credit("ed25519-dalek", "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key.", "BSD-3-Clause", "https://github.com/dalek-cryptography/curve25519-dalek"),
-            credit("object", "Reads who made an extension out of its program file, without running it.", "Apache-2.0 OR MIT", "https://github.com/gimli-rs/object"),
-            credit("wasmparser", "Reads the same facts out of a WebAssembly extension, without running it.", "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT", "https://github.com/bytecodealliance/wasm-tools"),
+            credit(
+                "Tokio",
+                "Runs many transfers at once without waiting on each other.",
+                "MIT",
+                "https://github.com/tokio-rs/tokio",
+            ),
+            credit(
+                "futures-util",
+                "Combines asynchronous connection events without blocking transfers.",
+                "MIT OR Apache-2.0",
+                "https://github.com/rust-lang/futures-rs",
+            ),
+            credit(
+                "Serde",
+                "Reads and writes the application's saved files and messages.",
+                "MIT OR Apache-2.0",
+                "https://github.com/serde-rs/serde",
+            ),
+            credit(
+                "keyring",
+                "Keeps this device's identity in the system keyring.",
+                "MIT OR Apache-2.0",
+                "https://github.com/hwchen/keyring-rs",
+            ),
+            credit(
+                "RustCrypto",
+                "Hashes and message codes that check files and pairing.",
+                "MIT OR Apache-2.0",
+                "https://github.com/RustCrypto",
+            ),
+            credit(
+                "ed25519-dalek",
+                "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key.",
+                "BSD-3-Clause",
+                "https://github.com/dalek-cryptography/curve25519-dalek",
+            ),
+            credit(
+                "object",
+                "Reads who made an extension out of its program file, without running it.",
+                "Apache-2.0 OR MIT",
+                "https://github.com/gimli-rs/object",
+            ),
+            credit(
+                "wasmparser",
+                "Reads the same facts out of a WebAssembly extension, without running it.",
+                "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+                "https://github.com/bytecodealliance/wasm-tools",
+            ),
         ],
     },
 ];
@@ -112,7 +218,10 @@ mod tests {
     fn the_credits_come_in_these_sections_in_this_order() {
         let titles: Vec<&str> = SECTIONS.iter().map(|section| section.title).collect();
         assert_eq!(titles, ["INTERFACE", "RENDERING", "NETWORK", "ENGINE"]);
-        assert!(SECTIONS.iter().all(|section| !section.credits.is_empty()), "an empty section");
+        assert!(
+            SECTIONS.iter().all(|section| !section.credits.is_empty()),
+            "an empty section"
+        );
     }
 
     #[test]
@@ -121,9 +230,15 @@ mod tests {
             for credit in section.credits {
                 let name = credit.name;
                 assert!(!name.trim().is_empty(), "a credit without a name");
-                assert!(credit.purpose.len() >= 12, "{name}: says nothing of what it is for");
+                assert!(
+                    credit.purpose.len() >= 12,
+                    "{name}: says nothing of what it is for"
+                );
                 assert!(!credit.licence.trim().is_empty(), "{name}: no licence");
-                assert!(credit.url.starts_with("https://"), "{name}: not an https address");
+                assert!(
+                    credit.url.starts_with("https://"),
+                    "{name}: not an https address"
+                );
                 assert!(!credit.url.contains(' '), "{name}: a space in its address");
             }
         }
@@ -131,7 +246,10 @@ mod tests {
 
     #[test]
     fn no_project_is_credited_twice() {
-        let mut names: Vec<&str> = SECTIONS.iter().flat_map(|s| s.credits.iter().map(|c| c.name)).collect();
+        let mut names: Vec<&str> = SECTIONS
+            .iter()
+            .flat_map(|s| s.credits.iter().map(|c| c.name))
+            .collect();
         names.sort_unstable();
         let before = names.len();
         names.dedup();
@@ -148,7 +266,11 @@ mod tests {
             .find(|credit| credit.licence.contains("MPL"))
             .expect("the MPL dependency is credited");
         assert_eq!(found.name, "attohttpc");
-        assert!(NOTICES.iter().any(|n| n.contains("MPL-2.0") && n.contains("unchanged")));
+        assert!(
+            NOTICES
+                .iter()
+                .any(|n| n.contains("MPL-2.0") && n.contains("unchanged"))
+        );
     }
 
     #[test]
@@ -161,17 +283,29 @@ mod tests {
             .find(|credit| credit.name == "FreeType")
             .expect("FreeType is credited");
         assert_eq!(freetype.licence, "FTL");
-        assert!(NOTICES.iter().any(|n| n.contains("FreeType") && n.to_lowercase().contains("portions of this software")));
+        assert!(
+            NOTICES.iter().any(|n| n.contains("FreeType")
+                && n.to_lowercase().contains("portions of this software"))
+        );
     }
 
     #[test]
     fn the_icon_set_is_credited_with_what_apache_2_asks_to_be_said() {
         // Apache-2.0 asks for the source, the copyright and a statement that files were changed. `glyph.rs` says the licence is shown on
         // this page, so a page without it would be a wrong claim.
-        let notice = NOTICES.iter().find(|n| n.contains("IconPark")).expect("IconPark is credited");
+        let notice = NOTICES
+            .iter()
+            .find(|n| n.contains("IconPark"))
+            .expect("IconPark is credited");
         assert!(notice.contains("Apache-2.0"), "the licence is not named");
-        assert!(notice.contains("Bytedance"), "the copyright holder is not named");
-        assert!(notice.to_lowercase().contains("changed"), "the changes are not stated");
+        assert!(
+            notice.contains("Bytedance"),
+            "the copyright holder is not named"
+        );
+        assert!(
+            notice.to_lowercase().contains("changed"),
+            "the changes are not stated"
+        );
     }
 
     #[test]
@@ -179,7 +313,10 @@ mod tests {
         // Not a line of text kept here: the page repeats what `Cargo.toml` declares, so the two
         // can never disagree, and changing the licence there changes the page.
         assert_eq!(APPLICATION_LICENCE, env!("CARGO_PKG_LICENSE"));
-        assert!(!APPLICATION_LICENCE.is_empty(), "the package declares no licence");
+        assert!(
+            !APPLICATION_LICENCE.is_empty(),
+            "the package declares no licence"
+        );
         // The notices speak only of the licences of what the application uses.
         assert!(NOTICES.iter().all(|n| !n.contains("GPL-3.0")));
     }
@@ -188,7 +325,11 @@ mod tests {
     fn locked_packages() -> Vec<String> {
         include_str!("../../../Cargo.lock")
             .lines()
-            .filter_map(|line| line.strip_prefix("name = \"")?.strip_suffix('"').map(str::to_owned))
+            .filter_map(|line| {
+                line.strip_prefix("name = \"")?
+                    .strip_suffix('"')
+                    .map(str::to_owned)
+            })
             .collect()
     }
 
@@ -250,25 +391,52 @@ mod tests {
         ];
         // (dependency, why a person has no need to be told of it)
         const LEFT_OUT: &[(&str, &str)] = &[
-            ("thiserror", "derive macros only; generates this application's own error text"),
-            ("tracing", "log macros only; no behaviour a person relies on"),
+            (
+                "thiserror",
+                "derive macros only; generates this application's own error text",
+            ),
+            (
+                "tracing",
+                "log macros only; no behaviour a person relies on",
+            ),
             ("tempfile", "private scratch files; nothing a person sees"),
             ("rqrr", "tests only; named in the notices below"),
-            ("rpassword", "reads one line at a terminal for a developer tool"),
+            (
+                "rpassword",
+                "reads one line at a terminal for a developer tool",
+            ),
             ("fs2", "a lock on one file; invisible to a person"),
-            ("rustix", "operating-system calls under the application's own code"),
+            (
+                "rustix",
+                "operating-system calls under the application's own code",
+            ),
             ("jni", "Android entry plumbing; invisible to a person"),
             ("hex", "text form of a digest; invisible to a person"),
-            ("data-encoding", "text form of keys and codes; invisible to a person"),
+            (
+                "data-encoding",
+                "text form of keys and codes; invisible to a person",
+            ),
             ("rand", "random numbers for the application's own codes"),
             ("clap", "reads the command line"),
             ("toml", "reads one of the two manifest spellings"),
             ("url", "parses addresses; invisible to a person"),
             ("image", "reads the profile picture a person chose"),
-            ("arboard", "the clipboard plugin's own access to the system clipboard"),
-            ("wl-clipboard-rs", "the clipboard plugin hears that something was copied, on desktops that tell it"),
-            ("x11rb", "the clipboard plugin hears that something was copied, on X11 and under Xwayland"),
-            ("flate2", "unpacks the archive of an extension a person chose"),
+            (
+                "arboard",
+                "the clipboard plugin's own access to the system clipboard",
+            ),
+            (
+                "wl-clipboard-rs",
+                "the clipboard plugin hears that something was copied, on desktops that tell it",
+            ),
+            (
+                "x11rb",
+                "the clipboard plugin hears that something was copied, on X11 and under Xwayland",
+            ),
+            (
+                "flate2",
+                "unpacks the archive of an extension a person chose",
+            ),
             ("tar", "unpacks the archive of an extension a person chose"),
         ];
         // The keys of [workspace.dependencies], read as text so that no parser is added for it: a key is a line that
@@ -280,11 +448,18 @@ mod tests {
             .take_while(|line| !line.trim_start().starts_with('['))
             .filter_map(|line| {
                 let (key, _) = line.split_once(" = ")?;
-                (!key.starts_with('#') && !key.starts_with(' ') && !key.contains(' ')).then_some(key)
+                (!key.starts_with('#') && !key.starts_with(' ') && !key.contains(' '))
+                    .then_some(key)
             })
             .collect();
-        assert!(dependencies.len() > 30, "the dependency table was not read: {dependencies:?}");
-        let credited: Vec<&str> = SECTIONS.iter().flat_map(|s| s.credits.iter().map(|c| c.name)).collect();
+        assert!(
+            dependencies.len() > 30,
+            "the dependency table was not read: {dependencies:?}"
+        );
+        let credited: Vec<&str> = SECTIONS
+            .iter()
+            .flat_map(|s| s.credits.iter().map(|c| c.name))
+            .collect();
         let unexplained: Vec<&str> = dependencies
             .iter()
             .copied()
@@ -292,15 +467,25 @@ mod tests {
             .filter(|name| !name.starts_with("peersus-"))
             .filter(|name| {
                 let direct = credited.iter().any(|c| c.eq_ignore_ascii_case(name));
-                let covered = COVERED.iter().any(|(n, family)| n == name && credited.contains(family));
-                let left_out = LEFT_OUT.iter().any(|(n, why)| n == name && !why.trim().is_empty());
+                let covered = COVERED
+                    .iter()
+                    .any(|(n, family)| n == name && credited.contains(family));
+                let left_out = LEFT_OUT
+                    .iter()
+                    .any(|(n, why)| n == name && !why.trim().is_empty());
                 !(direct || covered || left_out)
             })
             .collect();
-        assert!(unexplained.is_empty(), "credit these on the About page, cover them by a family, or leave them out with a reason: {unexplained:?}");
+        assert!(
+            unexplained.is_empty(),
+            "credit these on the About page, cover them by a family, or leave them out with a reason: {unexplained:?}"
+        );
         // And the lists above cannot rot: what they name must still be a dependency.
         for (name, _) in COVERED.iter().chain(LEFT_OUT) {
-            assert!(dependencies.contains(name), "{name} is listed here but is not a workspace dependency any more");
+            assert!(
+                dependencies.contains(name),
+                "{name} is listed here but is not a workspace dependency any more"
+            );
         }
     }
 }

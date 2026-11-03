@@ -18,6 +18,7 @@ async fn saved_settings_rebind_real_transport_without_changing_identity() {
         network: NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         },
         ..Settings::default()
     };
@@ -83,6 +84,7 @@ async fn invalid_or_unsavable_preferences_leave_current_listener_usable() {
         network: NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         },
         ..Settings::default()
     };

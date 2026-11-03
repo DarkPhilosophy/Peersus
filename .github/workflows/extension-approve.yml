@@ -72,7 +72,7 @@ jobs:
         shell: bash
         working-directory: trusted
         run: |
-          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
           rustup toolchain install "$version" --profile minimal
           rustup default "$version"
       - name: Check the reviewed digest and the package

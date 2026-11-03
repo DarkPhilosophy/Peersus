@@ -28,7 +28,13 @@ const MOST_SIDE: u32 = 512;
 /// quarter turns clockwise the frame must be turned for what is on it to be the right way up for the person holding
 /// the phone (the sensor's own orientation, taken with the screen's; see [`turns_to_upright`]). Any number is taken
 /// modulo four. A code is read from the frame as it is, which does not depend on it; only the person's eyes do.
-pub fn disc_raster(luma: &[u8], width: usize, height: usize, side: u32, turns: u32) -> Option<Raster> {
+pub fn disc_raster(
+    luma: &[u8],
+    width: usize,
+    height: usize,
+    side: u32,
+    turns: u32,
+) -> Option<Raster> {
     let needed = width.checked_mul(height)?;
     if width == 0 || height == 0 || luma.len() < needed {
         return None;
@@ -59,7 +65,10 @@ pub fn disc_raster(luma: &[u8], width: usize, height: usize, side: u32, turns: u
             rgba[at..at + 4].copy_from_slice(&[value, value, value, 0xff]);
         }
     }
-    Some(Raster { side: side as u32, rgba })
+    Some(Raster {
+        side: side as u32,
+        rgba,
+    })
 }
 
 /// How many quarter turns clockwise a frame must be turned to stand upright, from what the platform knows: the angle
@@ -81,7 +90,13 @@ pub fn turns_to_upright(sensor: i32, display: i32) -> u32 {
 /// at the position it returns lies on the very thing it marks. A code is looked for in the whole frame and so may be found
 /// outside the circle's square; such a point is not drawn at the edge, where it would lie, because it would tell the
 /// person it is there when it is not in view.
-pub fn locate(point: (usize, usize), width: usize, height: usize, side: u32, turns: u32) -> Option<(f32, f32)> {
+pub fn locate(
+    point: (usize, usize),
+    width: usize,
+    height: usize,
+    side: u32,
+    turns: u32,
+) -> Option<(f32, f32)> {
     if width == 0 || height == 0 {
         return None;
     }
@@ -132,7 +147,11 @@ pub fn show(view: &crate::scanner::View, side: u32, turns: u32) -> Option<Shown>
             Some(placed)
         })
         .collect();
-    Some(Shown { picture, codes, serial: view.serial })
+    Some(Shown {
+        picture,
+        codes,
+        serial: view.serial,
+    })
 }
 
 /// The top left of a dot of `dot` logical units, centred on a corner at (`x`, `y`) pixels of a picture that is shown
@@ -158,7 +177,9 @@ mod tests {
 
     /// A frame 40 wide and 20 high whose brightness is its column, so that what was taken from where can be told.
     fn ramp() -> Vec<u8> {
-        (0..20).flat_map(|_| (0..40).map(|column| column as u8 * 6)).collect()
+        (0..20)
+            .flat_map(|_| (0..40).map(|column| column as u8 * 6))
+            .collect()
     }
 
     #[test]
@@ -175,14 +196,24 @@ mod tests {
         let middle_row = raster.side / 2;
         let left = at(&raster, 2, middle_row)[0];
         let right = at(&raster, raster.side - 3, middle_row)[0];
-        assert!((60..=90).contains(&left), "the left of the circle shows column brightness {left}, not the centre's");
-        assert!((150..=180).contains(&right), "the right of the circle shows {right}, not the centre's");
+        assert!(
+            (60..=90).contains(&left),
+            "the left of the circle shows column brightness {left}, not the centre's"
+        );
+        assert!(
+            (150..=180).contains(&right),
+            "the right of the circle shows {right}, not the centre's"
+        );
         // A column outside the centre (brightness below 60 or above 174) is never shown.
         for y in 0..raster.side {
             for x in 0..raster.side {
                 let pixel = at(&raster, x, y);
                 if pixel[3] != 0 {
-                    assert!((60..=180).contains(&pixel[0]), "a pixel outside the centre square was shown: {}", pixel[0]);
+                    assert!(
+                        (60..=180).contains(&pixel[0]),
+                        "a pixel outside the centre square was shown: {}",
+                        pixel[0]
+                    );
                 }
             }
         }
@@ -192,14 +223,21 @@ mod tests {
     fn the_corners_are_see_through_and_the_middle_is_not() {
         let raster = disc_raster(&vec![200; 64 * 64], 64, 64, 32, 0).unwrap();
         for (x, y) in [(0, 0), (31, 0), (0, 31), (31, 31)] {
-            assert_eq!(at(&raster, x, y), [0, 0, 0, 0], "the corner ({x}, {y}) is not see-through");
+            assert_eq!(
+                at(&raster, x, y),
+                [0, 0, 0, 0],
+                "the corner ({x}, {y}) is not see-through"
+            );
         }
         assert_eq!(at(&raster, 16, 16), [200, 200, 200, 255]);
         // Grey: the three colours are the one brightness, and nothing in the circle is half see-through.
         for y in 0..32 {
             for x in 0..32 {
                 let pixel = at(&raster, x, y);
-                assert!(pixel[3] == 0 || (pixel[3] == 255 && pixel[0] == pixel[1] && pixel[1] == pixel[2]));
+                assert!(
+                    pixel[3] == 0
+                        || (pixel[3] == 255 && pixel[0] == pixel[1] && pixel[1] == pixel[2])
+                );
             }
         }
     }
@@ -207,28 +245,44 @@ mod tests {
     #[test]
     fn a_frame_taller_than_it_is_wide_is_cut_to_its_centre_too() {
         // 20 wide, 40 high, brightness is the row: the centre square is rows 10..30.
-        let tall: Vec<u8> = (0..40).flat_map(|row| (0..20).map(move |_| row as u8 * 6)).collect();
+        let tall: Vec<u8> = (0..40)
+            .flat_map(|row| (0..20).map(move |_| row as u8 * 6))
+            .collect();
         let raster = disc_raster(&tall, 20, 40, 20, 0).unwrap();
         let top = at(&raster, raster.side / 2, 2)[0];
         let bottom = at(&raster, raster.side / 2, raster.side - 3)[0];
-        assert!(top >= 60 && bottom <= 180 && top < bottom, "rows {top}..{bottom} are not the centre's");
+        assert!(
+            top >= 60 && bottom <= 180 && top < bottom,
+            "rows {top}..{bottom} are not the centre's"
+        );
     }
 
     #[test]
     fn a_frame_that_cannot_be_shown_is_none_and_the_side_is_held_between_its_limits() {
         assert!(disc_raster(&[], 0, 0, 32, 0).is_none());
-        assert!(disc_raster(&[1, 2, 3], 4, 4, 32, 0).is_none(), "fewer bytes than the frame says it has");
+        assert!(
+            disc_raster(&[1, 2, 3], 4, 4, 32, 0).is_none(),
+            "fewer bytes than the frame says it has"
+        );
         assert!(disc_raster(&[0; 16], 0, 16, 32, 0).is_none());
-        assert!(disc_raster(&[0; 16], usize::MAX, 2, 32, 0).is_none(), "a size that overflows is refused, not wrapped");
+        assert!(
+            disc_raster(&[0; 16], usize::MAX, 2, 32, 0).is_none(),
+            "a size that overflows is refused, not wrapped"
+        );
         let big = vec![9_u8; 40 * 40];
         assert_eq!(disc_raster(&big, 40, 40, 1, 0).unwrap().side, LEAST_SIDE);
-        assert_eq!(disc_raster(&big, 40, 40, 100_000, 0).unwrap().side, MOST_SIDE);
+        assert_eq!(
+            disc_raster(&big, 40, 40, 100_000, 0).unwrap().side,
+            MOST_SIDE
+        );
     }
 
     /// A square frame of 40 whose top left quarter is bright (250) and everything else dark (10): where the bright
     /// quarter ends up says how the picture was turned.
     fn corner_frame() -> Vec<u8> {
-        (0..40).flat_map(|y| (0..40).map(move |x| if x < 20 && y < 20 { 250_u8 } else { 10 })).collect()
+        (0..40)
+            .flat_map(|y| (0..40).map(move |x| if x < 20 && y < 20 { 250_u8 } else { 10 }))
+            .collect()
     }
 
     /// Which quarter of the picture is bright: (right?, below?) of the picture's own middle, by the pixel a little in
@@ -238,8 +292,14 @@ mod tests {
         let far = raster.side - 1 - near;
         let value = |x: u32, y: u32| at(raster, x, y)[0];
         let corners = [(near, near), (far, near), (near, far), (far, far)];
-        let bright: Vec<usize> = (0..4).filter(|&index| value(corners[index].0, corners[index].1) > 128).collect();
-        assert_eq!(bright.len(), 1, "exactly one quarter should be bright, got {bright:?}");
+        let bright: Vec<usize> = (0..4)
+            .filter(|&index| value(corners[index].0, corners[index].1) > 128)
+            .collect();
+        assert_eq!(
+            bright.len(),
+            1,
+            "exactly one quarter should be bright, got {bright:?}"
+        );
         (bright[0] % 2 == 1, bright[0] >= 2)
     }
 
@@ -275,7 +335,11 @@ mod tests {
         assert_eq!(turns_to_upright(720, 90), 3);
     }
 
-    fn view_of(frame_side: usize, corners: Vec<crate::qr::Corners>, serial: u64) -> crate::scanner::View {
+    fn view_of(
+        frame_side: usize,
+        corners: Vec<crate::qr::Corners>,
+        serial: u64,
+    ) -> crate::scanner::View {
         crate::scanner::View {
             frame: std::sync::Arc::new(crate::scanner::Frame {
                 luma: vec![100; frame_side * frame_side],
@@ -295,17 +359,29 @@ mod tests {
         let outside = [(0, 3), (5, 3), (5, 17), (0, 17)];
         let partly = [(12, 3), (35, 3), (35, 17), (12, 17)];
         let view = crate::scanner::View {
-            frame: std::sync::Arc::new(crate::scanner::Frame { luma: vec![100; 40 * 20], width: 40, height: 20 }),
+            frame: std::sync::Arc::new(crate::scanner::Frame {
+                luma: vec![100; 40 * 20],
+                width: 40,
+                height: 20,
+            }),
             corners: vec![inside, outside, partly],
             serial: 7,
         };
         let shown = show(&view, 32, 0).expect("a good frame was not shown");
         assert_eq!(shown.serial, 7);
         assert_eq!(shown.picture.side, 32);
-        assert_eq!(shown.codes.len(), 1, "{} codes were placed, not the one wholly inside", shown.codes.len());
+        assert_eq!(
+            shown.codes.len(),
+            1,
+            "{} codes were placed, not the one wholly inside",
+            shown.codes.len()
+        );
         // The placed code is inside the picture, and its corners are four distinct places.
         for &(x, y) in &shown.codes[0] {
-            assert!((0. ..32.).contains(&x) && (0. ..32.).contains(&y), "a corner ({x}, {y}) is off the picture");
+            assert!(
+                (0. ..32.).contains(&x) && (0. ..32.).contains(&y),
+                "a corner ({x}, {y}) is off the picture"
+            );
         }
     }
 
@@ -314,11 +390,18 @@ mod tests {
         let shown = show(&view_of(32, Vec::new(), 1), 32, 1).unwrap();
         assert!(shown.codes.is_empty());
         let broken = crate::scanner::View {
-            frame: std::sync::Arc::new(crate::scanner::Frame { luma: vec![1, 2, 3], width: 4, height: 4 }),
+            frame: std::sync::Arc::new(crate::scanner::Frame {
+                luma: vec![1, 2, 3],
+                width: 4,
+                height: 4,
+            }),
             corners: Vec::new(),
             serial: 2,
         };
-        assert!(show(&broken, 32, 0).is_none(), "a frame with fewer bytes than it says was shown");
+        assert!(
+            show(&broken, 32, 0).is_none(),
+            "a frame with fewer bytes than it says was shown"
+        );
     }
 
     #[test]
@@ -336,12 +419,20 @@ mod tests {
         let code = [(26, 6), (33, 6), (33, 13), (26, 13)];
         for turns in 0..4 {
             let view = crate::scanner::View {
-                frame: std::sync::Arc::new(crate::scanner::Frame { luma: luma.clone(), width: frame_side, height: frame_side }),
+                frame: std::sync::Arc::new(crate::scanner::Frame {
+                    luma: luma.clone(),
+                    width: frame_side,
+                    height: frame_side,
+                }),
                 corners: vec![code],
                 serial: 1,
             };
             let shown = show(&view, 40, turns).unwrap();
-            assert_eq!(shown.codes.len(), 1, "turn {turns}: the code was not placed");
+            assert_eq!(
+                shown.codes.len(),
+                1,
+                "turn {turns}: the code was not placed"
+            );
             for &(x, y) in &shown.codes[0] {
                 let pixel = at(&shown.picture, x.floor() as u32, y.floor() as u32);
                 assert!(
@@ -395,12 +486,24 @@ mod tests {
     #[test]
     fn a_point_outside_the_square_at_the_centre_is_not_placed() {
         // 40 wide, 20 high: the square is columns 10..30.
-        assert!(locate((5, 10), 40, 20, 32, 0).is_none(), "left of the square");
-        assert!(locate((35, 10), 40, 20, 32, 0).is_none(), "right of the square");
+        assert!(
+            locate((5, 10), 40, 20, 32, 0).is_none(),
+            "left of the square"
+        );
+        assert!(
+            locate((35, 10), 40, 20, 32, 0).is_none(),
+            "right of the square"
+        );
         assert!(locate((20, 10), 40, 20, 32, 0).is_some());
-        assert!(locate((10, 0), 40, 20, 32, 0).is_some(), "the edge of the square is inside it");
+        assert!(
+            locate((10, 0), 40, 20, 32, 0).is_some(),
+            "the edge of the square is inside it"
+        );
         assert!(locate((29, 19), 40, 20, 32, 0).is_some());
-        assert!(locate((30, 0), 40, 20, 32, 0).is_none(), "one past the square");
+        assert!(
+            locate((30, 0), 40, 20, 32, 0).is_none(),
+            "one past the square"
+        );
         assert!(locate((0, 0), 0, 0, 32, 0).is_none());
     }
 }

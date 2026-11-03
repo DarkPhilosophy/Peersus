@@ -78,7 +78,9 @@ impl Launcher for Executable {
             socket: bootstrap.socket,
             data_socket: bootstrap.data_socket,
             token: bootstrap.token,
-        }.spawn().map(|running| Box::new(running) as Box<dyn Lifecycle>)
+        }
+        .spawn()
+        .map(|running| Box::new(running) as Box<dyn Lifecycle>)
     }
 }
 
@@ -99,22 +101,39 @@ impl Service {
     /// (the application's plugin host) must keep one service per id and refuse duplicates
     /// before calling this.
     pub fn start(hub: Hub, plugin: Plugin) -> std::io::Result<Self> {
-        if !matches!(plugin.manifest.execution, peersus_plugin_api::manifest::Execution::Process) {
-            return Err(std::io::Error::other("a module requires its declared executor"));
+        if !matches!(
+            plugin.manifest.execution,
+            peersus_plugin_api::manifest::Execution::Process
+        ) {
+            return Err(std::io::Error::other(
+                "a module requires its declared executor",
+            ));
         }
-        let program = plugin.program.clone().ok_or_else(|| std::io::Error::other("an external plugin needs a launcher"))?;
-        let launcher = Arc::new(Executable { program, arguments: plugin.arguments.clone() });
+        let program = plugin
+            .program
+            .clone()
+            .ok_or_else(|| std::io::Error::other("an external plugin needs a launcher"))?;
+        let launcher = Arc::new(Executable {
+            program,
+            arguments: plugin.arguments.clone(),
+        });
         Self::start_with_launcher(hub, plugin, launcher)
     }
 
     /// Start through a platform-owned isolated lifecycle, retaining the same sockets,
     /// authentication, generation revocation and restart policy as desktop processes.
-    pub fn start_with_launcher(hub: Hub, plugin: Plugin, launcher: Arc<dyn Launcher>) -> std::io::Result<Self> {
+    pub fn start_with_launcher(
+        hub: Hub,
+        plugin: Plugin,
+        launcher: Arc<dyn Launcher>,
+    ) -> std::io::Result<Self> {
         let (events_tx, events) = watch::channel(Event::Stopped);
         let (stop, stop_rx) = watch::channel(false);
         let (restart, restart_rx) = watch::channel(0u64);
         let plugin = Arc::new(plugin);
-        let task = tokio::spawn(supervise(hub, plugin, launcher, events_tx, stop_rx, restart_rx));
+        let task = tokio::spawn(supervise(
+            hub, plugin, launcher, events_tx, stop_rx, restart_rx,
+        ));
         Ok(Self {
             task: Some(task),
             events,
@@ -399,14 +418,32 @@ mod tests {
 
     #[tokio::test]
     async fn module_formats_never_fall_back_to_executing_the_payload_as_a_program() {
-        for execution in [Execution::Wasm { abi: EXECUTION_ABI_VERSION }, Execution::NativeLibrary { abi: EXECUTION_ABI_VERSION }] {
+        for execution in [
+            Execution::Wasm {
+                abi: EXECUTION_ABI_VERSION,
+            },
+            Execution::NativeLibrary {
+                abi: EXECUTION_ABI_VERSION,
+            },
+        ] {
             let directory = tempfile::tempdir().unwrap();
             let plugin = Plugin {
-                id: "module".into(), manifest: Manifest { execution, ..Manifest::default() },
-                grants: BTreeSet::new(), program: Some(PathBuf::from("/bin/sh")), arguments: vec!["-c".into(), "exit 0".into()],
-                directory: directory.path().to_owned(), policy: Policy::default(), handoff: None,
+                id: "module".into(),
+                manifest: Manifest {
+                    execution,
+                    ..Manifest::default()
+                },
+                grants: BTreeSet::new(),
+                program: Some(PathBuf::from("/bin/sh")),
+                arguments: vec!["-c".into(), "exit 0".into()],
+                directory: directory.path().to_owned(),
+                policy: Policy::default(),
+                handoff: None,
             };
-            assert!(Service::start(Hub::default(), plugin).is_err(), "a module without its explicit executor must not be spawned as native code");
+            assert!(
+                Service::start(Hub::default(), plugin).is_err(),
+                "a module without its explicit executor must not be spawned as native code"
+            );
         }
     }
 }

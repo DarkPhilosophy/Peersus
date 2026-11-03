@@ -1,25 +1,39 @@
 //! Explicit provisioning only. No credential is accepted through argv, environment or settings.
-use std::io::{self, BufRead, IsTerminal, Read, Write};
 use peersus_upload::Credential;
 use peersus_upload::desktop::{KEYRING_ACCOUNT, KEYRING_SERVICE};
+use std::io::{self, BufRead, IsTerminal, Read, Write};
 
 fn main() {
     if run().is_err() {
-        eprintln!("Credential was not stored. Check that an OS secret service is available and enter a valid non-owner token. No credential values are logged.");
+        eprintln!(
+            "Credential was not stored. Check that an OS secret service is available and enter a valid non-owner token. No credential values are logged."
+        );
         std::process::exit(1);
     }
 }
 fn run() -> Result<(), ()> {
     let mut args = std::env::args().skip(1);
     if args.next().as_deref() != Some("provision") || args.next().is_some() {
-        eprintln!("Usage: peersus-upload-credential provision\nRun interactively; never place credentials in command arguments or environment variables.");
+        eprintln!(
+            "Usage: peersus-upload-credential provision\nRun interactively; never place credentials in command arguments or environment variables."
+        );
         return Err(());
     }
-    if !io::stdin().is_terminal() { return Err(()); }
-    eprintln!("This stores/replaces the dedicated poo.wang machine token in your OS secret store. Only provision a token from a NON-OWNER account. Server token scopes are not enforced; an owner token grants full administrative access. Never give this command an owner token. Upload still requires choosing a file and explicit plaintext-upload consent each time.\nType STORE NON-OWNER to approve storage/replacement:");
+    if !io::stdin().is_terminal() {
+        return Err(());
+    }
+    eprintln!(
+        "This stores/replaces the dedicated poo.wang machine token in your OS secret store. Only provision a token from a NON-OWNER account. Server token scopes are not enforced; an owner token grants full administrative access. Never give this command an owner token. Upload still requires choosing a file and explicit plaintext-upload consent each time.\nType STORE NON-OWNER to approve storage/replacement:"
+    );
     let mut approval = String::new();
-    io::stdin().lock().take(64).read_line(&mut approval).map_err(|_| ())?;
-    if approval.trim() != "STORE NON-OWNER" { return Err(()); }
+    io::stdin()
+        .lock()
+        .take(64)
+        .read_line(&mut approval)
+        .map_err(|_| ())?;
+    if approval.trim() != "STORE NON-OWNER" {
+        return Err(());
+    }
     eprint!("Non-owner machine token (hidden): ");
     io::stderr().flush().map_err(|_| ())?;
     let token = rpassword::read_password().map_err(|_| ())?;

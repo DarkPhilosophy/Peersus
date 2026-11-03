@@ -114,26 +114,50 @@ mod tests {
         let address = EndpointAddr::new(SecretKey::generate().public())
             .with_ip_addr("192.0.2.12:4567".parse().unwrap())
             .with_ip_addr(SocketAddr::V6(SocketAddrV6::new(
-                "fe80::1234".parse::<Ipv6Addr>().unwrap(), 4568, 0, 7)))
+                "fe80::1234".parse::<Ipv6Addr>().unwrap(),
+                4568,
+                0,
+                7,
+            )))
             .with_relay_url("https://relay.example.org/".parse().unwrap())
-            .with_addrs([TransportAddr::Custom(iroh_base::CustomAddr::from_parts(77, b"custom route"))]);
-        Invitation { address, capability: [7; 32], expires_at: 400 }
+            .with_addrs([TransportAddr::Custom(iroh_base::CustomAddr::from_parts(
+                77,
+                b"custom route",
+            ))]);
+        Invitation {
+            address,
+            capability: [7; 32],
+            expires_at: 400,
+        }
     }
 
     #[test]
-    fn compact_qr_preserves_every_route_identity_capability_and_expiry_without_changing_legacy_text() {
+    fn compact_qr_preserves_every_route_identity_capability_and_expiry_without_changing_legacy_text()
+     {
         let invitation = routed_invitation();
         let legacy = invitation.encode().unwrap();
         let compact = Invitation::compact_for_qr(&legacy).unwrap();
-        assert!(compact.len() * 2 < legacy.len(), "compact invitation did not remove the serialization overhead");
+        assert!(
+            compact.len() * 2 < legacy.len(),
+            "compact invitation did not remove the serialization overhead"
+        );
         let expanded = Invitation::expand_qr(&compact).unwrap();
-        assert!(expanded == legacy, "QR conversion changed the legacy protocol");
+        assert!(
+            expanded == legacy,
+            "QR conversion changed the legacy protocol"
+        );
         let decoded = Invitation::decode(&expanded, 101).unwrap();
         assert!(decoded.address == invitation.address);
         assert!(decoded.capability == invitation.capability);
         assert_eq!(decoded.expires_at, invitation.expires_at);
-        assert!(matches!(Invitation::decode(&expanded, 400), Err(Error::Expired)));
-        assert!(matches!(Invitation::decode(&expanded, 99), Err(Error::Expired)));
+        assert!(matches!(
+            Invitation::decode(&expanded, 400),
+            Err(Error::Expired)
+        ));
+        assert!(matches!(
+            Invitation::decode(&expanded, 99),
+            Err(Error::Expired)
+        ));
     }
 
     #[test]
@@ -141,9 +165,13 @@ mod tests {
         let encoded = Invitation::compact_for_qr(&routed_invitation().encode().unwrap()).unwrap();
         let body = encoded.strip_prefix("PEERSUS:Q2:").unwrap();
         let bytes = data_encoding::BASE32_NOPAD.decode(body.as_bytes()).unwrap();
-        let wrap = |bytes: &[u8]| format!("PEERSUS:Q2:{}", data_encoding::BASE32_NOPAD.encode(bytes));
+        let wrap =
+            |bytes: &[u8]| format!("PEERSUS:Q2:{}", data_encoding::BASE32_NOPAD.encode(bytes));
         for end in 0..bytes.len() {
-            assert!(Invitation::expand_qr(&wrap(&bytes[..end])).is_err(), "truncated compact payload was accepted");
+            assert!(
+                Invitation::expand_qr(&wrap(&bytes[..end])).is_err(),
+                "truncated compact payload was accepted"
+            );
         }
         let mut trailing = bytes.clone();
         trailing.push(0);

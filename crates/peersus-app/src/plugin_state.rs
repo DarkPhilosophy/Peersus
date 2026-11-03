@@ -167,7 +167,10 @@ mod tests {
             folder: Folder::Safe,
             manifest: Manifest::Good,
             program: Program::Good,
-            approval: Approval::Given(Given { program_unchanged: true, covers_what_is_asked: true }),
+            approval: Approval::Given(Given {
+                program_unchanged: true,
+                covers_what_is_asked: true,
+            }),
             disabled: false,
         }
     }
@@ -232,17 +235,26 @@ mod tests {
     #[test]
     fn a_manifest_that_asks_for_more_than_was_approved_needs_approval_again() {
         let mut found = good();
-        found.approval = Approval::Given(Given { program_unchanged: true, covers_what_is_asked: false });
+        found.approval = Approval::Given(Given {
+            program_unchanged: true,
+            covers_what_is_asked: false,
+        });
         assert_eq!(classify(&found), State::NeedsApproval);
         // Even if the program also changed: the question that can be answered is asked first.
-        found.approval = Approval::Given(Given { program_unchanged: false, covers_what_is_asked: false });
+        found.approval = Approval::Given(Given {
+            program_unchanged: false,
+            covers_what_is_asked: false,
+        });
         assert_eq!(classify(&found), State::NeedsApproval);
     }
 
     #[test]
     fn a_program_that_is_not_the_approved_one_is_changed_and_not_run() {
         let mut found = good();
-        found.approval = Approval::Given(Given { program_unchanged: false, covers_what_is_asked: true });
+        found.approval = Approval::Given(Given {
+            program_unchanged: false,
+            covers_what_is_asked: true,
+        });
         assert_eq!(classify(&found), State::Changed);
         assert!(!classify(&found).may_run());
         // Switched off does not hide it: a changed program is what the person must hear about.
@@ -260,11 +272,20 @@ mod tests {
 
     #[test]
     fn the_sentences_for_a_broken_plugin_are_fixed_and_all_differ() {
-        let all = [Why::NotSafe, Why::NoManifest, Why::NoProgram, Why::UnsupportedPlatform];
+        let all = [
+            Why::NotSafe,
+            Why::NoManifest,
+            Why::NoProgram,
+            Why::UnsupportedPlatform,
+        ];
         for (index, one) in all.iter().enumerate() {
             assert!(!one.words().is_empty());
             for other in &all[index + 1..] {
-                assert_ne!(one.words(), other.words(), "{one:?} and {other:?} say the same thing");
+                assert_ne!(
+                    one.words(),
+                    other.words(),
+                    "{one:?} and {other:?} say the same thing"
+                );
             }
         }
     }
@@ -292,24 +313,50 @@ mod tests {
         // approval covers everything asked, the program is the approved one and it is not switched off.
         let approvals = [
             Approval::None,
-            Approval::Given(Given { program_unchanged: false, covers_what_is_asked: false }),
-            Approval::Given(Given { program_unchanged: false, covers_what_is_asked: true }),
-            Approval::Given(Given { program_unchanged: true, covers_what_is_asked: false }),
-            Approval::Given(Given { program_unchanged: true, covers_what_is_asked: true }),
+            Approval::Given(Given {
+                program_unchanged: false,
+                covers_what_is_asked: false,
+            }),
+            Approval::Given(Given {
+                program_unchanged: false,
+                covers_what_is_asked: true,
+            }),
+            Approval::Given(Given {
+                program_unchanged: true,
+                covers_what_is_asked: false,
+            }),
+            Approval::Given(Given {
+                program_unchanged: true,
+                covers_what_is_asked: true,
+            }),
         ];
         let mut ready = 0;
         let mut total = 0;
         for folder in [Folder::Safe, Folder::NotSafe] {
-            for manifest in [Manifest::Good, Manifest::Unusable, Manifest::UnsupportedPlatform] {
+            for manifest in [
+                Manifest::Good,
+                Manifest::Unusable,
+                Manifest::UnsupportedPlatform,
+            ] {
                 for program in [Program::Good, Program::Unusable] {
                     for approval in &approvals {
                         for disabled in [false, true] {
-                            let found = Found { folder, manifest, program, approval: approval.clone(), disabled };
+                            let found = Found {
+                                folder,
+                                manifest,
+                                program,
+                                approval: approval.clone(),
+                                disabled,
+                            };
                             let state = classify(&found);
                             let should_run = folder == Folder::Safe
                                 && manifest == Manifest::Good
                                 && program == Program::Good
-                                && *approval == Approval::Given(Given { program_unchanged: true, covers_what_is_asked: true })
+                                && *approval
+                                    == Approval::Given(Given {
+                                        program_unchanged: true,
+                                        covers_what_is_asked: true,
+                                    })
                                 && !disabled;
                             assert_eq!(state.may_run(), should_run, "{found:?} was {state:?}");
                             ready += usize::from(state == State::Ready);

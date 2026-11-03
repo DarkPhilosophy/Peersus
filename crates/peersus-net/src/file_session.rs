@@ -57,7 +57,8 @@ pub async fn send(
     let offered = tokio::time::Instant::now();
     let mut announced = announcements.map(|announcements| announcements.ask(&source.offer.id));
     // Whatever was kept for this offer is let go of however the wait ends: answered, refused, timed out, or an error on the way out.
-    let _let_go = announcements.map(|announcements| announce::LetGo::new(announcements, &source.offer.id));
+    let _let_go =
+        announcements.map(|announcements| announce::LetGo::new(announcements, &source.offer.id));
     let mut deadline = offered + wait;
     // The answer is read by ONE future for the whole wait: a frame that is half read when an announcement is heard must not be
     // started again from its first byte, and a read that is dropped mid-frame cannot be resumed. It lives in a block of its own, so
@@ -109,7 +110,15 @@ pub async fn receive(
     let streams::Request::File { offer } = streams::receive(&mut rx).await? else {
         return Err(Error::Refused);
     };
-    receive_offered(Incoming { tx, rx, offer }, prompt, decision, wait, None, progress).await
+    receive_offered(
+        Incoming { tx, rx, offer },
+        prompt,
+        decision,
+        wait,
+        None,
+        progress,
+    )
+    .await
 }
 
 /// An offer that came in: the stream it came on (both halves) and what it offers. One value, since the three are only ever
@@ -123,7 +132,11 @@ pub struct Incoming {
 /// The host already consumed and routed the typed stream preamble. `announce`, when the host has the connection the offer came on,
 /// is where this device tells the other how long it will wait for its person (see [`announce`]), beside the offer and never in it.
 pub(crate) async fn receive_offered(
-    Incoming { mut tx, mut rx, offer }: Incoming,
+    Incoming {
+        mut tx,
+        mut rx,
+        offer,
+    }: Incoming,
     prompt: oneshot::Sender<Offer>,
     decision: oneshot::Receiver<PathBuf>,
     wait: Duration,
@@ -133,7 +146,10 @@ pub(crate) async fn receive_offered(
     offer.validate()?;
     prompt.send(offer.clone()).map_err(|_| Error::Refused)?;
     if let Some(connection) = announce {
-        let (id, seconds) = (offer.id.clone(), u32::try_from(wait.as_secs()).unwrap_or(u32::MAX));
+        let (id, seconds) = (
+            offer.id.clone(),
+            u32::try_from(wait.as_secs()).unwrap_or(u32::MAX),
+        );
         // Told on its own task and in its own time: the other device may not read it, and the offer does not wait to find out.
         tokio::spawn(async move { announce::tell(&connection, &id, seconds).await });
     }
@@ -169,6 +185,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await

@@ -65,7 +65,10 @@ pub fn kind_of(path: &Path) -> Kind {
 
 /// Judge `paths` using `kind` to look at each. The order is kept, a path offered twice is taken
 /// once (the first time), and the number taken is never more than [`MOST_AT_ONCE`].
-pub fn accept_with(paths: impl IntoIterator<Item = PathBuf>, kind: impl Fn(&Path) -> Kind) -> Intake {
+pub fn accept_with(
+    paths: impl IntoIterator<Item = PathBuf>,
+    kind: impl Fn(&Path) -> Kind,
+) -> Intake {
     let mut intake = Intake::default();
     for path in paths {
         if intake.taken.contains(&path) {
@@ -74,7 +77,9 @@ pub fn accept_with(paths: impl IntoIterator<Item = PathBuf>, kind: impl Fn(&Path
         }
         match kind(&path) {
             Kind::File { length: 0 } => intake.left.push(Left::Empty(path)),
-            Kind::File { .. } if intake.taken.len() >= MOST_AT_ONCE => intake.left.push(Left::TooMany(path)),
+            Kind::File { .. } if intake.taken.len() >= MOST_AT_ONCE => {
+                intake.left.push(Left::TooMany(path))
+            }
             Kind::File { .. } => intake.taken.push(path),
             Kind::Folder | Kind::Other => intake.left.push(Left::NotAFile(path)),
             Kind::Unreadable => intake.left.push(Left::Unreadable(path)),
@@ -113,10 +118,18 @@ impl Summary {
     pub fn words_in(self, language: crate::i18n::Language) -> Option<String> {
         use crate::i18n::{self, Language};
         let mut parts = Vec::new();
-        for (index, count) in self.0.into_iter().enumerate().filter(|(_, count)| *count > 0) {
+        for (index, count) in self
+            .0
+            .into_iter()
+            .enumerate()
+            .filter(|(_, count)| *count > 0)
+        {
             let sentence = if language == Language::English {
                 match index {
-                    0 => format!("{count} {} not a file", if count == 1 { "is" } else { "are" }),
+                    0 => format!(
+                        "{count} {} not a file",
+                        if count == 1 { "is" } else { "are" }
+                    ),
                     1 => format!("{count} could not be read"),
                     2 => format!("{count} {} empty", if count == 1 { "is" } else { "are" }),
                     _ => format!("{count} more than {MOST_AT_ONCE} at once"),
@@ -128,14 +141,25 @@ impl Summary {
                     "Empty files: {count}",
                     "Beyond the {limit}-file selection limit: {count}",
                 ][index];
-                i18n::format(language, template, &[("count", &count.to_string()), ("limit", &MOST_AT_ONCE.to_string())])
+                i18n::format(
+                    language,
+                    template,
+                    &[
+                        ("count", &count.to_string()),
+                        ("limit", &MOST_AT_ONCE.to_string()),
+                    ],
+                )
             };
             parts.push(sentence);
         }
         if parts.is_empty() {
             return None;
         }
-        Some(i18n::format(language, "Left out: {items}.", &[("items", &parts.join(", "))]))
+        Some(i18n::format(
+            language,
+            "Left out: {items}.",
+            &[("items", &parts.join(", "))],
+        ))
     }
 }
 
@@ -159,7 +183,8 @@ pub fn pasted(files: Option<Vec<PathBuf>>) -> Vec<PathBuf> {
 /// count.
 pub fn is_paste(code: freya::prelude::Code, modifiers: freya::prelude::Modifiers) -> bool {
     use freya::prelude::Modifiers;
-    let control_or_command = modifiers.contains(Modifiers::CONTROL) || modifiers.contains(Modifiers::META);
+    let control_or_command =
+        modifiers.contains(Modifiers::CONTROL) || modifiers.contains(Modifiers::META);
     code == freya::prelude::Code::KeyV && control_or_command && !modifiers.contains(Modifiers::ALT)
 }
 
@@ -196,11 +221,18 @@ mod tests {
 
     #[test]
     fn a_folder_a_device_and_a_missing_file_are_left_out_each_for_its_own_reason() {
-        let intake = accept_with([p("/dir/"), p("/dev/device"), p("/gone"), p("/ok")], by_name);
+        let intake = accept_with(
+            [p("/dir/"), p("/dev/device"), p("/gone"), p("/ok")],
+            by_name,
+        );
         assert_eq!(intake.taken, [p("/ok")]);
         assert_eq!(
             intake.left,
-            [Left::NotAFile(p("/dir/")), Left::NotAFile(p("/dev/device")), Left::Unreadable(p("/gone"))]
+            [
+                Left::NotAFile(p("/dir/")),
+                Left::NotAFile(p("/dev/device")),
+                Left::Unreadable(p("/gone"))
+            ]
         );
     }
 
@@ -213,14 +245,19 @@ mod tests {
 
     #[test]
     fn no_more_than_the_limit_is_taken_and_the_rest_are_said_to_be_too_many() {
-        let many: Vec<PathBuf> = (0..MOST_AT_ONCE + 3).map(|n| p(&format!("/f{n}"))).collect();
+        let many: Vec<PathBuf> = (0..MOST_AT_ONCE + 3)
+            .map(|n| p(&format!("/f{n}")))
+            .collect();
         let intake = accept_with(many, by_name);
         assert_eq!(intake.taken.len(), MOST_AT_ONCE);
         assert_eq!(intake.left.len(), 3);
         assert!(intake.left.iter().all(|l| matches!(l, Left::TooMany(_))));
         // What was kept is the first ones, in order, not an arbitrary choice.
         assert_eq!(intake.taken[0], p("/f0"));
-        assert_eq!(intake.taken[MOST_AT_ONCE - 1], p(&format!("/f{}", MOST_AT_ONCE - 1)));
+        assert_eq!(
+            intake.taken[MOST_AT_ONCE - 1],
+            p(&format!("/f{}", MOST_AT_ONCE - 1))
+        );
     }
 
     #[test]
@@ -275,7 +312,12 @@ mod tests {
         std::fs::write(&file, b"hello").unwrap();
         let empty = dir.join("empty.txt");
         std::fs::write(&empty, b"").unwrap();
-        let intake = accept([file.clone(), dir.clone(), dir.join("missing"), empty.clone()]);
+        let intake = accept([
+            file.clone(),
+            dir.clone(),
+            dir.join("missing"),
+            empty.clone(),
+        ]);
         std::fs::remove_dir_all(&dir).unwrap();
         assert_eq!(intake.taken, [file]);
         assert_eq!(intake.left.len(), 3);

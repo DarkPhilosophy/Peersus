@@ -70,12 +70,18 @@ impl Entry {
             && !self.name.starts_with('.')
             && Version::parse(&self.version).is_some()
             && self.sha256.len() == 64
-            && self.sha256.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+            && self
+                .sha256
+                .bytes()
+                .all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
             && (1..=MAX_ARCHIVE_BYTES).contains(&self.size)
             && name::text(&self.author, peersus_plugin_api::package::MAX_NAME_CHARS)
             && public_link(&self.link)
             && (self.description.is_empty()
-                || name::text(&self.description, peersus_plugin_api::package::MAX_DESCRIPTION_CHARS))
+                || name::text(
+                    &self.description,
+                    peersus_plugin_api::package::MAX_DESCRIPTION_CHARS,
+                ))
             && plain_file_name(&self.archive)
     }
 }
@@ -84,14 +90,18 @@ fn plain_file_name(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
         && !value.starts_with('.')
-        && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
 }
 
 impl Catalog {
     /// Check the structure of an already-authenticated catalog.
     fn validate(&self) -> Result<(), Refusal> {
         if self.schema != 1 {
-            return Err(Refusal("The catalog is a version this application does not read"));
+            return Err(Refusal(
+                "The catalog is a version this application does not read",
+            ));
         }
         if self.entries.len() > MAX_ENTRIES {
             return Err(Refusal("The catalog lists too many extensions"));
@@ -128,11 +138,13 @@ pub fn verify(
     if catalog_bytes.len() > MAX_CATALOG_BYTES {
         return Err(Refusal("The catalog is too large"));
     }
-    let signature: [u8; 64] = signature.try_into().map_err(|_| Refusal("The catalog signature is not valid"))?;
+    let signature: [u8; 64] = signature
+        .try_into()
+        .map_err(|_| Refusal("The catalog signature is not valid"))?;
     key.verify(catalog_bytes, &Signature::from_bytes(&signature))
         .map_err(|_| Refusal("The catalog is not signed by the maintainer"))?;
-    let catalog: Catalog =
-        serde_json::from_slice(catalog_bytes).map_err(|_| Refusal("The catalog could not be read"))?;
+    let catalog: Catalog = serde_json::from_slice(catalog_bytes)
+        .map_err(|_| Refusal("The catalog could not be read"))?;
     catalog.validate()?;
     if catalog.sequence < newest_seen {
         return Err(Refusal("The catalog is older than one already seen"));
@@ -167,12 +179,19 @@ pub fn binds_package(
         return Err(Refusal("The package name is not the approved name"));
     }
     for claimed in [manifest, embedded] {
-        if claimed.version != entry.version || claimed.author != entry.author || claimed.link != entry.link {
-            return Err(Refusal("The package does not say what the catalog says about it"));
+        if claimed.version != entry.version
+            || claimed.author != entry.author
+            || claimed.link != entry.link
+        {
+            return Err(Refusal(
+                "The package does not say what the catalog says about it",
+            ));
         }
     }
     if !crate::binary_metadata::agrees(embedded, manifest) {
-        return Err(Refusal("The program and its manifest disagree about who made it"));
+        return Err(Refusal(
+            "The program and its manifest disagree about who made it",
+        ));
     }
     Ok(())
 }
@@ -212,7 +231,12 @@ mod tests {
     }
 
     fn catalog(sequence: u64, entries: Vec<Entry>) -> Vec<u8> {
-        serde_json::to_vec(&Catalog { schema: 1, sequence, entries }).unwrap()
+        serde_json::to_vec(&Catalog {
+            schema: 1,
+            sequence,
+            entries,
+        })
+        .unwrap()
     }
 
     fn package(version: &str, author: &str, link: &str) -> Package {
@@ -261,7 +285,10 @@ mod tests {
         let bytes = catalog(1, vec![entry(b"a")]);
         let signature = other.sign(&bytes).to_bytes();
         assert!(verify(&verifying, &bytes, &signature, 0).is_err());
-        assert!(verify(&verifying, &bytes, &[0u8; 10], 0).is_err(), "a short signature");
+        assert!(
+            verify(&verifying, &bytes, &[0u8; 10], 0).is_err(),
+            "a short signature"
+        );
     }
 
     #[test]
@@ -296,7 +323,10 @@ mod tests {
         ] {
             let bytes = catalog(1, entries);
             let signature = signing.sign(&bytes).to_bytes();
-            assert!(verify(&verifying, &bytes, &signature, 0).is_err(), "{what} was accepted");
+            assert!(
+                verify(&verifying, &bytes, &signature, 0).is_err(),
+                "{what} was accepted"
+            );
         }
         let unknown = br#"{"schema":1,"sequence":1,"entries":[],"extra":true}"#;
         assert!(verify(&verifying, unknown, &signing.sign(unknown).to_bytes(), 0).is_err());
@@ -306,8 +336,14 @@ mod tests {
     fn only_the_exact_approved_archive_passes() {
         let approved = entry(b"the real archive");
         assert!(archive_matches(&approved, b"the real archive").is_ok());
-        assert!(archive_matches(&approved, b"the real archivE").is_err(), "one byte differs");
-        assert!(archive_matches(&approved, b"the real archive!").is_err(), "longer");
+        assert!(
+            archive_matches(&approved, b"the real archivE").is_err(),
+            "one byte differs"
+        );
+        assert!(
+            archive_matches(&approved, b"the real archive!").is_err(),
+            "longer"
+        );
         assert!(archive_matches(&approved, b"").is_err(), "empty");
     }
 
@@ -320,12 +356,24 @@ mod tests {
         assert!(binds_package(&approved, "other", &ok, &ok).is_err());
         // Either claim diverging from the catalog is enough to refuse.
         let author = package("1.2.0", "Impostor", "https://example.org/echo");
-        assert!(binds_package(&approved, "echo", &author, &ok).is_err(), "manifest author");
-        assert!(binds_package(&approved, "echo", &ok, &author).is_err(), "embedded author");
+        assert!(
+            binds_package(&approved, "echo", &author, &ok).is_err(),
+            "manifest author"
+        );
+        assert!(
+            binds_package(&approved, "echo", &ok, &author).is_err(),
+            "embedded author"
+        );
         let version = package("1.2.1", "Someone", "https://example.org/echo");
-        assert!(binds_package(&approved, "echo", &version, &version).is_err(), "version");
+        assert!(
+            binds_package(&approved, "echo", &version, &version).is_err(),
+            "version"
+        );
         let link = package("1.2.0", "Someone", "https://example.org/else");
-        assert!(binds_package(&approved, "echo", &ok, &link).is_err(), "embedded link");
+        assert!(
+            binds_package(&approved, "echo", &ok, &link).is_err(),
+            "embedded link"
+        );
     }
 
     #[cfg(unix)]
@@ -340,6 +388,9 @@ mod tests {
         assert!(is_update(&approved, "1.1.9"));
         assert!(!is_update(&approved, "1.2.0"), "the same version");
         assert!(!is_update(&approved, "1.3.0"), "a downgrade");
-        assert!(!is_update(&approved, "garbage"), "an installed version that is not one");
+        assert!(
+            !is_update(&approved, "garbage"),
+            "an installed version that is not one"
+        );
     }
 }

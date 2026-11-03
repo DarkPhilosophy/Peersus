@@ -24,19 +24,32 @@ pub fn scaled(side: u32) -> Option<Vec<u8>> {
         return None;
     }
     let picture = image::load_from_memory_with_format(PNG, image::ImageFormat::Png).ok()?;
-    let reduced = image::imageops::resize(&picture.to_rgba8(), side, side, image::imageops::FilterType::Lanczos3);
+    let reduced = image::imageops::resize(
+        &picture.to_rgba8(),
+        side,
+        side,
+        image::imageops::FilterType::Lanczos3,
+    );
     Some(reduced.into_raw())
 }
 
 /// The icon as an element `size` pixels square for a header of the colour `ground`, or `None` if the file cannot be decoded. The light
 /// variant is used when the ground is light, so the mark is dark on it, as it is light on a dark ground.
 pub fn element(size: f32, ground: (u8, u8, u8)) -> Option<Element> {
-    let luminance = 0.299 * f32::from(ground.0) + 0.587 * f32::from(ground.1) + 0.114 * f32::from(ground.2);
+    let luminance =
+        0.299 * f32::from(ground.0) + 0.587 * f32::from(ground.1) + 0.114 * f32::from(ground.2);
     let bytes = if luminance > 140. { PNG_LIGHT } else { PNG };
-    let picture = image::load_from_memory_with_format(bytes, image::ImageFormat::Png).ok()?.to_rgba8();
+    let picture = image::load_from_memory_with_format(bytes, image::ImageFormat::Png)
+        .ok()?
+        .to_rgba8();
     let side = picture.width();
     // The picture has transparent corners, so its colours are not premultiplied by the decoder.
-    let handle = ImageHandle::from_rgba(side, side, Bytes::from(picture.into_raw()), AlphaType::Unpremul)?;
+    let handle = ImageHandle::from_rgba(
+        side,
+        side,
+        Bytes::from(picture.into_raw()),
+        AlphaType::Unpremul,
+    )?;
     Some(
         image(handle)
             .sampling_mode(SamplingMode::Trilinear)
@@ -80,7 +93,10 @@ mod tests {
         assert_eq!(alpha(0, 0), 0, "the corner must stay see-through");
         assert!(alpha(side / 2, side / 2) > 200, "the middle must be opaque");
         // And it is not blank: somewhere there is a pixel that is neither black nor white.
-        assert!(rgba.chunks(4).any(|p| p[3] > 200 && p[0] != p[1]), "no colour left");
+        assert!(
+            rgba.chunks(4).any(|p| p[3] > 200 && p[0] != p[1]),
+            "no colour left"
+        );
     }
 
     #[test]

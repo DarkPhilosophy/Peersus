@@ -29,6 +29,11 @@ name = "peersus-test-plugin"
 path = "src/bin/test_plugin.rs"
 required-features = ["test-plugin"]
 
+[[example]]
+name = "store_demo"
+path = "examples/store_demo.rs"
+required-features = ["test-plugin"]
+
 [dependencies]
 peersus-core.workspace = true
 peersus-net.workspace = true
@@ -56,6 +61,12 @@ ed25519-dalek.workspace = true
 keyring.workspace = true
 zeroize.workspace = true
 fs2.workspace = true
+
+# The system bus, to hear that this computer is going to sleep (logind) and to tell the paired devices. The same crate and features the
+# window already uses for the theme, so nothing new is resolved. Linux only: Android has its own signal and is not `linux` here.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
+futures-lite = "2.6.1"
 
 [target.'cfg(unix)'.dependencies]
 rustix.workspace = true

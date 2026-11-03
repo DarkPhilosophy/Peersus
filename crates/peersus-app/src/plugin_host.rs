@@ -70,20 +70,32 @@ pub enum RegistryError {
     UnsupportedPlatform,
 }
 
-fn external_execution_supported(execution: peersus_plugin_api::manifest::Execution, android: bool, native: bool) -> bool {
+fn external_execution_supported(
+    execution: peersus_plugin_api::manifest::Execution,
+    android: bool,
+    native: bool,
+) -> bool {
     use peersus_plugin_api::manifest::Execution;
-    !android || match execution {
-        Execution::Process => false,
-        Execution::NativeLibrary { .. } => native,
-        Execution::Wasm { .. } => true,
-    }
+    !android
+        || match execution {
+            Execution::Process => false,
+            Execution::NativeLibrary { .. } => native,
+            Execution::Wasm { .. } => true,
+        }
 }
 
 /// Only external packages are constrained here; bundled Android services retain their
 /// existing declaration and explicit platform launcher. Called again before launch.
-pub(crate) fn check_external_execution(execution: peersus_plugin_api::manifest::Execution) -> Result<(), &'static str> {
-    external_execution_supported(execution, cfg!(target_os = "android"), cfg!(feature = "android-native-extensions"))
-        .then_some(()).ok_or("This extension format is not available in this distribution")
+pub(crate) fn check_external_execution(
+    execution: peersus_plugin_api::manifest::Execution,
+) -> Result<(), &'static str> {
+    external_execution_supported(
+        execution,
+        cfg!(target_os = "android"),
+        cfg!(feature = "android-native-extensions"),
+    )
+    .then_some(())
+    .ok_or("This extension format is not available in this distribution")
 }
 
 /// What a manifest must meet on its own, whichever other plugins there are: it validates, every action it declares can be
@@ -92,8 +104,9 @@ pub(crate) fn check_external_execution(execution: peersus_plugin_api::manifest::
 /// usable cannot disagree. What depends on the other plugins (an id used twice, a service two of them export) is not here.
 pub fn check_manifest(manifest: &Manifest) -> Result<(), RegistryError> {
     manifest.validate().map_err(|_| RegistryError::Manifest)?;
-    if manifest.platforms.is_some() && peersus_plugin_api::platform::OperatingSystem::current()
-        .is_none_or(|os| !manifest.supports(os))
+    if manifest.platforms.is_some()
+        && peersus_plugin_api::platform::OperatingSystem::current()
+            .is_none_or(|os| !manifest.supports(os))
     {
         return Err(RegistryError::UnsupportedPlatform);
     }
@@ -103,9 +116,10 @@ pub fn check_manifest(manifest: &Manifest) -> Result<(), RegistryError> {
     // declares an action but keeps its export private is told so here, once, instead
     // of every click failing later with no explanation.
     let reachable = |service: &str| {
-        manifest.exports.iter().any(|e| {
-            e.service == service && e.consumers.contains(peersus_plugin_api::hub::HOST)
-        })
+        manifest
+            .exports
+            .iter()
+            .any(|e| e.service == service && e.consumers.contains(peersus_plugin_api::hub::HOST))
     };
     if !manifest
         .contributions
@@ -269,12 +283,23 @@ mod tests {
 
     #[test]
     fn external_execution_respects_distribution_without_changing_the_shared_abi() {
-        use peersus_plugin_api::manifest::{Execution, EXECUTION_ABI_VERSION};
-        let native = Execution::NativeLibrary { abi: EXECUTION_ABI_VERSION };
-        let wasm = Execution::Wasm { abi: EXECUTION_ABI_VERSION };
+        use peersus_plugin_api::manifest::{EXECUTION_ABI_VERSION, Execution};
+        let native = Execution::NativeLibrary {
+            abi: EXECUTION_ABI_VERSION,
+        };
+        let wasm = Execution::Wasm {
+            abi: EXECUTION_ABI_VERSION,
+        };
         for community in [false, true] {
-            assert!(!external_execution_supported(Execution::Process, true, community));
-            assert_eq!(external_execution_supported(native, true, community), community);
+            assert!(!external_execution_supported(
+                Execution::Process,
+                true,
+                community
+            ));
+            assert_eq!(
+                external_execution_supported(native, true, community),
+                community
+            );
             assert!(external_execution_supported(wasm, true, community));
         }
         for execution in [Execution::Process, native, wasm] {
@@ -317,8 +342,12 @@ mod tests {
     #[test]
     fn removing_a_plugin_frees_its_name_and_its_service_and_leaves_the_others() {
         let mut registry = Registry::default();
-        registry.register(exporting("first", "first.service", 1, Some("first.use"))).unwrap();
-        registry.register(exporting("second", "second.service", 1, Some("second.use"))).unwrap();
+        registry
+            .register(exporting("first", "first.service", 1, Some("first.use")))
+            .unwrap();
+        registry
+            .register(exporting("second", "second.service", 1, Some("second.use")))
+            .unwrap();
         let first = PluginId::new("first").unwrap();
 
         assert!(registry.remove(&first).is_some(), "it was there to remove");
@@ -328,7 +357,9 @@ mod tests {
         // Removing it again finds nothing, and is not an error.
         assert!(registry.remove(&first).is_none());
         // Its name and its service are free: a different package may now be registered under them.
-        registry.register(exporting("first", "first.service", 1, Some("first.use"))).unwrap();
+        registry
+            .register(exporting("first", "first.service", 1, Some("first.use")))
+            .unwrap();
         assert_eq!(registry.len(), 2);
     }
     fn peer_with(grants: &[(&str, &[&str])]) -> Peer {
@@ -338,6 +369,8 @@ mod tests {
             paired_at: 0,
             last_seen: None,
             online: true,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: grants
                 .iter()
                 .map(|(plugin, caps)| {
@@ -565,12 +598,20 @@ mod tests {
     #[test]
     fn explicit_unsupported_platform_is_refused_before_registration_but_legacy_is_preserved() {
         use peersus_plugin_api::platform::OperatingSystem;
-        let Some(current) = OperatingSystem::current() else { return };
+        let Some(current) = OperatingSystem::current() else {
+            return;
+        };
         let mut spec = exporting("platform-test", "platform.service", 1, Some("use"));
-        let other = OperatingSystem::ALL.into_iter().find(|os| *os != current).unwrap();
+        let other = OperatingSystem::ALL
+            .into_iter()
+            .find(|os| *os != current)
+            .unwrap();
         spec.manifest.platforms = Some(vec![other]);
         let mut registry = Registry::default();
-        assert_eq!(registry.register(spec.clone()), Err(RegistryError::UnsupportedPlatform));
+        assert_eq!(
+            registry.register(spec.clone()),
+            Err(RegistryError::UnsupportedPlatform)
+        );
         assert!(registry.is_empty());
         spec.manifest.platforms = Some(vec![current]);
         registry.register(spec).unwrap();

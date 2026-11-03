@@ -87,7 +87,9 @@ pub struct Action {
 }
 
 pub const MAX_ACTION_TIMEOUT_MS: u32 = 600_000;
-pub const fn default_action_timeout() -> u32 { 10_000 }
+pub const fn default_action_timeout() -> u32 {
+    10_000
+}
 
 /// Typed value description. The host persists values; the plugin only declares them.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -196,9 +198,12 @@ impl Contributions {
         for a in &self.actions {
             ok(name::valid(&a.id)
                 && name::text(&a.label, MAX_LABEL)
-                && a.short_label.as_deref().is_none_or(|label| name::text(label, MAX_LABEL))
+                && a.short_label
+                    .as_deref()
+                    .is_none_or(|label| name::text(label, MAX_LABEL))
                 && a.capability.as_deref().is_none_or(name::valid)
-                && a.timeout_ms > 0 && a.timeout_ms <= MAX_ACTION_TIMEOUT_MS
+                && a.timeout_ms > 0
+                && a.timeout_ms <= MAX_ACTION_TIMEOUT_MS
                 && seen.insert(("action", a.id.as_str())))?;
             a.target.validate()?;
         }
@@ -266,14 +271,50 @@ mod tests {
         let legacy = r#"{"id":"send","label":"Send clipboard text","target":{"service":"clipboard","method":"send"}}"#;
         let mut action: Action = serde_json::from_str(legacy).unwrap();
         assert!(action.short_label.is_none());
-        let legacy_keys: BTreeSet<_> = serde_json::to_value(&action).unwrap().as_object().unwrap().keys().cloned().collect();
-        assert_eq!(legacy_keys, ["id", "label", "target", "capability", "needs_device", "destructive", "timeout_ms"].map(str::to_owned).into());
-        for label in ["".to_owned(), "   ".to_owned(), "bad\nlabel".to_owned(), "é".repeat(MAX_LABEL + 1)] {
+        let legacy_keys: BTreeSet<_> = serde_json::to_value(&action)
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(
+            legacy_keys,
+            [
+                "id",
+                "label",
+                "target",
+                "capability",
+                "needs_device",
+                "destructive",
+                "timeout_ms"
+            ]
+            .map(str::to_owned)
+            .into()
+        );
+        for label in [
+            "".to_owned(),
+            "   ".to_owned(),
+            "bad\nlabel".to_owned(),
+            "é".repeat(MAX_LABEL + 1),
+        ] {
             action.short_label = Some(label);
-            assert!(Contributions { actions: vec![action.clone()], ..Default::default() }.validate().is_err());
+            assert!(
+                Contributions {
+                    actions: vec![action.clone()],
+                    ..Default::default()
+                }
+                .validate()
+                .is_err()
+            );
         }
         action.short_label = Some("Send".into());
-        Contributions { actions: vec![action.clone()], ..Default::default() }.validate().unwrap();
+        Contributions {
+            actions: vec![action.clone()],
+            ..Default::default()
+        }
+        .validate()
+        .unwrap();
         let json = serde_json::to_string(&action).unwrap();
         assert_eq!(serde_json::from_str::<Action>(&json).unwrap(), action);
     }

@@ -6,9 +6,9 @@
 //! what comes back arrives as the next snapshot, the only thing the screens are drawn from.
 use peersus_app::{ipc, runtime::Client};
 use peersus_core::model::{Command, FileDestination};
-use std::{path::PathBuf, sync::Arc};
 #[cfg(not(target_os = "android"))]
 use std::{io, path::Path};
+use std::{path::PathBuf, sync::Arc};
 
 /// Why there is no connection, in words for a person.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,7 +51,11 @@ impl Offline {
 /// hold colour codes) and at most 200 characters. `None` if it wrote nothing.
 #[cfg(not(target_os = "android"))]
 fn last_line(log: &str) -> Option<String> {
-    let line = log.lines().rev().map(str::trim).find(|line| !line.is_empty())?;
+    let line = log
+        .lines()
+        .rev()
+        .map(str::trim)
+        .find(|line| !line.is_empty())?;
     let clean: String = line.chars().filter(|c| !c.is_control()).take(200).collect();
     (!clean.trim().is_empty()).then_some(clean)
 }
@@ -128,11 +132,66 @@ impl Link {
     /// Join the other device's invitation and say how it went: `Ok` once the owner took it up (the connection itself goes on after, and
     /// shows as a snapshot), or the owner's own words for why not (the code is expired, or too many connections are waiting). Not
     /// forgotten as `send` does it: a code that was shown and scanned and then did nothing is a button that seems to do nothing.
-    pub fn join(&self, invitation: String) -> impl std::future::Future<Output = Result<(), String>> + 'static {
+    pub fn join(
+        &self,
+        invitation: String,
+    ) -> impl std::future::Future<Output = Result<(), String>> + 'static {
         let client = self.client.clone();
         async move {
             client
                 .command(Command::JoinInvitation { invitation })
+                .await
+                .map(|_| ())
+                .map_err(|reason| reason.to_string())
+        }
+    }
+
+    /// Say where a paired device can be found, as typed, or clear it with `None`, and say how it went: `Ok` once the owner took it, or the
+    /// owner's own sentence for why not (it is not an IP address or a name, the port is wrong, or no port is known and one must be written).
+    /// Not forgotten as `send` does it: an address that was typed and then did nothing is a field that seems to do nothing.
+    pub fn set_address(
+        &self,
+        peer: peersus_core::model::PeerId,
+        address: Option<String>,
+    ) -> impl std::future::Future<Output = Result<(), String>> + 'static {
+        let client = self.client.clone();
+        async move {
+            client
+                .command(Command::SetAddress { peer, address })
+                .await
+                .map(|_| ())
+                .map_err(|reason| reason.to_string())
+        }
+    }
+
+    /// Hand the owner the access token of a personal relay, or an empty one to forget it, and say how it went: `Ok` once it was applied
+    /// and kept, or the owner's own sentence for why not (this device cannot keep one, or transfers are going and the network cannot change
+    /// now). Not forgotten as `send` does it: a token that was typed and then did nothing must not be told as "sent". The token is a secret,
+    /// so it travels as a [`SecretText`] whose `Debug` shows nothing, and it is not kept here.
+    pub fn set_relay_token(
+        &self,
+        token: peersus_core::model::SecretText,
+    ) -> impl std::future::Future<Output = Result<(), String>> + 'static {
+        let client = self.client.clone();
+        async move {
+            client
+                .command(Command::SetRelayToken { token })
+                .await
+                .map(|_| ())
+                .map_err(|reason| reason.to_string())
+        }
+    }
+
+    /// Apply an edit of the preferences and say how it went, with the owner's own sentence when it would not (a transfer is going, an address is
+    /// not usable). For a choice the person makes and then looks at the result of; `send` is for the ones whose effect is the next snapshot.
+    pub fn patch_settings(
+        &self,
+        patch: peersus_core::config::SettingsPatch,
+    ) -> impl std::future::Future<Output = Result<(), String>> + 'static {
+        let client = self.client.clone();
+        async move {
+            client
+                .command(Command::PatchSettings { patch })
                 .await
                 .map(|_| ())
                 .map_err(|reason| reason.to_string())
@@ -146,7 +205,11 @@ impl Link {
     /// Path selections use the same serial, bounded handoff as native descriptors. Each device is sent every path: a path is opened again
     /// for each, so that the devices do not share a reading position. Answers with what the owner said of it (see [`Sent`]): how many files it did
     /// not take, and the ids of the transfers it made, which are the batch.
-    pub fn send_paths(&self, peers: Vec<peersus_core::model::PeerId>, paths: Vec<PathBuf>) -> tokio::sync::oneshot::Receiver<Sent> {
+    pub fn send_paths(
+        &self,
+        peers: Vec<peersus_core::model::PeerId>,
+        paths: Vec<PathBuf>,
+    ) -> tokio::sync::oneshot::Receiver<Sent> {
         let (finished, answer) = tokio::sync::oneshot::channel();
         let client = self.client.clone();
         self.executor.spawn(async move {
@@ -154,7 +217,15 @@ impl Link {
             for peer in peers {
                 for paths in crate::view::path_sends(paths.clone()) {
                     let count = u32::try_from(paths.len()).unwrap_or(u32::MAX);
-                    match queue_batch(&client, Command::QueueFiles { destination: FileDestination::Peer { peer: peer.clone() }, paths }).await {
+                    match queue_batch(
+                        &client,
+                        Command::QueueFiles {
+                            destination: FileDestination::Peer { peer: peer.clone() },
+                            paths,
+                        },
+                    )
+                    .await
+                    {
                         Ok(ids) => sent.transfers.extend(ids),
                         Err(_) => {
                             sent.refused = sent.refused.saturating_add(count);
@@ -180,7 +251,10 @@ impl Link {
         let (finished, answer) = tokio::sync::oneshot::channel();
         let client = self.client.clone();
         self.executor.spawn(async move {
-            let destinations = peers.into_iter().map(|peer| FileDestination::Peer { peer }).collect();
+            let destinations = peers
+                .into_iter()
+                .map(|peer| FileDestination::Peer { peer })
+                .collect();
             let refused = pump_picked(&client, destinations, batches, None).await;
             // The window may be paused or gone; that cannot cancel the handoffs above.
             let _ = finished.send(refused);
@@ -210,15 +284,24 @@ impl Link {
         let files = gathered.take_files();
         let picked = gathered.picked.clone();
         self.executor.spawn(async move {
-            let mut destinations: Vec<FileDestination> = peers.into_iter().map(|peer| FileDestination::Peer { peer }).collect();
+            let mut destinations: Vec<FileDestination> = peers
+                .into_iter()
+                .map(|peer| FileDestination::Peer { peer })
+                .collect();
             let mut generation = None;
             if with_code {
                 let total = u32::try_from(files.len()).unwrap_or(u32::MAX);
-                let names = files.iter().take(crate::view::NAMED_UNDER_CIRCLE).map(|(_, name)| name.clone()).collect();
+                let names = files
+                    .iter()
+                    .take(crate::view::NAMED_UNDER_CIRCLE)
+                    .map(|(_, name)| name.clone())
+                    .collect();
                 match begin_code(&client, total, names).await {
                     Ok(code) => {
                         generation = Some(code.generation);
-                        destinations.push(FileDestination::Invitation { generation: code.generation });
+                        destinations.push(FileDestination::Invitation {
+                            generation: code.generation,
+                        });
                         let _ = ready.send(Ok(Some(code)));
                     }
                     Err(reason) => {
@@ -229,7 +312,10 @@ impl Link {
                         let _ = code_finished.take().map(|sender| sender.send(total));
                         if destinations.is_empty() {
                             picked.release(&files);
-                            let _ = finished.send(Sent { refused: total, transfers: Vec::new() });
+                            let _ = finished.send(Sent {
+                                refused: total,
+                                transfers: Vec::new(),
+                            });
                             return;
                         }
                     }
@@ -237,13 +323,27 @@ impl Link {
             }
             let (refused, made) = hand_over(&client, &picked, &destinations, files).await;
             if let Some(generation) = generation {
-                let _ = client.command(Command::FinishFilesInvitation { generation, refused }).await;
+                let _ = client
+                    .command(Command::FinishFilesInvitation {
+                        generation,
+                        refused,
+                    })
+                    .await;
                 let _ = code_finished.take().map(|sender| sender.send(refused));
             }
             // The window may be paused or gone; that cannot cancel the handoffs above.
-            let _ = finished.send(Sent { refused, transfers: made });
+            let _ = finished.send(Sent {
+                refused,
+                transfers: made,
+            });
         });
-        (with_code.then_some(CodeProduction { ready: ready_answer, finished: code_completion }), answer)
+        (
+            with_code.then_some(CodeProduction {
+                ready: ready_answer,
+                finished: code_completion,
+            }),
+            answer,
+        )
     }
 
     /// One capability for the whole choice; bounded batches never replace or renew it.
@@ -257,9 +357,12 @@ impl Link {
                 let _ = finished.send(u32::MAX);
                 return;
             };
-            let names = paths.iter().take(crate::view::NAMED_UNDER_CIRCLE)
+            let names = paths
+                .iter()
+                .take(crate::view::NAMED_UNDER_CIRCLE)
                 .filter_map(|path| path.file_name())
-                .map(|name| name.to_string_lossy().into_owned()).collect();
+                .map(|name| name.to_string_lossy().into_owned())
+                .collect();
             let generation = match begin_code(&client, total, names).await {
                 Ok(code) => {
                     let generation = code.generation;
@@ -275,16 +378,31 @@ impl Link {
             let mut refused = 0_u32;
             for paths in crate::view::path_sends(paths) {
                 let count = paths.len() as u32;
-                if queue_batch(&client, Command::QueueFiles {
-                    destination: FileDestination::Invitation { generation }, paths,
-                }).await.is_err() {
+                if queue_batch(
+                    &client,
+                    Command::QueueFiles {
+                        destination: FileDestination::Invitation { generation },
+                        paths,
+                    },
+                )
+                .await
+                .is_err()
+                {
                     refused = refused.saturating_add(count);
                 }
             }
-            let _ = client.command(Command::FinishFilesInvitation { generation, refused }).await;
+            let _ = client
+                .command(Command::FinishFilesInvitation {
+                    generation,
+                    refused,
+                })
+                .await;
             let _ = finished.send(refused);
         });
-        CodeProduction { ready: answer, finished: completion }
+        CodeProduction {
+            ready: answer,
+            finished: completion,
+        }
     }
 
     /// Metadata arrives before descriptors: show the code immediately and keep pumping
@@ -303,12 +421,20 @@ impl Link {
             let Some(total) = count.filter(|count| *count > 0) else {
                 batches.picked.release(&first.files);
                 let cancelled = first.files.is_empty() && !first.still_open;
-                let _ = ready.send(if cancelled { Ok(None) } else { Err("The file picker did not report its selection count") });
+                let _ = ready.send(if cancelled {
+                    Ok(None)
+                } else {
+                    Err("The file picker did not report its selection count")
+                });
                 let _ = finished.send(first.refused);
                 return;
             };
-            let names = first.files.iter().take(crate::view::NAMED_UNDER_CIRCLE)
-                .map(|(_, name)| name.clone()).collect();
+            let names = first
+                .files
+                .iter()
+                .take(crate::view::NAMED_UNDER_CIRCLE)
+                .map(|(_, name)| name.clone())
+                .collect();
             let generation = match begin_code(&client, total, names).await {
                 Ok(code) => {
                     let generation = code.generation;
@@ -323,12 +449,24 @@ impl Link {
                 }
             };
             let refused = pump_picked(
-                &client, vec![FileDestination::Invitation { generation }], batches, Some(first),
-            ).await;
-            let _ = client.command(Command::FinishFilesInvitation { generation, refused }).await;
+                &client,
+                vec![FileDestination::Invitation { generation }],
+                batches,
+                Some(first),
+            )
+            .await;
+            let _ = client
+                .command(Command::FinishFilesInvitation {
+                    generation,
+                    refused,
+                })
+                .await;
             let _ = finished.send(refused);
         });
-        CodeProduction { ready: answer, finished: completion }
+        CodeProduction {
+            ready: answer,
+            finished: completion,
+        }
     }
 
     /// Run `job`, which may block, on the program's own executor, and give back a receiver for
@@ -342,11 +480,26 @@ impl Link {
     }
 }
 
-async fn begin_code(client: &Client, total: u32, names: Vec<String>) -> Result<ReadyCode, &'static str> {
-    match client.command(Command::BeginFilesInvitation { count: total }).await? {
-        peersus_app::runtime::Reply::FilesInvitation { code, generation, expires_at } => {
-            Ok(ReadyCode { code, generation, expires_at, total, names })
-        }
+async fn begin_code(
+    client: &Client,
+    total: u32,
+    names: Vec<String>,
+) -> Result<ReadyCode, &'static str> {
+    match client
+        .command(Command::BeginFilesInvitation { count: total })
+        .await?
+    {
+        peersus_app::runtime::Reply::FilesInvitation {
+            code,
+            generation,
+            expires_at,
+        } => Ok(ReadyCode {
+            code,
+            generation,
+            expires_at,
+            total,
+            names,
+        }),
         _ => Err("The application answered with something else than a code"),
     }
 }
@@ -369,14 +522,20 @@ async fn hand_over(
     // One set of files for each destination: the held ones for the first, copies for the others.
     let mut sets: Vec<Result<Vec<(u64, String)>, String>> = Vec::with_capacity(destinations.len());
     for index in 0..destinations.len() {
-        sets.push(if index == 0 { Ok(owned.files.clone()) } else { picked.reopened(&owned.files) });
+        sets.push(if index == 0 {
+            Ok(owned.files.clone())
+        } else {
+            picked.reopened(&owned.files)
+        });
     }
     for (destination, set) in destinations.iter().zip(sets) {
         let set = match set {
             Ok(set) => set,
             Err(reason) => {
                 // Said, not only counted: a person told that a file could not be offered would otherwise have no way to learn why.
-                eprintln!("peersus: the files could not be held again for another device: {reason}");
+                eprintln!(
+                    "peersus: the files could not be held again for another device: {reason}"
+                );
                 refused = refused.saturating_add(owned.files.len() as u32);
                 continue;
             }
@@ -386,7 +545,15 @@ async fn hand_over(
         for files in crate::view::held_sends(&handed.files, "") {
             // Retain the guard and exact file numbers throughout backpressure.
             let count = files.len() as u32;
-            match queue_batch(client, Command::QueueHeld { destination: destination.clone(), files }).await {
+            match queue_batch(
+                client,
+                Command::QueueHeld {
+                    destination: destination.clone(),
+                    files,
+                },
+            )
+            .await
+            {
                 Ok(ids) => made.extend(ids),
                 Err(_) => refused = refused.saturating_add(count),
             }
@@ -413,10 +580,13 @@ async fn pump_picked(
                 None => break,
             },
         };
-        let (handed_refused, _made) = hand_over(client, &batches.picked, &destinations, taken.files).await;
+        let (handed_refused, _made) =
+            hand_over(client, &batches.picked, &destinations, taken.files).await;
         refused = refused.saturating_add(handed_refused);
         refused = refused.saturating_add(taken.refused);
-        if !taken.still_open { break; }
+        if !taken.still_open {
+            break;
+        }
     }
     refused
 }
@@ -496,7 +666,10 @@ pub type DarkSource = Arc<dyn Fn() -> Option<bool> + Send + Sync>;
 /// there at once, so that the very first frame is drawn in the right theme and not in the toolkit's default one.
 ///
 /// A plain thread of its own for the reason [`watch_safe_area`] is, ending when every receiver has been dropped.
-pub fn watch_dark(source: DarkSource, every: std::time::Duration) -> tokio::sync::watch::Receiver<Option<bool>> {
+pub fn watch_dark(
+    source: DarkSource,
+    every: std::time::Duration,
+) -> tokio::sync::watch::Receiver<Option<bool>> {
     let (sender, receiver) = tokio::sync::watch::channel(source());
     std::thread::Builder::new()
         .name("dark-mode".to_owned())
@@ -525,7 +698,10 @@ pub fn watch_dark(source: DarkSource, every: std::time::Duration) -> tokio::sync
 /// for the reason `watch_safe_area` is: the interface's tasks have no timer. `every` bounds how late a new second is seen, and
 /// the thread ends when every receiver is gone. Only a CHANGED second is published, so a screen is woken once a second, not
 /// as often as the thread looks.
-pub fn clock(source: impl Fn() -> u64 + Send + 'static, every: std::time::Duration) -> tokio::sync::watch::Receiver<u64> {
+pub fn clock(
+    source: impl Fn() -> u64 + Send + 'static,
+    every: std::time::Duration,
+) -> tokio::sync::watch::Receiver<u64> {
     let (sender, receiver) = tokio::sync::watch::channel(source());
     std::thread::Builder::new()
         .name("clock".to_owned())
@@ -553,7 +729,10 @@ pub fn clock(source: impl Fn() -> u64 + Send + 'static, every: std::time::Durati
 /// channel every `every` and ends as soon as nobody waits on it, so a code that was replaced or a page that was left does not
 /// leave a thread asleep for minutes. `every` bounds how late the answer to "nobody waits" is, never how late the deadline is
 /// told.
-pub fn after(after: std::time::Duration, every: std::time::Duration) -> tokio::sync::oneshot::Receiver<()> {
+pub fn after(
+    after: std::time::Duration,
+    every: std::time::Duration,
+) -> tokio::sync::oneshot::Receiver<()> {
     let (sender, receiver) = tokio::sync::oneshot::channel();
     std::thread::Builder::new()
         .name("deadline".to_owned())
@@ -600,7 +779,9 @@ pub fn await_picked(
             loop {
                 std::thread::sleep(every);
                 let gave_up = started.elapsed() >= patience;
-                if gave_up { picked.finished_for(generation); }
+                if gave_up {
+                    picked.finished_for(generation);
+                }
                 let taken = picked.take_for(generation);
                 let count = picked.selected_count(generation);
                 let declared = count != count_seen;
@@ -622,7 +803,11 @@ pub fn await_picked(
             }
         })
         .ok();
-    Batches { receiver, picked, generation }
+    Batches {
+        receiver,
+        picked,
+        generation,
+    }
 }
 
 /// Wait for the person to answer the platform's folder picker FOR `transfer`, and tell the interface once, on the returned channel.
@@ -660,7 +845,10 @@ pub fn await_folder(
                     }
                     break;
                 }
-                if sender.as_ref().is_some_and(tokio::sync::oneshot::Sender::is_closed) {
+                if sender
+                    .as_ref()
+                    .is_some_and(tokio::sync::oneshot::Sender::is_closed)
+                {
                     picked.abandon(&transfer);
                     break;
                 }
@@ -715,7 +903,10 @@ pub struct Gathered {
 
 impl Gathered {
     pub fn new(picked: peersus_net::picked::Picked) -> Self {
-        Self { picked, files: Vec::new() }
+        Self {
+            picked,
+            files: Vec::new(),
+        }
     }
 
     pub fn add(&mut self, files: Vec<(u64, String)>) {
@@ -833,7 +1024,8 @@ pub fn await_scan_shown(
                 let tick = crate::view::look(looking, scanner.take(), (camera.refused)());
                 let changed = tick.looking != looking || tick.join.is_some() || tick.close;
                 looking = tick.looking;
-                let over = tick.close || tick.looking == crate::view::Looking::Shut || scanner.is_over();
+                let over =
+                    tick.close || tick.looking == crate::view::Looking::Shut || scanner.is_over();
                 let gave_up = started.elapsed() >= patience;
                 if changed && sender.send(tick).is_err() {
                     // The interface is gone: the camera is closed, since nobody is left to read what it sees.
@@ -956,6 +1148,24 @@ impl PartialEq for OverlayControl {
     }
 }
 
+/// Whether the system leaves this program out of its battery optimisation (Android), which decides if the background service keeps its
+/// network while the phone is idle. The person chooses it on a screen of the system: Settings shows the state and offers the way there.
+#[derive(Clone)]
+pub struct BatteryControl {
+    /// Whether the program is left out of the optimisation now. Asked afresh while the row is on the screen, since the person decides it on
+    /// a screen of the system and comes back.
+    pub unrestricted: Arc<dyn Fn() -> bool + Send + Sync>,
+    /// Open the screen of the system where the person chooses. Returns at once.
+    pub open: Arc<dyn Fn() + Send + Sync>,
+}
+
+impl PartialEq for BatteryControl {
+    /// The same choice is the same bridge: compared by the identity of the call that opens the screen.
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.open, &other.open)
+    }
+}
+
 /// Optional platform-owned background clipboard consent; never substitutes for peer grants.
 #[derive(Clone)]
 pub struct ClipboardControl {
@@ -964,7 +1174,9 @@ pub struct ClipboardControl {
 }
 
 impl PartialEq for ClipboardControl {
-    fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.open, &other.open) }
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.open, &other.open)
+    }
 }
 
 /// The choice of which camera reads a code, for a phone that has several (Android): the camera the program picks is not always the one that
@@ -1067,13 +1279,25 @@ impl PartialEq for FolderSink {
 /// A platform-provided HTTPS browser launch. False means no launch was dispatched.
 #[derive(Clone)]
 pub struct UrlOpener(pub Arc<dyn Fn(&str) -> bool + Send + Sync>);
-impl UrlOpener { pub fn open(&self, url: &str) -> bool { (self.0)(url) } }
-impl PartialEq for UrlOpener { fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) } }
+impl UrlOpener {
+    pub fn open(&self, url: &str) -> bool {
+        (self.0)(url)
+    }
+}
+impl PartialEq for UrlOpener {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 /// Opens the platform's package picker; its adapter stages the selected archive through the owner.
 #[derive(Clone)]
 pub struct PluginPicker(pub Arc<dyn Fn() -> Result<(), &'static str> + Send + Sync>);
-impl PartialEq for PluginPicker { fn eq(&self, other: &Self) -> bool { Arc::ptr_eq(&self.0, &other.0) } }
+impl PartialEq for PluginPicker {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 /// What a platform offers that the toolkit does not: each ability is present on the platform that needs it, and absent
 /// where the toolkit already does the thing. One value, so that a fourth ability is a field and not another parameter
@@ -1102,6 +1326,8 @@ pub struct Platform {
     pub offer_buttons: Option<OfferButtons>,
     /// Present on a platform where the panel of an offer is drawn over other applications by a permission the person gives by hand (Android).
     pub overlay: Option<OverlayControl>,
+    /// Present on a platform where the system's battery optimisation can stop the background service from reaching the network (Android).
+    pub battery: Option<BatteryControl>,
     pub open_url: Option<UrlOpener>,
     pub plugin_picker: Option<PluginPicker>,
     pub clipboard: Option<ClipboardControl>,
@@ -1121,12 +1347,17 @@ impl PartialEq for Platform {
             (None, None) => true,
             _ => false,
         };
-        same_area && same_dark && self.file_picker == other.file_picker && self.camera == other.camera && self.folder_sink == other.folder_sink
+        same_area
+            && same_dark
+            && self.file_picker == other.file_picker
+            && self.camera == other.camera
+            && self.folder_sink == other.folder_sink
             && self.notifications == other.notifications
             && self.camera_choice == other.camera_choice
             && self.appearance == other.appearance
             && self.offer_buttons == other.offer_buttons
             && self.overlay == other.overlay
+            && self.battery == other.battery
             && self.open_url == other.open_url
             && self.plugin_picker == other.plugin_picker
             && self.clipboard == other.clipboard
@@ -1168,12 +1399,24 @@ fn default_circle_log_directory() -> Option<PathBuf> {
 /// done when there is no directory or the file cannot be written: it is a diagnostic, and it never stops a touch.
 pub fn circle_log(line: &str) {
     use std::io::Write;
-    let Some(directory) = CIRCLE_LOG_DIRECTORY.get().cloned().or_else(default_circle_log_directory) else { return };
+    let Some(directory) = CIRCLE_LOG_DIRECTORY
+        .get()
+        .cloned()
+        .or_else(default_circle_log_directory)
+    else {
+        return;
+    };
     let path = directory.join("circle.log");
     if std::fs::metadata(&path).is_ok_and(|meta| meta.len() > CIRCLE_LOG_LIMIT) {
         let _ = std::fs::remove_file(&path);
     }
-    let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else { return };
+    let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    else {
+        return;
+    };
     let seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0.0, |elapsed| elapsed.as_secs_f64());
@@ -1185,7 +1428,9 @@ pub fn circle_log(line: &str) {
 /// could be, nor in a build directory of tests.
 #[cfg(not(target_os = "android"))]
 fn owner_next_to(window: &Path) -> Option<PathBuf> {
-    let directory = window.parent().filter(|directory| !directory.as_os_str().is_empty())?;
+    let directory = window
+        .parent()
+        .filter(|directory| !directory.as_os_str().is_empty())?;
     Some(directory.join("peersus"))
 }
 
@@ -1194,7 +1439,10 @@ fn owner_next_to(window: &Path) -> Option<PathBuf> {
 /// starting another and would only hide what is wrong.
 #[cfg(not(target_os = "android"))]
 fn should_start_owner(error: &io::Error) -> bool {
-    matches!(error.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused)
+    matches!(
+        error.kind(),
+        io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused
+    )
 }
 
 /// Whether this run may start an owner. A test or a screenshot sets `PEERSUS_NO_AUTOSTART` so
@@ -1219,7 +1467,10 @@ fn start_owner(log: &Path) -> io::Result<std::process::Child> {
         .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
     let output = open_log(log)?;
     let mut command = std::process::Command::new(owner);
-    command.stdin(std::process::Stdio::null()).stdout(output.try_clone()?).stderr(output);
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(output.try_clone()?)
+        .stderr(output);
     // Marks the owner as started for a window, so that it ends when its last window goes, unless the person
     // asked for the background. Only that it is set matters. An owner started any other way carries no mark
     // and is never ended by this, and this window never stops one it did not start.
@@ -1272,10 +1523,7 @@ impl Session {
     /// choose files where the toolkit has no dialog; `None` where it has.
     ///
     /// Returns the error text when not even an executor could be started.
-    pub fn open_at(
-        socket: PathBuf,
-        platform: Platform,
-    ) -> Result<Arc<Session>, &'static str> {
+    pub fn open_at(socket: PathBuf, platform: Platform) -> Result<Arc<Session>, &'static str> {
         let executor = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
@@ -1290,9 +1538,17 @@ impl Session {
         };
         let link = executor
             .block_on(ipc::attach(socket))
-            .map(|(client, _task)| Link { client, executor: handle })
+            .map(|(client, _task)| Link {
+                client,
+                executor: handle,
+            })
             .map_err(|_| Offline::NotStarted(None));
-        Ok(Arc::new(Session { _executor: executor, link, platform, system_theme }))
+        Ok(Arc::new(Session {
+            _executor: executor,
+            link,
+            platform,
+            system_theme,
+        }))
     }
 
     /// Start the executor and attach to the owner, starting it first if nothing is listening.
@@ -1314,7 +1570,9 @@ impl Session {
                 Ok(attached) => Ok(attached),
                 Err(error)
                     if should_start_owner(&error)
-                        && autostart_allowed(std::env::var_os("PEERSUS_NO_AUTOSTART").as_deref()) =>
+                        && autostart_allowed(
+                            std::env::var_os("PEERSUS_NO_AUTOSTART").as_deref(),
+                        ) =>
                 {
                     let log = owner_log(&path);
                     // Where the log ends before this owner starts: what is after it is what this owner said. The file is only
@@ -1360,9 +1618,17 @@ impl Session {
             };
             attached
                 // The task keeps the snapshots fresh for as long as the executor lives.
-                .map(|(client, _task)| Link { client, executor: handle })
+                .map(|(client, _task)| Link {
+                    client,
+                    executor: handle,
+                })
         });
-        Ok(Arc::new(Session { _executor: executor, link, platform: Platform::default(), system_theme }))
+        Ok(Arc::new(Session {
+            _executor: executor,
+            link,
+            platform: Platform::default(),
+            system_theme,
+        }))
     }
 }
 
@@ -1380,13 +1646,25 @@ mod tests {
     #[test]
     fn a_blocking_job_runs_on_the_executor_and_its_answer_reaches_a_thread_with_no_runtime() {
         // The window's loop is such a thread: nothing there has entered a tokio runtime.
-        assert!(tokio::runtime::Handle::try_current().is_err(), "the test thread must have no runtime");
-        let executor = tokio::runtime::Builder::new_multi_thread().worker_threads(1).enable_all().build().unwrap();
+        assert!(
+            tokio::runtime::Handle::try_current().is_err(),
+            "the test thread must have no runtime"
+        );
+        let executor = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+            .unwrap();
         let here = std::thread::current().id();
-        let answer = run_blocking(executor.handle(), move || (std::thread::current().id(), 6 * 7));
+        let answer = run_blocking(executor.handle(), move || {
+            (std::thread::current().id(), 6 * 7)
+        });
         let (ran_on, value) = answer.blocking_recv().expect("the job answered");
         assert_eq!(value, 42);
-        assert_ne!(ran_on, here, "the job ran on the thread that asked, which is the thread that draws");
+        assert_ne!(
+            ran_on, here,
+            "the job ran on the thread that asked, which is the thread that draws"
+        );
     }
 
     fn pathless() -> std::fs::File {
@@ -1407,7 +1685,11 @@ mod tests {
         assert_eq!(held.len(), 20);
         assert_eq!(gathered.files().map(|files| files.len()), Some(20));
         drop(gathered);
-        assert!(held.is_empty(), "a refused batch stayed held: {} files", held.len());
+        assert!(
+            held.is_empty(),
+            "a refused batch stayed held: {} files",
+            held.len()
+        );
         // The next choice, of one file, is not turned away.
         picked.opened();
         picked.file(pathless(), "one".into());
@@ -1429,21 +1711,36 @@ mod tests {
         // The owner takes the first by its number, as it does when it makes the code.
         assert!(picked.take_file(taken[0].0).is_some());
         drop(gathered);
-        assert!(held.is_empty(), "the one that was not taken stayed held, or the one taken was let go of wrongly");
+        assert!(
+            held.is_empty(),
+            "the one that was not taken stayed held, or the one taken was let go of wrongly"
+        );
     }
 
     #[test]
     fn the_clock_publishes_each_new_second_once_and_not_the_same_second_again() {
         let seconds = Arc::new(std::sync::atomic::AtomicU64::new(100));
         let source = Arc::clone(&seconds);
-        let mut ticks = clock(move || source.load(std::sync::atomic::Ordering::SeqCst), std::time::Duration::from_millis(5));
-        assert_eq!(*ticks.borrow(), 100, "it did not start from the second it was made in");
+        let mut ticks = clock(
+            move || source.load(std::sync::atomic::Ordering::SeqCst),
+            std::time::Duration::from_millis(5),
+        );
+        assert_eq!(
+            *ticks.borrow(),
+            100,
+            "it did not start from the second it was made in"
+        );
         // The same second, however often the thread looks: nothing is published.
         std::thread::sleep(std::time::Duration::from_millis(60));
-        assert!(!ticks.has_changed().unwrap(), "an unchanged second woke the window");
+        assert!(
+            !ticks.has_changed().unwrap(),
+            "an unchanged second woke the window"
+        );
         // A new second is published, and read as the new value.
         seconds.store(101, std::sync::atomic::Ordering::SeqCst);
-        until_true("a new second was never published", || ticks.has_changed().unwrap());
+        until_true("a new second was never published", || {
+            ticks.has_changed().unwrap()
+        });
         assert_eq!(*ticks.borrow_and_update(), 101);
         assert!(!ticks.has_changed().unwrap());
     }
@@ -1452,11 +1749,17 @@ mod tests {
     fn the_clock_thread_ends_when_the_window_is_gone() {
         let seconds = Arc::new(std::sync::atomic::AtomicU64::new(1));
         let counted = Arc::clone(&seconds);
-        let ticks = clock(move || counted.load(std::sync::atomic::Ordering::SeqCst), std::time::Duration::from_millis(5));
+        let ticks = clock(
+            move || counted.load(std::sync::atomic::Ordering::SeqCst),
+            std::time::Duration::from_millis(5),
+        );
         // The thread holds one handle to the source, and this test the other: it is let go of when the thread has ended.
         assert_eq!(Arc::strong_count(&seconds), 2);
         drop(ticks);
-        until_true("the clock thread stayed alive with nobody reading it", || Arc::strong_count(&seconds) == 1);
+        until_true(
+            "the clock thread stayed alive with nobody reading it",
+            || Arc::strong_count(&seconds) == 1,
+        );
     }
 
     /// Wait, polling, until `done` holds: the thread under test runs on its own clock, and a fixed sleep would be a guess.
@@ -1480,7 +1783,11 @@ mod tests {
         let reader = await_picked(picked.clone(), every, std::time::Duration::from_secs(60));
         // Several looks of the thread: the batch has left the picker for the channel, unread, and is still held.
         std::thread::sleep(every * 20);
-        assert_eq!(held.len(), 3, "the files were let go of while the page could still read them");
+        assert_eq!(
+            held.len(),
+            3,
+            "the files were let go of while the page could still read them"
+        );
         // The page is left: nobody will ever read what is in the channel.
         drop(reader);
         until_true("files nobody read stayed held", || held.is_empty());
@@ -1495,14 +1802,25 @@ mod tests {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         picked.opened_streaming();
-        let old = await_picked(picked.clone(), std::time::Duration::from_millis(5), std::time::Duration::from_secs(60));
+        let old = await_picked(
+            picked.clone(),
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(60),
+        );
         picked.opened_streaming();
         let generation = picked.generation();
         picked.file_for(generation, pathless(), "new-choice".into());
         drop(old);
         let result = picked.take_for(generation);
         assert!(result.still_open);
-        assert_eq!(result.files.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>(), ["new-choice"]);
+        assert_eq!(
+            result
+                .files
+                .iter()
+                .map(|(_, name)| name.as_str())
+                .collect::<Vec<_>>(),
+            ["new-choice"]
+        );
         picked.release(&result.files);
         picked.finished_for(generation);
     }
@@ -1513,7 +1831,11 @@ mod tests {
         let picked = peersus_net::picked::Picked::new(held.clone());
         picked.opened_streaming();
         let generation = picked.generation();
-        let reader = await_picked(picked.clone(), std::time::Duration::from_millis(5), std::time::Duration::from_secs(60));
+        let reader = await_picked(
+            picked.clone(),
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(60),
+        );
         picked.file_for(generation, pathless(), "not-sent".into());
         drop(reader);
         until_true("abandoned picker retained a descriptor", || held.is_empty());
@@ -1527,17 +1849,26 @@ mod tests {
         picked.opened();
         picked.file(pathless(), "a".into());
         picked.finished();
-        let mut reader = await_picked(picked.clone(), std::time::Duration::from_millis(5), std::time::Duration::from_secs(60));
+        let mut reader = await_picked(
+            picked.clone(),
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(60),
+        );
         let taken = reader.blocking_recv().expect("the batch was not delivered");
         assert_eq!(taken.files.len(), 1);
         assert!(!taken.still_open);
         // The reader has it and the picker is done: the thread ends, and what the reader holds is the reader's to deal with.
         std::thread::sleep(std::time::Duration::from_millis(100));
-        assert_eq!(held.len(), 1, "files the page still held were let go of under it");
+        assert_eq!(
+            held.len(),
+            1,
+            "files the page still held were let go of under it"
+        );
     }
 
     #[test]
-    fn a_page_left_after_the_picker_finished_but_before_it_read_the_last_batch_lets_those_files_go() {
+    fn a_page_left_after_the_picker_finished_but_before_it_read_the_last_batch_lets_those_files_go()
+    {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         picked.opened();
@@ -1549,9 +1880,16 @@ mod tests {
         let reader = await_picked(picked.clone(), every, std::time::Duration::from_secs(60));
         // Long enough for the thread to have sent the batch and ended; nobody has read it.
         std::thread::sleep(every * 20);
-        assert_eq!(held.len(), 2, "the files were let go of while the page could still read them");
+        assert_eq!(
+            held.len(),
+            2,
+            "the files were let go of while the page could still read them"
+        );
         drop(reader);
-        until_true("the last batch, never read, stayed held after the thread ended", || held.is_empty());
+        until_true(
+            "the last batch, never read, stayed held after the thread ended",
+            || held.is_empty(),
+        );
         picked.opened();
         picked.file(pathless(), "next".into());
         assert_eq!(picked.take().refused, 0);
@@ -1619,13 +1957,19 @@ mod tests {
                     if let std::task::Poll::Ready(result) = changed.as_mut().poll(&mut context) {
                         break result;
                     }
-                    assert!(std::time::Instant::now() < deadline, "the watcher never published the change");
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "the watcher never published the change"
+                    );
                     std::thread::sleep(std::time::Duration::from_millis(5));
                 }
             };
             result.map(|()| *receiver.borrow())
         });
-        let seen = waited.join().expect("waiting on the channel panicked").expect("the channel closed");
+        let seen = waited
+            .join()
+            .expect("waiting on the channel panicked")
+            .expect("the channel closed");
         assert_eq!(seen, (0, 105, 1080, 2400));
     }
 
@@ -1645,7 +1989,11 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(200));
         let after_close = polls.load(std::sync::atomic::Ordering::SeqCst);
         std::thread::sleep(std::time::Duration::from_millis(200));
-        assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), after_close, "the watcher kept polling after the window closed");
+        assert_eq!(
+            polls.load(std::sync::atomic::Ordering::SeqCst),
+            after_close,
+            "the watcher kept polling after the window closed"
+        );
     }
 
     #[test]
@@ -1667,7 +2015,11 @@ mod tests {
     #[test]
     fn a_very_long_line_is_cut_so_it_cannot_fill_the_screen() {
         let line = last_line(&"x".repeat(5000)).unwrap();
-        assert!(line.chars().count() <= 200, "{} characters", line.chars().count());
+        assert!(
+            line.chars().count() <= 200,
+            "{} characters",
+            line.chars().count()
+        );
     }
 
     #[test]
@@ -1681,12 +2033,22 @@ mod tests {
         // The log is appended to for ever. The earlier run's last line (a refused invitation, say) stays at its end, and
         // an owner that ended without a word must not be blamed with it.
         let earlier = "peersus: 1793594083 The invitation was refused\n";
-        assert_eq!(last_line_after(earlier, earlier.len()), None, "an earlier run's line was shown for a start it had nothing to do with");
+        assert_eq!(
+            last_line_after(earlier, earlier.len()),
+            None,
+            "an earlier run's line was shown for a start it had nothing to do with"
+        );
         // What this owner wrote after that point is the reason, and only that.
         let now = format!("{earlier}preferences are invalid\n");
-        assert_eq!(last_line_after(&now, earlier.len()).as_deref(), Some("preferences are invalid"));
+        assert_eq!(
+            last_line_after(&now, earlier.len()).as_deref(),
+            Some("preferences are invalid")
+        );
         // From the start of an empty log, the same as the whole log.
-        assert_eq!(last_line_after("first\nsecond\n", 0).as_deref(), Some("second"));
+        assert_eq!(
+            last_line_after("first\nsecond\n", 0).as_deref(),
+            Some("second")
+        );
     }
 
     #[test]
@@ -1698,11 +2060,21 @@ mod tests {
 
     #[test]
     fn a_failed_attach_is_told_by_its_kind_and_never_by_the_systems_words() {
-        let mismatch = attach_failure_words(&io::Error::new(io::ErrorKind::InvalidData, "/home/someone/.local/share/peersus/control.sock"));
+        let mismatch = attach_failure_words(&io::Error::new(
+            io::ErrorKind::InvalidData,
+            "/home/someone/.local/share/peersus/control.sock",
+        ));
         assert!(mismatch.contains("not the same version"), "{mismatch}");
-        assert!(!mismatch.contains("/home"), "a path reached the screen: {mismatch}");
-        assert!(attach_failure_words(&io::Error::from(io::ErrorKind::TimedOut)).contains("in time"));
-        assert!(!attach_failure_words(&io::Error::from(io::ErrorKind::PermissionDenied)).is_empty());
+        assert!(
+            !mismatch.contains("/home"),
+            "a path reached the screen: {mismatch}"
+        );
+        assert!(
+            attach_failure_words(&io::Error::from(io::ErrorKind::TimedOut)).contains("in time")
+        );
+        assert!(
+            !attach_failure_words(&io::Error::from(io::ErrorKind::PermissionDenied)).is_empty()
+        );
     }
 
     #[test]
@@ -1723,7 +2095,10 @@ mod tests {
         drop(file);
         assert!(log.is_file());
         // The owner refuses a directory that is not private to the person, so it is made so.
-        let mode = std::fs::metadata(log.parent().unwrap()).unwrap().permissions().mode();
+        let mode = std::fs::metadata(log.parent().unwrap())
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o077, 0, "directory mode is {mode:o}");
         let mode = std::fs::metadata(&log).unwrap().permissions().mode();
         assert_eq!(mode & 0o077, 0, "log mode is {mode:o}");
@@ -1753,7 +2128,11 @@ mod tests {
     }
 
     /// A camera that is not one: it counts how many times it was closed and says whether it was refused, as it is told.
-    fn fake_camera() -> (CameraControl, Arc<std::sync::atomic::AtomicUsize>, Arc<std::sync::atomic::AtomicBool>) {
+    fn fake_camera() -> (
+        CameraControl,
+        Arc<std::sync::atomic::AtomicUsize>,
+        Arc<std::sync::atomic::AtomicBool>,
+    ) {
         use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
         let closed = Arc::new(AtomicUsize::new(0));
         let refused = Arc::new(AtomicBool::new(false));
@@ -1778,11 +2157,18 @@ mod tests {
         let text = format!("peersus:1:{}", "7b226164647265737322".repeat(28));
         let raster = crate::qr::raster(&crate::qr::for_code(&text)).unwrap();
         let side = raster.side as usize;
-        ((0..side * side).map(|index| raster.rgba[index * 4]).collect(), side)
+        (
+            (0..side * side)
+                .map(|index| raster.rgba[index * 4])
+                .collect(),
+            side,
+        )
     }
 
     /// Wait on a plain thread for the next tick, up to a few seconds: the watcher is on its own thread.
-    fn next_tick(receiver: &mut tokio::sync::mpsc::UnboundedReceiver<crate::view::Tick>) -> Option<crate::view::Tick> {
+    fn next_tick(
+        receiver: &mut tokio::sync::mpsc::UnboundedReceiver<crate::view::Tick>,
+    ) -> Option<crate::view::Tick> {
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while std::time::Instant::now() < until {
             if let Ok(tick) = receiver.try_recv() {
@@ -1797,14 +2183,22 @@ mod tests {
     fn a_code_read_by_the_camera_is_joined_once_and_closes_the_camera() {
         let (camera, closed, _) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
-        let mut ticks =
-            await_scan(scanner.clone(), camera, std::time::Duration::from_millis(5), std::time::Duration::from_secs(30));
+        let mut ticks = await_scan(
+            scanner.clone(),
+            camera,
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(30),
+        );
         // The camera's thread gives a frame with the invitation in it.
         let (frame, side) = invitation_frame();
         scanner.frame(&frame, side, side, std::time::Instant::now());
         let tick = next_tick(&mut ticks).expect("the watcher never said a code was read");
         assert_eq!(tick.looking, crate::view::Looking::Shut);
-        assert!(tick.join.as_deref().is_some_and(|code| code.starts_with("peersus:1:")));
+        assert!(
+            tick.join
+                .as_deref()
+                .is_some_and(|code| code.starts_with("peersus:1:"))
+        );
         assert!(tick.close);
         // And nothing more: the code is not joined again, since the watcher is done, and its thread is over, which
         // the channel says by closing, rather than by waiting out the patience (half a minute here).
@@ -1812,7 +2206,9 @@ mod tests {
         loop {
             match ticks.try_recv() {
                 Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => break,
-                Err(tokio::sync::mpsc::error::TryRecvError::Empty) if std::time::Instant::now() < until => {
+                Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+                    if std::time::Instant::now() < until =>
+                {
                     std::thread::sleep(std::time::Duration::from_millis(5));
                 }
                 Err(tokio::sync::mpsc::error::TryRecvError::Empty) => {
@@ -1822,7 +2218,11 @@ mod tests {
             }
         }
         // The thread has ended, and the camera was closed by it, once: it is not left open until the page is left.
-        assert_eq!(closed.load(std::sync::atomic::Ordering::SeqCst), 1, "a code was read and the camera was not closed once");
+        assert_eq!(
+            closed.load(std::sync::atomic::Ordering::SeqCst),
+            1,
+            "a code was read and the camera was not closed once"
+        );
     }
 
     #[test]
@@ -1831,8 +2231,12 @@ mod tests {
         // Refused: the camera says so, and the watcher passes it on with the camera closed.
         let (camera, closed, refused) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
-        let mut ticks =
-            await_scan(scanner, camera, std::time::Duration::from_millis(5), std::time::Duration::from_secs(30));
+        let mut ticks = await_scan(
+            scanner,
+            camera,
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(30),
+        );
         refused.store(true, Ordering::SeqCst);
         let tick = next_tick(&mut ticks).expect("the refusal was never said");
         assert_eq!(tick.looking, crate::view::Looking::Refused);
@@ -1840,22 +2244,35 @@ mod tests {
         // The camera that could not be used is closed by the watcher too, so that a tap does not open one that was
         // never closed. The channel closing says the thread has ended.
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while !matches!(ticks.try_recv(), Err(tokio::sync::mpsc::error::TryRecvError::Disconnected))
-            && std::time::Instant::now() < until
+        while !matches!(
+            ticks.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Disconnected)
+        ) && std::time::Instant::now() < until
         {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert_eq!(closed.load(Ordering::SeqCst), 1, "a refused camera was not closed once");
+        assert_eq!(
+            closed.load(Ordering::SeqCst),
+            1,
+            "a refused camera was not closed once"
+        );
 
         // Nobody answers: given up on after the patience, and the camera is closed, not left open for ever.
         let (camera, closed, _) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
-        let mut ticks =
-            await_scan(scanner, camera, std::time::Duration::from_millis(5), std::time::Duration::from_millis(60));
+        let mut ticks = await_scan(
+            scanner,
+            camera,
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_millis(60),
+        );
         let tick = next_tick(&mut ticks).expect("a scan nobody answered was never given up on");
         assert_eq!(tick.looking, crate::view::Looking::Shut);
         assert!(tick.close && tick.join.is_none());
-        assert!(closed.load(Ordering::SeqCst) >= 1, "the camera was left open after the wait was given up");
+        assert!(
+            closed.load(Ordering::SeqCst) >= 1,
+            "the camera was left open after the wait was given up"
+        );
     }
 
     #[test]
@@ -1863,7 +2280,12 @@ mod tests {
         use std::sync::atomic::Ordering;
         let (camera, closed, refused) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
-        let ticks = await_scan(scanner, camera, std::time::Duration::from_millis(5), std::time::Duration::from_secs(30));
+        let ticks = await_scan(
+            scanner,
+            camera,
+            std::time::Duration::from_millis(5),
+            std::time::Duration::from_secs(30),
+        );
         // The page was left: nobody reads the ticks any more.
         drop(ticks);
         // Something happens that the watcher would have said.
@@ -1872,7 +2294,10 @@ mod tests {
         while closed.load(Ordering::SeqCst) == 0 && std::time::Instant::now() < until {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(closed.load(Ordering::SeqCst) >= 1, "the camera stayed open with nobody left to read it");
+        assert!(
+            closed.load(Ordering::SeqCst) >= 1,
+            "the camera stayed open with nobody left to read it"
+        );
     }
 
     /// Wait on a plain thread until the picture channel holds a picture newer than `after`, up to a few seconds.
@@ -1908,7 +2333,8 @@ mod tests {
     }
 
     #[test]
-    fn a_frame_given_to_the_scan_becomes_a_picture_of_the_side_asked_for_with_the_code_seen_marked_on_it() {
+    fn a_frame_given_to_the_scan_becomes_a_picture_of_the_side_asked_for_with_the_code_seen_marked_on_it()
+     {
         let (camera, closed, _) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
         let (_ticks, mut pictures) = await_scan_shown(
@@ -1920,18 +2346,32 @@ mod tests {
         );
         let (frame, side) = seen_but_unreadable_frame();
         scanner.frame(&frame, side, side, std::time::Instant::now());
-        let (serial, shown) = next_picture(&mut pictures, 0).expect("a frame was given and no picture was made");
+        let (serial, shown) =
+            next_picture(&mut pictures, 0).expect("a frame was given and no picture was made");
         assert!(serial >= 1);
         assert_eq!(shown.picture.side, 48);
         assert_eq!(shown.serial, serial);
         // The code is seen and cannot be read: it is marked, and the scan goes on with the camera open.
-        assert_eq!(shown.codes.len(), 1, "the code that was seen was not marked: {} marks", shown.codes.len());
-        assert!(!scanner.is_over(), "a code that could not be read ended the scan");
-        assert_eq!(closed.load(std::sync::atomic::Ordering::SeqCst), 0, "the camera was closed with nothing read");
+        assert_eq!(
+            shown.codes.len(),
+            1,
+            "the code that was seen was not marked: {} marks",
+            shown.codes.len()
+        );
+        assert!(
+            !scanner.is_over(),
+            "a code that could not be read ended the scan"
+        );
+        assert_eq!(
+            closed.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "the camera was closed with nothing read"
+        );
     }
 
     #[test]
-    fn a_code_that_is_read_ends_the_scan_and_closes_the_camera_whether_or_not_a_picture_was_made_of_it() {
+    fn a_code_that_is_read_ends_the_scan_and_closes_the_camera_whether_or_not_a_picture_was_made_of_it()
+     {
         let (camera, closed, _) = fake_camera();
         let scanner = crate::scanner::Scanner::new();
         let (mut ticks, _pictures) = await_scan_shown(
@@ -1948,7 +2388,9 @@ mod tests {
         // The scan is over, so what is shown of it is nothing (a picture of a shut camera would be wrong), and the camera
         // was closed by the watcher.
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while closed.load(std::sync::atomic::Ordering::SeqCst) == 0 && std::time::Instant::now() < until {
+        while closed.load(std::sync::atomic::Ordering::SeqCst) == 0
+            && std::time::Instant::now() < until
+        {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         assert_eq!(closed.load(std::sync::atomic::Ordering::SeqCst), 1);
@@ -1968,7 +2410,10 @@ mod tests {
         );
         scanner.frame(&vec![100; 32 * 32], 32, 32, std::time::Instant::now());
         std::thread::sleep(std::time::Duration::from_millis(80));
-        assert!(pictures.borrow().is_none(), "a picture was made though none was asked for");
+        assert!(
+            pictures.borrow().is_none(),
+            "a picture was made though none was asked for"
+        );
     }
 
     #[test]
@@ -1989,19 +2434,33 @@ mod tests {
             32,
         );
         // A frame whose top left quarter is bright: where the bright quarter ends up says which turn was used.
-        let frame: Vec<u8> = (0..40).flat_map(|y| (0..40).map(move |x| if x < 20 && y < 20 { 250_u8 } else { 10 })).collect();
+        let frame: Vec<u8> = (0..40)
+            .flat_map(|y| (0..40).map(move |x| if x < 20 && y < 20 { 250_u8 } else { 10 }))
+            .collect();
         let bright_is_top_left = |shown: &crate::preview::Shown| {
-            let at = |x: u32, y: u32| shown.picture.rgba[((y * shown.picture.side + x) * 4) as usize];
+            let at =
+                |x: u32, y: u32| shown.picture.rgba[((y * shown.picture.side + x) * 4) as usize];
             at(8, 8) > 128 && at(24, 24) < 128
         };
         scanner.frame(&frame, 40, 40, std::time::Instant::now());
         let (serial, first) = next_picture(&mut pictures, 0).expect("no first picture");
-        assert!(bright_is_top_left(&first), "turn 0 did not leave the bright quarter at the top left");
+        assert!(
+            bright_is_top_left(&first),
+            "turn 0 did not leave the bright quarter at the top left"
+        );
         // The phone is turned: the next frame is shown turned, and not as the first was.
         turns.store(2, Ordering::SeqCst);
-        scanner.frame(&frame, 40, 40, std::time::Instant::now() + std::time::Duration::from_secs(1));
+        scanner.frame(
+            &frame,
+            40,
+            40,
+            std::time::Instant::now() + std::time::Duration::from_secs(1),
+        );
         let (_, second) = next_picture(&mut pictures, serial).expect("no second picture");
-        assert!(!bright_is_top_left(&second), "the turn changed to 2 and the picture was not turned");
+        assert!(
+            !bright_is_top_left(&second),
+            "the turn changed to 2 and the picture was not turned"
+        );
     }
 
     #[test]
@@ -2020,19 +2479,33 @@ mod tests {
         let (first, _) = next_picture(&mut pictures, 0).expect("no picture for the first frame");
         // Nothing new for a good while: the picture the reader holds is the same one, not made again.
         std::thread::sleep(std::time::Duration::from_millis(80));
-        assert_eq!(pictures.borrow().as_ref().map(|shown| shown.serial), Some(first), "a picture was made without a new frame");
+        assert_eq!(
+            pictures.borrow().as_ref().map(|shown| shown.serial),
+            Some(first),
+            "a picture was made without a new frame"
+        );
         // Several frames come before the reader looks: it finds the newest, and not a queue of them.
         for step in 1..=5 {
-            scanner.frame(&vec![100; 32 * 32], 32, 32, start + std::time::Duration::from_millis(200 * step));
+            scanner.frame(
+                &vec![100; 32 * 32],
+                32,
+                32,
+                start + std::time::Duration::from_millis(200 * step),
+            );
         }
         let latest = scanner.view_after(0).unwrap().serial;
         let (serial, _) = next_picture(&mut pictures, first).expect("no newer picture");
         let _ = serial;
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while pictures.borrow().as_ref().map(|shown| shown.serial) != Some(latest) && std::time::Instant::now() < until {
+        while pictures.borrow().as_ref().map(|shown| shown.serial) != Some(latest)
+            && std::time::Instant::now() < until
+        {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert_eq!(pictures.borrow().as_ref().map(|shown| shown.serial), Some(latest));
+        assert_eq!(
+            pictures.borrow().as_ref().map(|shown| shown.serial),
+            Some(latest)
+        );
     }
 
     /// The two tests of the deadline helper count and wait on threads of one name, so they take this one at a time.
@@ -2040,26 +2513,49 @@ mod tests {
 
     #[test]
     fn a_deadline_is_told_after_its_time_and_not_before() {
-        let _one_at_a_time = DEADLINES.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let _one_at_a_time = DEADLINES
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         let started = std::time::Instant::now();
-        let mut told = after(std::time::Duration::from_millis(150), std::time::Duration::from_millis(10));
-        assert!(matches!(told.try_recv(), Err(tokio::sync::oneshot::error::TryRecvError::Empty)), "told before its time");
+        let mut told = after(
+            std::time::Duration::from_millis(150),
+            std::time::Duration::from_millis(10),
+        );
+        assert!(
+            matches!(
+                told.try_recv(),
+                Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+            ),
+            "told before its time"
+        );
         let until = started + std::time::Duration::from_secs(5);
         let answer = loop {
             match told.try_recv() {
-                Err(tokio::sync::oneshot::error::TryRecvError::Empty) if std::time::Instant::now() < until => {
+                Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+                    if std::time::Instant::now() < until =>
+                {
                     std::thread::sleep(std::time::Duration::from_millis(5));
                 }
                 other => break other,
             }
         };
-        assert_eq!(answer, Ok(()), "the deadline passed and the interface was not told");
-        assert!(started.elapsed() >= std::time::Duration::from_millis(150), "told {:?} after the start, before its time", started.elapsed());
+        assert_eq!(
+            answer,
+            Ok(()),
+            "the deadline passed and the interface was not told"
+        );
+        assert!(
+            started.elapsed() >= std::time::Duration::from_millis(150),
+            "told {:?} after the start, before its time",
+            started.elapsed()
+        );
     }
 
     /// The loop the circle runs while a finger is held, driven by the real clock thread and the real model, as the page does it: the receiver is
     /// listened to, the touch is ticked on each change, and the send is said once.
-    async fn held_circle(lift_after: Option<std::time::Duration>) -> (Vec<crate::view::CircleAct>, std::time::Duration) {
+    async fn held_circle(
+        lift_after: Option<std::time::Duration>,
+    ) -> (Vec<crate::view::CircleAct>, std::time::Duration) {
         use crate::view::{CircleAct, CircleDoes, CircleTouch};
         let start = std::time::Instant::now();
         let now_ms = move || u64::try_from(start.elapsed().as_millis()).unwrap_or(u64::MAX);
@@ -2070,8 +2566,12 @@ mod tests {
         let mut sent_at = std::time::Duration::ZERO;
         let limit = lift_after.unwrap_or(std::time::Duration::from_secs(4));
         while start.elapsed() < limit {
-            let left = limit.saturating_sub(start.elapsed()).max(std::time::Duration::from_millis(1));
-            let Ok(Ok(())) = tokio::time::timeout(left, receiver.changed()).await else { break };
+            let left = limit
+                .saturating_sub(start.elapsed())
+                .max(std::time::Duration::from_millis(1));
+            let Ok(Ok(())) = tokio::time::timeout(left, receiver.changed()).await else {
+                break;
+            };
             let now = *receiver.borrow_and_update();
             // A resting finger is heard of on every tick (it trembles, and the toolkit says so): the page renews its life on each sign.
             touch.seen(now);
@@ -2092,23 +2592,41 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn a_finger_held_on_the_circle_sends_once_through_the_real_clock_at_about_the_confirmation_time() {
+    async fn a_finger_held_on_the_circle_sends_once_through_the_real_clock_at_about_the_confirmation_time()
+     {
         let (acts, at) = held_circle(None).await;
-        assert_eq!(acts, [crate::view::CircleAct::Send], "the held circle did not send exactly once");
+        assert_eq!(
+            acts,
+            [crate::view::CircleAct::Send],
+            "the held circle did not send exactly once"
+        );
         let confirm = std::time::Duration::from_millis(crate::view::CONFIRM_MS);
-        assert!(at >= confirm, "it sent before the confirmation time: {at:?}");
-        assert!(at < confirm + std::time::Duration::from_millis(400), "it took far longer than the confirmation time: {at:?}");
+        assert!(
+            at >= confirm,
+            "it sent before the confirmation time: {at:?}"
+        );
+        assert!(
+            at < confirm + std::time::Duration::from_millis(400),
+            "it took far longer than the confirmation time: {at:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn a_finger_lifted_before_the_circle_is_full_sends_nothing_through_the_real_clock() {
-        let (acts, _) = held_circle(Some(std::time::Duration::from_millis(crate::view::CONFIRM_MS / 2))).await;
-        assert!(acts.is_empty(), "a lift before the circle was full sent: {acts:?}");
+        let (acts, _) = held_circle(Some(std::time::Duration::from_millis(
+            crate::view::CONFIRM_MS / 2,
+        )))
+        .await;
+        assert!(
+            acts.is_empty(),
+            "a lift before the circle was full sent: {acts:?}"
+        );
     }
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn a_clock_nobody_listens_to_any_more_ends_its_thread_so_a_circle_nobody_touches_has_no_timer() {
+    fn a_clock_nobody_listens_to_any_more_ends_its_thread_so_a_circle_nobody_touches_has_no_timer()
+    {
         // How many threads of this process are named "clock".
         let named = || {
             std::fs::read_dir("/proc/self/task")
@@ -2124,14 +2642,20 @@ mod tests {
         while named() <= before && std::time::Instant::now() < until {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(named() > before, "the thread never started, so this test proves nothing");
+        assert!(
+            named() > before,
+            "the thread never started, so this test proves nothing"
+        );
         // The finger is lifted: the one receiver is dropped, and nothing else may hold the channel open.
         drop(listening);
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while named() > before && std::time::Instant::now() < until {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(named() <= before, "the clock went on running after nobody listened to it");
+        assert!(
+            named() <= before,
+            "the clock went on running after nobody listened to it"
+        );
     }
 
     #[cfg(target_os = "linux")]
@@ -2146,45 +2670,71 @@ mod tests {
                 .count()
         };
         let before = named();
-        let told = after(std::time::Duration::from_secs(3600), std::time::Duration::from_millis(10));
+        let told = after(
+            std::time::Duration::from_secs(3600),
+            std::time::Duration::from_millis(10),
+        );
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while named() <= before && std::time::Instant::now() < until {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(named() > before, "the thread never started, so this test proves nothing");
+        assert!(
+            named() > before,
+            "the thread never started, so this test proves nothing"
+        );
         // What a replaced code or a page that was left does.
         drop(told);
         let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while named() > before && std::time::Instant::now() < until {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
-        assert!(named() <= before, "the thread went on sleeping toward an hour after nobody waited for it");
+        assert!(
+            named() <= before,
+            "the thread went on sleeping toward an hour after nobody waited for it"
+        );
     }
 
     async fn start_test_owner(
-        root: &Path, name: &str, held: peersus_net::held::Held,
+        root: &Path,
+        name: &str,
+        held: peersus_net::held::Held,
     ) -> (Client, tokio::task::JoinHandle<()>) {
         use peersus_core::{Settings, config::NetworkSettings};
-        use peersus_net::{grants::StandaloneGrants, history::History, network_host::NetworkHost, peers::Peers, settings::SettingsStore, transport};
+        use peersus_net::{
+            grants::StandaloneGrants, history::History, network_host::NetworkHost, peers::Peers,
+            settings::SettingsStore, transport,
+        };
         let root = root.join(name);
         std::fs::create_dir_all(&root).unwrap();
         let settings = Settings {
-            network: NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false },
+            network: NetworkSettings {
+                bind: Some("127.0.0.1".parse().unwrap()),
+                allow_relay: false,
+                ..NetworkSettings::default()
+            },
             device_name: name.to_owned(),
             ..Settings::default()
         };
         let mut store = SettingsStore::open(root.join("preferences.json")).unwrap();
         store.replace(settings.clone()).unwrap();
-        let endpoint = transport::bind(iroh::SecretKey::generate(), &settings.network).await.unwrap();
+        let endpoint = transport::bind(iroh::SecretKey::generate(), &settings.network)
+            .await
+            .unwrap();
         let network = NetworkHost::new(
-            endpoint, settings.device_name, Peers::open(root.join("peers.json")).unwrap(),
+            endpoint,
+            settings.device_name,
+            Peers::open(root.join("peers.json")).unwrap(),
             History::open(root.join("history.json")).unwrap(),
         );
         let sockets = tempfile::tempdir().unwrap();
         let (owner, client) = peersus_app::runtime::Runtime::new(
-            network, StandaloneGrants::open(root.join("grants.json")).unwrap(),
-            store, Default::default(), sockets.path().to_path_buf(),
-        ).unwrap();
+            network,
+            StandaloneGrants::open(root.join("grants.json")).unwrap(),
+            store,
+            Default::default(),
+            sockets.path().to_path_buf(),
+        )
+        .unwrap();
         let task = tokio::spawn(async move {
             owner.with_held(held).run().await;
             drop(sockets);
@@ -2200,20 +2750,36 @@ mod tests {
             loop {
                 let snapshot = client.snapshot();
                 for transfer in &snapshot.transfers {
-                    assert!(!matches!(transfer.state, TransferState::Failed { .. } | TransferState::Cancelled));
-                    if transfer.incoming && transfer.state == TransferState::Offered && accepted.insert(transfer.id.clone()) {
-                        client.command(Command::AcceptTransfer {
-                            transfer: transfer.id.clone(), directory: directory.to_path_buf(),
-                        }).await.unwrap();
+                    assert!(!matches!(
+                        transfer.state,
+                        TransferState::Failed { .. } | TransferState::Cancelled
+                    ));
+                    if transfer.incoming
+                        && transfer.state == TransferState::Offered
+                        && accepted.insert(transfer.id.clone())
+                    {
+                        client
+                            .command(Command::AcceptTransfer {
+                                transfer: transfer.id.clone(),
+                                directory: directory.to_path_buf(),
+                            })
+                            .await
+                            .unwrap();
                     }
                 }
                 if snapshot.transfers.len() == expected
-                    && snapshot.transfers.iter().all(|transfer| transfer.state == TransferState::Complete) {
+                    && snapshot
+                        .transfers
+                        .iter()
+                        .all(|transfer| transfer.state == TransferState::Complete)
+                {
                     break;
                 }
                 changes.changed().await.unwrap();
             }
-        }).await.expect("the producer did not deliver the complete selection");
+        })
+        .await
+        .expect("the producer did not deliver the complete selection");
     }
 
     #[tokio::test(flavor = "multi_thread")]
@@ -2223,20 +2789,35 @@ mod tests {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         let (sender, sender_task) = start_test_owner(root.path(), "sender", held.clone()).await;
-        let (receiver, receiver_task) = start_test_owner(root.path(), "receiver", Default::default()).await;
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let (receiver, receiver_task) =
+            start_test_owner(root.path(), "receiver", Default::default()).await;
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         picked.opened_streaming();
         let generation = picked.generation();
         picked.selected_for(generation, 80);
         let production = link.code_picked(await_picked(
-            picked.clone(), std::time::Duration::from_millis(1), std::time::Duration::from_secs(20),
+            picked.clone(),
+            std::time::Duration::from_millis(1),
+            std::time::Duration::from_secs(20),
         ));
         let code = tokio::time::timeout(std::time::Duration::from_secs(5), production.ready)
-            .await.unwrap().unwrap().unwrap().expect("no code before descriptors");
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap()
+            .expect("no code before descriptors");
         assert_eq!(code.total, 80);
         assert!(sender.snapshot().transfers.is_empty());
         assert!(sender.snapshot().files_code.unwrap().pending);
-        receiver.command(Command::JoinInvitation { invitation: code.code }).await.unwrap();
+        receiver
+            .command(Command::JoinInvitation {
+                invitation: code.code,
+            })
+            .await
+            .unwrap();
         // Losing the window and its completion observer must not cancel the producer.
         drop(link);
         let destination = tempfile::tempdir().unwrap();
@@ -2248,14 +2829,23 @@ mod tests {
                 picked.file_for(generation, file, format!("selected-{index:02}.bin"));
             }
             collect_test_files(&receiver, destination.path(), offset + 8).await;
-            assert!(held.is_empty(), "an acknowledged batch retained picker descriptors");
-            assert!(sender.snapshot().files_code.unwrap().pending, "completed early batches ended the selection");
+            assert!(
+                held.is_empty(),
+                "an acknowledged batch retained picker descriptors"
+            );
+            assert!(
+                sender.snapshot().files_code.unwrap().pending,
+                "completed early batches ended the selection"
+            );
         }
         picked.finished_for(generation);
         assert_eq!(production.finished.await.unwrap(), 0);
         assert!(sender.snapshot().peers.is_empty() && receiver.snapshot().peers.is_empty());
         for index in 0..80 {
-            assert_eq!(std::fs::read(destination.path().join(format!("selected-{index:02}.bin"))).unwrap(), [index as u8; 29]);
+            assert_eq!(
+                std::fs::read(destination.path().join(format!("selected-{index:02}.bin"))).unwrap(),
+                [index as u8; 29]
+            );
         }
         sender.command(Command::Shutdown {}).await.unwrap();
         receiver.command(Command::Shutdown {}).await.unwrap();
@@ -2266,25 +2856,40 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn one_desktop_code_delivers_eighty_paths_after_its_window_observers_are_dropped() {
         let root = tempfile::tempdir().unwrap();
-        let (sender, sender_task) = start_test_owner(root.path(), "sender", Default::default()).await;
-        let (receiver, receiver_task) = start_test_owner(root.path(), "receiver", Default::default()).await;
-        let paths = (0..80).map(|index| {
-            let path = root.path().join(format!("selected-{index:02}.bin"));
-            std::fs::write(&path, [index as u8; 29]).unwrap();
-            path
-        }).collect();
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let (sender, sender_task) =
+            start_test_owner(root.path(), "sender", Default::default()).await;
+        let (receiver, receiver_task) =
+            start_test_owner(root.path(), "receiver", Default::default()).await;
+        let paths = (0..80)
+            .map(|index| {
+                let path = root.path().join(format!("selected-{index:02}.bin"));
+                std::fs::write(&path, [index as u8; 29]).unwrap();
+                path
+            })
+            .collect();
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         let production = link.code_paths(paths);
         let code = production.ready.await.unwrap().unwrap().unwrap();
         assert_eq!(code.total, 80);
         drop(production.finished);
         drop(link);
-        receiver.command(Command::JoinInvitation { invitation: code.code }).await.unwrap();
+        receiver
+            .command(Command::JoinInvitation {
+                invitation: code.code,
+            })
+            .await
+            .unwrap();
         let destination = tempfile::tempdir().unwrap();
         collect_test_files(&receiver, destination.path(), 80).await;
         assert!(sender.snapshot().peers.is_empty() && receiver.snapshot().peers.is_empty());
         for index in 0..80 {
-            assert_eq!(std::fs::read(destination.path().join(format!("selected-{index:02}.bin"))).unwrap(), [index as u8; 29]);
+            assert_eq!(
+                std::fs::read(destination.path().join(format!("selected-{index:02}.bin"))).unwrap(),
+                [index as u8; 29]
+            );
         }
         sender.command(Command::Shutdown {}).await.unwrap();
         receiver.command(Command::Shutdown {}).await.unwrap();
@@ -2293,14 +2898,19 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn gathered_files_that_were_only_listed_are_delivered_whole_behind_a_code_and_leave_nothing_open() {
+    async fn gathered_files_that_were_only_listed_are_delivered_whole_behind_a_code_and_leave_nothing_open()
+     {
         use std::io::{Seek, Write};
         let root = tempfile::tempdir().unwrap();
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         let (sender, sender_task) = start_test_owner(root.path(), "sender", held.clone()).await;
-        let (receiver, receiver_task) = start_test_owner(root.path(), "receiver", Default::default()).await;
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let (receiver, receiver_task) =
+            start_test_owner(root.path(), "receiver", Default::default()).await;
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         // A selection that was chosen, only LISTED: its files are held by number, nothing was sent and no code was made.
         picked.opened_streaming();
         let generation = picked.generation();
@@ -2315,19 +2925,41 @@ mod tests {
         let mut gathered = Gathered::new(picked.clone());
         gathered.add(picked.take_for(generation).files);
         assert_eq!(held.len(), 3, "listing the files did not hold them");
-        assert!(sender.snapshot().transfers.is_empty() && sender.snapshot().files_code.is_none(), "listing started something");
+        assert!(
+            sender.snapshot().transfers.is_empty() && sender.snapshot().files_code.is_none(),
+            "listing started something"
+        );
         // Confirmed: behind a code, to no device. One hand-over.
         let (production, answer) = link.send_gathered(Vec::new(), true, gathered);
-        let code = tokio::time::timeout(std::time::Duration::from_secs(5), production.expect("a code was asked for").ready)
-            .await.unwrap().unwrap().unwrap().expect("no code");
+        let code = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            production.expect("a code was asked for").ready,
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap()
+        .expect("no code");
         assert_eq!(code.total, 3);
-        receiver.command(Command::JoinInvitation { invitation: code.code }).await.unwrap();
+        receiver
+            .command(Command::JoinInvitation {
+                invitation: code.code,
+            })
+            .await
+            .unwrap();
         let destination = tempfile::tempdir().unwrap();
         collect_test_files(&receiver, destination.path(), 3).await;
-        assert_eq!(answer.await.unwrap().refused, 0, "files were counted as not handed over");
+        assert_eq!(
+            answer.await.unwrap().refused,
+            0,
+            "files were counted as not handed over"
+        );
         assert!(held.is_empty(), "files that were handed over stayed open");
         for index in 0..3u8 {
-            assert_eq!(std::fs::read(destination.path().join(format!("listed-{index}.bin"))).unwrap(), [index; 31]);
+            assert_eq!(
+                std::fs::read(destination.path().join(format!("listed-{index}.bin"))).unwrap(),
+                [index; 31]
+            );
         }
         sender.command(Command::Shutdown {}).await.unwrap();
         receiver.command(Command::Shutdown {}).await.unwrap();
@@ -2347,7 +2979,10 @@ mod tests {
         gathered.add(picked.take_for(generation).files);
         let files = gathered.take_files();
         assert_eq!(files.len(), 1);
-        assert!(gathered.files().is_none(), "the guard still held what it had given away");
+        assert!(
+            gathered.files().is_none(),
+            "the guard still held what it had given away"
+        );
         drop(gathered);
         // The files are the caller's now: ending the guard must not close them.
         assert_eq!(held.len(), 1, "the guard let go of files it had given away");
@@ -2356,7 +2991,13 @@ mod tests {
     }
 
     /// A guard with `names` held in a real registry, as a selection that was only listed.
-    fn listed(names: &[&str]) -> (peersus_net::held::Held, peersus_net::picked::Picked, Gathered) {
+    fn listed(
+        names: &[&str],
+    ) -> (
+        peersus_net::held::Held,
+        peersus_net::picked::Picked,
+        Gathered,
+    ) {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         picked.opened_streaming();
@@ -2371,12 +3012,21 @@ mod tests {
     }
 
     #[test]
-    fn taking_one_listed_file_away_lets_go_of_that_one_in_the_registry_and_keeps_the_rest_in_order() {
+    fn taking_one_listed_file_away_lets_go_of_that_one_in_the_registry_and_keeps_the_rest_in_order()
+    {
         let (held, _picked, mut gathered) = listed(&["a.bin", "b.bin", "c.bin"]);
         assert_eq!(held.len(), 3);
         assert!(gathered.remove(1));
-        assert_eq!(gathered.names(), ["a.bin", "c.bin"], "the wrong file was taken away or the order changed");
-        assert_eq!(held.len(), 2, "the file taken away stayed open in the registry");
+        assert_eq!(
+            gathered.names(),
+            ["a.bin", "c.bin"],
+            "the wrong file was taken away or the order changed"
+        );
+        assert_eq!(
+            held.len(),
+            2,
+            "the file taken away stayed open in the registry"
+        );
     }
 
     #[test]
@@ -2388,11 +3038,15 @@ mod tests {
     }
 
     #[test]
-    fn clearing_lets_go_of_every_listed_file_once_and_the_guard_ending_afterwards_lets_go_of_nothing_more() {
+    fn clearing_lets_go_of_every_listed_file_once_and_the_guard_ending_afterwards_lets_go_of_nothing_more()
+     {
         let (held, _picked, mut gathered) = listed(&["a.bin", "b.bin", "c.bin"]);
         gathered.clear();
         assert!(gathered.files().is_none());
-        assert!(held.is_empty(), "a file stayed open after the list was cleared");
+        assert!(
+            held.is_empty(),
+            "a file stayed open after the list was cleared"
+        );
         // Ending the guard now must not let go again of numbers that are already gone.
         drop(gathered);
         assert!(held.is_empty());
@@ -2426,7 +3080,11 @@ mod tests {
         let second = second_selection(&held, &["c.bin"]);
         assert_eq!(held.len(), 3);
         first.absorb(second);
-        assert_eq!(first.names(), ["a.bin", "b.bin", "c.bin"], "the new file did not come after the ones that were there");
+        assert_eq!(
+            first.names(),
+            ["a.bin", "b.bin", "c.bin"],
+            "the new file did not come after the ones that were there"
+        );
         assert_eq!(held.len(), 3, "adding let go of a file or held one twice");
         // Ending the guard lets every file go, once.
         drop(first);
@@ -2457,21 +3115,40 @@ mod tests {
                         }
                         changes.changed().await.unwrap();
                     }
-                }).await.expect("no pairing prompt in time")
+                })
+                .await
+                .expect("no pairing prompt in time")
             }
         };
-        let Reply::Invitation(invitation) = a.command(Command::CreateInvitation {}).await.unwrap() else { panic!("no invitation") };
-        b.command(Command::JoinInvitation { invitation }).await.unwrap();
+        let Reply::Invitation(invitation) = a.command(Command::CreateInvitation {}).await.unwrap()
+        else {
+            panic!("no invitation")
+        };
+        b.command(Command::JoinInvitation { invitation })
+            .await
+            .unwrap();
         let (prompt_a, prompt_b) = (wait(a).await, wait(b).await);
-        a.command(Command::ChoosePairing { request: prompt_a.id.clone(), number: prompt_a.options[0] }).await.unwrap();
-        b.command(Command::ChoosePairing { request: prompt_b.id.clone(), number: prompt_a.options[0] }).await.unwrap();
+        a.command(Command::ChoosePairing {
+            request: prompt_a.id.clone(),
+            number: prompt_a.options[0],
+        })
+        .await
+        .unwrap();
+        b.command(Command::ChoosePairing {
+            request: prompt_b.id.clone(),
+            number: prompt_a.options[0],
+        })
+        .await
+        .unwrap();
         for client in [a, b] {
             let mut changes = client.subscribe();
             tokio::time::timeout(std::time::Duration::from_secs(20), async {
                 while !client.snapshot().peers.iter().any(|peer| peer.online) {
                     changes.changed().await.unwrap();
                 }
-            }).await.expect("the pairing did not come online");
+            })
+            .await
+            .expect("the pairing did not come online");
         }
     }
 
@@ -2482,11 +3159,23 @@ mod tests {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         let (sender, sender_task) = start_test_owner(root.path(), "sender", held.clone()).await;
-        let (friend, friend_task) = start_test_owner(root.path(), "friend", Default::default()).await;
-        let (stranger, stranger_task) = start_test_owner(root.path(), "stranger", Default::default()).await;
+        let (friend, friend_task) =
+            start_test_owner(root.path(), "friend", Default::default()).await;
+        let (stranger, stranger_task) =
+            start_test_owner(root.path(), "stranger", Default::default()).await;
         pair_test_owners(&sender, &friend).await;
-        let friend_id = sender.snapshot().peers.iter().find(|peer| peer.online).unwrap().id.clone();
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let friend_id = sender
+            .snapshot()
+            .peers
+            .iter()
+            .find(|peer| peer.online)
+            .unwrap()
+            .id
+            .clone();
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         picked.opened_streaming();
         let generation = picked.generation();
         picked.selected_for(generation, 4);
@@ -2501,10 +3190,22 @@ mod tests {
         gathered.add(picked.take_for(generation).files);
         // The device and the code TOGETHER: the first destination is given the held files, the second a set of its own.
         let (production, answer) = link.send_gathered(vec![friend_id], true, gathered);
-        let code = tokio::time::timeout(std::time::Duration::from_secs(5), production.expect("a code was asked for").ready)
-            .await.unwrap().unwrap().unwrap().expect("no code");
+        let code = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            production.expect("a code was asked for").ready,
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap()
+        .expect("no code");
         assert_eq!(code.total, 4);
-        stranger.command(Command::JoinInvitation { invitation: code.code }).await.unwrap();
+        stranger
+            .command(Command::JoinInvitation {
+                invitation: code.code,
+            })
+            .await
+            .unwrap();
         let (by_device, by_code) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
         collect_test_files(&friend, by_device.path(), 4).await;
         collect_test_files(&stranger, by_code.path(), 4).await;
@@ -2512,18 +3213,38 @@ mod tests {
         assert_eq!(sent.refused, 0, "a destination was not handed every file");
         // The owner named the transfers it made for the DEVICE (the code's come later, when it is scanned): exactly the four files, each one a real
         // transfer of the sender's record, outgoing, and none of them invented.
-        assert_eq!(sent.transfers.len(), 4, "the owner's answer did not name every transfer it made for the device: {:?}", sent.transfers);
+        assert_eq!(
+            sent.transfers.len(),
+            4,
+            "the owner's answer did not name every transfer it made for the device: {:?}",
+            sent.transfers
+        );
         let record = sender.snapshot().transfers.clone();
         for id in &sent.transfers {
-            assert!(record.iter().any(|transfer| transfer.id == *id && !transfer.incoming), "an id the owner named is not a transfer of the record: {id}");
+            assert!(
+                record
+                    .iter()
+                    .any(|transfer| transfer.id == *id && !transfer.incoming),
+                "an id the owner named is not a transfer of the record: {id}"
+            );
         }
-        assert!(held.is_empty(), "files stayed open after both destinations were given theirs");
+        assert!(
+            held.is_empty(),
+            "files stayed open after both destinations were given theirs"
+        );
         for index in 0..4u8 {
             for directory in [by_device.path(), by_code.path()] {
-                assert_eq!(std::fs::read(directory.join(format!("both-{index}.bin"))).unwrap(), [index + 1; 37]);
+                assert_eq!(
+                    std::fs::read(directory.join(format!("both-{index}.bin"))).unwrap(),
+                    [index + 1; 37]
+                );
             }
         }
-        for (client, task) in [(sender, sender_task), (friend, friend_task), (stranger, stranger_task)] {
+        for (client, task) in [
+            (sender, sender_task),
+            (friend, friend_task),
+            (stranger, stranger_task),
+        ] {
             client.command(Command::Shutdown {}).await.unwrap();
             task.await.unwrap();
         }
@@ -2532,11 +3253,23 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn a_desktop_send_names_exactly_the_transfers_the_owner_made_one_per_file() {
         let root = tempfile::tempdir().unwrap();
-        let (sender, sender_task) = start_test_owner(root.path(), "sender", Default::default()).await;
-        let (friend, friend_task) = start_test_owner(root.path(), "friend", Default::default()).await;
+        let (sender, sender_task) =
+            start_test_owner(root.path(), "sender", Default::default()).await;
+        let (friend, friend_task) =
+            start_test_owner(root.path(), "friend", Default::default()).await;
         pair_test_owners(&sender, &friend).await;
-        let friend_id = sender.snapshot().peers.iter().find(|peer| peer.online).unwrap().id.clone();
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let friend_id = sender
+            .snapshot()
+            .peers
+            .iter()
+            .find(|peer| peer.online)
+            .unwrap()
+            .id
+            .clone();
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         let files = tempfile::tempdir().unwrap();
         let paths: Vec<std::path::PathBuf> = (0..2u8)
             .map(|n| {
@@ -2545,14 +3278,33 @@ mod tests {
                 path
             })
             .collect();
-        let sent = tokio::time::timeout(std::time::Duration::from_secs(10), link.send_paths(vec![friend_id], paths))
-            .await.unwrap().unwrap();
+        let sent = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            link.send_paths(vec![friend_id], paths),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         assert_eq!(sent.refused, 0);
-        assert_eq!(sent.transfers.len(), 2, "the owner did not name one transfer per file: {:?}", sent.transfers);
+        assert_eq!(
+            sent.transfers.len(),
+            2,
+            "the owner did not name one transfer per file: {:?}",
+            sent.transfers
+        );
         // The batch built from what the owner named is exactly those two files, each from the sender's own record.
-        let record: Vec<crate::view::Progress> = sender.snapshot().transfers.iter().map(crate::view::progress).collect();
+        let record: Vec<crate::view::Progress> = sender
+            .snapshot()
+            .transfers
+            .iter()
+            .map(crate::view::progress)
+            .collect();
         let batch = crate::view::batch_of(&record, &sent.transfers, None);
-        assert_eq!(batch.len(), 2, "the batch was not exactly what the owner named: {batch:?}");
+        assert_eq!(
+            batch.len(),
+            2,
+            "the batch was not exactly what the owner named: {batch:?}"
+        );
         let mut names: Vec<&str> = batch.iter().map(|item| item.name.as_str()).collect();
         names.sort_unstable();
         assert_eq!(names, ["one-0.bin", "one-1.bin"]);
@@ -2568,17 +3320,38 @@ mod tests {
         let held = peersus_net::held::Held::default();
         let picked = peersus_net::picked::Picked::new(held.clone());
         let (sender, sender_task) = start_test_owner(root.path(), "sender", held.clone()).await;
-        let (friend, friend_task) = start_test_owner(root.path(), "friend", Default::default()).await;
+        let (friend, friend_task) =
+            start_test_owner(root.path(), "friend", Default::default()).await;
         pair_test_owners(&sender, &friend).await;
-        let friend_id = sender.snapshot().peers.iter().find(|peer| peer.online).unwrap().id.clone();
-        let link = Link { client: sender.clone(), executor: tokio::runtime::Handle::current() };
+        let friend_id = sender
+            .snapshot()
+            .peers
+            .iter()
+            .find(|peer| peer.online)
+            .unwrap()
+            .id
+            .clone();
+        let link = Link {
+            client: sender.clone(),
+            executor: tokio::runtime::Handle::current(),
+        };
         // An empty selection is a code the owner refuses (there is nothing to offer behind it): the one way the code fails with a live owner.
         let (production, answer) = link.send_gathered(vec![friend_id], true, Gathered::new(picked));
         let production = production.expect("a code was asked for");
-        assert!(production.ready.await.unwrap().is_err(), "a code for nothing was made");
+        assert!(
+            production.ready.await.unwrap().is_err(),
+            "a code for nothing was made"
+        );
         assert_eq!(production.finished.await.unwrap(), 0);
-        assert_eq!(tokio::time::timeout(std::time::Duration::from_secs(5), answer).await.unwrap().unwrap().refused, 0,
-            "the failed code stopped the hand-over to the device");
+        assert_eq!(
+            tokio::time::timeout(std::time::Duration::from_secs(5), answer)
+                .await
+                .unwrap()
+                .unwrap()
+                .refused,
+            0,
+            "the failed code stopped the hand-over to the device"
+        );
         assert!(held.is_empty());
         for (client, task) in [(sender, sender_task), (friend, friend_task)] {
             client.command(Command::Shutdown {}).await.unwrap();

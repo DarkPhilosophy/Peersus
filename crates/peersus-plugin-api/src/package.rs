@@ -112,10 +112,16 @@ pub fn public_link(value: &str) -> bool {
     if value.len() > 2_048 || value.chars().any(|c| c.is_control() || c.is_whitespace()) {
         return false;
     }
-    let Ok(link) = url::Url::parse(value) else { return false };
-    link.scheme() == "https" && link.host_str().is_some()
-        && link.username().is_empty() && link.password().is_none()
-        && link.port().is_none() && link.query().is_none() && link.fragment().is_none()
+    let Ok(link) = url::Url::parse(value) else {
+        return false;
+    };
+    link.scheme() == "https"
+        && link.host_str().is_some()
+        && link.username().is_empty()
+        && link.password().is_none()
+        && link.port().is_none()
+        && link.query().is_none()
+        && link.fragment().is_none()
 }
 
 /// The result of reading a manifest file that may carry package metadata.

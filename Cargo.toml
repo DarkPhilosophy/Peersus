@@ -17,7 +17,6 @@ peersus-core = { path = "crates/peersus-core" }
 peersus-plugin-host = { path = "crates/peersus-plugin-host" }
 peersus-plugin-runtime = { path = "crates/peersus-plugin-runtime" }
 peersus-net = { path = "crates/peersus-net" }
-peersus-store-fetch = { path = "crates/peersus-store-fetch" }
 peersus-ui = { path = "crates/peersus-ui" }
 peersus-clipboard = { path = "crates/peersus-clipboard", default-features = false }
 # The Android entry's parts. `winit` is the version freya-android is built against, with its default features
@@ -43,6 +42,7 @@ iroh = "1.4.1"
 iroh-base = "1.4.1"
 data-encoding = "2.11.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net", "signal"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tempfile = "3"
 # Reads a plugin package given as one .tar.gz (or plain .tar) file. No `xattr`: extended
 # attributes of an archive entry are never applied to anything here. The inflater is `flate2`,

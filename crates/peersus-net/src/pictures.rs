@@ -42,7 +42,10 @@ pub struct Pictures {
 impl Pictures {
     /// The pictures kept under `directory`. Nothing is created until something is stored.
     pub fn new(directory: &Path) -> Self {
-        Self { own: directory.join("profile-picture.json"), received: directory.join("device-pictures") }
+        Self {
+            own: directory.join("profile-picture.json"),
+            received: directory.join("device-pictures"),
+        }
     }
 
     /// This device's own picture, or `None` when it has none. A file that is there but is not a valid
@@ -53,7 +56,10 @@ impl Pictures {
 
     /// Make `picture` this device's own.
     pub fn set_own(&self, picture: &Picture) -> io::Result<()> {
-        crate::atomic::write(&self.own, &serde_json::to_vec(picture).map_err(|_| invalid())?)
+        crate::atomic::write(
+            &self.own,
+            &serde_json::to_vec(picture).map_err(|_| invalid())?,
+        )
     }
 
     /// Give up this device's own picture. Having none already is not an error.
@@ -66,7 +72,9 @@ impl Pictures {
 
     /// The digest this device announces: its picture's, or the digest of having none.
     pub fn own_digest(&self) -> io::Result<Digest> {
-        Ok(self.own()?.map_or_else(Picture::digest_of_none, |picture| picture.digest()))
+        Ok(self
+            .own()?
+            .map_or_else(Picture::digest_of_none, |picture| picture.digest()))
     }
 
     /// Whether a picture with this digest is already kept: answered by a file name, reading nothing.
@@ -133,7 +141,11 @@ impl Pictures {
         let kept = self.kept()?;
         let extra = kept.len().saturating_sub(MOST_RECEIVED);
         let protected = self.received.join(file_name(keep));
-        for (_, path) in kept.into_iter().filter(|(_, path)| *path != protected).take(extra) {
+        for (_, path) in kept
+            .into_iter()
+            .filter(|(_, path)| *path != protected)
+            .take(extra)
+        {
             let _ = fs::remove_file(path);
         }
         Ok(())
@@ -148,7 +160,8 @@ fn file_name(digest: &Digest) -> String {
 
 /// Whether `name` is exactly what [`file_name`] makes: 64 lowercase digits and `.json`.
 fn is_picture_file(name: &str) -> bool {
-    name.strip_suffix(".json").is_some_and(|stem| stem.parse::<Digest>().is_ok())
+    name.strip_suffix(".json")
+        .is_some_and(|stem| stem.parse::<Digest>().is_ok())
 }
 
 fn invalid() -> io::Error {
@@ -167,7 +180,9 @@ fn read_picture(path: &Path) -> io::Result<Option<Picture>> {
     if bytes.len() as u64 > MAX_FILE {
         return Err(invalid());
     }
-    serde_json::from_slice(&bytes).map(Some).map_err(|_| invalid())
+    serde_json::from_slice(&bytes)
+        .map(Some)
+        .map_err(|_| invalid())
 }
 
 #[cfg(test)]
@@ -175,7 +190,9 @@ mod tests {
     use super::*;
 
     fn picture(seed: u8) -> Picture {
-        let rgba: Vec<u8> = (0..4 * 4 * 4).map(|n| (n as u8).wrapping_add(seed)).collect();
+        let rgba: Vec<u8> = (0..4 * 4 * 4)
+            .map(|n| (n as u8).wrapping_add(seed))
+            .collect();
         Picture::new(4, 4, rgba).unwrap()
     }
 
@@ -210,8 +227,13 @@ mod tests {
     #[test]
     fn the_own_picture_survives_the_program_being_started_again() {
         let directory = tempfile::tempdir().unwrap();
-        Pictures::new(directory.path()).set_own(&picture(7)).unwrap();
-        assert_eq!(Pictures::new(directory.path()).own().unwrap(), Some(picture(7)));
+        Pictures::new(directory.path())
+            .set_own(&picture(7))
+            .unwrap();
+        assert_eq!(
+            Pictures::new(directory.path()).own().unwrap(),
+            Some(picture(7))
+        );
     }
 
     #[test]
@@ -219,9 +241,18 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let pictures = Pictures::new(directory.path());
         pictures.set_own(&picture(3)).unwrap();
-        for damaged in [&b"not json"[..], br#"{"width":2,"height":2,"rgba":"00"}"#, b"", b"{}"] {
+        for damaged in [
+            &b"not json"[..],
+            br#"{"width":2,"height":2,"rgba":"00"}"#,
+            b"",
+            b"{}",
+        ] {
             fs::write(directory.path().join("profile-picture.json"), damaged).unwrap();
-            assert!(pictures.own().is_err(), "{:?} was read as no picture or as a picture", damaged);
+            assert!(
+                pictures.own().is_err(),
+                "{:?} was read as no picture or as a picture",
+                damaged
+            );
         }
     }
 
@@ -243,7 +274,12 @@ mod tests {
         assert_eq!(names, [format!("{digest}.json")]);
         // Keeping it again changes nothing.
         assert_eq!(pictures.keep(&picture(5)).unwrap(), digest);
-        assert_eq!(fs::read_dir(directory.path().join("device-pictures")).unwrap().count(), 1);
+        assert_eq!(
+            fs::read_dir(directory.path().join("device-pictures"))
+                .unwrap()
+                .count(),
+            1
+        );
     }
 
     #[test]
@@ -253,9 +289,16 @@ mod tests {
         let name = picture(8).digest();
         let folder = directory.path().join("device-pictures");
         fs::create_dir_all(&folder).unwrap();
-        fs::write(folder.join(format!("{name}.json")), serde_json::to_vec(&picture(9)).unwrap()).unwrap();
+        fs::write(
+            folder.join(format!("{name}.json")),
+            serde_json::to_vec(&picture(9)).unwrap(),
+        )
+        .unwrap();
         assert!(pictures.has(&name), "it is there by name");
-        assert!(pictures.get(&name).is_err(), "a picture was shown under a digest that is not its own");
+        assert!(
+            pictures.get(&name).is_err(),
+            "a picture was shown under a digest that is not its own"
+        );
     }
 
     #[test]
@@ -267,8 +310,14 @@ mod tests {
         for n in 0..MOST_RECEIVED {
             let p = Picture::new(1, 1, vec![(n % 256) as u8, (n / 256) as u8, 7, 255]).unwrap();
             digests.push(pictures.keep(&p).unwrap());
-            let at = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000 + n as u64);
-            fs::File::options().write(true).open(folder.join(file_name(&digests[n]))).unwrap().set_modified(at).unwrap();
+            let at = std::time::SystemTime::UNIX_EPOCH
+                + std::time::Duration::from_secs(1_000 + n as u64);
+            fs::File::options()
+                .write(true)
+                .open(folder.join(file_name(&digests[n])))
+                .unwrap()
+                .set_modified(at)
+                .unwrap();
         }
         assert_eq!(fs::read_dir(&folder).unwrap().count(), MOST_RECEIVED);
 
@@ -292,8 +341,14 @@ mod tests {
         for n in 0..MOST_RECEIVED {
             let p = Picture::new(1, 1, vec![(n % 256) as u8, (n / 256) as u8, 2, 255]).unwrap();
             let digest = pictures.keep(&p).unwrap();
-            let later = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(5_000 + n as u64);
-            fs::File::options().write(true).open(folder.join(file_name(&digest))).unwrap().set_modified(later).unwrap();
+            let later = std::time::SystemTime::UNIX_EPOCH
+                + std::time::Duration::from_secs(5_000 + n as u64);
+            fs::File::options()
+                .write(true)
+                .open(folder.join(file_name(&digest)))
+                .unwrap()
+                .set_modified(later)
+                .unwrap();
             others.push(digest);
         }
         assert_eq!(fs::read_dir(&folder).unwrap().count(), MOST_RECEIVED);
@@ -301,15 +356,31 @@ mod tests {
         // The picture's file is written, and made older than every other, as one left from long ago is.
         let wanted = Picture::new(1, 1, vec![9, 9, 9, 255]).unwrap();
         let wanted_digest = wanted.digest();
-        fs::write(folder.join(file_name(&wanted_digest)), serde_json::to_vec(&wanted).unwrap()).unwrap();
+        fs::write(
+            folder.join(file_name(&wanted_digest)),
+            serde_json::to_vec(&wanted).unwrap(),
+        )
+        .unwrap();
         let long_ago = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(10);
-        fs::File::options().write(true).open(folder.join(file_name(&wanted_digest))).unwrap().set_modified(long_ago).unwrap();
+        fs::File::options()
+            .write(true)
+            .open(folder.join(file_name(&wanted_digest)))
+            .unwrap()
+            .set_modified(long_ago)
+            .unwrap();
         assert_eq!(fs::read_dir(&folder).unwrap().count(), MOST_RECEIVED + 1);
 
         // Asked for again: it is over the limit, it is the oldest, and it must still be there.
         assert_eq!(pictures.keep(&wanted).unwrap(), wanted_digest);
-        assert!(pictures.has(&wanted_digest), "the picture just asked for was given up");
-        assert_eq!(fs::read_dir(&folder).unwrap().count(), MOST_RECEIVED, "the folder was not brought back to the limit");
+        assert!(
+            pictures.has(&wanted_digest),
+            "the picture just asked for was given up"
+        );
+        assert_eq!(
+            fs::read_dir(&folder).unwrap().count(),
+            MOST_RECEIVED,
+            "the folder was not brought back to the limit"
+        );
         // What went was the oldest of the others.
         assert!(!pictures.has(&others[0]));
     }
@@ -320,16 +391,31 @@ mod tests {
         let folder = directory.path().join("device-pictures");
         fs::create_dir_all(&folder).unwrap();
         // Things that are not picture files: not counted against the limit, and never removed.
-        for name in ["notes.txt", "README", ".hidden", "0123.json", &format!("{}.json", "A".repeat(64))] {
+        for name in [
+            "notes.txt",
+            "README",
+            ".hidden",
+            "0123.json",
+            &format!("{}.json", "A".repeat(64)),
+        ] {
             fs::write(folder.join(name), b"mine").unwrap();
         }
         for n in 0..MOST_RECEIVED + 3 {
-            pictures.keep(&Picture::new(1, 1, vec![(n % 256) as u8, (n / 256) as u8, 1, 255]).unwrap()).unwrap();
+            pictures
+                .keep(&Picture::new(1, 1, vec![(n % 256) as u8, (n / 256) as u8, 1, 255]).unwrap())
+                .unwrap();
         }
         for name in ["notes.txt", "README", ".hidden", "0123.json"] {
-            assert_eq!(fs::read(folder.join(name)).unwrap(), b"mine", "{name} was touched");
+            assert_eq!(
+                fs::read(folder.join(name)).unwrap(),
+                b"mine",
+                "{name} was touched"
+            );
         }
-        assert!(folder.join(format!("{}.json", "A".repeat(64))).exists(), "a name that is not a digest was removed");
+        assert!(
+            folder.join(format!("{}.json", "A".repeat(64))).exists(),
+            "a name that is not a digest was removed"
+        );
     }
 
     #[test]
@@ -358,6 +444,9 @@ mod tests {
         // Exactly at the limit, the same picture is read.
         text.truncate(MAX_FILE as usize);
         fs::write(&path, &text).unwrap();
-        assert!(pictures.own().unwrap().is_some(), "a file at the limit was refused");
+        assert!(
+            pictures.own().unwrap().is_some(),
+            "a file at the limit was refused"
+        );
     }
 }

@@ -93,7 +93,9 @@ fn read_open(file: std::fs::File) -> Result<Vec<u8>, Refused> {
     }
     let mut bytes = Vec::new();
     // One byte past the limit, so a file that grew since it was measured is still seen to be over.
-    file.take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes).map_err(|_| Refused::Unreadable)?;
+    file.take(MAX_FILE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| Refused::Unreadable)?;
     if bytes.len() as u64 > MAX_FILE_BYTES {
         return Err(Refused::FileTooLarge);
     }
@@ -136,14 +138,20 @@ fn holds_jpeg_end(bytes: &[u8]) -> bool {
         while bytes.get(at + 1) == Some(&0xff) {
             at += 1;
         }
-        let Some(&code) = bytes.get(at + 1) else { return false };
+        let Some(&code) = bytes.get(at + 1) else {
+            return false;
+        };
         match code {
             // The start of the compressed data: from here on, the first FF D9 is the end.
             0xda => {
-                let Some(length) = bytes.get(at + 2..at + 4) else { return false };
+                let Some(length) = bytes.get(at + 2..at + 4) else {
+                    return false;
+                };
                 let header = usize::from(u16::from_be_bytes([length[0], length[1]]));
                 let data = at + 2 + header;
-                return bytes.get(data..).is_some_and(|rest| rest.windows(2).any(|pair| pair == [0xff, 0xd9]));
+                return bytes
+                    .get(data..)
+                    .is_some_and(|rest| rest.windows(2).any(|pair| pair == [0xff, 0xd9]));
             }
             // Markers with no length: a restart, a padding zero, or a start marker repeated.
             0x00 | 0x01 | 0xd0..=0xd8 => at += 2,
@@ -151,7 +159,9 @@ fn holds_jpeg_end(bytes: &[u8]) -> bool {
             0xd9 => return false,
             // Every other segment declares its length, which includes the two bytes that say it.
             _ => {
-                let Some(length) = bytes.get(at + 2..at + 4) else { return false };
+                let Some(length) = bytes.get(at + 2..at + 4) else {
+                    return false;
+                };
                 let length = usize::from(u16::from_be_bytes([length[0], length[1]]));
                 // A length below two cannot be a real one, and needs no check of its own: stepping by
                 // it lands on bytes that are not a marker, which the top of this loop refuses.
@@ -181,7 +191,9 @@ pub fn decode(bytes: &[u8]) -> Result<Picture, Refused> {
             .map_err(|_| Refused::Damaged)?;
         decoder.dimensions()
     };
-    let announced = u64::from(width).checked_mul(u64::from(height)).and_then(|p| p.checked_mul(4));
+    let announced = u64::from(width)
+        .checked_mul(u64::from(height))
+        .and_then(|p| p.checked_mul(4));
     if width == 0
         || height == 0
         || width > MAX_DECLARED_EDGE
@@ -195,8 +207,12 @@ pub fn decode(bytes: &[u8]) -> Result<Picture, Refused> {
         _ => Refused::Damaged,
     })?;
     let rgba = image.into_rgba8();
-    avatar::square(&Decoded { width: rgba.width(), height: rgba.height(), rgba: rgba.into_raw() })
-        .ok_or(Refused::Damaged)
+    avatar::square(&Decoded {
+        width: rgba.width(),
+        height: rgba.height(),
+        rgba: rgba.into_raw(),
+    })
+    .ok_or(Refused::Damaged)
 }
 
 #[cfg(test)]
@@ -209,7 +225,9 @@ mod tests {
         let buffer: ImageBuffer<Rgba<u8>, Vec<u8>> =
             ImageBuffer::from_fn(width, height, |x, y| Rgba(paint(x, y)));
         let mut out = Vec::new();
-        buffer.write_to(&mut Cursor::new(&mut out), ImageFormat::Png).unwrap();
+        buffer
+            .write_to(&mut Cursor::new(&mut out), ImageFormat::Png)
+            .unwrap();
         out
     }
 
@@ -226,10 +244,21 @@ mod tests {
 
     #[test]
     fn a_png_becomes_a_profile_picture_of_its_centre_no_larger_than_the_limit() {
-        let wide = png(300, 100, |x, _| if x < 100 { [255, 0, 0, 255] } else if x < 200 { [0, 255, 0, 255] } else { [0, 0, 255, 255] });
+        let wide = png(300, 100, |x, _| {
+            if x < 100 {
+                [255, 0, 0, 255]
+            } else if x < 200 {
+                [0, 255, 0, 255]
+            } else {
+                [0, 0, 255, 255]
+            }
+        });
         let picture = decode(&wide).unwrap();
         assert_eq!((picture.width(), picture.height()), (100, 100));
-        assert!(picture.rgba().chunks(4).all(|p| p == [0, 255, 0, 255]), "not the centre of the picture");
+        assert!(
+            picture.rgba().chunks(4).all(|p| p == [0, 255, 0, 255]),
+            "not the centre of the picture"
+        );
 
         let large = png(2000, 1500, |_, _| [10, 20, 30, 255]);
         let picture = decode(&large).unwrap();
@@ -242,7 +271,10 @@ mod tests {
         assert_eq!((picture.width(), picture.height()), (128, 128));
         let first = &picture.rgba()[..4];
         // JPEG is lossy: the colour is close, and the picture is opaque.
-        assert!(first[0] > 180 && first[1] < 70 && first[2] < 70, "colour was {first:?}");
+        assert!(
+            first[0] > 180 && first[1] < 70 && first[2] < 70,
+            "colour was {first:?}"
+        );
         assert_eq!(first[3], 255);
     }
 
@@ -250,12 +282,21 @@ mod tests {
     fn the_kind_of_file_is_told_by_its_bytes_and_not_by_what_it_is_called() {
         // A PNG, whatever the file is named, is read as one; a text file named .png is not a picture.
         assert!(decode(&png(8, 8, |_, _| [1, 2, 3, 255])).is_ok());
-        assert_eq!(decode(b"this is a text file, not a picture").unwrap_err(), Refused::NotAPicture);
+        assert_eq!(
+            decode(b"this is a text file, not a picture").unwrap_err(),
+            Refused::NotAPicture
+        );
         assert_eq!(decode(b"").unwrap_err(), Refused::NotAPicture);
         assert_eq!(decode(&[0xff, 0xd8]).unwrap_err(), Refused::NotAPicture);
         // Another picture format that a decoder might read is not offered here.
-        assert_eq!(decode(b"GIF89a\x01\x00\x01\x00").unwrap_err(), Refused::NotAPicture);
-        assert_eq!(decode(b"BM\x00\x00\x00\x00").unwrap_err(), Refused::NotAPicture);
+        assert_eq!(
+            decode(b"GIF89a\x01\x00\x01\x00").unwrap_err(),
+            Refused::NotAPicture
+        );
+        assert_eq!(
+            decode(b"BM\x00\x00\x00\x00").unwrap_err(),
+            Refused::NotAPicture
+        );
     }
 
     #[test]
@@ -263,13 +304,19 @@ mod tests {
         let whole = png(64, 64, |x, y| [x as u8, y as u8, 7, 255]);
         // Cut anywhere before the pixels are complete: refused.
         for keep in [8usize, 20, 33, whole.len() / 2, whole.len() - 30] {
-            assert!(decode(&whole[..keep]).is_err(), "a PNG cut to {keep} bytes was accepted");
+            assert!(
+                decode(&whole[..keep]).is_err(),
+                "a PNG cut to {keep} bytes was accepted"
+            );
         }
         // Cut after every pixel, losing only the closing marker: the picture that results is the whole
         // picture, so it is not damaged, and what comes out is exactly what the full file gives.
         let complete = decode(&whole).unwrap();
         if let Ok(partial) = decode(&whole[..whole.len() - 4]) {
-            assert_eq!(partial, complete, "a file that lost only its end gave a different picture");
+            assert_eq!(
+                partial, complete,
+                "a file that lost only its end gave a different picture"
+            );
         }
         let whole = jpeg(64, 64, [9, 9, 9]);
         assert!(decode(&whole[..whole.len() / 2]).is_err());
@@ -296,7 +343,11 @@ mod tests {
             for byte in bytes {
                 crc ^= u32::from(*byte);
                 for _ in 0..8 {
-                    crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+                    crc = if crc & 1 != 0 {
+                        (crc >> 1) ^ 0xEDB8_8320
+                    } else {
+                        crc >> 1
+                    };
                 }
             }
             crc
@@ -307,23 +358,41 @@ mod tests {
         ihdr.extend_from_slice(&[8, 6, 0, 0, 0]); // 8 bits, RGBA, no interlace
         let mut out = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
         out.extend(chunk(b"IHDR", &ihdr));
-        out.extend(chunk(b"IDAT", &[0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01]));
+        out.extend(chunk(
+            b"IDAT",
+            &[0x78, 0x9c, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01],
+        ));
         out.extend(chunk(b"IEND", &[]));
         out
     }
 
     #[test]
     fn a_small_file_that_announces_an_enormous_picture_is_refused_before_anything_is_decoded() {
-        for (w, h) in [(60_000, 60_000), (MAX_DECLARED_EDGE + 1, 10), (10, MAX_DECLARED_EDGE + 1)] {
+        for (w, h) in [
+            (60_000, 60_000),
+            (MAX_DECLARED_EDGE + 1, 10),
+            (10, MAX_DECLARED_EDGE + 1),
+        ] {
             let bomb = png_announcing(w, h);
-            assert!(bomb.len() < 200, "the file is not small ({} bytes), so this proves nothing", bomb.len());
-            assert_eq!(decode(&bomb).unwrap_err(), Refused::PictureTooLarge, "{w}x{h}");
+            assert!(
+                bomb.len() < 200,
+                "the file is not small ({} bytes), so this proves nothing",
+                bomb.len()
+            );
+            assert_eq!(
+                decode(&bomb).unwrap_err(),
+                Refused::PictureTooLarge,
+                "{w}x{h}"
+            );
         }
         // Sides so large that the decoder itself will not read the header: still refused, and still
         // before any pixel, only under another word.
         let absurd = png_announcing(u32::MAX, u32::MAX);
         assert!(absurd.len() < 200);
-        assert!(matches!(decode(&absurd), Err(Refused::PictureTooLarge | Refused::Damaged)));
+        assert!(matches!(
+            decode(&absurd),
+            Err(Refused::PictureTooLarge | Refused::Damaged)
+        ));
         // Inside the sides but past the memory a decoded picture may take: 12000 x 12000 x 4 bytes.
         let big = png_announcing(MAX_DECLARED_EDGE, MAX_DECLARED_EDGE);
         assert_eq!(decode(&big).unwrap_err(), Refused::PictureTooLarge);
@@ -333,16 +402,24 @@ mod tests {
 
     /// A JPEG with real detail, so that a missing part would show as a different picture.
     fn detailed_jpeg() -> Vec<u8> {
-        let buffer: ImageBuffer<image::Rgb<u8>, Vec<u8>> = ImageBuffer::from_fn(200, 200, |x, y| {
-            image::Rgb([(x * 5 % 256) as u8, (y * 5 % 256) as u8, ((x + y) * 3 % 256) as u8])
-        });
+        let buffer: ImageBuffer<image::Rgb<u8>, Vec<u8>> =
+            ImageBuffer::from_fn(200, 200, |x, y| {
+                image::Rgb([
+                    (x * 5 % 256) as u8,
+                    (y * 5 % 256) as u8,
+                    ((x + y) * 3 % 256) as u8,
+                ])
+            });
         let mut whole = Vec::new();
-        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut whole, 90).encode_image(&buffer).unwrap();
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut whole, 90)
+            .encode_image(&buffer)
+            .unwrap();
         whole
     }
 
     #[test]
-    fn a_jpeg_cut_short_is_refused_because_the_decoder_would_hand_back_a_picture_with_a_part_missing() {
+    fn a_jpeg_cut_short_is_refused_because_the_decoder_would_hand_back_a_picture_with_a_part_missing()
+     {
         // Measured, not assumed: this decoder does not fail on a cut JPEG, it returns what it has with
         // the rest left grey, so a picture cut at a tenth of its length is "accepted" with most of its
         // pixels wrong. A picture someone is going to be shown as theirs must be the whole picture.
@@ -357,7 +434,10 @@ mod tests {
             );
         }
         // Even cut one byte short of the end.
-        assert_eq!(decode(&whole[..whole.len() - 1]).unwrap_err(), Refused::Damaged);
+        assert_eq!(
+            decode(&whole[..whole.len() - 1]).unwrap_err(),
+            Refused::Damaged
+        );
     }
 
     #[test]
@@ -375,9 +455,13 @@ mod tests {
     fn jpeg_with_a_thumbnail() -> Vec<u8> {
         let thumbnail = {
             let small: ImageBuffer<image::Rgb<u8>, Vec<u8>> =
-                ImageBuffer::from_fn(16, 16, |x, y| image::Rgb([(x * 15) as u8, (y * 15) as u8, 99]));
+                ImageBuffer::from_fn(16, 16, |x, y| {
+                    image::Rgb([(x * 15) as u8, (y * 15) as u8, 99])
+                });
             let mut out = Vec::new();
-            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 80).encode_image(&small).unwrap();
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 80)
+                .encode_image(&small)
+                .unwrap();
             out
         };
         let main = detailed_jpeg();
@@ -395,11 +479,17 @@ mod tests {
     #[test]
     fn a_thumbnail_inside_the_header_does_not_make_a_cut_picture_look_complete() {
         let whole = jpeg_with_a_thumbnail();
-        assert!(decode(&whole).is_ok(), "the picture with its thumbnail should be readable");
+        assert!(
+            decode(&whole).is_ok(),
+            "the picture with its thumbnail should be readable"
+        );
         // The thumbnail's own end marker is among the first bytes; a cut after it, but well before the
         // picture ends, is still a cut picture.
         let thumbnail_end = whole.windows(2).position(|p| p == [0xff, 0xd9]).unwrap();
-        assert!(thumbnail_end < whole.len() / 4, "the thumbnail's marker is not early, so this proves nothing");
+        assert!(
+            thumbnail_end < whole.len() / 4,
+            "the thumbnail's marker is not early, so this proves nothing"
+        );
         for tenth in 3..=9usize {
             let keep = whole.len() * tenth / 10;
             assert!(keep > thumbnail_end);
@@ -417,28 +507,33 @@ mod tests {
         // be fooled by: a length that leaps past the end, a length too short to move on, markers that
         // never lead to data, and runs of padding. Each must come back, and come back refused.
         let hostile: Vec<Vec<u8>> = vec![
-            vec![0xff, 0xd8, 0xff],                                   // cut in a marker
-            vec![0xff, 0xd8, 0xff, 0xe0],                             // a marker with no length
-            vec![0xff, 0xd8, 0xff, 0xe0, 0xff],                       // half a length
-            vec![0xff, 0xd8, 0xff, 0xe0, 0xff, 0xff, 0x00],           // a length that leaps past the end
-            vec![0xff, 0xd8, 0xff, 0xe0, 0x00, 0x00, 0x00],           // a length of zero: cannot move on
-            vec![0xff, 0xd8, 0xff, 0xe0, 0x00, 0x01, 0x00],           // a length of one: cannot move on
-            vec![0xff, 0xd8, 0xff, 0xd9],                             // the end before any data
-            vec![0xff, 0xd8, 0xff, 0xda],                             // the data starts and nothing follows
-            vec![0xff, 0xd8, 0xff, 0xda, 0x00, 0x02],                 // data of nothing, no end
-            vec![0xff, 0xd8, 0xff, 0xda, 0xff, 0xff],                 // a length that leaps past the end
-            vec![0xff, 0xd8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],     // padding that never ends in a code
-            [vec![0xff, 0xd8], vec![0xff; 5000]].concat(),            // a very long run of padding
-            [vec![0xff, 0xd8], [0xff, 0x01].repeat(5000)].concat(),   // many markers without a length
+            vec![0xff, 0xd8, 0xff],                                 // cut in a marker
+            vec![0xff, 0xd8, 0xff, 0xe0],                           // a marker with no length
+            vec![0xff, 0xd8, 0xff, 0xe0, 0xff],                     // half a length
+            vec![0xff, 0xd8, 0xff, 0xe0, 0xff, 0xff, 0x00], // a length that leaps past the end
+            vec![0xff, 0xd8, 0xff, 0xe0, 0x00, 0x00, 0x00], // a length of zero: cannot move on
+            vec![0xff, 0xd8, 0xff, 0xe0, 0x00, 0x01, 0x00], // a length of one: cannot move on
+            vec![0xff, 0xd8, 0xff, 0xd9],                   // the end before any data
+            vec![0xff, 0xd8, 0xff, 0xda],                   // the data starts and nothing follows
+            vec![0xff, 0xd8, 0xff, 0xda, 0x00, 0x02],       // data of nothing, no end
+            vec![0xff, 0xd8, 0xff, 0xda, 0xff, 0xff],       // a length that leaps past the end
+            vec![0xff, 0xd8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff], // padding that never ends in a code
+            [vec![0xff, 0xd8], vec![0xff; 5000]].concat(),        // a very long run of padding
+            [vec![0xff, 0xd8], [0xff, 0x01].repeat(5000)].concat(), // many markers without a length
         ];
         for bytes in hostile {
-            assert!(!holds_jpeg_end(&bytes), "{} bytes of hostile header were taken for a whole picture", bytes.len());
+            assert!(
+                !holds_jpeg_end(&bytes),
+                "{} bytes of hostile header were taken for a whole picture",
+                bytes.len()
+            );
             assert!(decode(&bytes).is_err());
         }
     }
 
     #[test]
-    fn a_segment_that_declares_an_impossible_length_is_refused_even_when_a_whole_picture_follows_it() {
+    fn a_segment_that_declares_an_impossible_length_is_refused_even_when_a_whole_picture_follows_it()
+     {
         // A segment's length counts the two bytes that say it, so zero and one are impossible. If they
         // were stepped over, the real picture behind them would be found and taken: the file is wrong,
         // and what makes it wrong is the length, not what follows.
@@ -448,7 +543,10 @@ mod tests {
             bytes.extend_from_slice(&impossible);
             // Enough padding that stepping by two or three bytes lands back on the real picture.
             bytes.extend_from_slice(&whole[2..]);
-            assert!(!holds_jpeg_end(&bytes), "a segment of length {impossible:?} was stepped over");
+            assert!(
+                !holds_jpeg_end(&bytes),
+                "a segment of length {impossible:?} was stepped over"
+            );
         }
     }
 
@@ -464,7 +562,10 @@ mod tests {
         let (folder, path) = file_with(&png(40, 40, |_, _| [5, 6, 7, 255]));
         assert!(read(&path).is_ok());
         // Gone.
-        assert_eq!(read(&folder.path().join("missing.png")).unwrap_err(), Refused::Unreadable);
+        assert_eq!(
+            read(&folder.path().join("missing.png")).unwrap_err(),
+            Refused::Unreadable
+        );
         // A folder.
         assert_eq!(read(folder.path()).unwrap_err(), Refused::Unreadable);
         // A link to a good picture: not followed, so what was chosen is what is read.
@@ -497,8 +598,12 @@ mod tests {
         let bytes = png(40, 40, |_, _| [5, 6, 7, 255]);
         let (_folder, path) = file_with(&bytes);
         let by_path = read(&path).expect("the path version refused a good picture");
-        let by_file = read_file(pathless(&bytes)).expect("an open file with a good picture was refused");
-        assert_eq!(by_file, by_path, "the two ways of reading the same picture made different pictures");
+        let by_file =
+            read_file(pathless(&bytes)).expect("an open file with a good picture was refused");
+        assert_eq!(
+            by_file, by_path,
+            "the two ways of reading the same picture made different pictures"
+        );
     }
 
     #[test]
@@ -512,12 +617,16 @@ mod tests {
         edge.set_len(MAX_FILE_BYTES).unwrap();
         assert_eq!(read_file(edge).unwrap_err(), Refused::NotAPicture);
         // Text, and nothing at all.
-        assert_eq!(read_file(pathless(b"not a picture at all")).unwrap_err(), Refused::NotAPicture);
+        assert_eq!(
+            read_file(pathless(b"not a picture at all")).unwrap_err(),
+            Refused::NotAPicture
+        );
         assert_eq!(read_file(pathless(b"")).unwrap_err(), Refused::NotAPicture);
     }
 
     #[test]
-    fn an_open_file_that_states_no_size_but_holds_more_than_the_limit_is_refused_by_the_read_itself() {
+    fn an_open_file_that_states_no_size_but_holds_more_than_the_limit_is_refused_by_the_read_itself()
+     {
         use std::io::Write;
         // A pipe says its length is nothing, as a provider's stream may, so the size check cannot be what refuses it:
         // only the read, which stops one byte past the limit, can. A writer on another thread feeds it past the limit.
@@ -533,7 +642,11 @@ mod tests {
             }
         });
         let file = std::fs::File::from(reader);
-        assert_eq!(file.metadata().unwrap().len(), 0, "the pipe was expected to state no size");
+        assert_eq!(
+            file.metadata().unwrap().len(),
+            0,
+            "the pipe was expected to state no size"
+        );
         assert_eq!(read_file(file).unwrap_err(), Refused::FileTooLarge);
         feeder.join().unwrap();
     }

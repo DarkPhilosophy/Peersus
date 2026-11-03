@@ -26,9 +26,15 @@ pub const ALL: &[(&str, &[u8])] = &[
     ("expand", include_bytes!("../assets/icons/expand.svg")),
     ("overview", include_bytes!("../assets/icons/overview.svg")),
     ("device", include_bytes!("../assets/icons/device.svg")),
-    ("appearance", include_bytes!("../assets/icons/appearance.svg")),
+    (
+        "appearance",
+        include_bytes!("../assets/icons/appearance.svg"),
+    ),
     ("network", include_bytes!("../assets/icons/network.svg")),
-    ("permissions", include_bytes!("../assets/icons/permissions.svg")),
+    (
+        "permissions",
+        include_bytes!("../assets/icons/permissions.svg"),
+    ),
     ("minimise", include_bytes!("../assets/icons/minimise.svg")),
     ("maximise", include_bytes!("../assets/icons/maximise.svg")),
     ("close", include_bytes!("../assets/icons/close.svg")),
@@ -48,22 +54,66 @@ type LayerBytes = Option<&'static [u8]>;
 /// The layers a picture has, or none for a picture that is its line alone.
 pub fn layers_of(name: &str) -> Layers {
     let (tint, soft, cut): (LayerBytes, LayerBytes, LayerBytes) = match name {
-        "send" => (Some(include_bytes!("../assets/icons/send-tint.svg")), None, Some(include_bytes!("../assets/icons/send-cut.svg"))),
-        "receive" => (Some(include_bytes!("../assets/icons/receive-tint.svg")), None, Some(include_bytes!("../assets/icons/receive-cut.svg"))),
-        "peers" => (Some(include_bytes!("../assets/icons/peers-tint.svg")), None, None),
-        "overview" => (Some(include_bytes!("../assets/icons/overview-tint.svg")), None, None),
-        "device" => (Some(include_bytes!("../assets/icons/device-tint.svg")), None, None),
+        "send" => (
+            Some(include_bytes!("../assets/icons/send-tint.svg")),
+            None,
+            Some(include_bytes!("../assets/icons/send-cut.svg")),
+        ),
+        "receive" => (
+            Some(include_bytes!("../assets/icons/receive-tint.svg")),
+            None,
+            Some(include_bytes!("../assets/icons/receive-cut.svg")),
+        ),
+        "peers" => (
+            Some(include_bytes!("../assets/icons/peers-tint.svg")),
+            None,
+            None,
+        ),
+        "overview" => (
+            Some(include_bytes!("../assets/icons/overview-tint.svg")),
+            None,
+            None,
+        ),
+        "device" => (
+            Some(include_bytes!("../assets/icons/device-tint.svg")),
+            None,
+            None,
+        ),
         "appearance" => (
             Some(include_bytes!("../assets/icons/appearance-tint.svg")),
             Some(include_bytes!("../assets/icons/appearance-soft.svg")),
             Some(include_bytes!("../assets/icons/appearance-cut.svg")),
         ),
-        "network" => (Some(include_bytes!("../assets/icons/network-tint.svg")), None, None),
-        "plugins" => (Some(include_bytes!("../assets/icons/plugins-tint.svg")), None, None),
-        "permissions" => (Some(include_bytes!("../assets/icons/permissions-tint.svg")), None, Some(include_bytes!("../assets/icons/permissions-cut.svg"))),
-        "history" => (Some(include_bytes!("../assets/icons/history-tint.svg")), None, None),
-        "transfers" => (Some(include_bytes!("../assets/icons/transfers-tint.svg")), None, None),
-        "about" => (Some(include_bytes!("../assets/icons/about-tint.svg")), None, Some(include_bytes!("../assets/icons/about-cut.svg"))),
+        "network" => (
+            Some(include_bytes!("../assets/icons/network-tint.svg")),
+            None,
+            None,
+        ),
+        "plugins" => (
+            Some(include_bytes!("../assets/icons/plugins-tint.svg")),
+            None,
+            None,
+        ),
+        "permissions" => (
+            Some(include_bytes!("../assets/icons/permissions-tint.svg")),
+            None,
+            Some(include_bytes!("../assets/icons/permissions-cut.svg")),
+        ),
+        "history" => (
+            Some(include_bytes!("../assets/icons/history-tint.svg")),
+            None,
+            None,
+        ),
+        "transfers" => (
+            Some(include_bytes!("../assets/icons/transfers-tint.svg")),
+            None,
+            None,
+        ),
+        "about" => (
+            Some(include_bytes!("../assets/icons/about-tint.svg")),
+            None,
+            Some(include_bytes!("../assets/icons/about-cut.svg")),
+        ),
         "settings" => (
             Some(include_bytes!("../assets/icons/settings-tint.svg")),
             Some(include_bytes!("../assets/icons/settings-soft.svg")),
@@ -76,11 +126,26 @@ pub fn layers_of(name: &str) -> Layers {
 
 /// The names of the pictures that have layers.
 pub const LAYERED: [&str; 13] = [
-    "send", "receive", "peers", "transfers", "overview", "device", "appearance", "network", "plugins", "permissions", "history", "about", "settings",
+    "send",
+    "receive",
+    "peers",
+    "transfers",
+    "overview",
+    "device",
+    "appearance",
+    "network",
+    "plugins",
+    "permissions",
+    "history",
+    "about",
+    "settings",
 ];
 
 fn named(name: &str) -> &'static [u8] {
-    ALL.iter().find(|(n, _)| *n == name).map(|(_, bytes)| *bytes).expect("a picture of that name")
+    ALL.iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, bytes)| *bytes)
+        .expect("a picture of that name")
 }
 
 /// The name of the picture of a tab of Settings.
@@ -108,7 +173,11 @@ pub fn by_name(name: &str) -> &'static [u8] {
 
 /// A picture drawn `size` pixels square in `colour`.
 pub fn draw(picture: &'static [u8], size: f32, colour: (u8, u8, u8)) -> Element {
-    SvgViewer::new(picture).color(colour).width(Size::px(size)).height(Size::px(size)).into()
+    SvgViewer::new(picture)
+        .color(colour)
+        .width(Size::px(size))
+        .height(Size::px(size))
+        .into()
 }
 
 /// A picture drawn `size` pixels square in layers: the main shape in `accent`, a second shape in `soft`, over them the strokes inside the
@@ -125,12 +194,18 @@ pub fn draw_duo(
     let at = || Position::new_absolute().top(0.).left(0.);
     let mut stack = rect().width(Size::px(size)).height(Size::px(size));
     // The shapes first, then the strokes inside them and the outline over all of it.
-    for (bytes, colour) in [(layers.tint, accent), (layers.soft, soft), (layers.cut, detail)] {
+    for (bytes, colour) in [
+        (layers.tint, accent),
+        (layers.soft, soft),
+        (layers.cut, detail),
+    ] {
         if let Some(bytes) = bytes {
             stack = stack.child(rect().position(at()).child(draw(bytes, size, colour)));
         }
     }
-    stack.child(rect().position(at()).child(draw(named(name), size, line))).into()
+    stack
+        .child(rect().position(at()).child(draw(named(name), size, line)))
+        .into()
 }
 
 /// The second shape's colour: the accent lightened toward white, so the second shape is lighter than the main one on a dark page and
@@ -143,12 +218,29 @@ pub fn soft_of(accent: (u8, u8, u8)) -> (u8, u8, u8) {
 /// A layered picture in the colours of `palette`: the line in `ink`, and the main shape in the accent the person chose, as strong as
 /// `strength` (0 to 1) of the way from the page to the accent. This is the one place that decides which colour a layer takes, so that
 /// the sidebar, the menu and the bars never differ. The line is always one that can be told from the shape under it (see `picture_on`).
-pub fn picture_at(name: &str, size: f32, palette: &crate::theme::Palette, ink: (u8, u8, u8), strength: f32) -> Element {
-    picture_on(name, size, dim(palette.send, palette.background, strength), ink, palette.background)
+pub fn picture_at(
+    name: &str,
+    size: f32,
+    palette: &crate::theme::Palette,
+    ink: (u8, u8, u8),
+    strength: f32,
+) -> Element {
+    picture_on(
+        name,
+        size,
+        dim(palette.send, palette.background, strength),
+        ink,
+        palette.background,
+    )
 }
 
 /// A layered picture at full strength: the accent as chosen.
-pub fn picture(name: &str, size: f32, palette: &crate::theme::Palette, ink: (u8, u8, u8)) -> Element {
+pub fn picture(
+    name: &str,
+    size: f32,
+    palette: &crate::theme::Palette,
+    ink: (u8, u8, u8),
+) -> Element {
     picture_at(name, size, palette, ink, 1.)
 }
 
@@ -156,7 +248,11 @@ pub fn picture(name: &str, size: f32, palette: &crate::theme::Palette, ink: (u8,
 pub fn dim(colour: (u8, u8, u8), page: (u8, u8, u8), strength: f32) -> (u8, u8, u8) {
     let s = strength.clamp(0., 1.);
     let mix = |c: u8, p: u8| (f32::from(p) + (f32::from(c) - f32::from(p)) * s).round() as u8;
-    (mix(colour.0, page.0), mix(colour.1, page.1), mix(colour.2, page.2))
+    (
+        mix(colour.0, page.0),
+        mix(colour.1, page.1),
+        mix(colour.2, page.2),
+    )
 }
 
 /// The colour of the line of a picture that is not the one in use: the secondary text colour moved a third of the way toward the
@@ -169,7 +265,9 @@ pub fn resting_ink(palette: &crate::theme::Palette) -> (u8, u8, u8) {
 /// The colour a mark is drawn in on a disc of `colour`: black or white, whichever is read better on it. One rule for every round
 /// control of the header, so that none is drawn in a colour that cannot be seen on its own disc.
 pub fn ink_on(colour: (u8, u8, u8)) -> (u8, u8, u8) {
-    if crate::theme::contrast_ratio(colour, (0, 0, 0)) >= crate::theme::contrast_ratio(colour, (255, 255, 255)) {
+    if crate::theme::contrast_ratio(colour, (0, 0, 0))
+        >= crate::theme::contrast_ratio(colour, (255, 255, 255))
+    {
         (0, 0, 0)
     } else {
         (255, 255, 255)
@@ -179,20 +277,34 @@ pub fn ink_on(colour: (u8, u8, u8)) -> (u8, u8, u8) {
 /// The colour of the OUTLINE of a picture: `ink` when it can be told from the `page` it lies on, and black or white when it cannot. The
 /// outline touches the page and nothing else.
 pub fn line_on_page(ink: (u8, u8, u8), page: (u8, u8, u8)) -> (u8, u8, u8) {
-    if crate::theme::contrast_ratio(ink, page) >= 3.0 { ink } else { ink_on(page) }
+    if crate::theme::contrast_ratio(ink, page) >= 3.0 {
+        ink
+    } else {
+        ink_on(page)
+    }
 }
 
 /// The colour of the DETAIL drawn inside a picture's shapes (an arrow in a tray, the dot of a question mark): the line's own colour when it
 /// can be told from the `fill` it is drawn over, and black or white when it cannot. A detail in the colour of the shape under it vanishes,
 /// which turned an arrow into a plain tray and a question mark into a plain disc.
 pub fn detail_on(ink: (u8, u8, u8), fill: (u8, u8, u8)) -> (u8, u8, u8) {
-    if crate::theme::contrast_ratio(ink, fill) >= 3.0 { ink } else { ink_on(fill) }
+    if crate::theme::contrast_ratio(ink, fill) >= 3.0 {
+        ink
+    } else {
+        ink_on(fill)
+    }
 }
 
 /// A layered picture with its main shape in `fill`, on a `page`: the outline in `ink` (kept to something the page shows), and the detail
 /// inside the shapes in a colour the fill shows. The two touch different things, so they are two colours; one colour for both is what made
 /// an outline vanish on the page when it was chosen to read on the shape, and a detail vanish on the shape when it was chosen for the page.
-pub fn picture_on(name: &str, size: f32, fill: (u8, u8, u8), ink: (u8, u8, u8), page: (u8, u8, u8)) -> Element {
+pub fn picture_on(
+    name: &str,
+    size: f32,
+    fill: (u8, u8, u8),
+    ink: (u8, u8, u8),
+    page: (u8, u8, u8),
+) -> Element {
     let line = line_on_page(ink, page);
     draw_duo(name, size, line, detail_on(line, fill), fill, soft_of(fill))
 }
@@ -225,10 +337,17 @@ mod tests {
 
     /// Every file the application draws, with its name, the line first and then each layer.
     fn files() -> Vec<(String, &'static [u8])> {
-        let mut all: Vec<(String, &'static [u8])> = ALL.iter().map(|(name, bytes)| (name.to_string(), *bytes)).collect();
+        let mut all: Vec<(String, &'static [u8])> = ALL
+            .iter()
+            .map(|(name, bytes)| (name.to_string(), *bytes))
+            .collect();
         for name in LAYERED {
             let layers = layers_of(name);
-            for (suffix, bytes) in [("tint", layers.tint), ("soft", layers.soft), ("cut", layers.cut)] {
+            for (suffix, bytes) in [
+                ("tint", layers.tint),
+                ("soft", layers.soft),
+                ("cut", layers.cut),
+            ] {
                 if let Some(bytes) = bytes {
                     all.push((format!("{name}-{suffix}"), bytes));
                 }
@@ -241,12 +360,24 @@ mod tests {
     fn every_file_takes_its_colour_from_the_theme_and_has_none_of_its_own() {
         for (name, bytes) in files() {
             let svg = text(bytes);
-            assert!(svg.contains("currentColor"), "{name}: has no way to take the theme's colour");
+            assert!(
+                svg.contains("currentColor"),
+                "{name}: has no way to take the theme's colour"
+            );
             // A colour written into a file would ignore the theme, in every one of them.
-            assert!(!svg.contains("fill=\"#") && !svg.contains("stroke=\"#"), "{name}: has a colour of its own");
-            assert!(!svg.to_lowercase().contains("rgb("), "{name}: has a colour of its own");
+            assert!(
+                !svg.contains("fill=\"#") && !svg.contains("stroke=\"#"),
+                "{name}: has a colour of its own"
+            );
+            assert!(
+                !svg.to_lowercase().contains("rgb("),
+                "{name}: has a colour of its own"
+            );
             for word in ["black", "white"] {
-                assert!(!svg.contains(&format!("=\"{word}\"")), "{name}: has the colour {word}");
+                assert!(
+                    !svg.contains(&format!("=\"{word}\"")),
+                    "{name}: has the colour {word}"
+                );
             }
         }
     }
@@ -256,9 +387,17 @@ mod tests {
         for name in LAYERED {
             let line = grid(text(named(name)));
             let layers = layers_of(name);
-            for (which, bytes) in [("tint", layers.tint), ("soft", layers.soft), ("cut", layers.cut)] {
+            for (which, bytes) in [
+                ("tint", layers.tint),
+                ("soft", layers.soft),
+                ("cut", layers.cut),
+            ] {
                 if let Some(bytes) = bytes {
-                    assert_eq!(grid(text(bytes)), line, "{name}-{which}: not on the grid of its line");
+                    assert_eq!(
+                        grid(text(bytes)),
+                        line,
+                        "{name}-{which}: not on the grid of its line"
+                    );
                 }
             }
         }
@@ -280,7 +419,13 @@ mod tests {
         };
         for (i, a) in ALL.iter().enumerate() {
             for b in ALL.iter().skip(i + 1) {
-                assert_ne!(whole(a.0), whole(b.0), "{} and {} are the same drawing", a.0, b.0);
+                assert_ne!(
+                    whole(a.0),
+                    whole(b.0),
+                    "{} and {} are the same drawing",
+                    a.0,
+                    b.0
+                );
             }
         }
     }
@@ -288,7 +433,10 @@ mod tests {
     #[test]
     fn every_picture_of_a_place_has_a_main_shape_to_take_the_accent() {
         for name in LAYERED {
-            assert!(layers_of(name).tint.is_some(), "{name}: nothing to colour with the accent");
+            assert!(
+                layers_of(name).tint.is_some(),
+                "{name}: nothing to colour with the accent"
+            );
         }
     }
 
@@ -297,10 +445,19 @@ mod tests {
         let light = |c: (u8, u8, u8)| u32::from(c.0) + u32::from(c.1) + u32::from(c.2);
         for base in [crate::theme::DARK, crate::theme::LIGHT] {
             // The accents a person can choose, and the brand colour, each as the palette would hold it.
-            for chosen in [[0xf4, 0x6b, 0x52], [0x5b, 0x9c, 0xe0], [0xe8, 0xba, 0x4c], [0xba, 0x84, 0xe8]] {
+            for chosen in [
+                [0xf4, 0x6b, 0x52],
+                [0x5b, 0x9c, 0xe0],
+                [0xe8, 0xba, 0x4c],
+                [0xba, 0x84, 0xe8],
+            ] {
                 let palette = base.with_accent((chosen[0], chosen[1], chosen[2]));
                 let soft = soft_of(palette.send);
-                assert!(light(soft) > light(palette.send), "{soft:?} is not lighter than {:?}", palette.send);
+                assert!(
+                    light(soft) > light(palette.send),
+                    "{soft:?} is not lighter than {:?}",
+                    palette.send
+                );
             }
         }
         // Even black has a lighter second shape, so no accent can make the two layers the same.
@@ -312,7 +469,10 @@ mod tests {
         for palette in [crate::theme::DARK, crate::theme::LIGHT] {
             for page in [palette.background, palette.sidebar, palette.surface] {
                 let ratio = crate::theme::contrast_ratio(resting_ink(&palette), page);
-                assert!(ratio >= 4.5, "the resting line gives only {ratio} on {page:?}");
+                assert!(
+                    ratio >= 4.5,
+                    "the resting line gives only {ratio} on {page:?}"
+                );
             }
         }
     }
@@ -332,7 +492,11 @@ mod tests {
     fn every_tab_has_its_own_picture() {
         for (i, a) in SettingsTab::ALL.iter().enumerate() {
             for b in SettingsTab::ALL.iter().skip(i + 1) {
-                assert_ne!(of_tab(*a), of_tab(*b), "{a:?} and {b:?} look alike among the tabs");
+                assert_ne!(
+                    of_tab(*a),
+                    of_tab(*b),
+                    "{a:?} and {b:?} look alike among the tabs"
+                );
             }
         }
     }
@@ -349,7 +513,12 @@ mod tests {
     fn the_mark_on_a_round_control_can_be_read_whatever_colour_the_disc_is() {
         // The accents a person can choose, and the colours of the three window buttons, on both themes.
         for palette in [crate::theme::DARK, crate::theme::LIGHT] {
-            for disc in [palette.send, palette.minimise, palette.maximise, palette.close] {
+            for disc in [
+                palette.send,
+                palette.minimise,
+                palette.maximise,
+                palette.close,
+            ] {
                 let ratio = crate::theme::contrast_ratio(ink_on(disc), disc);
                 assert!(ratio >= 4.5, "the mark gives only {ratio} on {disc:?}");
             }
@@ -366,20 +535,39 @@ mod tests {
     }
 
     #[test]
-    fn the_outline_is_read_on_the_page_and_the_detail_inside_is_read_on_the_shape_it_is_drawn_over() {
+    fn the_outline_is_read_on_the_page_and_the_detail_inside_is_read_on_the_shape_it_is_drawn_over()
+    {
         // What went wrong, twice: one colour for both. Chosen to read on the shape, the outline became black on a black page and the sidebar
         // emptied; chosen for the page, the detail became the colour of the shape and an arrow turned into a plain tray.
         for base in [crate::theme::DARK, crate::theme::LIGHT] {
-            for chosen in [[0xf4, 0x6b, 0x52], [0x5b, 0x9c, 0xe0], [0x4f, 0xc4, 0x8c], [0xe8, 0xba, 0x4c], [0xba, 0x84, 0xe8], [0xf0, 0x78, 0xa0]] {
+            for chosen in [
+                [0xf4, 0x6b, 0x52],
+                [0x5b, 0x9c, 0xe0],
+                [0x4f, 0xc4, 0x8c],
+                [0xe8, 0xba, 0x4c],
+                [0xba, 0x84, 0xe8],
+                [0xf0, 0x78, 0xa0],
+            ] {
                 let palette = base.with_accent((chosen[0], chosen[1], chosen[2]));
                 for fill in [palette.send, palette.receive] {
-                    for ink in [palette.text, resting_ink(&palette), palette.active_icons, fill] {
+                    for ink in [
+                        palette.text,
+                        resting_ink(&palette),
+                        palette.active_icons,
+                        fill,
+                    ] {
                         let line = line_on_page(ink, palette.background);
                         let detail = detail_on(line, fill);
                         let outline = crate::theme::contrast_ratio(line, palette.background);
                         let inside = crate::theme::contrast_ratio(detail, fill);
-                        assert!(outline >= 3.0, "{ink:?} outline on the page gives only {outline}");
-                        assert!(inside >= 2.9, "{ink:?} detail over {fill:?} gives only {inside}");
+                        assert!(
+                            outline >= 3.0,
+                            "{ink:?} outline on the page gives only {outline}"
+                        );
+                        assert!(
+                            inside >= 2.9,
+                            "{ink:?} detail over {fill:?} gives only {inside}"
+                        );
                     }
                 }
             }
@@ -391,7 +579,11 @@ mod tests {
         assert_eq!(line_on_page((255, 255, 255), (0, 0, 0)), (255, 255, 255));
         assert_eq!(line_on_page((0, 0, 0), (255, 255, 255)), (0, 0, 0));
         for page in [(0, 0, 0), (255, 255, 255), (244, 107, 82)] {
-            assert_ne!(line_on_page(page, page), page, "the colour of the page was kept as the outline on it");
+            assert_ne!(
+                line_on_page(page, page),
+                page,
+                "the colour of the page was kept as the outline on it"
+            );
         }
     }
 

@@ -38,8 +38,13 @@ pub fn allowed(announce: &Announce) -> Option<Duration> {
 /// Tell the other device, on a stream of its own, that this one waits `seconds` for `offer`. Best effort: a device that does not
 /// read it, a connection that is gone, a stream that cannot be opened, all end here without a word, and the offer goes on.
 pub async fn tell(connection: &Connection, offer: &str, seconds: u32) {
-    let Ok(mut stream) = connection.open_uni().await else { return };
-    let announce = Announce { offer: offer.to_owned(), seconds };
+    let Ok(mut stream) = connection.open_uni().await else {
+        return;
+    };
+    let announce = Announce {
+        offer: offer.to_owned(),
+        seconds,
+    };
     if transport::send(&mut stream, &announce).await.is_ok() {
         let _ = stream.finish();
     }
@@ -82,7 +87,9 @@ impl Announcements {
             let reader = self.clone();
             // Each stream is read on its own task and in bounded time, so that one that says nothing holds up no other.
             tokio::spawn(async move {
-                let heard = tokio::time::timeout(ARRIVAL, transport::receive::<Announce>(&mut stream)).await;
+                let heard =
+                    tokio::time::timeout(ARRIVAL, transport::receive::<Announce>(&mut stream))
+                        .await;
                 if let Ok(Ok(announce)) = heard
                     && let Some(wait) = allowed(&announce)
                 {
@@ -94,7 +101,9 @@ impl Announcements {
 
     /// An announcement arrived: to the offer asking for it, or held until one does.
     fn deliver(&self, offer: String, wait: Duration) {
-        let Ok(mut book) = self.book.lock() else { return };
+        let Ok(mut book) = self.book.lock() else {
+            return;
+        };
         if let Some(asking) = book.asking.remove(&offer) {
             let _ = asking.send(wait);
         } else if book.early.len() < MOST_HELD {
@@ -130,7 +139,8 @@ impl Announcements {
 /// reads the connection's streams itself and takes another's announcement.
 #[derive(Clone, Default)]
 pub struct Readers {
-    by_connection: std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<usize, Announcements>>>,
+    by_connection:
+        std::sync::Arc<std::sync::Mutex<std::collections::BTreeMap<usize, Announcements>>>,
 }
 
 impl Readers {
@@ -138,7 +148,9 @@ impl Readers {
     /// executor, as every offer is.
     pub fn of(&self, connection: &Connection) -> Announcements {
         let key = connection.stable_id();
-        let Ok(mut readers) = self.by_connection.lock() else { return Announcements::default() };
+        let Ok(mut readers) = self.by_connection.lock() else {
+            return Announcements::default();
+        };
         if let Some(existing) = readers.get(&key) {
             return existing.clone();
         }
@@ -174,7 +186,10 @@ pub struct LetGo {
 
 impl LetGo {
     pub fn new(announcements: &Announcements, offer: &str) -> Self {
-        Self { announcements: announcements.clone(), offer: offer.to_owned() }
+        Self {
+            announcements: announcements.clone(),
+            offer: offer.to_owned(),
+        }
     }
 }
 
@@ -191,32 +206,70 @@ mod tests {
     use peersus_core::config::NetworkSettings;
 
     fn about(seconds: u32) -> Announce {
-        Announce { offer: "one".into(), seconds }
+        Announce {
+            offer: "one".into(),
+            seconds,
+        }
     }
 
     #[test]
     fn only_a_wait_the_settings_allow_is_believed() {
         assert_eq!(allowed(&about(120)), Some(Duration::from_secs(120)));
-        assert_eq!(allowed(&about(MIN_OFFER_TIMEOUT)), Some(Duration::from_secs(u64::from(MIN_OFFER_TIMEOUT))));
-        assert_eq!(allowed(&about(MAX_OFFER_TIMEOUT)), Some(Duration::from_secs(u64::from(MAX_OFFER_TIMEOUT))));
-        assert_eq!(allowed(&about(MIN_OFFER_TIMEOUT - 1)), None, "a wait shorter than the settings allow was believed");
-        assert_eq!(allowed(&about(0)), None, "a deadline of nothing was believed");
-        assert_eq!(allowed(&about(MAX_OFFER_TIMEOUT + 1)), None, "a wait longer than the settings allow was believed");
-        assert_eq!(allowed(&about(u32::MAX)), None, "a deadline of ever was believed");
+        assert_eq!(
+            allowed(&about(MIN_OFFER_TIMEOUT)),
+            Some(Duration::from_secs(u64::from(MIN_OFFER_TIMEOUT)))
+        );
+        assert_eq!(
+            allowed(&about(MAX_OFFER_TIMEOUT)),
+            Some(Duration::from_secs(u64::from(MAX_OFFER_TIMEOUT)))
+        );
+        assert_eq!(
+            allowed(&about(MIN_OFFER_TIMEOUT - 1)),
+            None,
+            "a wait shorter than the settings allow was believed"
+        );
+        assert_eq!(
+            allowed(&about(0)),
+            None,
+            "a deadline of nothing was believed"
+        );
+        assert_eq!(
+            allowed(&about(MAX_OFFER_TIMEOUT + 1)),
+            None,
+            "a wait longer than the settings allow was believed"
+        );
+        assert_eq!(
+            allowed(&about(u32::MAX)),
+            None,
+            "a deadline of ever was believed"
+        );
     }
 
     #[test]
     fn an_announcement_with_something_more_in_it_is_not_read() {
         let more = br#"{"offer":"one","seconds":120,"extra":true}"#;
-        assert!(serde_json::from_slice::<Announce>(more).is_err(), "an announcement carrying more than it should was read");
+        assert!(
+            serde_json::from_slice::<Announce>(more).is_err(),
+            "an announcement carrying more than it should was read"
+        );
         assert!(serde_json::from_slice::<Announce>(br#"{"offer":"one","seconds":120}"#).is_ok());
     }
 
     async fn pair() -> (iroh::Endpoint, iroh::Endpoint, Connection, Connection) {
-        let policy = NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false };
-        let a = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let (left, right) = tokio::join!(a.connect(b.addr(), transport::ALPN), async { b.accept().await.unwrap().await });
+        let policy = NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        };
+        let a = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let (left, right) = tokio::join!(a.connect(b.addr(), transport::ALPN), async {
+            b.accept().await.unwrap().await
+        });
         (a, b, left.unwrap(), right.unwrap())
     }
 
@@ -231,18 +284,40 @@ mod tests {
     const EXPECTED: Duration = Duration::from_secs(5);
 
     #[tokio::test]
-    async fn offers_made_at_the_same_time_each_hear_their_own_deadline_whatever_order_they_are_announced_in() {
+    async fn offers_made_at_the_same_time_each_hear_their_own_deadline_whatever_order_they_are_announced_in()
+     {
         let (a, b, left, right) = pair().await;
         let sender = Announcements::listen(&right);
         // Three offers on the one connection ask at once, and the other device announces them in the reverse order.
-        let (first, second, third) = (sender.ask("offer-a"), sender.ask("offer-b"), sender.ask("offer-c"));
+        let (first, second, third) = (
+            sender.ask("offer-a"),
+            sender.ask("offer-b"),
+            sender.ask("offer-c"),
+        );
         tell(&left, "offer-c", 900).await;
         tell(&left, "offer-b", 600).await;
         tell(&left, "offer-a", 300).await;
-        let heard = |asked: tokio::sync::oneshot::Receiver<Duration>| async move { tokio::time::timeout(EXPECTED, asked).await.unwrap().unwrap() };
-        assert_eq!(heard(first).await, Duration::from_secs(300), "an offer was given the deadline of another");
-        assert_eq!(heard(second).await, Duration::from_secs(600), "an offer was given the deadline of another");
-        assert_eq!(heard(third).await, Duration::from_secs(900), "an offer was given the deadline of another");
+        let heard = |asked: tokio::sync::oneshot::Receiver<Duration>| async move {
+            tokio::time::timeout(EXPECTED, asked)
+                .await
+                .unwrap()
+                .unwrap()
+        };
+        assert_eq!(
+            heard(first).await,
+            Duration::from_secs(300),
+            "an offer was given the deadline of another"
+        );
+        assert_eq!(
+            heard(second).await,
+            Duration::from_secs(600),
+            "an offer was given the deadline of another"
+        );
+        assert_eq!(
+            heard(third).await,
+            Duration::from_secs(900),
+            "an offer was given the deadline of another"
+        );
         closed(a, b, left, right).await;
     }
 
@@ -274,11 +349,21 @@ mod tests {
         let readers = Readers::default();
         let first = readers.of(&right);
         let second = readers.of(&right);
-        assert_eq!(readers.len(), 1, "a second offer on the same connection started a second reader that would take its announcements");
+        assert_eq!(
+            readers.len(),
+            1,
+            "a second offer on the same connection started a second reader that would take its announcements"
+        );
         // Both are the same reader: an announcement for an offer is given to the one that asked, by whichever handle asks.
         let asked = first.ask("offer-a");
         tell(&left, "offer-a", 120).await;
-        assert_eq!(tokio::time::timeout(EXPECTED, asked).await.unwrap().unwrap(), Duration::from_secs(120));
+        assert_eq!(
+            tokio::time::timeout(EXPECTED, asked)
+                .await
+                .unwrap()
+                .unwrap(),
+            Duration::from_secs(120)
+        );
         drop(second);
         // The connection ends: the reader is removed, not kept for a connection that is gone.
         right.close(0_u32.into(), b"done");
@@ -303,25 +388,45 @@ mod tests {
         tell(&left, "offer-a", MAX_OFFER_TIMEOUT + 1).await;
         tell(&left, "someone-elses", 600).await;
         // None of them is believed for this offer: it hears nothing, as a device that never announces gives it nothing.
-        assert!(tokio::time::timeout(Duration::from_millis(600), asked).await.is_err(), "a wrong announcement was given to the offer");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(600), asked)
+                .await
+                .is_err(),
+            "a wrong announcement was given to the offer"
+        );
         // The right one, after the wrong ones, is still heard by an offer that asks for it.
         let again = sender.ask("offer-a");
         tell(&left, "offer-a", 300).await;
-        assert_eq!(tokio::time::timeout(EXPECTED, again).await.unwrap().unwrap(), Duration::from_secs(300));
+        assert_eq!(
+            tokio::time::timeout(EXPECTED, again)
+                .await
+                .unwrap()
+                .unwrap(),
+            Duration::from_secs(300)
+        );
         closed(a, b, left, right).await;
     }
 
     #[tokio::test]
-    async fn a_device_that_announces_nothing_gives_the_offer_nothing_and_an_offer_that_is_over_is_let_go_of() {
+    async fn a_device_that_announces_nothing_gives_the_offer_nothing_and_an_offer_that_is_over_is_let_go_of()
+     {
         let (a, b, left, right) = pair().await;
         let sender = Announcements::listen(&right);
         let asked = sender.ask("offer-a");
         // `left` opens no stream, as a device of an older version never does.
-        assert!(tokio::time::timeout(Duration::from_millis(300), asked).await.is_err(), "a device that said nothing gave a deadline");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(300), asked)
+                .await
+                .is_err(),
+            "a device that said nothing gave a deadline"
+        );
         // The offer is over: what was kept for it goes, so a later announcement for that id is not held for nobody.
         let over = sender.ask("offer-b");
         sender.forget("offer-b");
-        assert!(over.await.is_err(), "an offer that was let go of was still waiting");
+        assert!(
+            over.await.is_err(),
+            "an offer that was let go of was still waiting"
+        );
         closed(a, b, left, right).await;
     }
 
@@ -332,7 +437,10 @@ mod tests {
             sender.deliver(format!("offer-{n}"), Duration::from_secs(60));
         }
         let held = sender.book.lock().unwrap().early.len();
-        assert_eq!(held, MOST_HELD, "a device that announces without end made this one keep without end");
+        assert_eq!(
+            held, MOST_HELD,
+            "a device that announces without end made this one keep without end"
+        );
     }
 
     #[test]
@@ -347,8 +455,14 @@ mod tests {
             assert_eq!(sender.book.lock().unwrap().early.len(), 1);
         }
         let book = sender.book.lock().unwrap();
-        assert!(book.asking.is_empty(), "an offer that was over was left asking");
-        assert!(book.early.is_empty(), "an announcement for an offer that was over was left held");
+        assert!(
+            book.asking.is_empty(),
+            "an offer that was over was left asking"
+        );
+        assert!(
+            book.early.is_empty(),
+            "an announcement for an offer that was over was left held"
+        );
         drop(book);
         drop(asked);
     }

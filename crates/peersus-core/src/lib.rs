@@ -6,10 +6,12 @@
 //! * [`plugins`]: opaque plugin identities, per-device grants and typed values.
 #![forbid(unsafe_code)]
 
+pub mod address;
 pub mod config;
 pub mod model;
 pub mod pairing;
 pub mod plugins;
 pub mod profile;
+pub mod relay;
 
 pub use config::{Navigation, NetworkSettings, Renderer, Settings, SettingsError, Theme};

@@ -93,7 +93,9 @@ pub(super) fn decode(text: &str) -> Result<Invitation, Error> {
     }
     let normalized = text.to_ascii_uppercase();
     let body = normalized.strip_prefix(PREFIX).ok_or(Error::Invalid)?;
-    let bytes = BASE32_NOPAD.decode(body.as_bytes()).map_err(|_| Error::Invalid)?;
+    let bytes = BASE32_NOPAD
+        .decode(body.as_bytes())
+        .map_err(|_| Error::Invalid)?;
     let mut reader = Reader(&bytes);
     let id = EndpointId::from_bytes(&reader.array()?).map_err(|_| Error::Invalid)?;
     let capability = reader.array()?;
@@ -130,5 +132,9 @@ pub(super) fn decode(text: &str) -> Result<Invitation, Error> {
     if !reader.0.is_empty() {
         return Err(Error::Invalid);
     }
-    Ok(Invitation { address, capability, expires_at })
+    Ok(Invitation {
+        address,
+        capability,
+        expires_at,
+    })
 }

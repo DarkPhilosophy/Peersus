@@ -44,14 +44,23 @@ pub fn platform_ready() -> &'static tokio::sync::Notify {
 
 /// Make the picker's state, once, over `held`, and give it to the caller. A second call gives the same one.
 pub fn shared(held: Held) -> Picked {
-    SHARED.get_or_init(|| Shared { picked: Picked::new(held), folders: FolderPicked::default() }).picked.clone()
+    SHARED
+        .get_or_init(|| Shared {
+            picked: Picked::new(held),
+            folders: FolderPicked::default(),
+        })
+        .picked
+        .clone()
 }
 
 /// The folder picker's state: the answers the person gave, and how the deliveries into the chosen folders went. The same one
 /// for the process, for the same reason as [`shared`]. Made empty if nothing has made the shared state yet.
 pub fn folders() -> FolderPicked {
     SHARED
-        .get_or_init(|| Shared { picked: Picked::new(Held::default()), folders: FolderPicked::default() })
+        .get_or_init(|| Shared {
+            picked: Picked::new(Held::default()),
+            folders: FolderPicked::default(),
+        })
         .folders
         .clone()
 }
@@ -67,28 +76,54 @@ pub fn open_plugin_picker() -> Result<(), String> {
 
 /// Update process protection, independently of the activity's rendering lifecycle.
 pub fn background_state(background: bool, active: bool) -> Result<(), String> {
-    call_background("setBackgroundState", "(ZZ)V", &[
-        jni::objects::JValue::Bool(u8::from(background)),
-        jni::objects::JValue::Bool(u8::from(active)),
-    ])
+    call_background(
+        "setBackgroundState",
+        "(ZZ)V",
+        &[
+            jni::objects::JValue::Bool(u8::from(background)),
+            jni::objects::JValue::Bool(u8::from(active)),
+        ],
+    )
 }
 
-pub fn transfer_notifications(waiting: i32, completed: i32, newest: &str, files: &str) -> Result<(), String> {
+pub fn transfer_notifications(
+    waiting: i32,
+    completed: i32,
+    newest: &str,
+    files: &str,
+) -> Result<(), String> {
     // The service when there is one, the activity otherwise: the same choice as `call_background`, made here because the offer is text,
     // and a text for Java can only be made with the environment of the thread that calls.
-    let service = SERVICE.lock().map_err(|_| "the service lock is poisoned")?.clone();
+    let service = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone();
     let known = match service {
         Some(service) => service,
-        None => ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?.clone().ok_or("the platform is not known yet")?,
+        None => ACTIVITY
+            .lock()
+            .map_err(|_| "the activity lock is poisoned")?
+            .clone()
+            .ok_or("the platform is not known yet")?,
     };
     let (vm, object) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
     let offer = JObject::from(env.new_string(newest).map_err(|error| error.to_string())?);
     let lines = JObject::from(env.new_string(files).map_err(|error| error.to_string())?);
-    env.call_method(object.as_obj(), "setTransferNotifications", "(IILjava/lang/String;Ljava/lang/String;)V", &[
-        jni::objects::JValue::Int(waiting), jni::objects::JValue::Int(completed),
-        jni::objects::JValue::Object(&offer), jni::objects::JValue::Object(&lines),
-    ]).map_err(|error| {
+    env.call_method(
+        object.as_obj(),
+        "setTransferNotifications",
+        "(IILjava/lang/String;Ljava/lang/String;)V",
+        &[
+            jni::objects::JValue::Int(waiting),
+            jni::objects::JValue::Int(completed),
+            jni::objects::JValue::Object(&offer),
+            jni::objects::JValue::Object(&lines),
+        ],
+    )
+    .map_err(|error| {
         let _ = env.exception_clear();
         error.to_string()
     })?;
@@ -98,18 +133,34 @@ pub fn transfer_notifications(waiting: i32, completed: i32, newest: &str, files:
 /// Give Java the colours the interface is drawn with now (surface, raised, border, text, muted, accent, bad, button, button text, each as
 /// 0xRRGGBB), which it keeps for the notification of an offer. Called when the colours change.
 pub fn offer_appearance(colours: &[u32; 9]) -> Result<(), String> {
-    let service = SERVICE.lock().map_err(|_| "the service lock is poisoned")?.clone();
+    let service = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone();
     let known = match service {
         Some(service) => service,
-        None => ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?.clone().ok_or("the platform is not known yet")?,
+        None => ACTIVITY
+            .lock()
+            .map_err(|_| "the activity lock is poisoned")?
+            .clone()
+            .ok_or("the platform is not known yet")?,
     };
     let (vm, object) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
     let array = env.new_int_array(9).map_err(|error| error.to_string())?;
     let values: Vec<i32> = colours.iter().map(|colour| *colour as i32).collect();
-    env.set_int_array_region(&array, 0, &values).map_err(|error| error.to_string())?;
+    env.set_int_array_region(&array, 0, &values)
+        .map_err(|error| error.to_string())?;
     let array = JObject::from(array);
-    env.call_method(object.as_obj(), "setOfferAppearance", "([I)V", &[jni::objects::JValue::Object(&array)]).map_err(|error| {
+    env.call_method(
+        object.as_obj(),
+        "setOfferAppearance",
+        "([I)V",
+        &[jni::objects::JValue::Object(&array)],
+    )
+    .map_err(|error| {
         let _ = env.exception_clear();
         error.to_string()
     })?;
@@ -139,7 +190,9 @@ pub fn offer_action_arrived() -> &'static tokio::sync::Notify {
 /// What the buttons asked since the last time, in the order they were pressed, taking only the ones `wanted` says are for the caller.
 /// A press is never lost: what is not wanted stays for whoever wants it.
 pub fn take_offer_actions(wanted: impl Fn(&OfferAction) -> bool) -> Vec<OfferAction> {
-    let Ok(mut kept) = OFFER_ACTIONS.lock() else { return Vec::new() };
+    let Ok(mut kept) = OFFER_ACTIONS.lock() else {
+        return Vec::new();
+    };
     let (taken, left): (Vec<_>, Vec<_>) = kept.drain(..).partition(|action| wanted(action));
     *kept = left;
     taken
@@ -156,13 +209,21 @@ pub fn take_view_files() -> bool {
 pub fn take_accepted_ids() -> Vec<String> {
     take_offer_actions(|action| matches!(action, OfferAction::Accept(_)))
         .into_iter()
-        .filter_map(|action| if let OfferAction::Accept(transfer) = action { Some(transfer) } else { None })
+        .filter_map(|action| {
+            if let OfferAction::Accept(transfer) = action {
+                Some(transfer)
+            } else {
+                None
+            }
+        })
         .collect()
 }
 
 /// Whether a press the caller wants is waiting, without taking it: what decides to ask for the window, which then takes it.
 pub fn offer_actions_waiting(wanted: impl Fn(&OfferAction) -> bool) -> bool {
-    OFFER_ACTIONS.lock().is_ok_and(|kept| kept.iter().any(wanted))
+    OFFER_ACTIONS
+        .lock()
+        .is_ok_and(|kept| kept.iter().any(wanted))
 }
 
 fn push_offer_action(action: OfferAction) {
@@ -175,11 +236,17 @@ fn push_offer_action(action: OfferAction) {
 /// A button of the notification was pressed: `kind` is "cancel" or "accept", and `transfer` the offer the button was made for.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_NotificationActions_offerAnswered<'local>(
-    mut env: JNIEnv<'local>, _class: JClass<'local>, kind: JString<'local>, transfer: JString<'local>,
+    mut env: JNIEnv<'local>,
+    _class: JClass<'local>,
+    kind: JString<'local>,
+    transfer: JString<'local>,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
         let kind: String = env.get_string(&kind).map(Into::into).unwrap_or_default();
-        let transfer: String = env.get_string(&transfer).map(Into::into).unwrap_or_default();
+        let transfer: String = env
+            .get_string(&transfer)
+            .map(Into::into)
+            .unwrap_or_default();
         if transfer.is_empty() {
             return;
         }
@@ -195,29 +262,90 @@ pub extern "system" fn Java_dev_peersus_app_NotificationActions_offerAnswered<'l
 }
 
 pub fn language(code: &str) -> Result<(), String> {
-    let known = SERVICE.lock().map_err(|_| "the service lock is poisoned")?.clone()
-        .or_else(|| ACTIVITY.lock().ok()?.clone()).ok_or("the platform is not known yet")?;
+    let known = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone()
+        .or_else(|| ACTIVITY.lock().ok()?.clone())
+        .ok_or("the platform is not known yet")?;
     let (vm, object) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
     let code = JObject::from(env.new_string(code).map_err(|error| error.to_string())?);
-    env.call_method(object.as_obj(), "setLanguage", "(Ljava/lang/String;)V", &[
-        jni::objects::JValue::Object(&code),
-    ]).map_err(|error| {
+    env.call_method(
+        object.as_obj(),
+        "setLanguage",
+        "(Ljava/lang/String;)V",
+        &[jni::objects::JValue::Object(&code)],
+    )
+    .map_err(|error| {
         let _ = env.exception_clear();
         error.to_string()
     })?;
     Ok(())
 }
 
-fn call_background(method: &str, signature: &str, arguments: &[jni::objects::JValue]) -> Result<(), String> {
-    let service = SERVICE.lock().map_err(|_| "the service lock is poisoned")?.clone();
-    if let Some(service) = service {
-        let (vm, object) = service.as_ref();
-        let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
-        env.call_method(object.as_obj(), method, signature, arguments).map_err(|error| {
+/// Download untrusted store bytes in the platform's private worker process.
+/// Called on a blocking pool; neither the native owner nor the UI thread waits.
+pub fn store_download(name: &str, limit: usize, output: &std::path::Path) -> Result<(), String> {
+    let known = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone()
+        .or_else(|| ACTIVITY.lock().ok()?.clone())
+        .ok_or("the platform is not known yet")?;
+    let (vm, object) = known.as_ref();
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
+    let name = JObject::from(env.new_string(name).map_err(|error| error.to_string())?);
+    let output = output.to_str().ok_or("the download path is not valid")?;
+    let output = JObject::from(env.new_string(output).map_err(|error| error.to_string())?);
+    let limit = i64::try_from(limit).map_err(|_| "the download bound is not valid")?;
+    let result = env
+        .call_method(
+            object.as_obj(),
+            "downloadStore",
+            "(Ljava/lang/String;JLjava/lang/String;)Z",
+            &[
+                jni::objects::JValue::Object(&name),
+                jni::objects::JValue::Long(limit),
+                jni::objects::JValue::Object(&output),
+            ],
+        )
+        .map_err(|error| {
             let _ = env.exception_clear();
             error.to_string()
-        })?;
+        })?
+        .z()
+        .map_err(|error| error.to_string())?;
+    if result {
+        Ok(())
+    } else {
+        Err("The extension store could not be reached".to_owned())
+    }
+}
+
+fn call_background(
+    method: &str,
+    signature: &str,
+    arguments: &[jni::objects::JValue],
+) -> Result<(), String> {
+    let service = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone();
+    if let Some(service) = service {
+        let (vm, object) = service.as_ref();
+        let mut env = vm
+            .attach_current_thread()
+            .map_err(|error| error.to_string())?;
+        env.call_method(object.as_obj(), method, signature, arguments)
+            .map_err(|error| {
+                let _ = env.exception_clear();
+                error.to_string()
+            })?;
         Ok(())
     } else {
         call_activity(method, signature, arguments)
@@ -233,17 +361,28 @@ pub fn bring_window_forward() -> Result<(), String> {
 /// Tell Java whether an Accept of the notification is served by the owner with no window (saving on their own is on and a folder is chosen),
 /// which decides what the Accept button of the notification is made of. Called whenever it changes.
 pub fn accept_without_window(value: bool) -> Result<(), String> {
-    call_background("setAcceptWithoutWindow", "(Z)V", &[jni::objects::JValue::Bool(u8::from(value))])
+    call_background(
+        "setAcceptWithoutWindow",
+        "(Z)V",
+        &[jni::objects::JValue::Bool(u8::from(value))],
+    )
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_TransferService_startOwner(
-    mut env: JNIEnv<'_>, service: JObject<'_>, directory: JString<'_>,
+    mut env: JNIEnv<'_>,
+    service: JObject<'_>,
+    directory: JString<'_>,
 ) {
     let result = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
-        let directory: String = env.get_string(&directory).map_err(|error| error.to_string())?.into();
+        let directory: String = env
+            .get_string(&directory)
+            .map_err(|error| error.to_string())?
+            .into();
         let vm = env.get_java_vm().map_err(|error| error.to_string())?;
-        let global = env.new_global_ref(service).map_err(|error| error.to_string())?;
+        let global = env
+            .new_global_ref(service)
+            .map_err(|error| error.to_string())?;
         *SERVICE.lock().map_err(|_| "the service lock is poisoned")? = Some(Arc::new((vm, global)));
         platform_ready().notify_one();
         let _ = crate::owner_at(std::path::Path::new(&directory))?;
@@ -257,11 +396,16 @@ pub extern "system" fn Java_dev_peersus_app_TransferService_startOwner(
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_TransferService_releaseService(
-    env: JNIEnv<'_>, service: JObject<'_>,
+    env: JNIEnv<'_>,
+    service: JObject<'_>,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
         if let Ok(mut current) = SERVICE.lock()
-            && current.as_ref().is_some_and(|known| env.is_same_object(known.1.as_obj(), &service).unwrap_or(false)) {
+            && current.as_ref().is_some_and(|known| {
+                env.is_same_object(known.1.as_obj(), &service)
+                    .unwrap_or(false)
+            })
+        {
             *current = None;
         }
         platform_ready().notify_one();
@@ -282,29 +426,79 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_backgroundTimedOut(
     let _ = catch_unwind(AssertUnwindSafe(|| background_timeout().notify_one()));
 }
 
+static ASLEEP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static ASLEEP_CHANGED: OnceLock<tokio::sync::Notify> = OnceLock::new();
+
+/// Woken when the system says the screen went off or on, or that it went idle or woke from it.
+pub fn asleep_changed() -> &'static tokio::sync::Notify {
+    ASLEEP_CHANGED.get_or_init(tokio::sync::Notify::new)
+}
+
+/// Whether this phone sleeps now, as the system last said: the screen is off, or it is in its idle mode (Doze). Awake until told.
+pub fn asleep_now() -> bool {
+    ASLEEP.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// The system's word on whether the phone sleeps. Called by the service from the broadcasts of the screen and of the idle mode, on any
+/// thread, with the window open or closed. Only a CHANGE wakes the owner: the same word twice changes nothing.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_dev_peersus_app_TransferService_asleepChanged(
+    _env: JNIEnv<'_>,
+    _service: JObject<'_>,
+    asleep: jni::sys::jboolean,
+) {
+    let _ = catch_unwind(AssertUnwindSafe(|| {
+        let now = asleep != 0;
+        if ASLEEP.swap(now, std::sync::atomic::Ordering::SeqCst) != now {
+            asleep_changed().notify_one();
+        }
+    }));
+}
+
 /// Put a file that arrived whole into the chosen folder: Java copies it and says how it went through `delivered`. The service does it when there
 /// is one, so that it is done with the window closed, and the activity otherwise.
 pub fn deliver(handoff: &peersus_net::folder_picked::Handoff) -> Result<(), String> {
-    let service = SERVICE.lock().map_err(|_| "the service lock is poisoned")?.clone();
+    let service = SERVICE
+        .lock()
+        .map_err(|_| "the service lock is poisoned")?
+        .clone();
     let known = match service {
         Some(service) => service,
-        None => ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?.clone().ok_or("neither the service nor the activity is known yet")?,
+        None => ACTIVITY
+            .lock()
+            .map_err(|_| "the activity lock is poisoned")?
+            .clone()
+            .ok_or("neither the service nor the activity is known yet")?,
     };
     let (vm, activity) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
-    let path = handoff.path.to_string_lossy();
-    let strings = [handoff.transfer.as_str(), path.as_ref(), handoff.name.as_str(), handoff.tree.as_str()]
-        .into_iter()
-        .map(|text| env.new_string(text))
-        .collect::<Result<Vec<_>, _>>()
+    let mut env = vm
+        .attach_current_thread()
         .map_err(|error| error.to_string())?;
-    let folders = env.new_object_array(handoff.folders.len() as i32, "java/lang/String", JObject::null())
+    let path = handoff.path.to_string_lossy();
+    let strings = [
+        handoff.transfer.as_str(),
+        path.as_ref(),
+        handoff.name.as_str(),
+        handoff.tree.as_str(),
+    ]
+    .into_iter()
+    .map(|text| env.new_string(text))
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|error| error.to_string())?;
+    let folders = env
+        .new_object_array(
+            handoff.folders.len() as i32,
+            "java/lang/String",
+            JObject::null(),
+        )
         .map_err(|error| error.to_string())?;
     for (index, folder) in handoff.folders.iter().enumerate() {
         let text = env.new_string(folder).map_err(|error| error.to_string())?;
-        env.set_object_array_element(&folders, index as i32, text).map_err(|error| error.to_string())?;
+        env.set_object_array_element(&folders, index as i32, text)
+            .map_err(|error| error.to_string())?;
     }
-    let mut arguments: Vec<jni::objects::JValue> = strings.iter().map(jni::objects::JValue::from).collect();
+    let mut arguments: Vec<jni::objects::JValue> =
+        strings.iter().map(jni::objects::JValue::from).collect();
     let folders = JObject::from(folders);
     arguments.push(jni::objects::JValue::Object(&folders));
     env.call_method(
@@ -324,16 +518,28 @@ pub fn deliver(handoff: &peersus_net::folder_picked::Handoff) -> Result<(), Stri
 ///
 /// # Safety
 /// `vm` must be the JavaVM pointer of this process and `activity` a live `Activity` object, as `AndroidApp` gives them.
-pub unsafe fn remember_activity(vm: *mut std::ffi::c_void, activity: *mut std::ffi::c_void) -> Result<(), String> {
+pub unsafe fn remember_activity(
+    vm: *mut std::ffi::c_void,
+    activity: *mut std::ffi::c_void,
+) -> Result<(), String> {
     // SAFETY: the caller promises that `vm` is this process's JavaVM.
     let vm = unsafe { JavaVM::from_raw(vm.cast()) }.map_err(|error| error.to_string())?;
-    let env = vm.attach_current_thread().map_err(|error| error.to_string())?;
+    let env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
     // SAFETY: the caller promises that `activity` is a live object; a global reference keeps it alive past this call.
     let local = unsafe { JObject::from_raw(activity.cast()) };
-    let global = env.new_global_ref(&local).map_err(|error| error.to_string())?;
+    let global = env
+        .new_global_ref(&local)
+        .map_err(|error| error.to_string())?;
     drop(env);
-    let mut current = ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?;
-    if current.as_ref().is_some_and(|known| known.0.get_java_vm_pointer() != vm.get_java_vm_pointer()) {
+    let mut current = ACTIVITY
+        .lock()
+        .map_err(|_| "the activity lock is poisoned")?;
+    if current
+        .as_ref()
+        .is_some_and(|known| known.0.get_java_vm_pointer() != vm.get_java_vm_pointer())
+    {
         return Err("the activity belongs to another virtual machine".to_owned());
     }
     *current = Some(Arc::new((vm, global)));
@@ -349,28 +555,41 @@ pub fn call_activity(
     signature: &str,
     arguments: &[jni::objects::JValue],
 ) -> Result<(), String> {
-    let known = ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?
-        .clone().ok_or("the activity is not known yet")?;
+    let known = ACTIVITY
+        .lock()
+        .map_err(|_| "the activity lock is poisoned")?
+        .clone()
+        .ok_or("the activity is not known yet")?;
     let (vm, activity) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
-    env.call_method(activity.as_obj(), method, signature, arguments).map_err(|error| {
-        let _ = env.exception_clear();
-        error.to_string()
-    })?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
+    env.call_method(activity.as_obj(), method, signature, arguments)
+        .map_err(|error| {
+            let _ = env.exception_clear();
+            error.to_string()
+        })?;
     Ok(())
 }
 
 /// Call a method of the activity that takes no arguments and answers true or false, from any thread: what the notifications row of Settings asks
 /// to show the real state. A Java exception left pending is cleared and said as an error, as in [`call_activity`].
 pub fn call_activity_bool(method: &str) -> Result<bool, String> {
-    let known = ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?
-        .clone().ok_or("the activity is not known yet")?;
+    let known = ACTIVITY
+        .lock()
+        .map_err(|_| "the activity lock is poisoned")?
+        .clone()
+        .ok_or("the activity is not known yet")?;
     let (vm, activity) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
-    let answer = env.call_method(activity.as_obj(), method, "()Z", &[]).map_err(|error| {
-        let _ = env.exception_clear();
-        error.to_string()
-    })?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
+    let answer = env
+        .call_method(activity.as_obj(), method, "()Z", &[])
+        .map_err(|error| {
+            let _ = env.exception_clear();
+            error.to_string()
+        })?;
     answer.z().map_err(|error| error.to_string())
 }
 
@@ -389,9 +608,12 @@ pub fn usable_area() -> Option<(i32, i32, i32, i32)> {
     let known = ACTIVITY.lock().ok()?.clone()?;
     let (vm, activity) = known.as_ref();
     let mut env = vm.attach_current_thread().ok()?;
-    let answer = env.call_method(activity.as_obj(), "usableAreaRectangle", "()[I", &[]).map_err(|_| {
-        let _ = env.exception_clear();
-    }).ok()?;
+    let answer = env
+        .call_method(activity.as_obj(), "usableAreaRectangle", "()[I", &[])
+        .map_err(|_| {
+            let _ = env.exception_clear();
+        })
+        .ok()?;
     let array = jni::objects::JIntArray::from(answer.l().ok()?);
     let mut four = [0_i32; 4];
     env.get_int_array_region(&array, 0, &mut four).ok()?;
@@ -400,15 +622,31 @@ pub fn usable_area() -> Option<(i32, i32, i32, i32)> {
 
 /// Open an explicitly pressed public HTTPS link; never invoked by startup or a network message.
 pub fn open_external_url(url: &str) -> bool {
-    let Ok(known) = ACTIVITY.lock() else { return false };
-    let Some(known) = known.clone() else { return false };
+    let Ok(known) = ACTIVITY.lock() else {
+        return false;
+    };
+    let Some(known) = known.clone() else {
+        return false;
+    };
     let (vm, activity) = known.as_ref();
-    let Ok(mut env) = vm.attach_current_thread() else { return false };
-    let Ok(value) = env.new_string(url) else { return false };
+    let Ok(mut env) = vm.attach_current_thread() else {
+        return false;
+    };
+    let Ok(value) = env.new_string(url) else {
+        return false;
+    };
     let value = JObject::from(value);
-    match env.call_method(activity.as_obj(), "openExternalUrl", "(Ljava/lang/String;)Z", &[jni::objects::JValue::Object(&value)]) {
+    match env.call_method(
+        activity.as_obj(),
+        "openExternalUrl",
+        "(Ljava/lang/String;)Z",
+        &[jni::objects::JValue::Object(&value)],
+    ) {
         Ok(value) => value.z().unwrap_or(false),
-        Err(_) => { let _ = env.exception_clear(); false }
+        Err(_) => {
+            let _ = env.exception_clear();
+            false
+        }
     }
 }
 
@@ -427,6 +665,16 @@ pub fn open_overlay_permission() -> Result<(), String> {
     call_activity("openOverlayPermission", "()V", &[])
 }
 
+/// Whether the system leaves this program out of its battery optimisation now.
+pub fn battery_unrestricted() -> bool {
+    call_activity_bool("batteryUnrestricted").unwrap_or(false)
+}
+
+/// Open the system's list where the person chooses whether this program is left out of battery optimisation.
+pub fn open_battery_settings() -> Result<(), String> {
+    call_activity("openBatterySettings", "()V", &[])
+}
+
 /// What the notifications row does when pressed: ask for the permission, or open the settings where it can be given.
 pub fn open_notifications() -> Result<(), String> {
     call_activity("openNotifications", "()V", &[])
@@ -436,7 +684,9 @@ pub fn background_clipboard_supported() -> bool {
     call_activity_bool("backgroundClipboardSupported").unwrap_or(false)
 }
 
-pub fn background_clipboard_status() -> String { activity_text("backgroundClipboardStatus") }
+pub fn background_clipboard_status() -> String {
+    activity_text("backgroundClipboardStatus")
+}
 
 pub fn open_background_clipboard() {
     let _ = call_activity("openBackgroundClipboard", "()V", &[]);
@@ -446,7 +696,9 @@ pub fn open_background_clipboard() {
 /// exception left pending is cleared.
 fn text_from(known: &Arc<(JavaVM, GlobalRef)>, method: &str) -> String {
     let (vm, object) = known.as_ref();
-    let Ok(mut env) = vm.attach_current_thread() else { return String::new() };
+    let Ok(mut env) = vm.attach_current_thread() else {
+        return String::new();
+    };
     let value = match env.call_method(object.as_obj(), method, "()Ljava/lang/String;", &[]) {
         Ok(answer) => match answer.l() {
             Ok(object) => object,
@@ -460,12 +712,16 @@ fn text_from(known: &Arc<(JavaVM, GlobalRef)>, method: &str) -> String {
     if value.as_raw().is_null() {
         return String::new();
     }
-    env.get_string(&JString::from(value)).map(Into::into).unwrap_or_default()
+    env.get_string(&JString::from(value))
+        .map(Into::into)
+        .unwrap_or_default()
 }
 
 /// What the activity says for `method`: empty when there is no activity, it cannot say, or it has nothing to say.
 fn activity_text(method: &str) -> String {
-    let Ok(known) = ACTIVITY.lock().map(|known| known.clone()) else { return String::new() };
+    let Ok(known) = ACTIVITY.lock().map(|known| known.clone()) else {
+        return String::new();
+    };
     known.map_or_else(String::new, |known| text_from(&known, method))
 }
 
@@ -504,11 +760,23 @@ pub fn forget_saved_folder() -> Result<(), String> {
 
 /// Choose the camera by its id; an empty id gives the choice back to the program. The camera in use is started again on the new one.
 pub fn choose_camera(id: &str) -> Result<(), String> {
-    let known = ACTIVITY.lock().map_err(|_| "the activity lock is poisoned")?.clone().ok_or("the activity is not known yet")?;
+    let known = ACTIVITY
+        .lock()
+        .map_err(|_| "the activity lock is poisoned")?
+        .clone()
+        .ok_or("the activity is not known yet")?;
     let (vm, activity) = known.as_ref();
-    let mut env = vm.attach_current_thread().map_err(|error| error.to_string())?;
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|error| error.to_string())?;
     let text = JObject::from(env.new_string(id).map_err(|error| error.to_string())?);
-    env.call_method(activity.as_obj(), "chooseCamera", "(Ljava/lang/String;)V", &[jni::objects::JValue::Object(&text)]).map_err(|error| {
+    env.call_method(
+        activity.as_obj(),
+        "chooseCamera",
+        "(Ljava/lang/String;)V",
+        &[jni::objects::JValue::Object(&text)],
+    )
+    .map_err(|error| {
         let _ = env.exception_clear();
         error.to_string()
     })?;
@@ -517,7 +785,11 @@ pub fn choose_camera(id: &str) -> Result<(), String> {
 
 /// Start the system's document picker. Returns at once; the files come back through the native methods below.
 pub fn open_picker(several: bool) -> Result<(), String> {
-    call_activity("chooseDocuments", "(Z)V", &[jni::objects::JValue::Bool(u8::from(several))])
+    call_activity(
+        "chooseDocuments",
+        "(Z)V",
+        &[jni::objects::JValue::Bool(u8::from(several))],
+    )
 }
 
 /// Files shared from another application: a selection is opened for them, as the window opens one when the person asks for the picker.
@@ -526,7 +798,8 @@ pub fn open_picker(several: bool) -> Result<(), String> {
 /// The window learns of the files from the same `Picked` it already holds (see `Picked::take_external`), so nothing else is kept here.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_MainActivity_openSharedSelection<'local>(
-    _env: JNIEnv<'local>, _activity: JObject<'local>,
+    _env: JNIEnv<'local>,
+    _activity: JObject<'local>,
 ) -> jlong {
     catch_unwind(AssertUnwindSafe(|| match SHARED.get() {
         None => -1,
@@ -537,25 +810,43 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_openSharedSelection<'lo
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_MainActivity_pickerGeneration<'local>(
-    _env: JNIEnv<'local>, _activity: JObject<'local>,
+    _env: JNIEnv<'local>,
+    _activity: JObject<'local>,
 ) -> jlong {
-    catch_unwind(AssertUnwindSafe(|| SHARED.get().map_or(0, |shared| shared.picked.generation() as jlong))).unwrap_or(0)
+    catch_unwind(AssertUnwindSafe(|| {
+        SHARED
+            .get()
+            .map_or(0, |shared| shared.picked.generation() as jlong)
+    }))
+    .unwrap_or(0)
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_MainActivity_pickerState<'local>(
-    _env: JNIEnv<'local>, _activity: JObject<'local>, generation: jlong,
+    _env: JNIEnv<'local>,
+    _activity: JObject<'local>,
+    generation: jlong,
 ) -> jint {
-    catch_unwind(AssertUnwindSafe(|| SHARED.get().map_or(-1, |shared| shared.picked.producer_state(generation as u64)))).unwrap_or(-1)
+    catch_unwind(AssertUnwindSafe(|| {
+        SHARED
+            .get()
+            .map_or(-1, |shared| shared.picked.producer_state(generation as u64))
+    }))
+    .unwrap_or(-1)
 }
 
 /// The complete selected count is sent before the worker opens any descriptor.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_MainActivity_pickStarted<'local>(
-    _env: JNIEnv<'local>, _activity: JObject<'local>, generation: jlong, count: jint,
+    _env: JNIEnv<'local>,
+    _activity: JObject<'local>,
+    generation: jlong,
+    count: jint,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        if count >= 0 && let Some(shared) = SHARED.get() {
+        if count >= 0
+            && let Some(shared) = SHARED.get()
+        {
             shared.picked.selected_for(generation as u64, count as u32);
         }
     }));
@@ -585,7 +876,9 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_pickedFile<'local>(
 /// The picker is done, with files or without them.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_dev_peersus_app_MainActivity_pickFinished<'local>(
-    _env: JNIEnv<'local>, _activity: JClass<'local>, generation: jlong,
+    _env: JNIEnv<'local>,
+    _activity: JClass<'local>,
+    generation: jlong,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
         if let Some(shared) = SHARED.get() {
@@ -596,9 +889,17 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_pickFinished<'local>(
 
 /// The folder the person chose, as the tree address Java gives, or null if they backed out.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_dev_peersus_app_MainActivity_folderChosen<'local>(mut env: JNIEnv<'local>, _activity: JObject<'local>, tree: JString<'local>) {
+pub extern "system" fn Java_dev_peersus_app_MainActivity_folderChosen<'local>(
+    mut env: JNIEnv<'local>,
+    _activity: JObject<'local>,
+    tree: JString<'local>,
+) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        let tree: Option<String> = if tree.as_raw().is_null() { None } else { env.get_string(&tree).ok().map(Into::into) };
+        let tree: Option<String> = if tree.as_raw().is_null() {
+            None
+        } else {
+            env.get_string(&tree).ok().map(Into::into)
+        };
         folders().answered(tree);
     }));
 }
@@ -612,7 +913,10 @@ pub extern "system" fn Java_dev_peersus_app_FolderDelivery_delivered<'local>(
     done: jni::sys::jboolean,
 ) {
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        let transfer: String = env.get_string(&transfer).map(Into::into).unwrap_or_default();
+        let transfer: String = env
+            .get_string(&transfer)
+            .map(Into::into)
+            .unwrap_or_default();
         folders().delivered(transfer, done != 0);
     }));
 }
@@ -627,7 +931,15 @@ fn plugin_install_failed(words: &'static str) {
             && let Ok(words) = env.new_string(words)
         {
             let words = JObject::from(words);
-            if env.call_method(activity.as_obj(), "pluginInstallFailed", "(Ljava/lang/String;)V", &[jni::objects::JValue::Object(&words)]).is_err() {
+            if env
+                .call_method(
+                    activity.as_obj(),
+                    "pluginInstallFailed",
+                    "(Ljava/lang/String;)V",
+                    &[jni::objects::JValue::Object(&words)],
+                )
+                .is_err()
+            {
                 let _ = env.exception_clear();
             }
         }
@@ -637,12 +949,23 @@ fn plugin_install_failed(words: &'static str) {
 /// SAFETY: the Activity detached this descriptor exactly once. Rust owns it from entry,
 /// including rejected selections; untrusted provider names never become filesystem paths.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_dev_peersus_app_MainActivity_pluginChosen(mut env: JNIEnv<'_>, _: JClass<'_>, descriptor: jint, name: JString<'_>) {
-    if descriptor < 0 { return; }
+pub extern "system" fn Java_dev_peersus_app_MainActivity_pluginChosen(
+    mut env: JNIEnv<'_>,
+    _: JClass<'_>,
+    descriptor: jint,
+    name: JString<'_>,
+) {
+    if descriptor < 0 {
+        return;
+    }
     // SAFETY: ownership was transferred by ParcelFileDescriptor.detachFd, never borrowed.
     let file = unsafe { File::from_raw_fd(descriptor) };
     let _ = catch_unwind(AssertUnwindSafe(|| {
-        let name: String = env.get_string(&name).ok().map(Into::into).unwrap_or_default();
+        let name: String = env
+            .get_string(&name)
+            .ok()
+            .map(Into::into)
+            .unwrap_or_default();
         let Some(owner) = super::OWNER.lock().ok().and_then(|owner| owner.clone()) else {
             plugin_install_failed("The application is not ready to open plugins");
             return;
@@ -653,7 +976,9 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_pluginChosen(mut env: J
         }
         struct ImportGuard;
         impl Drop for ImportGuard {
-            fn drop(&mut self) { PLUGIN_IMPORT.store(false, std::sync::atomic::Ordering::Release); }
+            fn drop(&mut self) {
+                PLUGIN_IMPORT.store(false, std::sync::atomic::Ordering::Release);
+            }
         }
         let guard = ImportGuard;
         let scratch = owner.socket.parent().map(std::path::Path::to_path_buf);
@@ -661,16 +986,27 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_pluginChosen(mut env: J
         drop(owner._executor.spawn(async move {
             let _guard = guard;
             let source = tokio::task::spawn_blocking(move || {
-                peersus_app::archive::keep_source(file, &name, &scratch.ok_or(peersus_app::archive::Refused("The package store is unavailable"))?)
-            }).await;
+                peersus_app::archive::keep_source(
+                    file,
+                    &name,
+                    &scratch.ok_or(peersus_app::archive::Refused(
+                        "The package store is unavailable",
+                    ))?,
+                )
+            })
+            .await;
             match source {
                 Ok(Ok(source)) => {
                     let Some(path) = peersus_core::model::SourceDir::new(source.path()) else {
-                        plugin_install_failed("The selected archive could not be staged"); return;
+                        plugin_install_failed("The selected archive could not be staged");
+                        return;
                     };
                     // StageInstall retains its own validated unpacked package. The raw
                     // source below drops after staging, not after a future confirmation.
-                    if let Err(words) = client.command(peersus_core::model::Command::StageInstall { source: path }).await {
+                    if let Err(words) = client
+                        .command(peersus_core::model::Command::StageInstall { source: path })
+                        .await
+                    {
                         plugin_install_failed(words);
                     }
                     drop(source);

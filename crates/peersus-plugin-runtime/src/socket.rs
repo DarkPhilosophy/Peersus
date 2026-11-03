@@ -1,7 +1,16 @@
 //! Desktop connects private paths; Android supplies owner-connected descriptors over Binder.
 use crate::{DataRequest, Transport};
-use peersus_plugin_host::{data::DataHello, frame::{self, CONTROL_LIMIT}, link::Hello};
-use std::{io, os::unix::net::UnixStream, path::{Path, PathBuf}, time::Duration};
+use peersus_plugin_host::{
+    data::DataHello,
+    frame::{self, CONTROL_LIMIT},
+    link::Hello,
+};
+use std::{
+    io,
+    os::unix::net::UnixStream,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 /// The bootstrap token is private to the worker and never enters guest memory.
 pub struct SocketTransport {
@@ -30,8 +39,18 @@ impl SocketTransport {
         token: String,
         open_data: impl FnMut() -> io::Result<UnixStream> + Send + 'static,
     ) -> io::Result<Self> {
-        frame::write_blocking(&mut control, &Hello { token: token.clone() }, CONTROL_LIMIT)?;
-        Ok(Self { control, open_data: Box::new(open_data), token })
+        frame::write_blocking(
+            &mut control,
+            &Hello {
+                token: token.clone(),
+            },
+            CONTROL_LIMIT,
+        )?;
+        Ok(Self {
+            control,
+            open_data: Box::new(open_data),
+            token,
+        })
     }
 }
 
@@ -52,7 +71,15 @@ impl Transport for SocketTransport {
             DataRequest::Ticket(ticket) => (ticket, None),
             DataRequest::Claim(claim) => (0, Some(claim)),
         };
-        frame::write_blocking(&mut stream, &DataHello { token: self.token.clone(), ticket, claim }, 1024)?;
+        frame::write_blocking(
+            &mut stream,
+            &DataHello {
+                token: self.token.clone(),
+                ticket,
+                claim,
+            },
+            1024,
+        )?;
         Ok(stream)
     }
 

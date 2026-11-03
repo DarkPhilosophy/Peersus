@@ -27,13 +27,14 @@ pub fn use_progress(wanted: bool, reduced: bool) -> f32 {
     // Where the thing was last drawn. A move starts from it.
     let mut drawn = use_state(|| if wanted && reduced { 1.0_f32 } else { 0.0_f32 });
     let from = Motion::start_from(*drawn.peek());
-    let animation = use_animation_with_dependencies(&(wanted, reduced), move |conf, (wanted, reduced)| {
-        conf.on_creation(OnCreation::Run);
-        conf.on_change(OnChange::Rerun);
-        let to = if *wanted { 1.0_f32 } else { 0.0_f32 };
-        // Linear: `Popup::at` already shapes the curve, and easing twice would stall at the ends.
-        AnimNum::new(from, to).time(Motion::duration_ms(from, to, *reduced))
-    });
+    let animation =
+        use_animation_with_dependencies(&(wanted, reduced), move |conf, (wanted, reduced)| {
+            conf.on_creation(OnCreation::Run);
+            conf.on_change(OnChange::Rerun);
+            let to = if *wanted { 1.0_f32 } else { 0.0_f32 };
+            // Linear: `Popup::at` already shapes the curve, and easing twice would stall at the ends.
+            AnimNum::new(from, to).time(Motion::duration_ms(from, to, *reduced))
+        });
     let progress: f32 = animation.get().value();
     // Remember what is on the screen, so that the next move starts from here.
     drawn.set_if_modified(progress);
@@ -48,13 +49,16 @@ pub fn use_progress(wanted: bool, reduced: bool) -> f32 {
 pub fn use_toward(target: f32, scale: f32, reduced: bool) -> f32 {
     let mut drawn = use_state(|| if reduced { target } else { 0.0_f32 });
     let from = *drawn.peek();
-    let animation = use_animation_with_dependencies(&((target * 1000.) as i64, reduced), move |conf, (target, reduced)| {
-        conf.on_creation(OnCreation::Run);
-        conf.on_change(OnChange::Rerun);
-        let to = *target as f32 / 1000.;
-        // Linear in pixels: the curve is applied to the progress, not stacked on a width.
-        AnimNum::new(from, to).time(Motion::duration_ms(from / scale, to / scale, *reduced))
-    });
+    let animation = use_animation_with_dependencies(
+        &((target * 1000.) as i64, reduced),
+        move |conf, (target, reduced)| {
+            conf.on_creation(OnCreation::Run);
+            conf.on_change(OnChange::Rerun);
+            let to = *target as f32 / 1000.;
+            // Linear in pixels: the curve is applied to the progress, not stacked on a width.
+            AnimNum::new(from, to).time(Motion::duration_ms(from / scale, to / scale, *reduced))
+        },
+    );
     let width: f32 = animation.get().value();
     drawn.set_if_modified(width);
     width
@@ -82,7 +86,9 @@ impl PartialEq for Reveal {
         // The child is rebuilt on every draw and cannot be compared; what decides whether the
         // motion has to change is only whether the thing is wanted, whether motion is reduced,
         // and where it grows from.
-        self.wanted == other.wanted && self.reduced_motion == other.reduced_motion && self.origin == other.origin
+        self.wanted == other.wanted
+            && self.reduced_motion == other.reduced_motion
+            && self.origin == other.origin
     }
 }
 
@@ -94,7 +100,11 @@ impl Component for Reveal {
         if !Motion::mounted(self.wanted, progress) {
             return rect().into();
         }
-        let shown = if self.reduced_motion { Popup::still() } else { Popup::at(progress) };
+        let shown = if self.reduced_motion {
+            Popup::still()
+        } else {
+            Popup::at(progress)
+        };
         let moving = rect()
             .width(Size::fill())
             .height(Size::fill())

@@ -53,6 +53,113 @@ pub enum PluginStateError {
     Range,
     #[error("setting is not valid for this scope")]
     Scope,
+    #[error("invalid status identifier or label")]
+    Status,
+    #[error("a plugin may not have this many statuses")]
+    TooManyStatuses,
+}
+
+/// How many statuses one plugin may define on this device.
+pub const MAX_STATUSES_PER_PLUGIN: usize = 8;
+/// How many custom statuses may be active on one device at once, whoever defined them. A device says this much of itself to every peer.
+pub const MAX_ACTIVE_STATUSES: usize = 8;
+/// The longest label a status may have, in characters: it is read by a person on another device. The same bound as every other label.
+pub const MAX_STATUS_LABEL: usize = peersus_plugin_api::contributions::MAX_LABEL;
+
+/// The words only the application says of a device. A plugin can neither define nor set them: one that could say `offline` or `online`
+/// could make a device look gone or awake when it is not. The set of everything else is open and is listed nowhere.
+pub const SYSTEM_STATUSES: [&str; 3] = ["online", "sleeping", "offline"];
+
+/// Characters that change how text is drawn or take no room. A label must not carry them: one word could be made to read as another.
+fn hides_or_redirects(c: char) -> bool {
+    matches!(c,
+        '\u{00AD}'                // soft hyphen
+        | '\u{200B}'..='\u{200F}' // zero-width space, joiners, left-to-right and right-to-left marks
+        | '\u{202A}'..='\u{202E}' // directional embeddings and overrides
+        | '\u{2060}'..='\u{2064}' // word joiner and invisible operators
+        | '\u{2066}'..='\u{2069}' // directional isolates
+        | '\u{FEFF}'              // zero-width no-break space
+    )
+}
+
+/// The identifier of one status inside the plugin that defined it. Chosen by that plugin, so only ever meaningful together with the
+/// plugin: see [`StatusKey`].
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct StatusId(String);
+
+impl StatusId {
+    /// The shared identifier grammar, and not one of the application's own words, whatever the case.
+    pub fn new(value: impl Into<String>) -> Result<Self, PluginStateError> {
+        let value = value.into();
+        (name::valid(&value) && !SYSTEM_STATUSES.contains(&value.to_ascii_lowercase().as_str()))
+            .then_some(Self(value))
+            .ok_or(PluginStateError::Status)
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl TryFrom<String> for StatusId {
+    type Error = PluginStateError;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+impl From<StatusId> for String {
+    fn from(value: StatusId) -> Self {
+        value.0
+    }
+}
+
+/// What a status is called, in the words of whoever wrote the plugin. Never translated or rewritten by the application, and shown as it is.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct StatusLabel(String);
+
+impl StatusLabel {
+    /// Plain visible text of bounded length, with nothing that hides or redirects, and not one of the application's own words.
+    pub fn new(value: impl Into<String>) -> Result<Self, PluginStateError> {
+        let value = value.into();
+        let plain = name::text(&value, MAX_STATUS_LABEL)
+            && value == value.trim()
+            && !value.chars().any(hides_or_redirects)
+            && !SYSTEM_STATUSES.contains(&value.to_lowercase().as_str());
+        plain.then_some(Self(value)).ok_or(PluginStateError::Status)
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl TryFrom<String> for StatusLabel {
+    type Error = PluginStateError;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+impl From<StatusLabel> for String {
+    fn from(value: StatusLabel) -> Self {
+        value.0
+    }
+}
+
+/// Who said what: the plugin that owns a status and the identifier it gave it. The plugin is the one the HOST assigned, never one a
+/// message claims, so a plugin cannot speak for another; this pair is how a status is named everywhere, from the plugin that set it to
+/// the screen of a device that has never heard of that plugin, and nothing in between drops either half.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StatusKey {
+    pub plugin: PluginId,
+    pub id: StatusId,
+}
+
+/// A status as another device sees it: whose it is, what it is called, and the words its author gave it.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StatusInfo {
+    #[serde(flatten)]
+    pub key: StatusKey,
+    pub label: StatusLabel,
 }
 
 /// What a user granted one plugin for one device: permissions, each OF SOMEONE.
@@ -217,6 +324,114 @@ impl Values {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_status_id_is_a_plain_identifier_and_never_one_of_the_applications_own_words() {
+        for good in ["watching", "in-a-call", "focus.mode", "a1_b2"] {
+            assert!(StatusId::new(good).is_ok(), "{good}");
+        }
+        // The application's words are reserved whatever the case, so a plugin cannot say a device is offline or awake.
+        for system in [
+            "online", "sleeping", "offline", "Offline", "ONLINE", "Sleeping",
+        ] {
+            assert_eq!(
+                StatusId::new(system),
+                Err(PluginStateError::Status),
+                "{system}"
+            );
+        }
+        for bad in ["", "a b", "a/b", "é", "a:b", &"x".repeat(129)] {
+            assert_eq!(StatusId::new(bad), Err(PluginStateError::Status), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn a_status_label_is_plain_visible_text_that_cannot_pass_for_another_word() {
+        for good in [
+            "Watching a video",
+            "În apel",
+            "A",
+            &"é".repeat(MAX_STATUS_LABEL),
+        ] {
+            assert!(StatusLabel::new(good).is_ok(), "{good}");
+        }
+        let refused: [(&str, &str); 14] = [
+            ("", "empty"),
+            ("   ", "blank"),
+            (" padded", "leading space"),
+            ("padded ", "trailing space"),
+            ("bad\u{7}", "control"),
+            ("two\nlines", "newline"),
+            ("zero\u{200B}width", "zero-width space"),
+            ("a\u{202E}b", "right-to-left override"),
+            ("a\u{2066}b", "directional isolate"),
+            ("a\u{FEFF}b", "byte order mark"),
+            ("soft\u{00AD}hyphen", "soft hyphen"),
+            ("Offline", "the application's word"),
+            ("sLeEpInG", "the application's word, another case"),
+            ("Online", "the application's word again"),
+        ];
+        for (label, why) in refused {
+            assert_eq!(
+                StatusLabel::new(label),
+                Err(PluginStateError::Status),
+                "{why}: {label:?}"
+            );
+        }
+        assert_eq!(
+            StatusLabel::new("é".repeat(MAX_STATUS_LABEL + 1)),
+            Err(PluginStateError::Status),
+            "too long"
+        );
+    }
+
+    #[test]
+    fn a_status_is_checked_again_when_it_is_read_back_from_anywhere() {
+        // What arrives from another device or from a plugin is not trusted for having been valid where it was written.
+        assert!(serde_json::from_str::<StatusId>(r#""watching""#).is_ok());
+        assert!(serde_json::from_str::<StatusId>(r#""offline""#).is_err());
+        assert!(serde_json::from_str::<StatusId>(r#""a b""#).is_err());
+        assert!(serde_json::from_str::<StatusLabel>(r#""Watching""#).is_ok());
+        assert!(serde_json::from_str::<StatusLabel>(r#""a\u202eb""#).is_err());
+        assert!(serde_json::from_str::<StatusLabel>(r#""online""#).is_err());
+    }
+
+    #[test]
+    fn a_status_keeps_both_whose_it_is_and_what_it_is_called_through_a_round_trip() {
+        let info = StatusInfo {
+            key: StatusKey {
+                plugin: PluginId::new("player").unwrap(),
+                id: StatusId::new("watching").unwrap(),
+            },
+            label: StatusLabel::new("Watching a video").unwrap(),
+        };
+        let json = serde_json::to_string(&info).unwrap();
+        // Flat on the wire: the owner, the identifier and the words, with nothing dropped and nothing added.
+        assert_eq!(
+            json,
+            r#"{"plugin":"player","id":"watching","label":"Watching a video"}"#
+        );
+        assert_eq!(serde_json::from_str::<StatusInfo>(&json).unwrap(), info);
+        // Two plugins may use the same identifier: they are two different statuses, and neither is the other.
+        let other = StatusKey {
+            plugin: PluginId::new("timer").unwrap(),
+            id: StatusId::new("watching").unwrap(),
+        };
+        assert_ne!(info.key, other);
+        // Nothing rides along, and neither half may be missing.
+        for bad in [
+            r#"{"plugin":"player","id":"watching","label":"x","extra":1}"#,
+            r#"{"id":"watching","label":"x"}"#,
+            r#"{"plugin":"player","label":"x"}"#,
+            r#"{"plugin":"player","id":"watching"}"#,
+            r#"{"plugin":"p q","id":"watching","label":"x"}"#,
+        ] {
+            assert!(
+                serde_json::from_str::<StatusInfo>(bad).is_err(),
+                "{bad} was accepted"
+            );
+        }
+    }
 
     fn setting(id: &str, scope: Scope, kind: Kind) -> Setting {
         Setting {

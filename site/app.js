@@ -1,5 +1,21 @@
 "use strict";
 // No cookies, persistent storage, provider SDKs, or external requests.
+// Sections arrive as they are scrolled to. Nothing is hidden unless this script runs (the rules are under `.js`), and nothing at all
+// when motion is reduced or the browser has no IntersectionObserver: then everything is simply there.
+(function reveal() {
+  const items = document.querySelectorAll(".reveal");
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!items.length || calm || !("IntersectionObserver" in window)) return;
+  document.documentElement.classList.add("js");
+  const watcher = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.add("is-in");
+      watcher.unobserve(entry.target);
+    }
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+  items.forEach((item) => watcher.observe(item));
+})();
 const themeButton = document.getElementById("theme");
 if (themeButton) {
   themeButton.hidden = false;
@@ -47,10 +63,19 @@ if (list && status) {
 const extensionList = document.getElementById("extensions-list");
 const extensionStatus = document.getElementById("extensions-status");
 if (extensionList && extensionStatus) {
+  const testCatalog = document.body.dataset.testCatalog === "true";
+  if (testCatalog) {
+    const heading = document.getElementById("extensions-title");
+    if (heading) {
+      heading.textContent = "Test extensions. Not production approvals.";
+      const explanation = heading.nextElementSibling;
+      if (explanation && explanation.tagName === "P") explanation.textContent = "These public signed fixtures exercise the development store. They do not configure or enable the production store.";
+    }
+  }
   // Display only. Nothing here is a trust decision: the application verifies the signed catalog itself. Same-origin
   // fetch, bounded, and every field goes in through textContent, never as markup.
   const text = (value, limit) => typeof value === "string" && value.length <= limit && !/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(value);
-  fetch("store/catalog.json", { credentials: "omit", cache: "no-cache" })
+  fetch(`${testCatalog ? "store-test" : "store"}/catalog.json`, { credentials: "omit", cache: "no-cache" })
     .then(response => { if (response.status === 404) return null; if (!response.ok) throw new Error("Unavailable"); return response.json(); })
     .then(data => {
       if (data === null) { extensionStatus.textContent = "No extensions have been published yet."; return; }
@@ -65,7 +90,7 @@ if (extensionList && extensionStatus) {
         title.textContent = entry.name;
         const meta = document.createElement("p");
         meta.className = "extension-meta";
-        meta.textContent = `by ${entry.author} · version ${entry.version}`;
+        meta.textContent = `${testCatalog ? "TEST FIXTURE · " : ""}by ${entry.author} · version ${entry.version}`;
         item.append(title, meta);
         if (entry.description) { const about = document.createElement("p"); about.textContent = entry.description; item.append(about); }
         const link = document.createElement("p");
@@ -75,7 +100,9 @@ if (extensionList && extensionStatus) {
         fragment.append(item);
       }
       extensionList.replaceChildren(fragment);
-      extensionStatus.textContent = extensionList.children.length ? "Install them from Settings → Extensions → Store in Peersus." : "No extensions have been published yet.";
+      extensionStatus.textContent = extensionList.children.length
+        ? (testCatalog ? "For isolated application testing, run ./store-demo.sh from the source checkout. Production trust is unchanged." : "Install them from Settings → Extensions → Store in Peersus.")
+        : "No extensions have been published yet.";
     })
-    .catch(() => { extensionStatus.textContent = "The list of approved extensions is unavailable right now."; });
+    .catch(() => { extensionStatus.textContent = testCatalog ? "The test catalog is unavailable right now." : "The list of approved extensions is unavailable right now."; });
 }

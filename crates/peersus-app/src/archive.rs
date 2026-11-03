@@ -71,25 +71,43 @@ pub struct SourceArchive {
 }
 
 impl SourceArchive {
-    pub fn path(&self) -> &Path { &self.path }
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
 }
 
-pub fn keep_source(reader: impl Read, name: &str, scratch: &Path) -> Result<SourceArchive, Refused> {
+pub fn keep_source(
+    reader: impl Read,
+    name: &str,
+    scratch: &Path,
+) -> Result<SourceArchive, Refused> {
     let mut components = Path::new(name).components();
-    if name.len() > 255 || name.contains('\\') || name.chars().any(char::is_control)
-        || !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some()
+    if name.len() > 255
+        || name.contains('\\')
+        || name.chars().any(char::is_control)
+        || !matches!(components.next(), Some(Component::Normal(_)))
+        || components.next().is_some()
     {
         return Err(Refused("The selected archive has no usable name"));
     }
-    let holder = tempfile::Builder::new().prefix(".peersus-source").tempdir_in(scratch)
+    let holder = tempfile::Builder::new()
+        .prefix(".peersus-source")
+        .tempdir_in(scratch)
         .map_err(|_| Refused("The selected archive could not be staged"))?;
     fs::set_permissions(holder.path(), fs::Permissions::from_mode(0o700))
         .map_err(|_| Refused("The selected archive could not be staged"))?;
     let path = holder.path().join(name);
-    let mut output = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path)
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&path)
         .map_err(|_| Refused("The selected archive could not be staged"))?;
     io::copy(&mut Bounded::new(reader), &mut output).map_err(bad)?;
-    Ok(SourceArchive { _holder: holder, path })
+    Ok(SourceArchive {
+        _holder: holder,
+        path,
+    })
 }
 
 /// A reader that gives at most [`MAX_STREAM`] bytes and then fails with an error that says why,
@@ -101,7 +119,10 @@ struct Bounded<R> {
 
 impl<R> Bounded<R> {
     fn new(inner: R) -> Self {
-        Self { inner, left: MAX_STREAM }
+        Self {
+            inner,
+            left: MAX_STREAM,
+        }
     }
 }
 
@@ -118,7 +139,9 @@ impl<R: Read> Read for Bounded<R> {
                 _ => Err(io::Error::other(OVER)),
             };
         }
-        let room = into.len().min(usize::try_from(self.left).unwrap_or(usize::MAX));
+        let room = into
+            .len()
+            .min(usize::try_from(self.left).unwrap_or(usize::MAX));
         let read = self.inner.read(&mut into[..room])?;
         self.left -= read as u64;
         Ok(read)
@@ -168,19 +191,28 @@ pub fn unpack_in(archive: &Path, scratch: &Path) -> Result<Unpacked, Refused> {
     // First pass: read the manifest and nothing else, to learn which files the package names. It
     // writes nothing, so what the package does not name is never on the disk at all.
     let wanted = if read == 2 && head == GZIP {
-        read_wanted(Bounded::new(flate2::read::GzDecoder::new(io::BufReader::new(
-            fs::File::open(archive).map_err(|_| UNREADABLE)?,
-        ))))?
+        read_wanted(Bounded::new(flate2::read::GzDecoder::new(
+            io::BufReader::new(fs::File::open(archive).map_err(|_| UNREADABLE)?),
+        )))?
     } else {
-        read_wanted(Bounded::new(io::BufReader::new(fs::File::open(archive).map_err(|_| UNREADABLE)?)))?
+        read_wanted(Bounded::new(io::BufReader::new(
+            fs::File::open(archive).map_err(|_| UNREADABLE)?,
+        )))?
     };
     if read == 2 && head == GZIP {
-        extract(Bounded::new(flate2::read::GzDecoder::new(reader)), holder.path(), &wanted)?;
+        extract(
+            Bounded::new(flate2::read::GzDecoder::new(reader)),
+            holder.path(),
+            &wanted,
+        )?;
     } else {
         extract(Bounded::new(reader), holder.path(), &wanted)?;
     }
     let root = find_root(holder.path(), &stem)?;
-    Ok(Unpacked { _holder: holder, root })
+    Ok(Unpacked {
+        _holder: holder,
+        root,
+    })
 }
 
 /// Look at the first bytes of `reader` without consuming them.
@@ -194,7 +226,10 @@ fn peek<R: io::BufRead>(reader: &mut R, into: &mut [u8]) -> io::Result<usize> {
 /// The archive's file name without the extensions that say what it is: `clipboard.tar.gz` and
 /// `clipboard.tgz` are both `clipboard`.
 fn archive_stem(archive: &Path) -> String {
-    let name = archive.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let name = archive
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
     for suffix in [".tar.gz", ".tgz", ".tar"] {
         if let Some(stem) = name.strip_suffix(suffix) {
             return stem.to_owned();
@@ -303,12 +338,19 @@ fn read_wanted<R: Read>(source: R) -> Result<Wanted, Refused> {
         let read = crate::discovery::parse_manifest(&name.to_string_lossy(), &text).ok();
         let program = read
             .as_ref()
-            .map_or(crate::discovery::PROGRAM_FILE, |manifest| manifest.program_file())
+            .map_or(crate::discovery::PROGRAM_FILE, |manifest| {
+                manifest.program_file()
+            })
             .to_owned();
         let files = read
             .and_then(|manifest| manifest.files)
             .map(|names| names.iter().map(PathBuf::from).collect());
-        found = Some(Wanted { prefix, manifest: name.to_owned(), program, files });
+        found = Some(Wanted {
+            prefix,
+            manifest: name.to_owned(),
+            program,
+            files,
+        });
     }
     // No manifest anywhere: nothing is named, and the root search refuses it afterwards.
     Ok(found.unwrap_or(Wanted {
@@ -342,10 +384,18 @@ fn extract<R: Read>(source: R, into: &Path, wanted: &Wanted) -> Result<(), Refus
         }
         let target = into.join(&relative);
         if kind.is_dir() {
-            fs::DirBuilder::new().recursive(true).mode(0o700).create(&target).map_err(|_| BAD)?;
+            fs::DirBuilder::new()
+                .recursive(true)
+                .mode(0o700)
+                .create(&target)
+                .map_err(|_| BAD)?;
         } else if kind.is_file() {
             if let Some(parent) = target.parent() {
-                fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).map_err(|_| BAD)?;
+                fs::DirBuilder::new()
+                    .recursive(true)
+                    .mode(0o700)
+                    .create(parent)
+                    .map_err(|_| BAD)?;
             }
             // Whether a file may be run is the one thing about its mode a package decides, and it
             // decides it for ANY of its files, exactly as a folder does (`copy_package` keeps the
@@ -384,7 +434,10 @@ fn find_root(top: &Path, stem: &str) -> Result<PathBuf, Refused> {
         let is_dir = entry.file_type().map_err(|_| NONE)?.is_dir();
         names.push((entry.path(), is_dir));
     }
-    if names.iter().any(|(path, dir)| !dir && path.file_name().is_some_and(is_manifest)) {
+    if names
+        .iter()
+        .any(|(path, dir)| !dir && path.file_name().is_some_and(is_manifest))
+    {
         let named = top.join(if stem.is_empty() { "plugin" } else { stem });
         // Everything at the top moves under one folder with the archive's name.
         let holder = tempfile::Builder::new()
@@ -400,7 +453,9 @@ fn find_root(top: &Path, stem: &str) -> Result<PathBuf, Refused> {
         return Ok(named);
     }
     match names.as_slice() {
-        [(directory, true)] if crate::discovery::manifest_file(directory).is_ok() => Ok(directory.clone()),
+        [(directory, true)] if crate::discovery::manifest_file(directory).is_ok() => {
+            Ok(directory.clone())
+        }
         _ => Err(NONE),
     }
 }
@@ -412,13 +467,22 @@ mod tests {
     #[test]
     fn a_descriptor_archive_uses_the_same_unpacker_and_releases_its_source_after_staging() {
         let scratch = tempfile::tempdir().unwrap();
-        let bytes = tar_of(&[("plugin.json", b"{}", 0o600, FILE), ("plugin", b"module bytes", 0o600, FILE)]);
+        let bytes = tar_of(&[
+            ("plugin.json", b"{}", 0o600, FILE),
+            ("plugin", b"module bytes", 0o600, FILE),
+        ]);
         let source = keep_source(bytes.as_slice(), "chosen.tar", scratch.path()).unwrap();
         let source_path = source.path().to_path_buf();
         let unpacked = unpack_in(source.path(), scratch.path()).unwrap();
         drop(source);
-        assert!(!source_path.exists(), "an imported descriptor must not leave a raw archive behind");
-        assert_eq!(fs::read(unpacked.root().join("plugin")).unwrap(), b"module bytes");
+        assert!(
+            !source_path.exists(),
+            "an imported descriptor must not leave a raw archive behind"
+        );
+        assert_eq!(
+            fs::read(unpacked.root().join("plugin")).unwrap(),
+            b"module bytes"
+        );
         drop(unpacked);
         assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), 0);
     }
@@ -426,12 +490,23 @@ mod tests {
     #[test]
     fn descriptor_names_never_escape_the_private_source_and_reader_failures_leave_nothing() {
         let scratch = tempfile::tempdir().unwrap();
-        for name in ["", ".", "..", "../outside.tar", "/outside.tar", "folder/name.tar", "folder\\name.tar", "bad\nname.tar"] {
+        for name in [
+            "",
+            ".",
+            "..",
+            "../outside.tar",
+            "/outside.tar",
+            "folder/name.tar",
+            "folder\\name.tar",
+            "bad\nname.tar",
+        ] {
             assert!(keep_source(&b"not installed"[..], name, scratch.path()).is_err());
         }
         struct Failed;
         impl Read for Failed {
-            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> { Err(io::Error::other("provider failed")) }
+            fn read(&mut self, _: &mut [u8]) -> io::Result<usize> {
+                Err(io::Error::other("provider failed"))
+            }
         }
         assert!(keep_source(Failed, "chosen.tar", scratch.path()).is_err());
         assert_eq!(fs::read_dir(scratch.path()).unwrap().count(), 0);
@@ -494,13 +569,22 @@ mod tests {
     #[test]
     fn a_package_at_the_top_of_the_archive_is_found_and_named_after_the_archive() {
         let unpacked = open_named(
-            package(&[("plugin.json", MANIFEST, 0o644, FILE), ("plugin", b"#!/bin/sh\n", 0o755, FILE)]),
+            package(&[
+                ("plugin.json", MANIFEST, 0o644, FILE),
+                ("plugin", b"#!/bin/sh\n", 0o755, FILE),
+            ]),
             "clipboard.tar.gz",
         )
         .unwrap();
         assert_eq!(unpacked.root().file_name().unwrap(), "clipboard");
-        assert_eq!(fs::read(unpacked.root().join("plugin.json")).unwrap(), MANIFEST);
-        assert_eq!(fs::read(unpacked.root().join("plugin")).unwrap(), b"#!/bin/sh\n");
+        assert_eq!(
+            fs::read(unpacked.root().join("plugin.json")).unwrap(),
+            MANIFEST
+        );
+        assert_eq!(
+            fs::read(unpacked.root().join("plugin")).unwrap(),
+            b"#!/bin/sh\n"
+        );
     }
 
     #[test]
@@ -525,11 +609,29 @@ mod tests {
 
     #[test]
     fn what_is_ambiguous_about_where_the_package_is_is_refused_not_guessed() {
-        type Case = (&'static str, Vec<(&'static str, &'static [u8], u32, tar::EntryType)>);
+        type Case = (
+            &'static str,
+            Vec<(&'static str, &'static [u8], u32, tar::EntryType)>,
+        );
         let cases: [Case; 4] = [
-            ("two directories", vec![("a/plugin.json", MANIFEST, 0o644, FILE), ("b/plugin.json", MANIFEST, 0o644, FILE)]),
-            ("a loose file beside the directory", vec![("a/plugin.json", MANIFEST, 0o644, FILE), ("README", b"x", 0o644, FILE)]),
-            ("two levels down", vec![("a/b/plugin.json", MANIFEST, 0o644, FILE)]),
+            (
+                "two directories",
+                vec![
+                    ("a/plugin.json", MANIFEST, 0o644, FILE),
+                    ("b/plugin.json", MANIFEST, 0o644, FILE),
+                ],
+            ),
+            (
+                "a loose file beside the directory",
+                vec![
+                    ("a/plugin.json", MANIFEST, 0o644, FILE),
+                    ("README", b"x", 0o644, FILE),
+                ],
+            ),
+            (
+                "two levels down",
+                vec![("a/b/plugin.json", MANIFEST, 0o644, FILE)],
+            ),
             ("no manifest at all", vec![("plugin", b"x", 0o755, FILE)]),
         ];
         for (name, entries) in cases {
@@ -548,7 +650,10 @@ mod tests {
             "tab\tname",
         ];
         for name in hostile {
-            let archive = package(&[("plugin.json", MANIFEST, 0o644, FILE), (name, b"x", 0o644, FILE)]);
+            let archive = package(&[
+                ("plugin.json", MANIFEST, 0o644, FILE),
+                (name, b"x", 0o644, FILE),
+            ]);
             assert!(open(archive).is_err(), "{name:?} was accepted");
         }
         assert!(!Path::new("/tmp/peersus-escaped-by-test").exists());
@@ -560,30 +665,47 @@ mod tests {
             ("plugin.json", MANIFEST, 0o644, FILE),
             ("plugin", b"", 0o777, tar::EntryType::Symlink),
         ]);
-        assert_eq!(open(archive).unwrap_err(), Refused("A plugin package holds only files and directories"));
+        assert_eq!(
+            open(archive).unwrap_err(),
+            Refused("A plugin package holds only files and directories")
+        );
     }
 
     #[test]
     fn a_name_that_appears_twice_is_refused() {
-        let archive = package(&[("plugin.json", MANIFEST, 0o644, FILE), ("plugin.json", b"{\"other\":1}", 0o644, FILE)]);
+        let archive = package(&[
+            ("plugin.json", MANIFEST, 0o644, FILE),
+            ("plugin.json", b"{\"other\":1}", 0o644, FILE),
+        ]);
         assert!(open(archive).is_err());
     }
 
     #[test]
     fn too_many_entries_are_refused() {
         let names: Vec<String> = (0..MAX_FILES + 16).map(|n| format!("f{n}")).collect();
-        let mut entries: Vec<(&str, &[u8], u32, tar::EntryType)> = vec![("plugin.json", MANIFEST, 0o644, FILE)];
+        let mut entries: Vec<(&str, &[u8], u32, tar::EntryType)> =
+            vec![("plugin.json", MANIFEST, 0o644, FILE)];
         entries.extend(names.iter().map(|n| (n.as_str(), &b"x"[..], 0o644, FILE)));
         assert!(open(package(&entries)).is_err());
     }
 
     #[test]
-    fn what_it_unpacks_to_is_counted_from_what_is_written_and_a_small_archive_cannot_fill_the_disk() {
+    fn what_it_unpacks_to_is_counted_from_what_is_written_and_a_small_archive_cannot_fill_the_disk()
+    {
         // A small archive that expands to more than the whole package may hold.
         let big = vec![0u8; (MAX_BYTES + 1) as usize];
-        let archive = package(&[("plugin.json", MANIFEST, 0o644, FILE), ("plugin", &big, 0o755, FILE)]);
-        assert!(archive.len() < 1024 * 1024, "the bomb is not small, so this proves nothing");
-        assert_eq!(open(archive).unwrap_err(), Refused("The package is too large"));
+        let archive = package(&[
+            ("plugin.json", MANIFEST, 0o644, FILE),
+            ("plugin", &big, 0o755, FILE),
+        ]);
+        assert!(
+            archive.len() < 1024 * 1024,
+            "the bomb is not small, so this proves nothing"
+        );
+        assert_eq!(
+            open(archive).unwrap_err(),
+            Refused("The package is too large")
+        );
     }
 
     #[test]
@@ -598,7 +720,12 @@ mod tests {
         // Its own folder, so that tests running at the same time cannot be counted by mistake.
         let work = tempfile::tempdir().unwrap();
         let file = work.path().join("a.tar.gz");
-        let left = || fs::read_dir(work.path()).unwrap().filter_map(Result::ok).count();
+        let left = || {
+            fs::read_dir(work.path())
+                .unwrap()
+                .filter_map(Result::ok)
+                .count()
+        };
 
         fs::write(&file, package(&[("plugin", b"x", 0o755, FILE)])).unwrap();
         assert!(unpack_in(&file, work.path()).is_err());
@@ -626,12 +753,26 @@ mod tests {
             ("README.md", b"r", 0o644, FILE),
         ]))
         .unwrap();
-        let mode = |name: &str| fs::metadata(unpacked.root().join(name)).unwrap().permissions().mode() & 0o777;
+        let mode = |name: &str| {
+            fs::metadata(unpacked.root().join(name))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777
+        };
         for runnable in ["plugin", "helper", "libwork.so"] {
-            assert_eq!(mode(runnable), 0o700, "{runnable} lost the run bit, or is open to others");
+            assert_eq!(
+                mode(runnable),
+                0o700,
+                "{runnable} lost the run bit, or is open to others"
+            );
         }
         for plain in ["plugin.json", "settings.toml", "README.md"] {
-            assert_eq!(mode(plain), 0o600, "{plain} became runnable, or is open to others");
+            assert_eq!(
+                mode(plain),
+                0o600,
+                "{plain} became runnable, or is open to others"
+            );
         }
         // Even a file marked writable by everyone is never writable by anyone but its owner.
         assert_eq!(mode("settings.toml") & 0o077, 0);
@@ -652,7 +793,12 @@ mod tests {
         // PlugMeIn: programs and libraries and settings, and a README nobody wants installed. The
         // README is not left out of the store afterwards; it is never written anywhere.
         let unpacked = open(package(&[
-            ("plugin.json", &naming(&["lib/libwork.so", "settings.toml"]), 0o644, FILE),
+            (
+                "plugin.json",
+                &naming(&["lib/libwork.so", "settings.toml"]),
+                0o644,
+                FILE,
+            ),
             ("plugin", b"x", 0o755, FILE),
             ("lib/libwork.so", b"l", 0o755, FILE),
             ("settings.toml", b"t", 0o644, FILE),
@@ -664,8 +810,14 @@ mod tests {
         for named in ["plugin.json", "plugin", "lib/libwork.so", "settings.toml"] {
             assert!(root.join(named).is_file(), "{named} was not extracted");
         }
-        assert!(!root.join("README.md").exists(), "a file the package did not name was written");
-        assert!(!root.join("Documents").exists(), "a folder the package did not name was written");
+        assert!(
+            !root.join("README.md").exists(),
+            "a file the package did not name was written"
+        );
+        assert!(
+            !root.join("Documents").exists(),
+            "a folder the package did not name was written"
+        );
     }
 
     #[test]
@@ -678,7 +830,10 @@ mod tests {
             ("plugin", b"x", 0o755, FILE),
             ("sources.bin", &big, 0o644, FILE),
         ]));
-        assert!(unpacked.is_ok(), "the size of a file that is not installed refused the package");
+        assert!(
+            unpacked.is_ok(),
+            "the size of a file that is not installed refused the package"
+        );
     }
 
     #[test]
@@ -701,7 +856,10 @@ mod tests {
             ("plugin", b"x", 0o755, FILE),
             ("../escaped", b"x", 0o644, FILE),
         ]);
-        assert_eq!(open(archive).unwrap_err(), Refused("A file of the package is outside it"));
+        assert_eq!(
+            open(archive).unwrap_err(),
+            Refused("A file of the package is outside it")
+        );
     }
 
     #[test]
@@ -710,7 +868,12 @@ mod tests {
         // `plugmein/lib/libwork.so`, and a README beside the manifest is still left out.
         let unpacked = open(package(&[
             ("plugmein/", b"", 0o755, DIR),
-            ("plugmein/plugin.json", &naming(&["lib/libwork.so"]), 0o644, FILE),
+            (
+                "plugmein/plugin.json",
+                &naming(&["lib/libwork.so"]),
+                0o644,
+                FILE,
+            ),
             ("plugmein/plugin", b"x", 0o755, FILE),
             ("plugmein/lib/libwork.so", b"l", 0o755, FILE),
             ("plugmein/README.md", b"r", 0o644, FILE),
@@ -734,7 +897,12 @@ mod tests {
     #[test]
     fn an_archive_that_names_its_program_extracts_that_file_and_not_a_stray_one_called_plugin() {
         let unpacked = open(package(&[
-            ("plugin.json", &naming_program("peersus-thing", &["settings.toml"]), 0o644, FILE),
+            (
+                "plugin.json",
+                &naming_program("peersus-thing", &["settings.toml"]),
+                0o644,
+                FILE,
+            ),
             ("peersus-thing", b"p", 0o755, FILE),
             ("settings.toml", b"t", 0o644, FILE),
             ("plugin", b"stray", 0o755, FILE),
@@ -745,26 +913,42 @@ mod tests {
         for named in ["plugin.json", "peersus-thing", "settings.toml"] {
             assert!(root.join(named).is_file(), "{named} was not extracted");
         }
-        assert!(!root.join("plugin").exists(), "a file called plugin that is not the program was extracted");
+        assert!(
+            !root.join("plugin").exists(),
+            "a file called plugin that is not the program was extracted"
+        );
         assert!(!root.join("README.md").exists());
     }
 
     #[test]
-    fn the_program_keeps_its_run_bit_under_its_own_name_and_a_plain_file_called_plugin_does_not_get_one() {
+    fn the_program_keeps_its_run_bit_under_its_own_name_and_a_plain_file_called_plugin_does_not_get_one()
+     {
         use std::os::unix::fs::PermissionsExt;
         let unpacked = open(package(&[
-            ("plugin.json", &naming_program("peersus-thing", &["plugin"]), 0o644, FILE),
+            (
+                "plugin.json",
+                &naming_program("peersus-thing", &["plugin"]),
+                0o644,
+                FILE,
+            ),
             ("peersus-thing", b"p", 0o755, FILE),
             ("plugin", b"data", 0o644, FILE),
         ]))
         .unwrap();
-        let mode = |name: &str| fs::metadata(unpacked.root().join(name)).unwrap().permissions().mode() & 0o777;
+        let mode = |name: &str| {
+            fs::metadata(unpacked.root().join(name))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777
+        };
         assert_eq!(mode("peersus-thing"), 0o700);
         assert_eq!(mode("plugin"), 0o600);
     }
 
     #[test]
-    fn a_manifest_that_is_there_twice_is_refused_so_the_list_that_decided_cannot_be_the_other_one() {
+    fn a_manifest_that_is_there_twice_is_refused_so_the_list_that_decided_cannot_be_the_other_one()
+    {
         let archive = package(&[
             ("plugin.json", &naming(&["a"]), 0o644, FILE),
             ("plugin", b"x", 0o755, FILE),
@@ -781,7 +965,12 @@ mod tests {
         // next start for having two manifests.
         let unpacked = open(package(&[
             ("plugmein/", b"", 0o755, DIR),
-            ("plugmein/plugin.toml", &naming_toml(&["lib/a.so"]), 0o644, FILE),
+            (
+                "plugmein/plugin.toml",
+                &naming_toml(&["lib/a.so"]),
+                0o644,
+                FILE,
+            ),
             ("plugmein/plugin", b"x", 0o755, FILE),
             ("plugmein/lib/a.so", b"a", 0o755, FILE),
             ("plugmein/other/plugin.json", b"{}", 0o644, FILE),
@@ -797,9 +986,18 @@ mod tests {
     #[test]
     fn a_manifest_too_large_to_be_one_is_refused_in_the_first_pass_without_extracting_anything() {
         let mut huge = naming(&[]);
-        huge.extend(std::iter::repeat_n(b' ', (crate::discovery::MAX_MANIFEST as usize) + 1));
-        let archive = package(&[("plugin.json", &huge, 0o644, FILE), ("plugin", b"x", 0o755, FILE)]);
-        assert_eq!(open(archive).unwrap_err(), Refused("Its manifest is too large"));
+        huge.extend(std::iter::repeat_n(
+            b' ',
+            (crate::discovery::MAX_MANIFEST as usize) + 1,
+        ));
+        let archive = package(&[
+            ("plugin.json", &huge, 0o644, FILE),
+            ("plugin", b"x", 0o755, FILE),
+        ]);
+        assert_eq!(
+            open(archive).unwrap_err(),
+            Refused("Its manifest is too large")
+        );
     }
 
     /// A manifest written as TOML that names these files.
@@ -828,7 +1026,10 @@ mod tests {
         for named in ["plugin.toml", "plugin", "settings.toml"] {
             assert!(root.join(named).is_file(), "{named} was not extracted");
         }
-        assert!(!root.join("README.md").exists(), "a TOML manifest's list was ignored");
+        assert!(
+            !root.join("README.md").exists(),
+            "a TOML manifest's list was ignored"
+        );
         assert!(!root.join("Documents").exists());
     }
 
@@ -873,14 +1074,24 @@ mod tests {
             ("sources.bin", &big, 0o644, FILE),
         ]));
         assert!(unpacked.is_ok());
-        const { assert!(MAX_STREAM > MAX_BYTES, "the stream limit must leave room above a package's own size") };
+        const {
+            assert!(
+                MAX_STREAM > MAX_BYTES,
+                "the stream limit must leave room above a package's own size"
+            )
+        };
     }
 
     #[test]
     fn an_archive_whose_manifest_is_toml_under_a_top_directory_is_found_and_held_to_its_list() {
         let unpacked = open(package(&[
             ("plugmein/", b"", 0o755, DIR),
-            ("plugmein/plugin.toml", &naming_toml(&["lib/libwork.so"]), 0o644, FILE),
+            (
+                "plugmein/plugin.toml",
+                &naming_toml(&["lib/libwork.so"]),
+                0o644,
+                FILE,
+            ),
             ("plugmein/plugin", b"x", 0o755, FILE),
             ("plugmein/lib/libwork.so", b"l", 0o755, FILE),
             ("plugmein/README.md", b"r", 0o644, FILE),
@@ -896,15 +1107,26 @@ mod tests {
         let json = naming(&[]);
         let toml = naming_toml(&[]);
         for entries in [
-            vec![("plugin.json", &json, 0o644, FILE), ("plugin.toml", &toml, 0o644, FILE)],
-            vec![("plugin.toml", &toml, 0o644, FILE), ("plugin.json", &json, 0o644, FILE)],
+            vec![
+                ("plugin.json", &json, 0o644, FILE),
+                ("plugin.toml", &toml, 0o644, FILE),
+            ],
+            vec![
+                ("plugin.toml", &toml, 0o644, FILE),
+                ("plugin.json", &json, 0o644, FILE),
+            ],
         ] {
             let mut all = entries;
             let program = b"x".to_vec();
             all.push(("plugin", &program, 0o755, FILE));
-            let owned: Vec<(&str, &[u8], u32, tar::EntryType)> =
-                all.iter().map(|(n, b, m, k)| (*n, b.as_slice(), *m, *k)).collect();
-            assert!(open(package(&owned)).is_err(), "an archive with two manifests was accepted");
+            let owned: Vec<(&str, &[u8], u32, tar::EntryType)> = all
+                .iter()
+                .map(|(n, b, m, k)| (*n, b.as_slice(), *m, *k))
+                .collect();
+            assert!(
+                open(package(&owned)).is_err(),
+                "an archive with two manifests was accepted"
+            );
         }
     }
 
@@ -924,11 +1146,24 @@ mod tests {
         manifest.validate().expect("the manifest is valid");
         // The program is the file the manifest names, which is also what a process list will show.
         let program = root.join(manifest.program_file());
-        assert!(program.is_file(), "the program the manifest names is not in the archive");
-        assert_eq!(fs::metadata(&program).unwrap().permissions().mode() & 0o777, 0o700);
+        assert!(
+            program.is_file(),
+            "the program the manifest names is not in the archive"
+        );
+        assert_eq!(
+            fs::metadata(&program).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
         if manifest.program_file() != crate::discovery::PROGRAM_FILE {
-            assert!(!root.join(crate::discovery::PROGRAM_FILE).exists(), "a stray file called plugin came along");
+            assert!(
+                !root.join(crate::discovery::PROGRAM_FILE).exists(),
+                "a stray file called plugin came along"
+            );
         }
-        assert_eq!(root.file_name().unwrap(), "clipboard", "the folder name is the plugin id");
+        assert_eq!(
+            root.file_name().unwrap(),
+            "clipboard",
+            "the folder name is the plugin id"
+        );
     }
 }

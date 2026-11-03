@@ -47,14 +47,23 @@ impl Component for Sheet {
 
         let sheet = rect()
             .layer(Layer::Overlay)
-            .position(Position::new_global().top(TopSheet::top(progress, height, self.inset_top)).left(0.))
+            .position(
+                Position::new_global()
+                    .top(TopSheet::top(progress, height, self.inset_top))
+                    .left(0.),
+            )
             .width(Size::fill())
             .height(Size::px(height))
             .content(Content::flex())
             .background(palette.raised)
             // A full outline, not only at the bottom, so that the panel is seen as a layer of its own over the page: on a dark page its
             // lifted background and this line are what set its edge, rounded at the lower corners, apart from what is under it.
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             .corner_radius((0., 0., 20., 20.))
             .overflow(Overflow::Clip)
             // The layer under it closes the panel on a pointer-down: this one must not reach it. Nor must a wheel, a touch or a move: what
@@ -65,7 +74,12 @@ impl Component for Sheet {
             .on_touch_start(|e: Event<TouchEventData>| e.stop_propagation())
             .on_touch_move(|e: Event<TouchEventData>| e.stop_propagation())
             .on_touch_end(|e: Event<TouchEventData>| e.stop_propagation())
-            .child(rect().width(Size::fill()).height(Size::flex(1.)).child(self.body.clone()))
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .height(Size::flex(1.))
+                    .child(self.body.clone()),
+            )
             // The outline is drawn last, over the body, as a layer of its own that takes no touch: the body is a scrolling page that fills the
             // panel and would otherwise be drawn over the rounded lower corners and over the line at the bottom.
             .child(
@@ -75,7 +89,12 @@ impl Component for Sheet {
                     .height(Size::px(height))
                     .interactive(false)
                     .corner_radius((0., 0., 20., 20.))
-                    .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner)),
+                    .border(
+                        Border::new()
+                            .fill(palette.border)
+                            .width(1.)
+                            .alignment(BorderAlignment::Inner),
+                    ),
             );
 
         // The dark layer is a plain element over the whole area, on the overlay layer, with the panel as its child. A press that begins on it

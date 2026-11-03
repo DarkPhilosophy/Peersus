@@ -40,7 +40,9 @@ pub enum Execution {
 }
 
 impl Execution {
-    fn is_process(&self) -> bool { matches!(self, Self::Process) }
+    fn is_process(&self) -> bool {
+        matches!(self, Self::Process)
+    }
 }
 
 /// Named service export with an exact version. Exporting is optional and chosen by the
@@ -175,7 +177,9 @@ fn program_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= MAX_PROGRAM_NAME
         && !name.starts_with(['-', '.'])
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
         && !MANIFESTS.contains(&name)
 }
 
@@ -195,7 +199,9 @@ impl Manifest {
     /// Runtime compatibility, independent of capability grants and executable validation.
     /// Legacy omission preserves existing installations; new bundled plugins declare support explicitly.
     pub fn supports(&self, platform: crate::platform::OperatingSystem) -> bool {
-        self.platforms.as_ref().is_none_or(|platforms| platforms.contains(&platform))
+        self.platforms
+            .as_ref()
+            .is_none_or(|platforms| platforms.contains(&platform))
     }
 }
 
@@ -206,12 +212,14 @@ impl Manifest {
         if self.manifest_version != MANIFEST_VERSION {
             return Err(Error::Version);
         }
-        if matches!(self.execution, Execution::NativeLibrary { abi } | Execution::Wasm { abi } if abi != EXECUTION_ABI_VERSION) {
+        if matches!(self.execution, Execution::NativeLibrary { abi } | Execution::Wasm { abi } if abi != EXECUTION_ABI_VERSION)
+        {
             return Err(Error::Version);
         }
         if let Some(platforms) = &self.platforms {
             let unique: BTreeSet<_> = platforms.iter().collect();
-            ok(!platforms.is_empty() && platforms.len() <= crate::platform::OperatingSystem::ALL.len()
+            ok(!platforms.is_empty()
+                && platforms.len() <= crate::platform::OperatingSystem::ALL.len()
                 && unique.len() == platforms.len())?;
         }
         ok(self
@@ -518,7 +526,10 @@ mod tests {
     fn a_manifest_without_a_file_list_reads_as_before_and_names_no_files() {
         let json = r#"{"manifest_version":1,"capabilities":{},"imports":[],"exports":[]}"#;
         let m: Manifest = serde_json::from_str(json).unwrap();
-        assert_eq!(m.files, None, "an older manifest must keep meaning 'the whole folder'");
+        assert_eq!(
+            m.files, None,
+            "an older manifest must keep meaning 'the whole folder'"
+        );
         m.validate().unwrap();
     }
 
@@ -529,7 +540,13 @@ mod tests {
         let m: Manifest = serde_json::from_str(json).unwrap();
         assert_eq!(
             m.files.as_deref(),
-            Some(&["lib/libwork.so".to_owned(), "helper".to_owned(), "settings.toml".to_owned()][..])
+            Some(
+                &[
+                    "lib/libwork.so".to_owned(),
+                    "helper".to_owned(),
+                    "settings.toml".to_owned()
+                ][..]
+            )
         );
         m.validate().unwrap();
     }
@@ -555,7 +572,11 @@ mod tests {
         for bad in hostile {
             let mut m = exporter();
             m.files = Some(vec![bad.to_owned()]);
-            assert_eq!(m.validate(), Err(Error::InvalidManifest), "{bad:?} was accepted");
+            assert_eq!(
+                m.validate(),
+                Err(Error::InvalidManifest),
+                "{bad:?} was accepted"
+            );
         }
     }
 
@@ -563,7 +584,10 @@ mod tests {
     fn a_manifest_without_a_program_name_means_the_program_called_plugin() {
         let json = r#"{"manifest_version":1,"capabilities":{},"imports":[],"exports":[]}"#;
         let m: Manifest = serde_json::from_str(json).unwrap();
-        assert_eq!(m.program, None, "an older manifest must keep meaning the file called plugin");
+        assert_eq!(
+            m.program, None,
+            "an older manifest must keep meaning the file called plugin"
+        );
         assert_eq!(m.program_file(), "plugin");
         m.validate().unwrap();
     }
@@ -589,7 +613,7 @@ mod tests {
             "a\\b",
             "tab\tname",
             "nul\0byte",
-            "-flag",       // read as an option by anything that is handed it later
+            "-flag", // read as an option by anything that is handed it later
             ".hidden",
             "plugin.json", // a manifest
             "plugin.toml", // the other manifest
@@ -598,21 +622,33 @@ mod tests {
         for bad in hostile {
             let mut m = exporter();
             m.program = Some(bad.to_owned());
-            assert_eq!(m.validate(), Err(Error::InvalidManifest), "{bad:?} was accepted");
+            assert_eq!(
+                m.validate(),
+                Err(Error::InvalidManifest),
+                "{bad:?} was accepted"
+            );
         }
         let mut longest = exporter();
         longest.program = Some("a".repeat(65));
         assert_eq!(longest.validate(), Err(Error::InvalidManifest));
         // Plain names, with the characters real programs are called by, are fine.
-        for good in ["plugin", "peersus-clipboard", "my_helper", "tool.v2", "Tool9"] {
+        for good in [
+            "plugin",
+            "peersus-clipboard",
+            "my_helper",
+            "tool.v2",
+            "Tool9",
+        ] {
             let mut m = exporter();
             m.program = Some(good.to_owned());
-            m.validate().unwrap_or_else(|_| panic!("{good:?} was refused"));
+            m.validate()
+                .unwrap_or_else(|_| panic!("{good:?} was refused"));
         }
     }
 
     #[test]
-    fn the_program_cannot_also_be_listed_as_a_file_and_the_old_name_is_an_ordinary_file_once_it_is_renamed() {
+    fn the_program_cannot_also_be_listed_as_a_file_and_the_old_name_is_an_ordinary_file_once_it_is_renamed()
+     {
         // The program is always part of the package, under whatever name it has, so a list that names
         // it again says nothing and would hide that two files were meant.
         let mut m = exporter();
@@ -646,7 +682,10 @@ mod tests {
     fn explicit_platform_declarations_are_checked_without_inventing_support() {
         use crate::platform::OperatingSystem::{Android, Linux, Windows};
         let mut manifest = exporter();
-        assert!(manifest.supports(Windows), "legacy omission must not break installed plugins");
+        assert!(
+            manifest.supports(Windows),
+            "legacy omission must not break installed plugins"
+        );
         manifest.platforms = Some(vec![Android, Linux]);
         manifest.validate().unwrap();
         assert!(manifest.supports(Android));
@@ -665,24 +704,46 @@ mod tests {
             let original = exporter();
             let mut declaration = serde_json::to_value(&original).unwrap();
             declaration["execution"] = serde_json::json!({"kind": kind, "abi": 1});
-            let module: Manifest = serde_json::from_value(declaration).expect("a supported module execution declaration must be accepted");
+            let module: Manifest = serde_json::from_value(declaration)
+                .expect("a supported module execution declaration must be accepted");
             module.validate().unwrap();
             let hub = crate::hub::Hub::default();
             let generation = hub.register("module", module, BTreeSet::new()).unwrap();
             let provider = hub.connect("module", generation).unwrap();
             let consumer = Manifest {
-                imports: vec![Import { provider: "module".into(), service: "echo".into(), version: 1,
-                    methods: names(&["echo"]), events: BTreeSet::new() }],
+                imports: vec![Import {
+                    provider: "module".into(),
+                    service: "echo".into(),
+                    version: 1,
+                    methods: names(&["echo"]),
+                    events: BTreeSet::new(),
+                }],
                 ..Manifest::default()
             };
-            let caller_generation = hub.register_host("host", consumer, BTreeSet::new()).unwrap();
+            let caller_generation = hub
+                .register_host("host", consumer, BTreeSet::new())
+                .unwrap();
             let caller = hub.connect("host", caller_generation).unwrap();
-            let call = || crate::message::Operation::Call { id: 1, provider: "module".into(), service: "echo".into(),
-                version: 1, method: "echo".into(), args: serde_json::json!("payload"), timeout_ms: 1000 };
+            let call = || crate::message::Operation::Call {
+                id: 1,
+                provider: "module".into(),
+                service: "echo".into(),
+                version: 1,
+                method: "echo".into(),
+                args: serde_json::json!("payload"),
+                timeout_ms: 1000,
+            };
             assert_eq!(caller.submit(call()), Err(Error::Denied));
-            hub.set_permissions("host", [crate::permission::Permission::new("module", "use.echo").unwrap()].into()).unwrap();
+            hub.set_permissions(
+                "host",
+                [crate::permission::Permission::new("module", "use.echo").unwrap()].into(),
+            )
+            .unwrap();
             caller.submit(call()).unwrap();
-            assert!(matches!(provider.try_recv().unwrap(), Some(crate::message::Delivery::Call { .. })));
+            assert!(matches!(
+                provider.try_recv().unwrap(),
+                Some(crate::message::Delivery::Call { .. })
+            ));
         }
     }
 
@@ -698,7 +759,10 @@ mod tests {
         ] {
             let mut declaration = serde_json::to_value(exporter()).unwrap();
             declaration["execution"] = execution;
-            assert!(!serde_json::from_value::<Manifest>(declaration).is_ok_and(|manifest| manifest.validate().is_ok()));
+            assert!(
+                !serde_json::from_value::<Manifest>(declaration)
+                    .is_ok_and(|manifest| manifest.validate().is_ok())
+            );
         }
     }
 }

@@ -229,7 +229,10 @@ pub(crate) fn manifest_file(directory: &Path) -> Result<PathBuf, &'static str> {
 /// validated by [`peersus_plugin_api::package::split`], then the rest is read as a manifest, which
 /// still refuses any key it does not know. The block is returned beside the manifest so the store can
 /// compare it with the catalog and with what the program itself carries.
-pub(crate) fn parse_package_manifest(name: &str, bytes: &[u8]) -> Result<(Manifest, Option<Package>), &'static str> {
+pub(crate) fn parse_package_manifest(
+    name: &str,
+    bytes: &[u8],
+) -> Result<(Manifest, Option<Package>), &'static str> {
     const INVALID: &str = "Its manifest is not valid";
     // Both formats become one JSON value so the one `split` validates both.
     let json = if name.ends_with(".toml") {
@@ -267,7 +270,10 @@ fn read_manifest_and_package(path: &Path) -> Result<(Manifest, Option<Package>),
     if text.len() as u64 > MAX_MANIFEST {
         return Err("Its manifest is too large");
     }
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
     parse_package_manifest(name, &text)
 }
 
@@ -283,7 +289,9 @@ pub(crate) fn read_package(directory: &Path) -> Result<Manifest, &'static str> {
 }
 
 /// [`read_package`], and the `package` block the manifest carries (name, version, author, link), if any.
-pub(crate) fn read_package_and_info(directory: &Path) -> Result<(Manifest, Option<Package>), &'static str> {
+pub(crate) fn read_package_and_info(
+    directory: &Path,
+) -> Result<(Manifest, Option<Package>), &'static str> {
     let metadata = fs::symlink_metadata(directory).map_err(|_| "It could not be read")?;
     if !metadata.is_dir() {
         return Err("It is not a directory");
@@ -302,24 +310,40 @@ pub struct Bundle {
 /// or PATH. The caller runs this disk work off its rendering thread. Installation still
 /// goes through StageInstall/ConfirmInstall and grants nothing automatically.
 pub fn bundles_near(executable: &Path) -> Vec<Bundle> {
-    let Some(prefix) = executable.parent().and_then(Path::parent) else { return Vec::new() };
+    let Some(prefix) = executable.parent().and_then(Path::parent) else {
+        return Vec::new();
+    };
     let root = prefix.join("share/peersus/plugins");
-    let Ok(entries) = fs::read_dir(root) else { return Vec::new() };
-    let mut paths: Vec<_> = entries.filter_map(Result::ok).map(|entry| entry.path()).collect();
+    let Ok(entries) = fs::read_dir(root) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<_> = entries
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect();
     paths.sort();
-    paths.into_iter().take(MAX_PLUGINS).filter_map(|source| {
-        let id = source.file_name()?.to_str()?.to_owned();
-        PluginId::new(&id).ok()?;
-        let manifest = read_package(&source).ok()?;
-        crate::plugin_host::check_manifest(&manifest).ok()?;
-        let metadata = fs::symlink_metadata(source.join(manifest.program_file())).ok()?;
-        if !metadata.is_file() { return None; }
-        Some(Bundle { id, source })
-    }).collect()
+    paths
+        .into_iter()
+        .take(MAX_PLUGINS)
+        .filter_map(|source| {
+            let id = source.file_name()?.to_str()?.to_owned();
+            PluginId::new(&id).ok()?;
+            let manifest = read_package(&source).ok()?;
+            crate::plugin_host::check_manifest(&manifest).ok()?;
+            let metadata = fs::symlink_metadata(source.join(manifest.program_file())).ok()?;
+            if !metadata.is_file() {
+                return None;
+            }
+            Some(Bundle { id, source })
+        })
+        .collect()
 }
 
 #[cfg(unix)]
-pub(crate) fn check_program(path: &Path, execution: peersus_plugin_api::manifest::Execution) -> Result<PathBuf, &'static str> {
+pub(crate) fn check_program(
+    path: &Path,
+    execution: peersus_plugin_api::manifest::Execution,
+) -> Result<PathBuf, &'static str> {
     use std::os::unix::fs::{MetadataExt, PermissionsExt};
     let metadata = fs::symlink_metadata(path).map_err(|_| "It has no program")?;
     if !metadata.is_file() {
@@ -327,7 +351,11 @@ pub(crate) fn check_program(path: &Path, execution: peersus_plugin_api::manifest
     }
     let mode = metadata.permissions().mode();
     #[cfg(target_os = "android")]
-    if matches!(execution, peersus_plugin_api::manifest::Execution::NativeLibrary { .. }) && mode & 0o222 != 0 {
+    if matches!(
+        execution,
+        peersus_plugin_api::manifest::Execution::NativeLibrary { .. }
+    ) && mode & 0o222 != 0
+    {
         return Err("An installed native module must be read-only");
     }
     if matches!(execution, peersus_plugin_api::manifest::Execution::Process) && mode & 0o111 == 0 {
@@ -344,7 +372,10 @@ pub(crate) fn check_program(path: &Path, execution: peersus_plugin_api::manifest
 }
 
 #[cfg(not(unix))]
-pub(crate) fn check_program(_path: &Path, _execution: peersus_plugin_api::manifest::Execution) -> Result<PathBuf, &'static str> {
+pub(crate) fn check_program(
+    _path: &Path,
+    _execution: peersus_plugin_api::manifest::Execution,
+) -> Result<PathBuf, &'static str> {
     Err("Plugins cannot be run on this system")
 }
 
@@ -409,18 +440,41 @@ mod tests {
 
     #[test]
     fn module_packages_are_data_not_executables_but_keep_ownership_checks() {
-        use peersus_plugin_api::manifest::{Execution, EXECUTION_ABI_VERSION};
-        for execution in [Execution::Wasm { abi: EXECUTION_ABI_VERSION }, Execution::NativeLibrary { abi: EXECUTION_ABI_VERSION }] {
+        use peersus_plugin_api::manifest::{EXECUTION_ABI_VERSION, Execution};
+        for execution in [
+            Execution::Wasm {
+                abi: EXECUTION_ABI_VERSION,
+            },
+            Execution::NativeLibrary {
+                abi: EXECUTION_ABI_VERSION,
+            },
+        ] {
             let root = tempfile::tempdir().unwrap();
             let mut manifest: Manifest = serde_json::from_str(GOOD).unwrap();
             manifest.execution = execution;
-            let directory = install(root.path(), "thing", &serde_json::to_string(&manifest).unwrap(), 0o600);
+            let directory = install(
+                root.path(),
+                "thing",
+                &serde_json::to_string(&manifest).unwrap(),
+                0o600,
+            );
             let found = discover(root.path());
-            assert!(found.problems.is_empty(), "a private non-executable module was refused: {:?}", found.problems);
+            assert!(
+                found.problems.is_empty(),
+                "a private non-executable module was refused: {:?}",
+                found.problems
+            );
             assert_eq!(names(&found), ["thing"]);
             for mode in [0o620, 0o602] {
-                fs::set_permissions(directory.join(PROGRAM_FILE), fs::Permissions::from_mode(mode)).unwrap();
-                assert!(discover(root.path()).registry.is_empty(), "a module writable by others was admitted");
+                fs::set_permissions(
+                    directory.join(PROGRAM_FILE),
+                    fs::Permissions::from_mode(mode),
+                )
+                .unwrap();
+                assert!(
+                    discover(root.path()).registry.is_empty(),
+                    "a module writable by others was admitted"
+                );
             }
         }
     }
@@ -800,7 +854,10 @@ mod tests {
         fs::write(directory.join("plugin.json"), GOOD).unwrap();
         let found = discover(root.path());
         assert!(found.registry.is_empty());
-        assert_eq!(reasons(&found), [("thing".to_owned(), "It has two manifests")]);
+        assert_eq!(
+            reasons(&found),
+            [("thing".to_owned(), "It has two manifests")]
+        );
     }
 
     #[test]
@@ -809,7 +866,10 @@ mod tests {
         install_as(root.path(), "thing", "plugin.toml", "this = is = not toml");
         let found = discover(root.path());
         assert!(found.registry.is_empty());
-        assert_eq!(reasons(&found), [("thing".to_owned(), "Its manifest is not valid")]);
+        assert_eq!(
+            reasons(&found),
+            [("thing".to_owned(), "Its manifest is not valid")]
+        );
     }
 
     #[test]
@@ -819,7 +879,10 @@ mod tests {
         install_as(root.path(), "thing", "plugin.toml", &strict);
         let found = discover(root.path());
         assert!(found.registry.is_empty());
-        assert_eq!(reasons(&found), [("thing".to_owned(), "Its manifest is not valid")]);
+        assert_eq!(
+            reasons(&found),
+            [("thing".to_owned(), "Its manifest is not valid")]
+        );
     }
 
     #[test]
@@ -831,10 +894,21 @@ mod tests {
         let (plain, none) = parse_package_manifest("plugin.json", GOOD.as_bytes()).unwrap();
         assert_eq!(none, None, "no block, no package");
         for (file, text) in [("plugin.json", with_json), ("plugin.toml", with_toml)] {
-            let (manifest, package) = parse_package_manifest(file, text.as_bytes()).unwrap_or_else(|e| panic!("{file}: {e}"));
-            assert_eq!(manifest, plain, "{file}: the block must not alter the manifest");
+            let (manifest, package) = parse_package_manifest(file, text.as_bytes())
+                .unwrap_or_else(|e| panic!("{file}: {e}"));
+            assert_eq!(
+                manifest, plain,
+                "{file}: the block must not alter the manifest"
+            );
             let package = package.unwrap_or_else(|| panic!("{file}: the block was dropped"));
-            assert_eq!((package.name.as_str(), package.version.as_str(), package.author.as_str()), ("Thing", "1.2.3", "Someone"));
+            assert_eq!(
+                (
+                    package.name.as_str(),
+                    package.version.as_str(),
+                    package.author.as_str()
+                ),
+                ("Thing", "1.2.3", "Someone")
+            );
             assert_eq!(package.link, "https://example.org/thing");
         }
     }
@@ -851,7 +925,11 @@ mod tests {
         ];
         for block in hostile {
             let text = GOOD.replacen('{', &format!("{{{block}"), 1);
-            assert_eq!(parse_package_manifest("plugin.json", text.as_bytes()).unwrap_err(), "Its manifest is not valid", "{block}");
+            assert_eq!(
+                parse_package_manifest("plugin.json", text.as_bytes()).unwrap_err(),
+                "Its manifest is not valid",
+                "{block}"
+            );
         }
         // A misspelt top-level key is not swallowed by the block handling.
         let misspelt = GOOD.replacen('{', r#"{"packages": {"name": "T", "version": "1.0.0"},"#, 1);
@@ -865,7 +943,11 @@ mod tests {
             let padding = " ".repeat(MAX_MANIFEST as usize);
             install_as(root.path(), "thing", file, &format!("{text}{padding}"));
             let found = discover(root.path());
-            assert_eq!(reasons(&found), [("thing".to_owned(), "Its manifest is too large")], "{file}");
+            assert_eq!(
+                reasons(&found),
+                [("thing".to_owned(), "Its manifest is too large")],
+                "{file}"
+            );
         }
     }
 
@@ -890,7 +972,11 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let directory = root.path().join("thing");
         fs::create_dir_all(&directory).unwrap();
-        fs::write(directory.join(MANIFEST_FILE), good_with_program("peersus-thing")).unwrap();
+        fs::write(
+            directory.join(MANIFEST_FILE),
+            good_with_program("peersus-thing"),
+        )
+        .unwrap();
         let program = directory.join("peersus-thing");
         fs::write(&program, b"#!/bin/sh\n").unwrap();
         fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
@@ -900,7 +986,10 @@ mod tests {
         let spec = found.registry.iter().next().unwrap();
         // What is started is the named file, so the operating system lists the process by that name.
         assert_eq!(spec.program, Some(fs::canonicalize(&program).unwrap()));
-        assert_eq!(spec.program.as_ref().unwrap().file_name().unwrap(), "peersus-thing");
+        assert_eq!(
+            spec.program.as_ref().unwrap().file_name().unwrap(),
+            "peersus-thing"
+        );
     }
 
     #[test]
@@ -908,14 +997,20 @@ mod tests {
         // Only a file called `plugin` is there, and the manifest says the program is another file:
         // it is refused, not run in its place.
         let root = tempfile::tempdir().unwrap();
-        install(root.path(), "thing", &good_with_program("peersus-thing"), 0o755);
+        install(
+            root.path(),
+            "thing",
+            &good_with_program("peersus-thing"),
+            0o755,
+        );
         let found = discover(root.path());
         assert!(found.registry.is_empty());
         assert_eq!(reasons(&found), [("thing".to_owned(), "It has no program")]);
     }
 
     #[test]
-    fn a_program_that_is_a_link_or_not_runnable_or_changeable_by_others_is_refused_under_its_own_name() {
+    fn a_program_that_is_a_link_or_not_runnable_or_changeable_by_others_is_refused_under_its_own_name()
+     {
         for (what, mode, link) in [
             ("not runnable", 0o644, false),
             ("changeable by others", 0o777, false),
@@ -924,11 +1019,19 @@ mod tests {
             let root = tempfile::tempdir().unwrap();
             let directory = root.path().join("thing");
             fs::create_dir_all(&directory).unwrap();
-            fs::write(directory.join(MANIFEST_FILE), good_with_program("peersus-thing")).unwrap();
+            fs::write(
+                directory.join(MANIFEST_FILE),
+                good_with_program("peersus-thing"),
+            )
+            .unwrap();
             let program = directory.join("peersus-thing");
             if link {
                 fs::write(root.path().join("elsewhere"), b"#!/bin/sh\n").unwrap();
-                fs::set_permissions(root.path().join("elsewhere"), fs::Permissions::from_mode(0o755)).unwrap();
+                fs::set_permissions(
+                    root.path().join("elsewhere"),
+                    fs::Permissions::from_mode(0o755),
+                )
+                .unwrap();
                 std::os::unix::fs::symlink(root.path().join("elsewhere"), &program).unwrap();
             } else {
                 fs::write(&program, b"#!/bin/sh\n").unwrap();
@@ -968,7 +1071,10 @@ mod read_package_tests {
         let broken = root.path().join("broken");
         fs::create_dir(&broken).unwrap();
         fs::write(broken.join(MANIFEST_FILE), "not json").unwrap();
-        assert_eq!(read_package(&broken).unwrap_err(), "Its manifest is not valid");
+        assert_eq!(
+            read_package(&broken).unwrap_err(),
+            "Its manifest is not valid"
+        );
         let file = root.path().join("afile");
         fs::write(&file, "x").unwrap();
         assert_eq!(read_package(&file).unwrap_err(), "It is not a directory");
@@ -983,7 +1089,13 @@ mod read_package_tests {
         fs::write(package.join(PROGRAM_FILE), b"program").unwrap();
         let executable = root.path().join("bin/peersus-ui");
         let available = bundles_near(&executable);
-        assert_eq!(available, vec![Bundle { id: "example".into(), source: package.clone() }]);
+        assert_eq!(
+            available,
+            vec![Bundle {
+                id: "example".into(),
+                source: package.clone()
+            }]
+        );
         assert!(!package.join(crate::plugin_approval::FILE).exists());
         assert!(!root.path().join("data/plugins").exists());
         fs::write(package.join(MANIFEST_FILE), b"broken").unwrap();

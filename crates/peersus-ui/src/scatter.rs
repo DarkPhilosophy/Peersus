@@ -18,7 +18,14 @@ pub struct Spot {
 /// Every circle lies wholly inside the area and no two overlap, with a gap of at least `gap`.
 /// The same `seed` always gives the same places. Returns fewer than `count` only when the area
 /// cannot hold that many, which the caller sizes it to avoid.
-pub fn spots(seed: u64, count: usize, diameter: f32, gap: f32, width: f32, height: f32) -> Vec<Spot> {
+pub fn spots(
+    seed: u64,
+    count: usize,
+    diameter: f32,
+    gap: f32,
+    width: f32,
+    height: f32,
+) -> Vec<Spot> {
     let mut random = StdRng::seed_from_u64(seed);
     let radius = diameter / 2.;
     let (min_x, max_x) = (radius, width - radius);
@@ -82,8 +89,14 @@ mod tests {
     fn every_circle_lies_wholly_inside_the_area() {
         for seed in 0..200 {
             for spot in place(seed, 5) {
-                assert!(spot.x - D / 2. >= 0. && spot.x + D / 2. <= W, "x out: {spot:?}");
-                assert!(spot.y - D / 2. >= 0. && spot.y + D / 2. <= H, "y out: {spot:?}");
+                assert!(
+                    spot.x - D / 2. >= 0. && spot.x + D / 2. <= W,
+                    "x out: {spot:?}"
+                );
+                assert!(
+                    spot.y - D / 2. >= 0. && spot.y + D / 2. <= H,
+                    "y out: {spot:?}"
+                );
             }
         }
     }
@@ -109,9 +122,18 @@ mod tests {
     #[test]
     fn different_requests_get_different_places() {
         let layouts: std::collections::HashSet<Vec<(i32, i32)>> = (0..50)
-            .map(|seed| place(seed, 5).iter().map(|s| (s.x as i32, s.y as i32)).collect())
+            .map(|seed| {
+                place(seed, 5)
+                    .iter()
+                    .map(|s| (s.x as i32, s.y as i32))
+                    .collect()
+            })
             .collect();
-        assert!(layouts.len() > 45, "only {} distinct layouts in 50", layouts.len());
+        assert!(
+            layouts.len() > 45,
+            "only {} distinct layouts in 50",
+            layouts.len()
+        );
     }
 
     #[test]

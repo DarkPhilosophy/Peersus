@@ -91,7 +91,13 @@ pub async fn announce(
     own: Option<&Picture>,
 ) -> Result<bool, Error> {
     let digest = own.map_or_else(Picture::digest_of_none, Picture::digest);
-    transport::send(send, &Announce { digest: *digest.as_bytes() }).await?;
+    transport::send(
+        send,
+        &Announce {
+            digest: *digest.as_bytes(),
+        },
+    )
+    .await?;
     let sent = match transport::receive::<Reply>(receive).await? {
         Reply::Have => false,
         Reply::Send => {
@@ -99,8 +105,17 @@ pub async fn announce(
                 // Asked for a picture that was never announced: nothing to give.
                 return Err(Error::Other);
             };
-            transport::send(send, &Header { width: picture.width(), height: picture.height() }).await?;
-            send.write_all(picture.rgba()).await.map_err(|_| Error::Stream)?;
+            transport::send(
+                send,
+                &Header {
+                    width: picture.width(),
+                    height: picture.height(),
+                },
+            )
+            .await?;
+            send.write_all(picture.rgba())
+                .await
+                .map_err(|_| Error::Stream)?;
             true
         }
     };
@@ -130,15 +145,27 @@ pub async fn serve(
 
     let header: Header = transport::receive(receive).await?;
     // The shape is judged before a pixel is read or a buffer is made for one.
-    if header.width == 0 || header.height == 0 || header.width > MAX_EDGE || header.height > MAX_EDGE {
+    if header.width == 0
+        || header.height == 0
+        || header.width > MAX_EDGE
+        || header.height > MAX_EDGE
+    {
         return Err(Error::TooBig);
     }
     let length = (header.width * header.height * 4) as usize;
     let mut pixels = vec![0u8; length];
-    receive.read_exact(&mut pixels).await.map_err(|_| Error::Stream)?;
+    receive
+        .read_exact(&mut pixels)
+        .await
+        .map_err(|_| Error::Stream)?;
     // Exactly the announced number and not one more: a sender that goes on is not trusted.
     let mut extra = [0u8; 1];
-    if receive.read(&mut extra).await.map_err(|_| Error::Stream)?.is_some_and(|n| n > 0) {
+    if receive
+        .read(&mut extra)
+        .await
+        .map_err(|_| Error::Stream)?
+        .is_some_and(|n| n > 0)
+    {
         return Err(Error::Stream);
     }
     let picture = Picture::new(header.width, header.height, pixels).map_err(|_| Error::TooBig)?;
@@ -157,15 +184,25 @@ mod tests {
     use peersus_core::config::NetworkSettings;
 
     fn picture(seed: u8) -> Picture {
-        let rgba: Vec<u8> = (0..8 * 8 * 4).map(|n| (n as u8).wrapping_mul(7).wrapping_add(seed)).collect();
+        let rgba: Vec<u8> = (0..8 * 8 * 4)
+            .map(|n| (n as u8).wrapping_mul(7).wrapping_add(seed))
+            .collect();
         Picture::new(8, 8, rgba).unwrap()
     }
 
     /// Two real endpoints, joined by one connection each way.
     async fn pair() -> (Connection, Connection) {
-        let policy = NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false };
-        let a = transport::bind(SecretKey::generate(), &policy).await.unwrap();
-        let b = transport::bind(SecretKey::generate(), &policy).await.unwrap();
+        let policy = NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        };
+        let a = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
+        let b = transport::bind(SecretKey::generate(), &policy)
+            .await
+            .unwrap();
         let (left, right) = tokio::join!(a.connect(b.addr(), transport::ALPN), async {
             b.accept().await.unwrap().await
         });
@@ -250,7 +287,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let pictures = Pictures::new(directory.path());
         let (first, second) = (picture(1), picture(2));
-        exchange(&left, &right, Some(&first), &pictures).await.1.unwrap();
+        exchange(&left, &right, Some(&first), &pictures)
+            .await
+            .1
+            .unwrap();
 
         let (sent, got) = exchange(&left, &right, Some(&second), &pictures).await;
         sent.unwrap();
@@ -270,7 +310,10 @@ mod tests {
         let (sent, got) = exchange(&left, &right, None, &pictures).await;
         sent.unwrap();
         assert_eq!(got.unwrap(), Outcome::None);
-        assert!(!directory.path().join("device-pictures").exists(), "something was kept for no picture");
+        assert!(
+            !directory.path().join("device-pictures").exists(),
+            "something was kept for no picture"
+        );
     }
 
     #[tokio::test]
@@ -283,7 +326,14 @@ mod tests {
 
         let sender = async {
             let (mut tx, mut rx) = left.open_bi().await.unwrap();
-            transport::send(&mut tx, &Announce { digest: *own.digest().as_bytes() }).await.unwrap();
+            transport::send(
+                &mut tx,
+                &Announce {
+                    digest: *own.digest().as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
             let reply: Reply = transport::receive(&mut rx).await.unwrap();
             // After Have the sender writes nothing more, and the receiver must not wait for pixels.
             tx.finish().unwrap();
@@ -291,7 +341,11 @@ mod tests {
         };
         let receiver = async {
             let (mut tx, mut rx) = right.accept_bi().await.unwrap();
-            tokio::time::timeout(std::time::Duration::from_secs(5), serve(&mut tx, &mut rx, &pictures)).await
+            tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                serve(&mut tx, &mut rx, &pictures),
+            )
+            .await
         };
         let (reply, outcome) = tokio::join!(sender, receiver);
         assert_eq!(reply, Reply::Have);
@@ -300,7 +354,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_sender_that_announces_one_picture_and_sends_another_is_refused_and_nothing_is_kept() {
+    async fn a_sender_that_announces_one_picture_and_sends_another_is_refused_and_nothing_is_kept()
+    {
         let (left, right) = pair().await;
         let directory = tempfile::tempdir().unwrap();
         let pictures = Pictures::new(directory.path());
@@ -308,9 +363,27 @@ mod tests {
 
         let liar = async {
             let (mut tx, mut rx) = left.open_bi().await.unwrap();
-            transport::send(&mut tx, &Announce { digest: *announced.digest().as_bytes() }).await.unwrap();
-            assert_eq!(transport::receive::<Reply>(&mut rx).await.unwrap(), Reply::Send);
-            transport::send(&mut tx, &Header { width: 8, height: 8 }).await.unwrap();
+            transport::send(
+                &mut tx,
+                &Announce {
+                    digest: *announced.digest().as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                transport::receive::<Reply>(&mut rx).await.unwrap(),
+                Reply::Send
+            );
+            transport::send(
+                &mut tx,
+                &Header {
+                    width: 8,
+                    height: 8,
+                },
+            )
+            .await
+            .unwrap();
             tx.write_all(sent_instead.rgba()).await.unwrap();
             tx.finish().unwrap();
         };
@@ -320,13 +393,25 @@ mod tests {
         };
         let (_, outcome) = tokio::join!(liar, receiver);
         assert!(matches!(outcome, Err(Error::Other)), "got {outcome:?}");
-        assert!(!pictures.has(&announced.digest()), "the picture that was only announced was kept");
-        assert!(!pictures.has(&sent_instead.digest()), "the picture that was sent instead was kept");
+        assert!(
+            !pictures.has(&announced.digest()),
+            "the picture that was only announced was kept"
+        );
+        assert!(
+            !pictures.has(&sent_instead.digest()),
+            "the picture that was sent instead was kept"
+        );
     }
 
     #[tokio::test]
     async fn a_header_over_the_limits_is_refused_before_any_pixel_is_read() {
-        for (width, height) in [(MAX_EDGE + 1, 1), (1, MAX_EDGE + 1), (0, 5), (5, 0), (u32::MAX, u32::MAX)] {
+        for (width, height) in [
+            (MAX_EDGE + 1, 1),
+            (1, MAX_EDGE + 1),
+            (0, 5),
+            (5, 0),
+            (u32::MAX, u32::MAX),
+        ] {
             let (left, right) = pair().await;
             let directory = tempfile::tempdir().unwrap();
             let pictures = Pictures::new(directory.path());
@@ -334,19 +419,39 @@ mod tests {
 
             let sender = async {
                 let (mut tx, mut rx) = left.open_bi().await.unwrap();
-                transport::send(&mut tx, &Announce { digest: *announced.as_bytes() }).await.unwrap();
-                assert_eq!(transport::receive::<Reply>(&mut rx).await.unwrap(), Reply::Send);
-                transport::send(&mut tx, &Header { width, height }).await.unwrap();
+                transport::send(
+                    &mut tx,
+                    &Announce {
+                        digest: *announced.as_bytes(),
+                    },
+                )
+                .await
+                .unwrap();
+                assert_eq!(
+                    transport::receive::<Reply>(&mut rx).await.unwrap(),
+                    Reply::Send
+                );
+                transport::send(&mut tx, &Header { width, height })
+                    .await
+                    .unwrap();
                 // No pixels at all: if the receiver tried to read them it would wait.
                 tx.finish().unwrap();
             };
             let receiver = async {
                 let (mut tx, mut rx) = right.accept_bi().await.unwrap();
-                tokio::time::timeout(std::time::Duration::from_secs(5), serve(&mut tx, &mut rx, &pictures)).await
+                tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    serve(&mut tx, &mut rx, &pictures),
+                )
+                .await
             };
             let (_, outcome) = tokio::join!(sender, receiver);
-            let outcome = outcome.expect("the receiver waited for pixels of a header it should have refused");
-            assert!(matches!(outcome, Err(Error::TooBig)), "{width}x{height}: {outcome:?}");
+            let outcome =
+                outcome.expect("the receiver waited for pixels of a header it should have refused");
+            assert!(
+                matches!(outcome, Err(Error::TooBig)),
+                "{width}x{height}: {outcome:?}"
+            );
         }
     }
 
@@ -359,11 +464,31 @@ mod tests {
 
         let greedy = async {
             let (mut tx, mut rx) = left.open_bi().await.unwrap();
-            transport::send(&mut tx, &Announce { digest: *own.digest().as_bytes() }).await.unwrap();
-            assert_eq!(transport::receive::<Reply>(&mut rx).await.unwrap(), Reply::Send);
-            transport::send(&mut tx, &Header { width: 8, height: 8 }).await.unwrap();
+            transport::send(
+                &mut tx,
+                &Announce {
+                    digest: *own.digest().as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                transport::receive::<Reply>(&mut rx).await.unwrap(),
+                Reply::Send
+            );
+            transport::send(
+                &mut tx,
+                &Header {
+                    width: 8,
+                    height: 8,
+                },
+            )
+            .await
+            .unwrap();
             tx.write_all(own.rgba()).await.unwrap();
-            tx.write_all(b"and some more that nobody asked for").await.unwrap();
+            tx.write_all(b"and some more that nobody asked for")
+                .await
+                .unwrap();
             tx.finish().unwrap();
         };
         let receiver = async {
@@ -371,7 +496,10 @@ mod tests {
             serve(&mut tx, &mut rx, &pictures).await
         };
         let (_, outcome) = tokio::join!(greedy, receiver);
-        assert!(outcome.is_err(), "a sender that went on past what it said was accepted");
+        assert!(
+            outcome.is_err(),
+            "a sender that went on past what it said was accepted"
+        );
         assert!(!pictures.has(&own.digest()));
     }
 
@@ -384,15 +512,39 @@ mod tests {
 
         let short = async {
             let (mut tx, mut rx) = left.open_bi().await.unwrap();
-            transport::send(&mut tx, &Announce { digest: *own.digest().as_bytes() }).await.unwrap();
-            assert_eq!(transport::receive::<Reply>(&mut rx).await.unwrap(), Reply::Send);
-            transport::send(&mut tx, &Header { width: 8, height: 8 }).await.unwrap();
-            tx.write_all(&own.rgba()[..own.rgba().len() / 2]).await.unwrap();
+            transport::send(
+                &mut tx,
+                &Announce {
+                    digest: *own.digest().as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(
+                transport::receive::<Reply>(&mut rx).await.unwrap(),
+                Reply::Send
+            );
+            transport::send(
+                &mut tx,
+                &Header {
+                    width: 8,
+                    height: 8,
+                },
+            )
+            .await
+            .unwrap();
+            tx.write_all(&own.rgba()[..own.rgba().len() / 2])
+                .await
+                .unwrap();
             tx.finish().unwrap();
         };
         let receiver = async {
             let (mut tx, mut rx) = right.accept_bi().await.unwrap();
-            tokio::time::timeout(std::time::Duration::from_secs(5), serve(&mut tx, &mut rx, &pictures)).await
+            tokio::time::timeout(
+                std::time::Duration::from_secs(5),
+                serve(&mut tx, &mut rx, &pictures),
+            )
+            .await
         };
         let (_, outcome) = tokio::join!(short, receiver);
         let outcome = outcome.expect("the receiver waited for pixels that were never coming");
@@ -416,6 +568,9 @@ mod tests {
             tx.finish().unwrap();
         };
         let (result, ()) = tokio::join!(driver, asker);
-        assert!(matches!(result, Err(Error::Other)), "a picture that does not exist was given");
+        assert!(
+            matches!(result, Err(Error::Other)),
+            "a picture that does not exist was given"
+        );
     }
 }

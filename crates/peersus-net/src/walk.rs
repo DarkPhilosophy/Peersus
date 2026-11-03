@@ -84,9 +84,22 @@ struct Level {
 }
 
 impl Level {
-    fn new(handle: fs::File, path: PathBuf, names: Vec<String>, taken: &Arc<AtomicUsize>) -> io::Result<Self> {
-        let entries = Counted { entries: Dir::read_from(&handle)?, taken: Arc::clone(taken) };
-        Ok(Self { entries, handle: Arc::new(handle), path, names })
+    fn new(
+        handle: fs::File,
+        path: PathBuf,
+        names: Vec<String>,
+        taken: &Arc<AtomicUsize>,
+    ) -> io::Result<Self> {
+        let entries = Counted {
+            entries: Dir::read_from(&handle)?,
+            taken: Arc::clone(taken),
+        };
+        Ok(Self {
+            entries,
+            handle: Arc::new(handle),
+            path,
+            names,
+        })
     }
 }
 
@@ -100,15 +113,26 @@ pub struct Walk {
 impl Walk {
     /// Open the chosen directory once, refusing a symlink at the selected root.
     pub fn new(root: &Path) -> io::Result<Self> {
-        let name = root.file_name().and_then(|name| name.to_str())
+        let name = root
+            .file_name()
+            .and_then(|name| name.to_str())
             .filter(|name| Offer::is_one_name(name))
-            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "a folder with a name that cannot be sent"))?
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "a folder with a name that cannot be sent",
+                )
+            })?
             .to_owned();
         let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
         let handle = rustix::fs::open(root, flags, Mode::empty())?;
         let taken = Arc::new(AtomicUsize::new(0));
         let level = Level::new(handle.into(), root.to_path_buf(), vec![name], &taken)?;
-        Ok(Self { levels: vec![level], passed: Passed::default(), taken })
+        Ok(Self {
+            levels: vec![level],
+            passed: Passed::default(),
+            taken,
+        })
     }
 
     pub fn passed(&self) -> Passed {
@@ -154,7 +178,11 @@ impl Iterator for Walk {
             let path = level.path.join(name);
             let mut names = level.names.clone();
             if kind == FileType::RegularFile {
-                return Some(Found { path, folders: names, parent: Arc::clone(&level.handle) });
+                return Some(Found {
+                    path,
+                    folders: names,
+                    parent: Arc::clone(&level.handle),
+                });
             }
             if names.len() >= MAX_FOLDER_DEPTH {
                 self.passed.too_deep += 1;
@@ -163,7 +191,10 @@ impl Iterator for Walk {
             let flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
             let child = openat(&*level.handle, entry.file_name(), flags, Mode::empty());
             names.push(name.to_owned());
-            match child.map_err(io::Error::from).and_then(|fd| Level::new(fd.into(), path, names, &self.taken)) {
+            match child
+                .map_err(io::Error::from)
+                .and_then(|fd| Level::new(fd.into(), path, names, &self.taken))
+            {
                 Ok(level) => self.levels.push(level),
                 Err(_) => self.passed.unreadable += 1,
             }
@@ -190,12 +221,23 @@ mod tests {
     fn listed(base: &Path) -> Vec<(String, Vec<String>)> {
         Walk::new(&base.join("pictures"))
             .unwrap()
-            .map(|found| (found.path.file_name().unwrap().to_string_lossy().into_owned(), found.folders))
+            .map(|found| {
+                (
+                    found
+                        .path
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned(),
+                    found.folders,
+                )
+            })
             .collect()
     }
 
     #[test]
-    fn every_file_of_the_folder_is_found_with_the_folders_it_sits_in_starting_from_the_chosen_one() {
+    fn every_file_of_the_folder_is_found_with_the_folders_it_sits_in_starting_from_the_chosen_one()
+    {
         let base = tree();
         let found = listed(base.path());
         let s = |names: &[&str]| names.iter().map(|n| (*n).to_owned()).collect::<Vec<_>>();
@@ -213,14 +255,23 @@ mod tests {
         // The order is the system's own and is not promised; what is promised is that each file is given exactly once.
         let mut names: Vec<_> = first.iter().map(|(name, _)| name.clone()).collect();
         names.sort();
-        assert_eq!(names, ["a.jpg", "b.jpg", "cover.jpg", "z.jpg"], "a file was given twice or not at all");
+        assert_eq!(
+            names,
+            ["a.jpg", "b.jpg", "cover.jpg", "z.jpg"],
+            "a file was given twice or not at all"
+        );
         // Depth first: the files of `summer` come right after `a.jpg` or right before it, never with another folder's files between.
         let place = |name: &str| first.iter().position(|(file, _)| file == name).unwrap();
-        assert_eq!(place("a.jpg").abs_diff(place("b.jpg")), 1, "a folder was left half read to go into another");
+        assert_eq!(
+            place("a.jpg").abs_diff(place("b.jpg")),
+            1,
+            "a folder was left half read to go into another"
+        );
     }
 
     #[test]
-    fn the_first_files_of_a_very_wide_folder_are_given_after_the_entries_up_to_them_and_not_after_the_whole_folder() {
+    fn the_first_files_of_a_very_wide_folder_are_given_after_the_entries_up_to_them_and_not_after_the_whole_folder()
+     {
         // A folder of twenty thousand files, and a walk that is stopped after ten. A walk that read the folder into a list first, to
         // sort it or to count it, would have taken all twenty thousand entries from the system by the time it gave the first file: it
         // is the number taken, and not how many levels are open, that says whether a folder is held.
@@ -231,12 +282,24 @@ mod tests {
             fs::write(root.join(format!("f{n:05}")), b"").unwrap();
         }
         let mut walk = Walk::new(&root).unwrap();
-        assert_eq!(walk.read(), 0, "the walk took entries before the first was asked for");
+        assert_eq!(
+            walk.read(),
+            0,
+            "the walk took entries before the first was asked for"
+        );
         assert!(walk.next().is_some());
-        assert_eq!(walk.read(), 1, "the first file was given after more than its own entry was read");
+        assert_eq!(
+            walk.read(),
+            1,
+            "the first file was given after more than its own entry was read"
+        );
         let more: Vec<_> = walk.by_ref().take(9).collect();
         assert_eq!(more.len(), 9);
-        assert_eq!(walk.read(), 10, "the walk had read ahead of the files it gave");
+        assert_eq!(
+            walk.read(),
+            10,
+            "the walk had read ahead of the files it gave"
+        );
         assert_eq!(walk.depth(), 1);
         assert_eq!(walk.passed(), Passed::default());
         // And every one of the twenty thousand is given, once each, in the end.
@@ -265,7 +328,10 @@ mod tests {
         }
         assert_eq!(count, 1500);
         // Six folders deep at the most (the top and five more), and never more, for fifteen hundred files.
-        assert!(deepest <= 6, "the walk held {deepest} open folders for a tree six deep");
+        assert!(
+            deepest <= 6,
+            "the walk held {deepest} open folders for a tree six deep"
+        );
     }
 
     #[cfg(unix)]
@@ -276,15 +342,32 @@ mod tests {
         fs::write(outside.path().join("secret.key"), b"private").unwrap();
         let root = base.path().join("pictures");
         // A link to a file and a link to a folder, both pointing outside what was chosen, and one pointing nowhere.
-        std::os::unix::fs::symlink(outside.path().join("secret.key"), root.join("innocent.jpg")).unwrap();
+        std::os::unix::fs::symlink(outside.path().join("secret.key"), root.join("innocent.jpg"))
+            .unwrap();
         std::os::unix::fs::symlink(outside.path(), root.join("2024").join("more")).unwrap();
         std::os::unix::fs::symlink(root.join("nothing"), root.join("dangling")).unwrap();
         let mut walk = Walk::new(&root).unwrap();
         let found: Vec<_> = walk.by_ref().collect();
-        assert_eq!(found.len(), 4, "a link was taken as a file or a folder: {found:?}");
-        assert!(found.iter().all(|f| !f.path.starts_with(outside.path())), "the walk went outside the chosen folder");
-        assert!(found.iter().all(|f| f.path.file_name().unwrap() != "secret.key" && f.path.file_name().unwrap() != "innocent.jpg"));
-        assert_eq!(walk.passed().not_plain, 3, "the links were not counted as passed over");
+        assert_eq!(
+            found.len(),
+            4,
+            "a link was taken as a file or a folder: {found:?}"
+        );
+        assert!(
+            found.iter().all(|f| !f.path.starts_with(outside.path())),
+            "the walk went outside the chosen folder"
+        );
+        assert!(
+            found
+                .iter()
+                .all(|f| f.path.file_name().unwrap() != "secret.key"
+                    && f.path.file_name().unwrap() != "innocent.jpg")
+        );
+        assert_eq!(
+            walk.passed().not_plain,
+            3,
+            "the links were not counted as passed over"
+        );
     }
 
     #[test]
@@ -300,8 +383,14 @@ mod tests {
         }
         let mut walk = Walk::new(&base.path().join("top")).unwrap();
         let found: Vec<_> = walk.by_ref().collect();
-        assert!(found.iter().all(|f| f.folders.len() <= MAX_FOLDER_DEPTH), "a path deeper than the limit was produced");
-        assert!(found.iter().any(|f| f.path.ends_with("kept.txt")), "a file above the cut was lost");
+        assert!(
+            found.iter().all(|f| f.folders.len() <= MAX_FOLDER_DEPTH),
+            "a path deeper than the limit was produced"
+        );
+        assert!(
+            found.iter().any(|f| f.path.ends_with("kept.txt")),
+            "a file above the cut was lost"
+        );
         assert!(walk.passed().too_deep >= 1, "a cut was not counted");
     }
 
@@ -320,13 +409,19 @@ mod tests {
     #[test]
     fn only_a_plain_folder_is_walked_and_a_file_or_a_missing_path_is_not() {
         let base = tree();
-        assert!(Walk::new(&base.path().join("pictures").join("cover.jpg")).is_err(), "a file was walked");
+        assert!(
+            Walk::new(&base.path().join("pictures").join("cover.jpg")).is_err(),
+            "a file was walked"
+        );
         assert!(Walk::new(&base.path().join("nowhere")).is_err());
         #[cfg(unix)]
         {
             let outside = tempfile::tempdir().unwrap();
             std::os::unix::fs::symlink(outside.path(), base.path().join("link")).unwrap();
-            assert!(Walk::new(&base.path().join("link")).is_err(), "a link to a folder was walked as if it were the chosen folder");
+            assert!(
+                Walk::new(&base.path().join("link")).is_err(),
+                "a link to a folder was walked as if it were the chosen folder"
+            );
         }
     }
 

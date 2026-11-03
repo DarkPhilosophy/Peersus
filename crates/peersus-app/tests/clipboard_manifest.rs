@@ -85,20 +85,51 @@ fn what_the_manifest_asks_for_is_exactly_what_the_plugin_does() {
     assert_eq!(grantable, expected);
     // Automatic synchronization reads caller-scoped configuration, while device streams
     // still need the application's per-device send grant. Neither import grants itself access.
-    let imports: Vec<_> = manifest.imports.iter().map(|import| (
-        import.provider.as_str(), import.service.as_str(), import.version,
-        import.methods.iter().map(String::as_str).collect::<Vec<_>>(),
-    )).collect();
-    assert_eq!(imports, vec![
-        ("host", "peersus.peers", 1, vec!["list", "send"]),
-        ("host", "peersus.config", 1, vec!["get"]),
-    ]);
-    let automatic = manifest.contributions.settings.iter().find(|setting| setting.id == "automatic").unwrap();
-    let sync = manifest.contributions.settings.iter().find(|setting| setting.id == "sync").unwrap();
-    assert_eq!(automatic.scope, peersus_plugin_api::contributions::Scope::Global);
+    let imports: Vec<_> = manifest
+        .imports
+        .iter()
+        .map(|import| {
+            (
+                import.provider.as_str(),
+                import.service.as_str(),
+                import.version,
+                import
+                    .methods
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        imports,
+        vec![
+            ("host", "peersus.peers", 1, vec!["list", "send"]),
+            ("host", "peersus.config", 1, vec!["get"]),
+        ]
+    );
+    let automatic = manifest
+        .contributions
+        .settings
+        .iter()
+        .find(|setting| setting.id == "automatic")
+        .unwrap();
+    let sync = manifest
+        .contributions
+        .settings
+        .iter()
+        .find(|setting| setting.id == "sync")
+        .unwrap();
+    assert_eq!(
+        automatic.scope,
+        peersus_plugin_api::contributions::Scope::Global
+    );
     assert_eq!(sync.scope, peersus_plugin_api::contributions::Scope::Device);
     for setting in [automatic, sync] {
-        assert_eq!(setting.kind, peersus_plugin_api::contributions::Kind::Toggle { default: false });
+        assert_eq!(
+            setting.kind,
+            peersus_plugin_api::contributions::Kind::Toggle { default: false }
+        );
     }
     // It answers `share` and `receive`, both behind the same permission, and only the
     // application may call them.

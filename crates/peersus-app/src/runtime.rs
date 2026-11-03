@@ -9,7 +9,9 @@ use crate::in_flight::{InFlight, Key, Refused};
 use crate::parked::Parked;
 use crate::plugin_host::{PluginSpec, Registry, Route, permitted};
 use peersus_core::{
-    model::{ActionFailure, ActionState, Command, FileDestination, Peer, PeerId, Snapshot, TransferState},
+    model::{
+        ActionFailure, ActionState, Command, FileDestination, Peer, PeerId, Snapshot, TransferState,
+    },
     plugins::{Grants, PluginId, Value},
 };
 use peersus_net::{
@@ -171,6 +173,13 @@ struct Running {
     health: watch::Receiver<PluginEvent>,
 }
 
+/// A place that keeps one secret line between runs, for the access token of a personal relay. The word of the store is
+/// final: a token is used only once it is saved, so that what runs is what will be there after a restart.
+pub trait TokenStore: Send + Sync {
+    /// Save this token, or forget the saved one when it is empty.
+    fn save(&self, token: &str) -> Result<(), &'static str>;
+}
+
 pub struct Runtime {
     network: NetworkHost,
     /// What the user granted plugins that is about no device. Owned here and not by the network
@@ -186,6 +195,8 @@ pub struct Runtime {
     /// `None` again whenever no plugin asks for the service, so a plugin that comes later is told what is going and not a stale difference. Interior,
     /// because `publish` takes `&self` and is called from everywhere.
     told_transfers: std::cell::RefCell<Option<Vec<peersus_core::model::Transfer>>>,
+    /// What the plugins that listen to statuses were last told every device says of itself, so that only a change is told, once.
+    told_statuses: std::cell::RefCell<Option<crate::status_service::Seen>>,
     hub: Hub,
     /// The application's own seat on the hub. Plugins reach the application through it.
     host: Channel,
@@ -194,6 +205,8 @@ pub struct Runtime {
     running: HashMap<PluginId, Running>,
     launchers: HashMap<PluginId, Arc<dyn peersus_plugin_host::supervisor::Launcher>>,
     modules: Option<Arc<dyn peersus_plugin_host::module::ModuleFactory>>,
+    /// Where the personal relay's access token is kept between runs, when this platform has such a place.
+    token_store: Option<Arc<dyn TokenStore>>,
     /// Ids of calls the application makes through the hub. Never reused, never zero.
     next_call: u64,
     /// Calls to plugins that have not ended yet, to refuse a repeat and to withdraw them.
@@ -221,6 +234,9 @@ pub struct Runtime {
     /// The sends that are running or about to, by that same number, with whose they are and
     /// a way to stop each. Separate from `carrying` for the same reason as `outbound`.
     carrying_out: crate::running::Running<tokio::task::AbortHandle>,
+    /// The statuses plugins made for this device and which of them are on. Belongs to the plugin processes: it is emptied for a plugin when
+    /// that plugin stops or starts again, so that nothing keeps saying what nobody keeps true.
+    statuses: crate::statuses::Statuses,
     /// What each plugin calls each device. A secret that lives only in this run.
     aliases: crate::aliases::Aliases,
     /// The store of installed packages, when this owner was given one. Without it the commands
@@ -366,6 +382,21 @@ pub(crate) fn host_manifest(plugins: &Registry) -> peersus_plugin_api::manifest:
             crate::transfer_events::TRANSFERS_NAMES_CAPABILITY,
             crate::transfer_events::TRANSFERS_NAMES_DESCRIPTION,
         ),
+        (
+            crate::status_service::STATUS_SERVICE,
+            crate::status_service::STATUS_DEFINE_CAPABILITY,
+            crate::status_service::STATUS_DEFINE_DESCRIPTION,
+        ),
+        (
+            crate::status_service::STATUS_SERVICE,
+            crate::status_service::STATUS_SET_CAPABILITY,
+            crate::status_service::STATUS_SET_DESCRIPTION,
+        ),
+        (
+            crate::status_service::STATUS_SERVICE,
+            crate::status_service::STATUS_WATCH_CAPABILITY,
+            crate::status_service::STATUS_WATCH_DESCRIPTION,
+        ),
     ] {
         if manifest.exports.iter().any(|e| e.service == service) {
             manifest
@@ -434,12 +465,17 @@ pub(crate) fn host_exports(plugins: &Registry) -> Vec<peersus_plugin_api::manife
         exports.push(Export {
             service: PLATFORM_SERVICE.into(),
             version: 1,
-            description: "Portable operating system and architecture; not facilities or permission grants.".into(),
+            description:
+                "Portable operating system and architecture; not facilities or permission grants."
+                    .into(),
             consumers,
-            methods: BTreeMap::from([("inspect".into(), Member {
-                capability: None,
-                description: "Reports conservative platform facts only.".into(),
-            })]),
+            methods: BTreeMap::from([(
+                "inspect".into(),
+                Member {
+                    capability: None,
+                    description: "Reports conservative platform facts only.".into(),
+                },
+            )]),
             events: BTreeMap::new(),
         });
     }
@@ -448,12 +484,16 @@ pub(crate) fn host_exports(plugins: &Registry) -> Vec<peersus_plugin_api::manife
         exports.push(Export {
             service: CONFIG_SERVICE.into(),
             version: 1,
-            description: "Reads only the caller's declared effective settings and peer aliases.".into(),
+            description: "Reads only the caller's declared effective settings and peer aliases."
+                .into(),
             consumers,
-            methods: BTreeMap::from([("get".into(), Member {
-                capability: None,
-                description: "Returns validated settings for this caller only.".into(),
-            })]),
+            methods: BTreeMap::from([(
+                "get".into(),
+                Member {
+                    capability: None,
+                    description: "Returns validated settings for this caller only.".into(),
+                },
+            )]),
             events: BTreeMap::new(),
         });
     }
@@ -566,6 +606,34 @@ pub(crate) fn host_exports(plugins: &Registry) -> Vec<peersus_plugin_api::manife
             ]),
         });
     }
+    let consumers = consumers_of(plugins, crate::status_service::STATUS_SERVICE);
+    if !consumers.is_empty() {
+        use crate::status_service as status;
+        let guarded = |capability: &str, description: &str| Member {
+            capability: Some(capability.to_owned()),
+            description: description.to_owned(),
+        };
+        exports.push(Export {
+            service: status::STATUS_SERVICE.to_owned(),
+            version: 1,
+            description: "Lets a plugin make statuses of its own for this device, say which are true now, and read what the paired devices say of \
+                          themselves. The application owns three words (online, sleeping, offline) and no plugin can say them; everything else is the \
+                          plugin's. A status always carries whose it is. A plugin can only turn on what it made, and never sees a device's key."
+                .to_owned(),
+            consumers,
+            methods: BTreeMap::from([
+                (status::STATUS_DEFINE.to_owned(), guarded(status::STATUS_DEFINE_CAPABILITY, "Creates or rewords one of the caller's own statuses. It says nothing about the device until it is turned on.")),
+                (status::STATUS_SET.to_owned(), guarded(status::STATUS_SET_CAPABILITY, "Turns one of the caller's own statuses on: every paired device then shows it.")),
+                (status::STATUS_CLEAR.to_owned(), guarded(status::STATUS_SET_CAPABILITY, "Turns one of the caller's own statuses off.")),
+                (status::STATUS_LIST.to_owned(), guarded(status::STATUS_WATCH_CAPABILITY, "What every paired device says of itself now: how it is reachable and the statuses it shows, each with whose it is.")),
+                (status::STATUS_OWN.to_owned(), Member { capability: None, description: "The statuses the caller made itself and which are on.".to_owned() }),
+            ]),
+            events: BTreeMap::from([(
+                status::STATUS_CHANGED.to_owned(),
+                guarded(status::STATUS_WATCH_CAPABILITY, "What a paired device says of itself changed; carries the same entry as `list` does for that device."),
+            )]),
+        });
+    }
     exports
 }
 
@@ -644,6 +712,7 @@ fn guarding_what_it_imports(spec: &PluginSpec) -> BTreeSet<Permission> {
                 && import.events.contains(event)
         })
     };
+    use crate::status_service as status;
     use crate::transfer_events as transfers;
     // Every way a plugin can reach something the application guards, with the permission that guards it. A read of what is going now and the event
     // that says what changes are guarded by the same permission, so a plugin is offered it by whichever of the two it asked for, and the one that
@@ -651,20 +720,66 @@ fn guarding_what_it_imports(spec: &PluginSpec) -> BTreeSet<Permission> {
     let by_method = [
         (PEERS_SERVICE, "send", PEERS_SEND_CAPABILITY),
         (PLUGINS_SERVICE, "restart", PLUGINS_RESTART_CAPABILITY),
-        (transfers::TRANSFERS_SERVICE, transfers::TRANSFERS_ACTIVE, transfers::TRANSFERS_WATCH_CAPABILITY),
-        (transfers::TRANSFERS_SERVICE, transfers::TRANSFERS_ACTIVE_NAMED, transfers::TRANSFERS_NAMES_CAPABILITY),
+        (
+            transfers::TRANSFERS_SERVICE,
+            transfers::TRANSFERS_ACTIVE,
+            transfers::TRANSFERS_WATCH_CAPABILITY,
+        ),
+        (
+            transfers::TRANSFERS_SERVICE,
+            transfers::TRANSFERS_ACTIVE_NAMED,
+            transfers::TRANSFERS_NAMES_CAPABILITY,
+        ),
+        // Making a status and turning it on are two permissions, because only the second is SEEN by the other devices. Reading what the
+        // others say is a third. `own` is the plugin's own and `list` of presence is guarded by watch.
+        (
+            status::STATUS_SERVICE,
+            status::STATUS_DEFINE,
+            status::STATUS_DEFINE_CAPABILITY,
+        ),
+        (
+            status::STATUS_SERVICE,
+            status::STATUS_SET,
+            status::STATUS_SET_CAPABILITY,
+        ),
+        (
+            status::STATUS_SERVICE,
+            status::STATUS_CLEAR,
+            status::STATUS_SET_CAPABILITY,
+        ),
+        (
+            status::STATUS_SERVICE,
+            status::STATUS_LIST,
+            status::STATUS_WATCH_CAPABILITY,
+        ),
     ]
     .into_iter()
     .filter(|(service, method, _)| calls(service, method))
     .map(|(_, _, capability)| capability);
     let by_event = [
-        (transfers::TRANSFERS_SERVICE, transfers::TRANSFERS_CHANGED, transfers::TRANSFERS_WATCH_CAPABILITY),
-        (transfers::TRANSFERS_SERVICE, transfers::TRANSFERS_CHANGED_NAMED, transfers::TRANSFERS_NAMES_CAPABILITY),
+        (
+            transfers::TRANSFERS_SERVICE,
+            transfers::TRANSFERS_CHANGED,
+            transfers::TRANSFERS_WATCH_CAPABILITY,
+        ),
+        (
+            transfers::TRANSFERS_SERVICE,
+            transfers::TRANSFERS_CHANGED_NAMED,
+            transfers::TRANSFERS_NAMES_CAPABILITY,
+        ),
+        (
+            status::STATUS_SERVICE,
+            status::STATUS_CHANGED,
+            status::STATUS_WATCH_CAPABILITY,
+        ),
     ]
     .into_iter()
     .filter(|(service, event, _)| listens(service, event))
     .map(|(_, _, capability)| capability);
-    by_method.chain(by_event).filter_map(|capability| Permission::new(HOST, capability)).collect()
+    by_method
+        .chain(by_event)
+        .filter_map(|capability| Permission::new(HOST, capability))
+        .collect()
 }
 
 /// Whether a permission is about no device, so that it is granted to a plugin once and not
@@ -672,10 +787,18 @@ fn guarding_what_it_imports(spec: &PluginSpec) -> BTreeSet<Permission> {
 /// application says so here, never because a plugin or a caller says so. Everything else is
 /// about a device and is granted for one.
 fn needs_no_device(permission: &Permission) -> bool {
-    [PLUGINS_RESTART_CAPABILITY, crate::transfer_events::TRANSFERS_WATCH_CAPABILITY, crate::transfer_events::TRANSFERS_NAMES_CAPABILITY]
-        .into_iter()
-        .filter_map(|capability| Permission::new(HOST, capability))
-        .any(|about_no_device| about_no_device == *permission)
+    [
+        PLUGINS_RESTART_CAPABILITY,
+        crate::transfer_events::TRANSFERS_WATCH_CAPABILITY,
+        crate::transfer_events::TRANSFERS_NAMES_CAPABILITY,
+        // Statuses are about THIS device and what it says to all the others, never about one of them.
+        crate::status_service::STATUS_DEFINE_CAPABILITY,
+        crate::status_service::STATUS_SET_CAPABILITY,
+        crate::status_service::STATUS_WATCH_CAPABILITY,
+    ]
+    .into_iter()
+    .filter_map(|capability| Permission::new(HOST, capability))
+    .any(|about_no_device| about_no_device == *permission)
 }
 
 /// Every permission that can be granted to `spec`, and the only definition of it.
@@ -799,9 +922,18 @@ pub(crate) fn configuration(
     use peersus_plugin_api::contributions::Scope;
     let empty = peersus_core::plugins::Values::default();
     let effective = |values: &peersus_core::plugins::Values, scope| {
-        spec.manifest.contributions.settings.iter()
+        spec.manifest
+            .contributions
+            .settings
+            .iter()
             .filter(|setting| setting.scope == scope)
-            .map(|setting| (setting.id.clone(), serde_json::to_value(values.effective(setting)).unwrap_or(serde_json::Value::Null)))
+            .map(|setting| {
+                (
+                    setting.id.clone(),
+                    serde_json::to_value(values.effective(setting))
+                        .unwrap_or(serde_json::Value::Null),
+                )
+            })
             .collect::<serde_json::Map<String, serde_json::Value>>()
     };
     let devices: Vec<_> = peers.iter().map(|peer| {
@@ -822,9 +954,15 @@ pub(crate) fn configuration(
 /// A bidirectional service's own guard also applies when its provider initiates a send.
 /// This closes stale-config races without naming a bundled plugin or inventing grants.
 pub(crate) fn authorize_service_send(
-    spec: &PluginSpec, peer: &Peer, service: &str, version: u32,
+    spec: &PluginSpec,
+    peer: &Peer,
+    service: &str,
+    version: u32,
 ) -> Result<(), &'static str> {
-    if let Some(member) = spec.manifest.exports.iter()
+    if let Some(member) = spec
+        .manifest
+        .exports
+        .iter()
         .find(|export| export.service == service && export.version == version)
         .and_then(|export| export.methods.get(crate::plugin_host::RECEIVE_METHOD))
         && !crate::plugin_host::permitted(peer, &spec.id, member.capability.as_deref())
@@ -1045,12 +1183,16 @@ pub(crate) fn action_state(
 /// The fixed sentence a person is told when a plugin's call ended in an error, by the reason `action_state` read from its
 /// code. Only the application's own words: what the plugin wrote is never in it. `None` for an action that was cancelled
 /// or that did not fail (nothing to tell).
-pub(crate) fn action_failure_sentence(result: &peersus_plugin_api::message::Outcome) -> Option<&'static str> {
+pub(crate) fn action_failure_sentence(
+    result: &peersus_plugin_api::message::Outcome,
+) -> Option<&'static str> {
     use peersus_core::model::{ActionFailure, ActionState};
     match action_state(result) {
         ActionState::Failed { reason } => Some(match reason {
             ActionFailure::NotAllowed => "A plugin was not allowed to complete the action",
-            ActionFailure::Unavailable => "A plugin could not complete the action: what it needs is not available",
+            ActionFailure::Unavailable => {
+                "A plugin could not complete the action: what it needs is not available"
+            }
             ActionFailure::TimedOut => "A plugin did not complete the action in time",
             ActionFailure::Busy => "A plugin could not complete the action: it is busy",
             _ => "A plugin could not complete the action",
@@ -1066,8 +1208,16 @@ pub(crate) fn action_failure_sentence(result: &peersus_plugin_api::message::Outc
 pub(crate) fn code_for_the_log(result: &peersus_plugin_api::message::Outcome) -> Option<String> {
     match result {
         peersus_plugin_api::message::Outcome::Error { code, .. } => {
-            let clean: String = code.chars().filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.')).take(40).collect();
-            Some(if clean.is_empty() { "(none)".to_owned() } else { clean })
+            let clean: String = code
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+                .take(40)
+                .collect();
+            Some(if clean.is_empty() {
+                "(none)".to_owned()
+            } else {
+                clean
+            })
         }
         _ => None,
     }
@@ -1148,7 +1298,10 @@ struct StoreSlot {
 /// What a store download task hands back. Only UNVERIFIED bytes: nothing here has been trusted yet.
 enum StoreOutcome {
     Refreshed(Result<(Vec<u8>, Vec<u8>), crate::catalog::Refusal>),
-    Downloaded { plugin: PluginId, bytes: Result<Vec<u8>, crate::catalog::Refusal> },
+    Downloaded {
+        plugin: PluginId,
+        bytes: Result<Vec<u8>, crate::catalog::Refusal>,
+    },
 }
 
 impl Runtime {
@@ -1177,14 +1330,23 @@ impl Runtime {
             grants: standalone.all().clone(),
             plugins: plugins.info(),
             staged: Vec::new(),
-            store: peersus_core::model::StoreState { status: peersus_core::model::StoreStatus::NotConfigured, ..Default::default() },
+            store: peersus_core::model::StoreState {
+                status: peersus_core::model::StoreStatus::NotConfigured,
+                ..Default::default()
+            },
             actions: Vec::new(),
             transfers: network.transfers(),
             pairing: network.pairing(),
             errors: Vec::new(),
-            profile_picture: network.own_picture().map(peersus_core::profile::Picture::digest),
+            profile_picture: network
+                .own_picture()
+                .map(peersus_core::profile::Picture::digest),
             peer_pictures: network.peer_digests(),
             files_code: network.files_code(),
+            link_tests: network.link_tests(),
+            typed_addresses: network.typed_addresses(),
+            listening_port: network.listening_port(),
+            relay: Some(network.relay_diagnostics()),
         }));
         let (commands, requests) = mpsc::channel(64);
         // Data connections of every plugin arrive on one channel. The application matches
@@ -1201,6 +1363,7 @@ impl Runtime {
                 snapshots,
                 errors: Vec::new(),
                 told_transfers: std::cell::RefCell::new(None),
+                told_statuses: std::cell::RefCell::new(None),
                 hub,
                 host,
                 plugin_directory,
@@ -1218,9 +1381,11 @@ impl Runtime {
                 carrying: crate::running::Running::default(),
                 outbound: Parked::default(),
                 carrying_out: crate::running::Running::default(),
+                statuses: crate::statuses::Statuses::default(),
                 packages: None,
                 disabled: std::collections::BTreeSet::new(),
                 held_back: Vec::new(),
+                token_store: None,
                 staged: HashMap::new(),
                 held: peersus_net::held::Held::default(),
                 installed_packages: std::collections::BTreeMap::new(),
@@ -1235,9 +1400,22 @@ impl Runtime {
         ))
     }
 
+    /// Where the access token of a personal relay is kept between runs, which each platform decides: the system credential
+    /// store on a desktop, the native keystore on a phone. Without one a token cannot be saved, and is refused, never
+    /// kept only in memory where the person would believe it was safe.
+    #[must_use]
+    pub fn with_token_store(mut self, store: Arc<dyn TokenStore>) -> Self {
+        self.token_store = Some(store);
+        self
+    }
+
     /// Supply a platform launcher for a bundled plugin without pretending it is an executable.
     #[must_use]
-    pub fn with_launcher(mut self, plugin: PluginId, launcher: Arc<dyn peersus_plugin_host::supervisor::Launcher>) -> Self {
+    pub fn with_launcher(
+        mut self,
+        plugin: PluginId,
+        launcher: Arc<dyn peersus_plugin_host::supervisor::Launcher>,
+    ) -> Self {
         self.launchers.insert(plugin, launcher);
         self
     }
@@ -1245,7 +1423,10 @@ impl Runtime {
     /// Choose platform-owned executors for installed modules, including later installs.
     /// A module without its declared executor is refused, never run as an executable.
     #[must_use]
-    pub fn with_modules(mut self, modules: Arc<dyn peersus_plugin_host::module::ModuleFactory>) -> Self {
+    pub fn with_modules(
+        mut self,
+        modules: Arc<dyn peersus_plugin_host::module::ModuleFactory>,
+    ) -> Self {
         self.modules = Some(modules);
         self
     }
@@ -1290,7 +1471,11 @@ impl Runtime {
     /// installable (`with_packages`), or an install is refused before anything is fetched.
     #[cfg(unix)]
     #[must_use]
-    pub fn with_store(mut self, service: crate::store_service::StoreService, fetcher: Arc<dyn crate::store_runtime::StoreFetcher>) -> Self {
+    pub fn with_store(
+        mut self,
+        service: crate::store_service::StoreService,
+        fetcher: Arc<dyn crate::store_runtime::StoreFetcher>,
+    ) -> Self {
         self.store = Some(StoreSlot { service, fetcher });
         // The initial snapshot was published without a store; tell the window it exists now.
         self.publish();
@@ -1313,7 +1498,9 @@ impl Runtime {
     /// Start one plugin as a supervised process, or report that it could not be started.
     fn start_one(&mut self, spec: PluginSpec) {
         let id = spec.id.clone();
-        if spec.program.is_some() && crate::plugin_host::check_external_execution(spec.manifest.execution).is_err() {
+        if spec.program.is_some()
+            && crate::plugin_host::check_external_execution(spec.manifest.execution).is_err()
+        {
             self.error("This extension format is not available in this distribution");
             return;
         }
@@ -1334,15 +1521,30 @@ impl Runtime {
             handoff: Some(self.handoff.clone()),
         };
         let started = match self.launchers.get(&id) {
-            Some(launcher) => Service::start_with_launcher(self.hub.clone(), plugin, Arc::clone(launcher)),
-            None if matches!(plugin.manifest.execution, peersus_plugin_api::manifest::Execution::Process) => Service::start(self.hub.clone(), plugin),
-            None => self.modules.as_ref()
+            Some(launcher) => {
+                Service::start_with_launcher(self.hub.clone(), plugin, Arc::clone(launcher))
+            }
+            None if matches!(
+                plugin.manifest.execution,
+                peersus_plugin_api::manifest::Execution::Process
+            ) =>
+            {
+                Service::start(self.hub.clone(), plugin)
+            }
+            None => self
+                .modules
+                .as_ref()
                 .ok_or_else(|| std::io::Error::other("module executor unavailable"))
                 .and_then(|modules| {
-                    let module = plugin.program.as_deref().ok_or_else(|| std::io::Error::other("module payload unavailable"))?;
+                    let module = plugin
+                        .program
+                        .as_deref()
+                        .ok_or_else(|| std::io::Error::other("module payload unavailable"))?;
                     modules.launcher(plugin.manifest.execution, module)
                 })
-                .and_then(|launcher| Service::start_with_launcher(self.hub.clone(), plugin, launcher)),
+                .and_then(|launcher| {
+                    Service::start_with_launcher(self.hub.clone(), plugin, launcher)
+                }),
         };
         match started {
             Ok(service) => {
@@ -1597,6 +1799,9 @@ impl Runtime {
         // Nothing the old process was doing will ever be answered, so none of it may keep
         // showing as running.
         self.board.forget_plugin(plugin);
+        // The new process starts with no statuses and none on: what the old one said of this device is not true of a process that has not
+        // yet said anything, and the plugin makes its statuses again when it runs.
+        self.forget_statuses(plugin);
         // What peers had sent for the old process cannot be collected by the new one. The
         // streams are dropped, ending the peers' side, and the calls that announced them are
         // withdrawn so nothing waits on them.
@@ -1630,6 +1835,8 @@ impl Runtime {
     async fn stop_plugin(&mut self, plugin: &PluginId) {
         self.in_flight.take_for_plugin(plugin);
         self.board.forget_plugin(plugin);
+        // What the plugin said of this device goes with it: nothing keeps it true any more, and another device must not go on showing it.
+        self.forget_statuses(plugin);
         let announced = self.parked.drop_for_plugin(plugin);
         self.carrying.stop_for_plugin(plugin);
         self.outbound.drop_for_plugin(plugin);
@@ -1642,17 +1849,27 @@ impl Runtime {
 
     /// The store of packages, or the reason there is none.
     fn packages(&self) -> Result<&crate::plugin_manager::Manager, &'static str> {
-        self.packages.as_ref().ok_or("Plugins cannot be installed here")
+        self.packages
+            .as_ref()
+            .ok_or("Plugins cannot be installed here")
     }
 
     /// Stop an installed plugin and keep it from running until it is enabled, also after the
     /// application restarts. It stays installed and keeps what it was granted.
     async fn disable_plugin(&mut self, plugin: PluginId) -> Result<(), &'static str> {
-        let spec = self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)).ok_or("Unknown plugin")?;
+        let spec = self
+            .plugins
+            .find(&plugin)
+            .and_then(|index| self.plugins.get(index))
+            .ok_or("Unknown plugin")?;
         // Bundled services have no external folder. Keep their existing in-memory switch;
         // adding a package store must not make their lifecycle depend on a missing folder.
-        if let Some(manager) = &self.packages && spec.program.is_some() {
-            manager.set_disabled(plugin.as_str(), true).map_err(|refusal| refusal.0)?;
+        if let Some(manager) = &self.packages
+            && spec.program.is_some()
+        {
+            manager
+                .set_disabled(plugin.as_str(), true)
+                .map_err(|refusal| refusal.0)?;
         }
         self.disabled.insert(plugin.clone());
         self.stop_plugin(&plugin).await;
@@ -1662,9 +1879,17 @@ impl Runtime {
     /// Let an installed plugin run again, and remember that it is to run at the next start too. It
     /// keeps what it was granted.
     fn enable_plugin(&mut self, plugin: PluginId) -> Result<(), &'static str> {
-        let spec = self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)).ok_or("Unknown plugin")?;
-        if let Some(manager) = &self.packages && spec.program.is_some() {
-            manager.set_disabled(plugin.as_str(), false).map_err(|refusal| refusal.0)?;
+        let spec = self
+            .plugins
+            .find(&plugin)
+            .and_then(|index| self.plugins.get(index))
+            .ok_or("Unknown plugin")?;
+        if let Some(manager) = &self.packages
+            && spec.program.is_some()
+        {
+            manager
+                .set_disabled(plugin.as_str(), false)
+                .map_err(|refusal| refusal.0)?;
         }
         self.disabled.remove(&plugin);
         self.start_if_stopped(&plugin)
@@ -1690,7 +1915,9 @@ impl Runtime {
         {
             return Err("The plugin is not what was shown; look at it again");
         }
-        self.packages()?.approve(plugin.as_str(), program).map_err(|refusal| refusal.0)?;
+        self.packages()?
+            .approve(plugin.as_str(), program)
+            .map_err(|refusal| refusal.0)?;
         // The old rights are forgotten before it runs, so it never runs with them.
         self.hub.forget(plugin.as_str());
         self.network
@@ -1702,8 +1929,14 @@ impl Runtime {
         self.sync_host_grants();
         self.sync_plugin_grants();
         let manager = self.packages()?;
-        let spec = crate::discovery::load_as(manager.store(), &manager.store().join(plugin.as_str()), plugin.as_str())?;
-        self.plugins.register(spec.clone()).map_err(|_| "The plugin could not be registered")?;
+        let spec = crate::discovery::load_as(
+            manager.store(),
+            &manager.store().join(plugin.as_str()),
+            plugin.as_str(),
+        )?;
+        self.plugins
+            .register(spec.clone())
+            .map_err(|_| "The plugin could not be registered")?;
         self.sync_host_grants();
         self.held_back.retain(|held| held.id != plugin);
         self.start_one(spec);
@@ -1728,7 +1961,12 @@ impl Runtime {
     async fn remove_package(&mut self, plugin: PluginId) -> Result<(), &'static str> {
         // Refused before anything is touched when there is no store or it is not installed.
         self.packages()?;
-        if self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)).is_some_and(|spec| spec.program.is_none()) {
+        if self
+            .plugins
+            .find(&plugin)
+            .and_then(|index| self.plugins.get(index))
+            .is_some_and(|spec| spec.program.is_none())
+        {
             return Err("Bundled plugins cannot be removed");
         }
         // A plugin that was found in the store and is not run (not approved, changed, broken) is not in the registry and has
@@ -1780,14 +2018,20 @@ impl Runtime {
         // folder chosen by hand is: one set of rules, one set of refusals.
         let unpacked = match std::fs::metadata(source) {
             Ok(found) if found.is_file() => Some(
-                crate::archive::unpack_in(source, &self.plugin_directory).map_err(|refused| refused.0)?,
+                crate::archive::unpack_in(source, &self.plugin_directory)
+                    .map_err(|refused| refused.0)?,
             ),
             _ => None,
         };
         let source = unpacked.as_ref().map_or(source, |held| held.root());
         let id = crate::plugin_manager::package_id(source).map_err(|refusal| refusal.0)?;
         let plugin = PluginId::new(id).map_err(|_| "The package has no valid name")?;
-        if self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)).is_some_and(|spec| spec.program.is_none()) {
+        if self
+            .plugins
+            .find(&plugin)
+            .and_then(|index| self.plugins.get(index))
+            .is_some_and(|spec| spec.program.is_none())
+        {
             return Err("An external package cannot replace a bundled plugin");
         }
         // What it asks for is read now and kept, so that what the person is shown is what is
@@ -1798,13 +2042,25 @@ impl Runtime {
         // since: the person is shown a package, and a package is what they confirm.
         let digest = crate::plugin_manager::package_digest(source).map_err(|refusal| refusal.0)?;
         let source = source.to_path_buf();
-        self.staged.insert(plugin, Staged { source, manifest, digest, _unpacked: unpacked, package });
+        self.staged.insert(
+            plugin,
+            Staged {
+                source,
+                manifest,
+                digest,
+                _unpacked: unpacked,
+                package,
+            },
+        );
         Ok(())
     }
 
     /// Let go of a package that was shown and is not going to be installed. Nothing of it is kept.
     fn cancel_install(&mut self, plugin: &PluginId) -> Result<(), &'static str> {
-        self.staged.remove(plugin).map(|_| ()).ok_or("Nothing was shown for that plugin")
+        self.staged
+            .remove(plugin)
+            .map(|_| ())
+            .ok_or("Nothing was shown for that plugin")
     }
 
     /// Read what each installed package says about itself from its folder, and tell the store which version is
@@ -1812,12 +2068,18 @@ impl Runtime {
     /// [`crate::discovery::MAX_MANIFEST`] bytes. A folder that is broken or not approved still counts: an update
     /// should be offered for it. Called after anything that can change the installed set, never from `publish`.
     fn refresh_installed(&mut self) {
-        let Some(manager) = &self.packages else { return };
+        let Some(manager) = &self.packages else {
+            return;
+        };
         let mut found = std::collections::BTreeMap::new();
         if let Ok(entries) = manager.list() {
             for entry in entries.into_iter().take(crate::discovery::MAX_PLUGINS) {
-                let Ok(id) = PluginId::new(entry.id.as_str()) else { continue };
-                if let Ok((_, Some(package))) = crate::discovery::read_package_and_info(&manager.store().join(&entry.id)) {
+                let Ok(id) = PluginId::new(entry.id.as_str()) else {
+                    continue;
+                };
+                if let Ok((_, Some(package))) =
+                    crate::discovery::read_package_and_info(&manager.store().join(&entry.id))
+                {
                     found.insert(id, package);
                 }
             }
@@ -1825,7 +2087,11 @@ impl Runtime {
         self.installed_packages = found;
         #[cfg(unix)]
         if let Some(slot) = self.store.as_mut() {
-            let versions = self.installed_packages.iter().map(|(id, package)| (id.clone(), package.version.clone())).collect();
+            let versions = self
+                .installed_packages
+                .iter()
+                .map(|(id, package)| (id.clone(), package.version.clone()))
+                .collect();
             slot.service.set_installed(&versions);
         }
     }
@@ -1837,20 +2103,33 @@ impl Runtime {
         if let Some(slot) = &self.store {
             return slot.service.state().clone();
         }
-        peersus_core::model::StoreState { status: peersus_core::model::StoreStatus::NotConfigured, ..Default::default() }
+        peersus_core::model::StoreState {
+            status: peersus_core::model::StoreStatus::NotConfigured,
+            ..Default::default()
+        }
     }
 
     /// Begin fetching the catalog. Returns at once: the download runs in a task and its result is
     /// verified on the event loop by [`Self::finish_store`], so a slow network never stalls the owner.
     #[cfg(unix)]
     fn start_store_refresh(&mut self) -> Result<(), &'static str> {
-        let slot = self.store.as_mut().ok_or("The extension store is not available here")?;
+        let slot = self
+            .store
+            .as_mut()
+            .ok_or("The extension store is not available here")?;
         slot.service.begin_refresh().map_err(|refusal| refusal.0)?;
         let fetcher = slot.fetcher.clone();
         self.store_tasks.spawn(async move {
             let fetched = async {
-                let catalog = fetcher.fetch(crate::store::CATALOG_FILE.to_owned(), crate::catalog::MAX_CATALOG_BYTES).await?;
-                let signature = fetcher.fetch(crate::store::SIGNATURE_FILE.to_owned(), 64).await?;
+                let catalog = fetcher
+                    .fetch(
+                        crate::store::CATALOG_FILE.to_owned(),
+                        crate::catalog::MAX_CATALOG_BYTES,
+                    )
+                    .await?;
+                let signature = fetcher
+                    .fetch(crate::store::SIGNATURE_FILE.to_owned(), 64)
+                    .await?;
                 Ok((catalog, signature))
             };
             StoreOutcome::Refreshed(fetched.await)
@@ -1863,19 +2142,35 @@ impl Runtime {
     #[cfg(unix)]
     fn start_store_install(&mut self, plugin: PluginId) -> Result<(), &'static str> {
         self.packages()?;
-        if self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)).is_some_and(|spec| spec.program.is_none()) {
+        if self
+            .plugins
+            .find(&plugin)
+            .and_then(|index| self.plugins.get(index))
+            .is_some_and(|spec| spec.program.is_none())
+        {
             return Err("An external package cannot replace a bundled plugin");
         }
         // A package the person staged by hand for this name is waiting on THEIR confirmation. A store
         // install must not silently replace it (the staged card would then install something else).
         if self.staged.contains_key(&plugin) {
-            return Err("A package for this name is waiting to be confirmed; confirm or cancel it first");
+            return Err(
+                "A package for this name is waiting to be confirmed; confirm or cancel it first",
+            );
         }
-        let slot = self.store.as_mut().ok_or("The extension store is not available here")?;
-        let fetch = slot.service.begin_install(&plugin).map_err(|refusal| refusal.0)?;
+        let slot = self
+            .store
+            .as_mut()
+            .ok_or("The extension store is not available here")?;
+        let fetch = slot
+            .service
+            .begin_install(&plugin)
+            .map_err(|refusal| refusal.0)?;
         let fetcher = slot.fetcher.clone();
         self.store_tasks.spawn(async move {
-            StoreOutcome::Downloaded { plugin, bytes: fetcher.fetch(fetch.archive, fetch.limit).await }
+            StoreOutcome::Downloaded {
+                plugin,
+                bytes: fetcher.fetch(fetch.archive, fetch.limit).await,
+            }
         });
         Ok(())
     }
@@ -1897,16 +2192,26 @@ impl Runtime {
     #[cfg(unix)]
     async fn finish_store(&mut self, outcome: StoreOutcome) {
         let scratch = self.plugin_directory.clone();
-        let Some(slot) = self.store.as_mut() else { return };
+        let Some(slot) = self.store.as_mut() else {
+            return;
+        };
         let result: Result<(), &'static str> = match outcome {
-            StoreOutcome::Refreshed(Ok((catalog, signature))) => {
-                slot.service.finish_refresh(&catalog, &signature).map_err(|refusal| refusal.0)
-            }
-            StoreOutcome::Refreshed(Err(refusal)) | StoreOutcome::Downloaded { bytes: Err(refusal), .. } => {
+            StoreOutcome::Refreshed(Ok((catalog, signature))) => slot
+                .service
+                .finish_refresh(&catalog, &signature)
+                .map_err(|refusal| refusal.0),
+            StoreOutcome::Refreshed(Err(refusal))
+            | StoreOutcome::Downloaded {
+                bytes: Err(refusal),
+                ..
+            } => {
                 slot.service.failed(refusal.0);
                 Err(refusal.0)
             }
-            StoreOutcome::Downloaded { plugin, bytes: Ok(bytes) } => {
+            StoreOutcome::Downloaded {
+                plugin,
+                bytes: Ok(bytes),
+            } => {
                 match slot.service.finish_install(&plugin, bytes, &scratch) {
                     // The service already recorded and released the failure.
                     Err(refusal) => Err(refusal.0),
@@ -1939,20 +2244,36 @@ impl Runtime {
     /// Install what the store verified through [`Self::confirm_install`]: the verified package takes the
     /// place of what a person would have chosen and been shown. The click on Install was the confirmation.
     #[cfg(unix)]
-    async fn confirm_verified(&mut self, plugin: PluginId, verified: crate::store_service::Verified) -> Result<(), &'static str> {
+    async fn confirm_verified(
+        &mut self,
+        plugin: PluginId,
+        verified: crate::store_service::Verified,
+    ) -> Result<(), &'static str> {
         let source = verified.unpacked.root().to_path_buf();
         let (manifest, package) = crate::discovery::read_package_and_info(&source)?;
         crate::plugin_host::check_external_execution(manifest.execution)?;
         let digest = crate::plugin_manager::package_digest(&source).map_err(|refusal| refusal.0)?;
         // The unpacked folder moves into the staged entry so it lives until the install has finished.
-        self.staged.insert(plugin.clone(), Staged { source, manifest, digest, _unpacked: Some(verified.unpacked), package });
+        self.staged.insert(
+            plugin.clone(),
+            Staged {
+                source,
+                manifest,
+                digest,
+                _unpacked: Some(verified.unpacked),
+                package,
+            },
+        );
         self.confirm_install(plugin).await
     }
 
     /// Install the package that was staged for `plugin`, and only that one, and start it. It
     /// starts with no permissions, and no restart is needed.
     async fn confirm_install(&mut self, plugin: PluginId) -> Result<(), &'static str> {
-        let staged = self.staged.remove(&plugin).ok_or("Nothing was shown for that plugin")?;
+        let staged = self
+            .staged
+            .remove(&plugin)
+            .ok_or("Nothing was shown for that plugin")?;
         // Taken out first, so that a refusal does not leave it waiting to be confirmed again as
         // if nothing had happened: the person has to choose it again and be shown it again.
         if !crate::plugin_manager::still_what_was_shown(
@@ -1968,7 +2289,11 @@ impl Runtime {
         // plugin that starts with nothing. Done by the same steps as `remove_package`, so there is
         // one way a plugin goes and no second one to drift.
         let replaced = self.plugins.find(&plugin).is_some();
-        let kept_files = if replaced { Some(self.set_aside_installed(&plugin).await?) } else { None };
+        let kept_files = if replaced {
+            Some(self.set_aside_installed(&plugin).await?)
+        } else {
+            None
+        };
         match self.install_and_start(&plugin, &source) {
             Ok(()) => {
                 // The old package is gone for good only now that the new one is in.
@@ -1988,11 +2313,21 @@ impl Runtime {
     }
 
     /// Install the package in `source` as `plugin`, register it and start it.
-    fn install_and_start(&mut self, plugin: &PluginId, source: &std::path::Path) -> Result<(), &'static str> {
+    fn install_and_start(
+        &mut self,
+        plugin: &PluginId,
+        source: &std::path::Path,
+    ) -> Result<(), &'static str> {
         let manager = self.packages()?;
         manager.install(source).map_err(|refusal| refusal.0)?;
-        let spec = crate::discovery::load_as(manager.store(), &manager.store().join(plugin.as_str()), plugin.as_str())?;
-        self.plugins.register(spec.clone()).map_err(|_| "The plugin could not be registered")?;
+        let spec = crate::discovery::load_as(
+            manager.store(),
+            &manager.store().join(plugin.as_str()),
+            plugin.as_str(),
+        )?;
+        self.plugins
+            .register(spec.clone())
+            .map_err(|_| "The plugin could not be registered")?;
         self.sync_host_grants();
         self.start_one(spec);
         Ok(())
@@ -2022,7 +2357,9 @@ impl Runtime {
             .and_then(|_| self.standalone.forget_plugin(plugin));
         self.sync_host_grants();
         self.sync_plugin_grants();
-        forgot.map(|_| kept).map_err(|_| "Could not forget what it was granted")
+        forgot
+            .map(|_| kept)
+            .map_err(|_| "Could not forget what it was granted")
     }
 
     /// The second half, when the new package could not go in: the old plugin is put back exactly as
@@ -2177,7 +2514,11 @@ impl Runtime {
     /// every way of sending is judged the same: between one and sixteen files, every source opened before any is
     /// offered (so one bad file cannot make a partial offer of a command that asked for several), and what was
     /// already offered withdrawn if a later offer fails.
-    fn offer_sources(&mut self, peer: &PeerId, sources: Vec<Source>) -> Result<Reply, &'static str> {
+    fn offer_sources(
+        &mut self,
+        peer: &PeerId,
+        sources: Vec<Source>,
+    ) -> Result<Reply, &'static str> {
         let mut transfers = Vec::with_capacity(sources.len());
         for source in sources {
             match self.network.send(peer, source, now()) {
@@ -2210,14 +2551,24 @@ impl Runtime {
         result
     }
 
-    async fn take_held_sources(&mut self, files: Vec<(u64, String)>) -> Result<Vec<Source>, &'static str> {
+    async fn take_held_sources(
+        &mut self,
+        files: Vec<(u64, String)>,
+    ) -> Result<Vec<Source>, &'static str> {
         if files.is_empty() || files.len() > Self::MOST_FILES_AT_ONCE {
             return Err("Choose between one and sixteen files");
         }
         let mut sources = Vec::with_capacity(files.len());
         for (number, name) in files {
-            let file = self.held.take(number).ok_or("A chosen file is no longer available")?;
-            sources.push(Source::from_file(file, &name).await.map_err(|_| "Could not open selected file")?);
+            let file = self
+                .held
+                .take(number)
+                .ok_or("A chosen file is no longer available")?;
+            sources.push(
+                Source::from_file(file, &name)
+                    .await
+                    .map_err(|_| "Could not open selected file")?,
+            );
         }
         Ok(sources)
     }
@@ -2232,25 +2583,50 @@ impl Runtime {
     }
 
     fn files_invitation_reply(&self, invitation: Invitation) -> Result<Reply, &'static str> {
-        let generation = self.network.files_code().map(|code| code.generation).ok_or("Could not create invitation")?;
+        let generation = self
+            .network
+            .files_code()
+            .map(|code| code.generation)
+            .ok_or("Could not create invitation")?;
         let expires_at = invitation.expires_at;
-        let code = invitation.encode().map_err(|_| "Could not create invitation")?;
-        Ok(Reply::FilesInvitation { code, generation, expires_at })
+        let code = invitation
+            .encode()
+            .map_err(|_| "Could not create invitation")?;
+        Ok(Reply::FilesInvitation {
+            code,
+            generation,
+            expires_at,
+        })
     }
 
-    fn can_queue_destination(&self, destination: &FileDestination, count: usize) -> Result<bool, &'static str> {
+    fn can_queue_destination(
+        &self,
+        destination: &FileDestination,
+        count: usize,
+    ) -> Result<bool, &'static str> {
         match destination {
-            FileDestination::Peer { peer } => self.network.can_queue_files(peer, count).map_err(|_| "Device is offline"),
-            FileDestination::Invitation { generation } => self.network.can_queue_selection(*generation, count, now())
+            FileDestination::Peer { peer } => self
+                .network
+                .can_queue_files(peer, count)
+                .map_err(|_| "Device is offline"),
+            FileDestination::Invitation { generation } => self
+                .network
+                .can_queue_selection(*generation, count, now())
                 .map_err(|_| "Files selection is no longer active"),
         }
     }
 
-    fn queue_destination(&mut self, destination: FileDestination, sources: Vec<Source>) -> Result<Reply, &'static str> {
+    fn queue_destination(
+        &mut self,
+        destination: FileDestination,
+        sources: Vec<Source>,
+    ) -> Result<Reply, &'static str> {
         match destination {
             FileDestination::Peer { peer } => self.offer_sources(&peer, sources),
             FileDestination::Invitation { generation } => {
-                self.network.queue_selection(generation, sources, now()).map_err(|_| "Could not queue selected files")?;
+                self.network
+                    .queue_selection(generation, sources, now())
+                    .map_err(|_| "Could not queue selected files")?;
                 Ok(Reply::Transfers(Vec::new()))
             }
         }
@@ -2282,7 +2658,11 @@ impl Runtime {
                 }
                 let mut sources = Vec::with_capacity(paths.len());
                 for path in paths {
-                    sources.push(Source::open(&path).await.map_err(|_| "Could not open selected file")?);
+                    sources.push(
+                        Source::open(&path)
+                            .await
+                            .map_err(|_| "Could not open selected file")?,
+                    );
                 }
                 return self.files_code(sources);
             }
@@ -2291,12 +2671,18 @@ impl Runtime {
                 return self.files_code(sources);
             }
             Command::BeginFilesInvitation { count } => {
-                let invitation = self.network.begin_files_selection(count as usize, now())
+                let invitation = self
+                    .network
+                    .begin_files_selection(count as usize, now())
                     .map_err(|_| "Could not create invitation")?;
                 return self.files_invitation_reply(invitation);
             }
-            Command::FinishFilesInvitation { generation, refused } => {
-                self.network.finish_files_selection(generation, refused as usize)
+            Command::FinishFilesInvitation {
+                generation,
+                refused,
+            } => {
+                self.network
+                    .finish_files_selection(generation, refused as usize)
                     .map_err(|_| "Files selection is not fully accounted for")?;
             }
             Command::ChoosePairing { request, number } => self.network.choose(&request, number)?,
@@ -2320,7 +2706,11 @@ impl Runtime {
                 }
                 let mut sources = Vec::with_capacity(paths.len());
                 for path in paths {
-                    sources.push(Source::open(&path).await.map_err(|_| "Could not open selected file")?);
+                    sources.push(
+                        Source::open(&path)
+                            .await
+                            .map_err(|_| "Could not open selected file")?,
+                    );
                 }
                 return self.queue_destination(destination, sources);
             }
@@ -2341,7 +2731,11 @@ impl Runtime {
                 }
                 let mut sources = Vec::with_capacity(paths.len());
                 for path in paths {
-                    sources.push(Source::open(&path).await.map_err(|_| "Could not open selected file")?);
+                    sources.push(
+                        Source::open(&path)
+                            .await
+                            .map_err(|_| "Could not open selected file")?,
+                    );
                 }
                 return self.offer_sources(&peer, sources);
             }
@@ -2366,7 +2760,9 @@ impl Runtime {
                 .cancel(&transfer)
                 .map_err(|_| "Could not cancel transfer")?,
             Command::ClearHistory {} => {
-                self.network.clear_history().map_err(|_| "Could not clear the history")?;
+                self.network
+                    .clear_history()
+                    .map_err(|_| "Could not clear the history")?;
             }
             Command::UpdateSettings { settings, expected } => {
                 if self.settings.current() != &*expected {
@@ -2376,7 +2772,9 @@ impl Runtime {
             }
             Command::PatchSettings { patch } => {
                 // Said as it is: a person told "conflict" cannot tell what to change, and the refusal knows.
-                let settings = patch.apply(self.settings.current()).map_err(|error| error.words())?;
+                let settings = patch
+                    .apply(self.settings.current())
+                    .map_err(|error| error.words())?;
                 self.apply_settings(settings).await?;
             }
             Command::SetGrants {
@@ -2417,14 +2815,31 @@ impl Runtime {
                 action,
                 peer,
             } => self.invoke(plugin, &action, peer, None)?,
-            Command::InvokeActionWithContext { plugin, action, peer, context } => {
-                if context == 0 { return Err("Action context is invalid"); }
+            Command::InvokeActionWithContext {
+                plugin,
+                action,
+                peer,
+                context,
+            } => {
+                if context == 0 {
+                    return Err("Action context is invalid");
+                }
                 self.invoke(plugin, &action, peer, Some(context))?;
             }
-            Command::CancelAction { plugin, action, peer } => {
-                let key = Key { plugin, action, device: peer };
+            Command::CancelAction {
+                plugin,
+                action,
+                peer,
+            } => {
+                let key = Key {
+                    plugin,
+                    action,
+                    device: peer,
+                };
                 if let Some(id) = self.in_flight.take_action(&key) {
-                    let _ = self.host.submit(peersus_plugin_api::message::Operation::Cancel { id });
+                    let _ = self
+                        .host
+                        .submit(peersus_plugin_api::message::Operation::Cancel { id });
                     self.carrying.stop_call(id);
                     self.board.finished(&key, ActionState::Cancelled);
                 }
@@ -2445,14 +2860,32 @@ impl Runtime {
             Command::StoreRefresh {} => self.start_store_refresh()?,
             Command::StoreInstall { plugin } => self.start_store_install(plugin)?,
             Command::SetProfilePicture { picture } => {
-                self.network.set_picture(Some(picture)).map_err(|_| "Could not keep the picture")?;
+                self.network
+                    .set_picture(Some(picture))
+                    .map_err(|_| "Could not keep the picture")?;
             }
             Command::ClearProfilePicture {} => {
-                self.network.set_picture(None).map_err(|_| "Could not remove the picture")?;
+                self.network
+                    .set_picture(None)
+                    .map_err(|_| "Could not remove the picture")?;
             }
             Command::FetchPicture { digest } => {
-                return self.picture_for(&digest).map(Reply::Picture).ok_or("No picture is held for that");
+                return self
+                    .picture_for(&digest)
+                    .map(Reply::Picture)
+                    .ok_or("No picture is held for that");
             }
+            Command::SetAsleep { asleep } => self.network.set_asleep(asleep),
+            // A test of the connection to a paired device: it is started and the answer comes later, in the snapshot, so a window never waits on
+            // the network here. Only a device that is paired can be tested, and it is asked nothing but whether it answers and knows this one.
+            Command::TestLink { peer } => self.network.test_link(&peer)?,
+            Command::ClearLinkTest { peer } => self.network.clear_link_test(&peer),
+            // Where a paired device can be found, as typed. Judged by the host and not by the window, so a client that sends anything is refused the
+            // same way; the answer to "does it work" is a test of the connection, which the person asks for next.
+            Command::SetAddress { peer, address } => {
+                self.network.set_address(&peer, address.as_deref())?
+            }
+            Command::SetRelayToken { token } => self.set_relay_token(token.expose()).await?,
             Command::Shutdown {} => unreachable!("shutdown is handled by the owning event loop"),
         }
         Ok(Reply::Applied)
@@ -2478,6 +2911,32 @@ impl Runtime {
         for id in changed {
             // A setting of the plugin's own can only be picked up by a new process.
             self.restart_plugin(&id);
+        }
+        Ok(())
+    }
+
+    /// Use this token for the personal relay and keep it for next time, or forget it when it is empty.
+    ///
+    /// The order is the point: the transport that uses it is bound first, so a token that cannot be applied is never saved,
+    /// and it is saved second, so that what runs is what will be there after a restart. If saving fails the transport goes
+    /// back to the token it had, and the person is told, so that nothing is running on a token that is not kept.
+    async fn set_relay_token(&mut self, token: &str) -> Result<(), &'static str> {
+        let store = self
+            .token_store
+            .clone()
+            .ok_or("This device cannot keep a relay token")?;
+        let access = peersus_net::transport::RelayAccess::new(token);
+        let previous = self.network.relay_access().cloned();
+        self.network
+            .set_relay_access(&mut self.settings, access)
+            .await?;
+        if let Err(refusal) = store.save(token) {
+            // Back to what was kept, with the same guarded path. If even that is refused the first error is the one told.
+            let _ = self
+                .network
+                .set_relay_access(&mut self.settings, previous)
+                .await;
+            return Err(refusal);
         }
         Ok(())
     }
@@ -2537,8 +2996,11 @@ impl Runtime {
     /// and again at start-up to restore the picture after a restart.
     fn sync_host_grants(&mut self) {
         let granted = host_grants(&self.plugins, &self.network.peers());
-        if self.host.update_host_manifest(host_manifest(&self.plugins))
-            .and_then(|()| self.hub.set_permissions(HOST, granted)).is_err()
+        if self
+            .host
+            .update_host_manifest(host_manifest(&self.plugins))
+            .and_then(|()| self.hub.set_permissions(HOST, granted))
+            .is_err()
         {
             self.error("Permissions could not be applied");
         }
@@ -2670,8 +3132,11 @@ impl Runtime {
             None => serde_json::Value::Null,
         };
         if let Some(context) = context {
-            if args.is_null() { args = serde_json::json!({}); }
-            args.as_object_mut().ok_or("Action arguments are invalid")?
+            if args.is_null() {
+                args = serde_json::json!({});
+            }
+            args.as_object_mut()
+                .ok_or("Action arguments are invalid")?
                 .insert("context".into(), serde_json::json!(context));
         }
         // Registered before it is sent, so a second press made while this one is still
@@ -2747,10 +3212,16 @@ impl Runtime {
                     // besides the cleaned code: it is the one thing that tells apart failures the sentence below cannot, and it is not
                     // put in what a person is shown. The ids are the application's own (a plugin's id is checked, an action's is its own).
                     if let Some(code) = code_for_the_log(&result) {
-                        let (plugin, action) = finished.as_ref().map_or(("-".to_owned(), "-".to_owned()), |key| (String::from(key.plugin.clone()), key.action.clone()));
+                        let (plugin, action) = finished
+                            .as_ref()
+                            .map_or(("-".to_owned(), "-".to_owned()), |key| {
+                                (String::from(key.plugin.clone()), key.action.clone())
+                            });
                         eprintln!(
                             "peersus: {} plugin {plugin} action {action} ended in an error (code {code})",
-                            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |since| since.as_secs())
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .map_or(0, |since| since.as_secs())
                         );
                     }
                     self.error(sentence);
@@ -2803,11 +3274,20 @@ impl Runtime {
         };
         let answer = |outcome| (outcome, None);
         match (service, method) {
-            (PLATFORM_SERVICE, "inspect") if args.as_object().is_some_and(|args| args.is_empty()) => {
-                answer(Outcome::ok(serde_json::to_value(peersus_plugin_api::platform::HostPlatform::current()).unwrap_or(serde_json::Value::Null)))
+            (PLATFORM_SERVICE, "inspect")
+                if args.as_object().is_some_and(|args| args.is_empty()) =>
+            {
+                answer(Outcome::ok(
+                    serde_json::to_value(peersus_plugin_api::platform::HostPlatform::current())
+                        .unwrap_or(serde_json::Value::Null),
+                ))
             }
             (CONFIG_SERVICE, "get") if args.as_object().is_some_and(|args| args.is_empty()) => {
-                let Some(spec) = self.plugins.find(&plugin).and_then(|index| self.plugins.get(index)) else {
+                let Some(spec) = self
+                    .plugins
+                    .find(&plugin)
+                    .and_then(|index| self.plugins.get(index))
+                else {
                     return answer(unknown());
                 };
                 answer(Outcome::ok(configuration(
@@ -2837,17 +3317,71 @@ impl Runtime {
             // What is going on now, for a plugin that has only just begun to listen or that was restarted: the transfers still under way, said exactly
             // as the events say them (see `transfer_events`), so the answer to `active` can never carry a name and the answer to `active-named` can
             // never carry less than `changed-named` does. The hub has already refused a caller that was not granted the permission that guards each.
-            (crate::transfer_events::TRANSFERS_SERVICE, crate::transfer_events::TRANSFERS_ACTIVE)
-                if args.as_object().is_some_and(|args| args.is_empty()) =>
-            {
-                answer(Outcome::ok(crate::transfer_events::active(&self.network.transfers(), false)))
+            (
+                crate::transfer_events::TRANSFERS_SERVICE,
+                crate::transfer_events::TRANSFERS_ACTIVE,
+            ) if args.as_object().is_some_and(|args| args.is_empty()) => answer(Outcome::ok(
+                crate::transfer_events::active(&self.network.transfers(), false),
+            )),
+            (
+                crate::transfer_events::TRANSFERS_SERVICE,
+                crate::transfer_events::TRANSFERS_ACTIVE_NAMED,
+            ) if args.as_object().is_some_and(|args| args.is_empty()) => answer(Outcome::ok(
+                crate::transfer_events::active(&self.network.transfers(), true),
+            )),
+            // What plugins make of this device's statuses, and what they read of the others'. The caller is the plugin the HOST knows it is,
+            // so the owner of a status is never a thing a plugin says; the hub has already refused one that was not granted the permission
+            // that guards each method. A refusal says one sentence and changes nothing.
+            (
+                crate::status_service::STATUS_SERVICE,
+                method @ (crate::status_service::STATUS_DEFINE
+                | crate::status_service::STATUS_SET
+                | crate::status_service::STATUS_CLEAR),
+            ) => {
+                let applied =
+                    crate::status_service::apply(&mut self.statuses, &plugin, method, args);
+                if applied.changed {
+                    self.say_statuses();
+                }
+                answer(match applied.answer {
+                    Ok(value) => Outcome::ok(value),
+                    Err(reason) => Outcome::error("refused", reason),
+                })
             }
-            (crate::transfer_events::TRANSFERS_SERVICE, crate::transfer_events::TRANSFERS_ACTIVE_NAMED)
+            (crate::status_service::STATUS_SERVICE, crate::status_service::STATUS_LIST)
                 if args.as_object().is_some_and(|args| args.is_empty()) =>
             {
-                answer(Outcome::ok(crate::transfer_events::active(&self.network.transfers(), true)))
+                answer(Outcome::ok(crate::status_service::list(
+                    &self.aliases,
+                    &plugin,
+                    &self.network.peers(),
+                )))
+            }
+            (crate::status_service::STATUS_SERVICE, crate::status_service::STATUS_OWN)
+                if args.as_object().is_some_and(|args| args.is_empty()) =>
+            {
+                answer(Outcome::ok(crate::status_service::own(
+                    &self.statuses.defined_by(&plugin),
+                    &self.statuses.active(),
+                )))
             }
             _ => answer(unknown()),
+        }
+    }
+
+    /// Tell every paired device what this one now says of itself besides being awake: the statuses that are on. Called after anything that
+    /// can change them, and only then. A refusal changes nothing, so it is never told.
+    fn say_statuses(&mut self) {
+        // The set is bounded by `Statuses` and cannot hold one twice, so the network never refuses it; if it ever did, what the device says
+        // stays as it was, which is the honest thing to say.
+        let _ = self.network.set_statuses(self.statuses.active());
+    }
+
+    /// A plugin's statuses go, defined and on. The paired devices are told only if one of them was on: nothing else the device says
+    /// changed, and a device must not be written to for nothing.
+    fn forget_statuses(&mut self, plugin: &PluginId) {
+        if self.statuses.forget_plugin(plugin) {
+            self.say_statuses();
         }
     }
 
@@ -2870,7 +3404,11 @@ impl Runtime {
         let request = parse_send(args)?;
         let peers = self.network.peers();
         let peer = authorize_send(&self.aliases, plugin, &request.device, &peers)?;
-        let spec = self.plugins.find(plugin).and_then(|index| self.plugins.get(index)).ok_or(SEND_REFUSED)?;
+        let spec = self
+            .plugins
+            .find(plugin)
+            .and_then(|index| self.plugins.get(index))
+            .ok_or(SEND_REFUSED)?;
         authorize_service_send(spec, peer, &request.service, request.version)?;
         let device = peer.id.clone();
         let connection = self.network.connection(&device).ok_or(SEND_REFUSED)?;
@@ -2910,7 +3448,12 @@ impl Runtime {
     fn error(&mut self, reason: &str) {
         // A trace of every error in the owner's log, with the time: the snapshot keeps only the last few and only once each, and a failed
         // pairing used to leave nothing at all to read. The reasons are fixed sentences that name no code, address or device.
-        eprintln!("peersus: {} {reason}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |since| since.as_secs()));
+        eprintln!(
+            "peersus: {} {reason}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |since| since.as_secs())
+        );
         if self.errors.last().is_some_and(|last| last == reason) {
             return;
         }
@@ -2950,22 +3493,27 @@ impl Runtime {
     /// plugin about the others, and a plugin is not to learn which of the person's other plugins are blocked or unapproved.
     fn window_plugin_infos(&self) -> Vec<peersus_core::model::PluginInfo> {
         let mut plugins = self.plugin_infos();
-        plugins.extend(self.held_back.iter().map(|held| peersus_core::model::PluginInfo {
-            id: held.id.clone(),
-            manifest: held.manifest.clone(),
-            standing: held.standing,
-            // Nothing of it runs, so there is no process to speak of.
-            status: peersus_core::model::PluginStatus::Stopped,
-            // Not run, so nothing can be granted to it, and the window does not offer.
-            grantable: peersus_core::model::Grantable::default(),
-            // Given back by the window with `ApprovePlugin`, only for what can be approved: what is broken has nothing to
-            // approve, so no digest is offered for it.
-            program: match held.standing {
-                peersus_core::model::Standing::NeedsApproval | peersus_core::model::Standing::Changed => held.program.clone(),
-                _ => None,
-            },
-            package: self.installed_packages.get(&held.id).cloned(),
-        }));
+        plugins.extend(
+            self.held_back
+                .iter()
+                .map(|held| peersus_core::model::PluginInfo {
+                    id: held.id.clone(),
+                    manifest: held.manifest.clone(),
+                    standing: held.standing,
+                    // Nothing of it runs, so there is no process to speak of.
+                    status: peersus_core::model::PluginStatus::Stopped,
+                    // Not run, so nothing can be granted to it, and the window does not offer.
+                    grantable: peersus_core::model::Grantable::default(),
+                    // Given back by the window with `ApprovePlugin`, only for what can be approved: what is broken has nothing to
+                    // approve, so no digest is offered for it.
+                    program: match held.standing {
+                        peersus_core::model::Standing::NeedsApproval
+                        | peersus_core::model::Standing::Changed => held.program.clone(),
+                        _ => None,
+                    },
+                    package: self.installed_packages.get(&held.id).cloned(),
+                }),
+        );
         // Author and link are for the PERSON. `plugin_infos` is also what a plugin is told about the others,
         // so the block is added here, to the window's list only.
         for info in &mut plugins {
@@ -3001,11 +3549,23 @@ impl Runtime {
     /// The picture a window may be given for `digest`: this device's own, or the one a paired device
     /// shows now, and nothing else. What is kept in the cache but is nobody's picture any more is not
     /// produced, so a window cannot read through the folder for pictures it was never meant to see.
-    fn picture_for(&self, digest: &peersus_core::profile::Digest) -> Option<peersus_core::profile::Picture> {
-        if let Some(own) = self.network.own_picture().filter(|own| own.digest() == *digest) {
+    fn picture_for(
+        &self,
+        digest: &peersus_core::profile::Digest,
+    ) -> Option<peersus_core::profile::Picture> {
+        if let Some(own) = self
+            .network
+            .own_picture()
+            .filter(|own| own.digest() == *digest)
+        {
             return Some(own.clone());
         }
-        let peer = self.network.peer_digests().into_iter().find(|(_, held)| held == digest)?.0;
+        let peer = self
+            .network
+            .peer_digests()
+            .into_iter()
+            .find(|(_, held)| held == digest)?
+            .0;
         self.network.peer_picture(&peer)
     }
 
@@ -3013,6 +3573,7 @@ impl Runtime {
         let plugins = self.window_plugin_infos();
         let transfers = self.network.transfers();
         self.tell_plugins_of_transfers(&transfers);
+        self.tell_plugins_of_statuses(&self.network.peers());
         self.snapshots.send_replace(Arc::new(Snapshot {
             settings: self.settings.current().clone(),
             peers: self.network.peers(),
@@ -3024,9 +3585,16 @@ impl Runtime {
             transfers,
             pairing: self.network.pairing(),
             errors: self.errors.clone(),
-            profile_picture: self.network.own_picture().map(peersus_core::profile::Picture::digest),
+            profile_picture: self
+                .network
+                .own_picture()
+                .map(peersus_core::profile::Picture::digest),
             peer_pictures: self.network.peer_digests(),
             files_code: self.network.files_code(),
+            link_tests: self.network.link_tests(),
+            typed_addresses: self.network.typed_addresses(),
+            listening_port: self.network.listening_port(),
+            relay: Some(self.network.relay_diagnostics()),
         }));
     }
 
@@ -3040,17 +3608,43 @@ impl Runtime {
         for transfer in to_tell {
             for (event, data) in [
                 (events::TRANSFERS_CHANGED, events::changed(transfer)),
-                (events::TRANSFERS_CHANGED_NAMED, events::changed_named(transfer)),
+                (
+                    events::TRANSFERS_CHANGED_NAMED,
+                    events::changed_named(transfer),
+                ),
             ] {
                 // A subscriber that cannot keep up misses this one rather than stalling the application: the hub refuses the whole delivery
                 // then, and `active` is always there to ask what is true now. The hub tells each event only to those granted its capability.
-                let _ = self.host.submit(peersus_plugin_api::message::Operation::Publish {
-                    service: events::TRANSFERS_SERVICE.to_owned(),
+                let _ = self
+                    .host
+                    .submit(peersus_plugin_api::message::Operation::Publish {
+                        service: events::TRANSFERS_SERVICE.to_owned(),
+                        version: 1,
+                        event: event.to_owned(),
+                        data,
+                    });
+            }
+        }
+        *told = keep;
+    }
+
+    /// Say to the plugins that listen what a device now says of itself, once for each that changed: what [`crate::status_service::to_tell`]
+    /// decides, and nothing of its own. One payload goes to everyone who listens, and the hub tells it only to those granted `status.watch`.
+    fn tell_plugins_of_statuses(&self, peers: &[peersus_core::model::Peer]) {
+        use crate::status_service as status;
+        let anyone = !consumers_of(&self.plugins, status::STATUS_SERVICE).is_empty();
+        let mut told = self.told_statuses.borrow_mut();
+        let (to_tell, keep) = status::to_tell(told.as_ref(), peers, anyone);
+        for data in to_tell {
+            // A subscriber that cannot keep up misses this one rather than stalling the application: `list` always says what is true now.
+            let _ = self
+                .host
+                .submit(peersus_plugin_api::message::Operation::Publish {
+                    service: status::STATUS_SERVICE.to_owned(),
                     version: 1,
-                    event: event.to_owned(),
+                    event: status::STATUS_CHANGED.to_owned(),
                     data,
                 });
-            }
         }
         *told = keep;
     }
@@ -3125,6 +3719,8 @@ mod tests {
             paired_at: 0,
             last_seen: None,
             online: true,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: grants
                 .iter()
                 .map(|(plugin, given)| {
@@ -3707,58 +4303,131 @@ mod tests {
     fn transfers_are_offered_only_to_the_plugins_that_asked_for_them_and_there_is_only_reading() {
         use crate::transfer_events as events;
         let mut registry = Registry::default();
-        registry.register(plugin_listening_to_transfers("fireworks", &["changed"])).unwrap();
-        registry.register(plugin_wanting_peers("clip", &["list"])).unwrap();
+        registry
+            .register(plugin_listening_to_transfers("fireworks", &["changed"]))
+            .unwrap();
+        registry
+            .register(plugin_wanting_peers("clip", &["list"]))
+            .unwrap();
         let exports = host_exports(&registry);
-        let transfers = exports.iter().find(|e| e.service == events::TRANSFERS_SERVICE).expect("the service was not offered to the plugin that asked");
-        assert_eq!(transfers.consumers, ["fireworks".to_owned()].into(), "a plugin that did not ask was offered the transfers");
+        let transfers = exports
+            .iter()
+            .find(|e| e.service == events::TRANSFERS_SERVICE)
+            .expect("the service was not offered to the plugin that asked");
+        assert_eq!(
+            transfers.consumers,
+            ["fireworks".to_owned()].into(),
+            "a plugin that did not ask was offered the transfers"
+        );
         // A plugin can only READ about transfers: the two reads are the only methods, each behind a permission, and neither can change anything.
         let mut reads: Vec<&str> = transfers.methods.keys().map(String::as_str).collect();
         reads.sort_unstable();
-        assert_eq!(reads, ["active", "active-named"], "something other than a read can be called on transfers");
-        assert!(transfers.methods.values().all(|member| member.capability.is_some()), "a read of transfers is open to anyone");
+        assert_eq!(
+            reads,
+            ["active", "active-named"],
+            "something other than a read can be called on transfers"
+        );
+        assert!(
+            transfers
+                .methods
+                .values()
+                .all(|member| member.capability.is_some()),
+            "a read of transfers is open to anyone"
+        );
         assert!(!transfers.description.trim().is_empty());
         // Nobody asked: nothing is offered.
         let mut none = Registry::default();
-        none.register(plugin_wanting_peers("clip", &["list"])).unwrap();
-        assert!(host_exports(&none).iter().all(|e| e.service != events::TRANSFERS_SERVICE));
+        none.register(plugin_wanting_peers("clip", &["list"]))
+            .unwrap();
+        assert!(
+            host_exports(&none)
+                .iter()
+                .all(|e| e.service != events::TRANSFERS_SERVICE)
+        );
     }
 
     #[test]
-    fn the_two_events_of_transfers_are_each_behind_a_permission_of_their_own_and_say_what_they_are_for() {
+    fn the_two_events_of_transfers_are_each_behind_a_permission_of_their_own_and_say_what_they_are_for()
+     {
         use crate::transfer_events as events;
         let mut registry = Registry::default();
-        registry.register(plugin_listening_to_transfers("fireworks", &["changed", "changed-named"])).unwrap();
+        registry
+            .register(plugin_listening_to_transfers(
+                "fireworks",
+                &["changed", "changed-named"],
+            ))
+            .unwrap();
         let exports = host_exports(&registry);
-        let transfers = exports.iter().find(|e| e.service == events::TRANSFERS_SERVICE).unwrap();
-        let guard = |event: &str| transfers.events.get(event).map(|member| member.capability.as_deref());
-        assert_eq!(guard(events::TRANSFERS_CHANGED), Some(Some(events::TRANSFERS_WATCH_CAPABILITY)));
-        assert_eq!(guard(events::TRANSFERS_CHANGED_NAMED), Some(Some(events::TRANSFERS_NAMES_CAPABILITY)));
+        let transfers = exports
+            .iter()
+            .find(|e| e.service == events::TRANSFERS_SERVICE)
+            .unwrap();
+        let guard = |event: &str| {
+            transfers
+                .events
+                .get(event)
+                .map(|member| member.capability.as_deref())
+        };
+        assert_eq!(
+            guard(events::TRANSFERS_CHANGED),
+            Some(Some(events::TRANSFERS_WATCH_CAPABILITY))
+        );
+        assert_eq!(
+            guard(events::TRANSFERS_CHANGED_NAMED),
+            Some(Some(events::TRANSFERS_NAMES_CAPABILITY))
+        );
         assert_ne!(
-            events::TRANSFERS_WATCH_CAPABILITY, events::TRANSFERS_NAMES_CAPABILITY,
+            events::TRANSFERS_WATCH_CAPABILITY,
+            events::TRANSFERS_NAMES_CAPABILITY,
             "watching and seeing names must be two decisions"
         );
-        assert!(transfers.events.values().all(|member| !member.description.trim().is_empty()));
+        assert!(
+            transfers
+                .events
+                .values()
+                .all(|member| !member.description.trim().is_empty())
+        );
         // No event is open: a plugin can be told nothing about a transfer without a permission.
-        assert!(transfers.events.values().all(|member| member.capability.is_some()));
+        assert!(
+            transfers
+                .events
+                .values()
+                .all(|member| member.capability.is_some())
+        );
     }
 
     #[test]
-    fn the_application_declares_both_permissions_so_a_person_can_be_asked_and_neither_is_granted_by_being_declared() {
+    fn the_application_declares_both_permissions_so_a_person_can_be_asked_and_neither_is_granted_by_being_declared()
+     {
         use crate::transfer_events as events;
         let mut registry = Registry::default();
-        registry.register(plugin_listening_to_transfers("fireworks", &["changed", "changed-named"])).unwrap();
+        registry
+            .register(plugin_listening_to_transfers(
+                "fireworks",
+                &["changed", "changed-named"],
+            ))
+            .unwrap();
         let manifest = host_manifest(&registry);
         assert!(manifest.validate().is_ok());
-        for capability in [events::TRANSFERS_WATCH_CAPABILITY, events::TRANSFERS_NAMES_CAPABILITY] {
-            assert!(manifest.declares(capability), "{capability} is not declared");
+        for capability in [
+            events::TRANSFERS_WATCH_CAPABILITY,
+            events::TRANSFERS_NAMES_CAPABILITY,
+        ] {
+            assert!(
+                manifest.declares(capability),
+                "{capability} is not declared"
+            );
         }
         // Declared is not granted: nothing is granted to the plugin until a person decides.
-        assert!(host_grants(&registry, &[]).is_empty(), "a permission was granted without a decision");
+        assert!(
+            host_grants(&registry, &[]).is_empty(),
+            "a permission was granted without a decision"
+        );
     }
 
     #[test]
-    fn a_plugin_that_listens_only_to_the_unnamed_event_cannot_even_be_granted_the_permission_to_see_names() {
+    fn a_plugin_that_listens_only_to_the_unnamed_event_cannot_even_be_granted_the_permission_to_see_names()
+     {
         use crate::transfer_events as events;
         assert_eq!(
             grantable(&plugin_listening_to_transfers("quiet", &["changed"])),
@@ -3766,9 +4435,205 @@ mod tests {
             "a plugin that never asked for names was offered the permission to see them"
         );
         assert_eq!(
-            grantable(&plugin_listening_to_transfers("nosy", &["changed", "changed-named"])),
-            set(&[(HOST, events::TRANSFERS_WATCH_CAPABILITY), (HOST, events::TRANSFERS_NAMES_CAPABILITY)])
+            grantable(&plugin_listening_to_transfers(
+                "nosy",
+                &["changed", "changed-named"]
+            )),
+            set(&[
+                (HOST, events::TRANSFERS_WATCH_CAPABILITY),
+                (HOST, events::TRANSFERS_NAMES_CAPABILITY)
+            ])
         );
+    }
+
+    /// A plugin whose only import is the status service of the application, calling these methods and listening to these events.
+    fn plugin_using_statuses(name: &str, methods: &[&str], events: &[&str]) -> PluginSpec {
+        use peersus_plugin_api::manifest::{Import, Manifest};
+        PluginSpec {
+            id: PluginId::new(name).unwrap(),
+            manifest: Manifest {
+                imports: vec![Import {
+                    provider: HOST.to_owned(),
+                    service: crate::status_service::STATUS_SERVICE.to_owned(),
+                    version: 1,
+                    methods: methods.iter().map(|m| (*m).to_owned()).collect(),
+                    events: events.iter().map(|e| (*e).to_owned()).collect(),
+                }],
+                ..Manifest::default()
+            },
+            program: Some("unused".into()),
+            arguments: Vec::new(),
+            restart_policy: None,
+        }
+    }
+
+    #[test]
+    fn a_plugin_can_only_be_granted_the_status_permissions_for_what_it_asked_to_do() {
+        use crate::status_service as status;
+        // Making a status and turning it on are two permissions: only the second is SEEN by the other devices.
+        assert_eq!(
+            grantable(&plugin_using_statuses("maker", &["define"], &[])),
+            set(&[(HOST, status::STATUS_DEFINE_CAPABILITY)]),
+            "a plugin that only makes statuses was offered the permission to show them"
+        );
+        assert_eq!(
+            grantable(&plugin_using_statuses(
+                "shower",
+                &["define", "set", "clear"],
+                &[]
+            )),
+            set(&[
+                (HOST, status::STATUS_DEFINE_CAPABILITY),
+                (HOST, status::STATUS_SET_CAPABILITY)
+            ]),
+            "set and clear are one permission"
+        );
+        // Reading what the others say is a third, and it is offered by the read and by the event alike.
+        for (methods, events) in [(&["list"][..], &[][..]), (&[][..], &["changed"][..])] {
+            assert_eq!(
+                grantable(&plugin_using_statuses("reader", methods, events)),
+                set(&[(HOST, status::STATUS_WATCH_CAPABILITY)]),
+                "{methods:?} {events:?}"
+            );
+        }
+        // `own` is the plugin's own and asks nothing; a plugin that imports nothing of it can be granted nothing.
+        assert_eq!(
+            grantable(&plugin_using_statuses("own", &["own"], &[])),
+            set(&[])
+        );
+        assert_eq!(
+            grantable(&plugin_using_statuses("none", &[], &[])),
+            set(&[])
+        );
+    }
+
+    #[test]
+    fn the_status_permissions_are_about_this_device_and_never_granted_for_one_of_the_others() {
+        use crate::status_service as status;
+        let everything =
+            plugin_using_statuses("all", &["define", "set", "clear", "list"], &["changed"]);
+        assert_eq!(
+            grantable_without_a_device(&everything),
+            set(&[
+                (HOST, status::STATUS_DEFINE_CAPABILITY),
+                (HOST, status::STATUS_SET_CAPABILITY),
+                (HOST, status::STATUS_WATCH_CAPABILITY)
+            ]),
+            "a status permission was not offered once, for the whole application"
+        );
+        assert_eq!(
+            grantable_for_a_device(&everything),
+            set(&[]),
+            "a status permission was offered for one device at a time"
+        );
+    }
+
+    #[test]
+    fn statuses_are_offered_only_to_the_plugins_that_asked_for_them_and_each_method_but_own_is_behind_a_permission()
+     {
+        use crate::status_service as status;
+        let mut registry = Registry::default();
+        registry
+            .register(plugin_using_statuses(
+                "player",
+                &["define", "set", "clear", "own"],
+                &[],
+            ))
+            .unwrap();
+        registry
+            .register(plugin_wanting_peers("clip", &["list"]))
+            .unwrap();
+        let exports = host_exports(&registry);
+        let service = exports
+            .iter()
+            .find(|e| e.service == status::STATUS_SERVICE)
+            .expect("the service was not offered to the plugin that asked");
+        assert_eq!(
+            service.consumers,
+            ["player".to_owned()].into(),
+            "a plugin that did not ask was offered statuses"
+        );
+        let guard = |method: &str| {
+            service
+                .methods
+                .get(method)
+                .unwrap_or_else(|| panic!("{method} is not offered"))
+                .capability
+                .clone()
+        };
+        assert_eq!(
+            guard("define").as_deref(),
+            Some(status::STATUS_DEFINE_CAPABILITY)
+        );
+        assert_eq!(guard("set").as_deref(), Some(status::STATUS_SET_CAPABILITY));
+        assert_eq!(
+            guard("clear").as_deref(),
+            Some(status::STATUS_SET_CAPABILITY),
+            "clearing is turning off what set turned on"
+        );
+        assert_eq!(
+            guard("list").as_deref(),
+            Some(status::STATUS_WATCH_CAPABILITY)
+        );
+        assert_eq!(
+            guard("own"),
+            None,
+            "what a plugin made itself is its own to read"
+        );
+        assert_eq!(
+            service
+                .events
+                .get("changed")
+                .and_then(|member| member.capability.as_deref()),
+            Some(status::STATUS_WATCH_CAPABILITY),
+            "the event that tells what the others say is open to anyone"
+        );
+        // Nobody asked: nothing is offered.
+        let mut nobody = Registry::default();
+        nobody
+            .register(plugin_wanting_peers("clip", &["list"]))
+            .unwrap();
+        assert!(
+            host_exports(&nobody)
+                .iter()
+                .all(|e| e.service != status::STATUS_SERVICE),
+            "a service nobody asked for was offered"
+        );
+    }
+
+    #[test]
+    fn the_application_describes_each_status_permission_in_its_own_manifest_in_the_words_of_the_one_copy()
+     {
+        use crate::status_service as status;
+        let mut registry = Registry::default();
+        registry
+            .register(plugin_using_statuses(
+                "all",
+                &["define", "set", "list"],
+                &["changed"],
+            ))
+            .unwrap();
+        let manifest = host_manifest(&registry);
+        for (capability, description) in [
+            (
+                status::STATUS_DEFINE_CAPABILITY,
+                status::STATUS_DEFINE_DESCRIPTION,
+            ),
+            (
+                status::STATUS_SET_CAPABILITY,
+                status::STATUS_SET_DESCRIPTION,
+            ),
+            (
+                status::STATUS_WATCH_CAPABILITY,
+                status::STATUS_WATCH_DESCRIPTION,
+            ),
+        ] {
+            assert_eq!(
+                manifest.capabilities.get(capability).map(String::as_str),
+                Some(description),
+                "{capability}"
+            );
+        }
     }
 
     /// A plugin that asks the application for `peersus.peers` and nothing else.
@@ -3830,18 +4695,34 @@ mod tests {
         use crate::transfer_events as events;
         // Nobody asks: the service is not in what the application offers.
         let mut registry = Registry::default();
-        registry.register(plugin_wanting_peers("clip", &["list"])).unwrap();
-        assert!(host_exports(&registry).iter().all(|export| export.service != events::TRANSFERS_SERVICE));
+        registry
+            .register(plugin_wanting_peers("clip", &["list"]))
+            .unwrap();
+        assert!(
+            host_exports(&registry)
+                .iter()
+                .all(|export| export.service != events::TRANSFERS_SERVICE)
+        );
         // A plugin asks: the service appears with both events, and the manifest the application publishes declares what guards them.
-        registry.register(plugin_listening_to_transfers("fireworks", &["changed", "changed-named"])).unwrap();
+        registry
+            .register(plugin_listening_to_transfers(
+                "fireworks",
+                &["changed", "changed-named"],
+            ))
+            .unwrap();
         let exports = host_exports(&registry);
-        let offered = exports.iter().find(|export| export.service == events::TRANSFERS_SERVICE).expect("asked for, and not offered");
+        let offered = exports
+            .iter()
+            .find(|export| export.service == events::TRANSFERS_SERVICE)
+            .expect("asked for, and not offered");
         assert_eq!(offered.events.len(), 2);
         assert!(host_manifest(&registry).declares(events::TRANSFERS_WATCH_CAPABILITY));
         // The plugin is removed: the offer goes with it, from a manifest built again from the registry and not from one that was kept.
         registry.remove(&PluginId::new("fireworks").unwrap());
         assert!(
-            host_exports(&registry).iter().all(|export| export.service != events::TRANSFERS_SERVICE),
+            host_exports(&registry)
+                .iter()
+                .all(|export| export.service != events::TRANSFERS_SERVICE),
             "a stale export went on offering transfers to nobody"
         );
     }
@@ -3851,65 +4732,138 @@ mod tests {
         use crate::transfer_events as events;
         let (host, fireworks, _hub) = hub_with_transfers_plugin(&[]);
         for event in [events::TRANSFERS_CHANGED, events::TRANSFERS_CHANGED_NAMED] {
-            assert_eq!(fireworks.submit(listen_to(event)), Err(peersus_plugin_api::error::Error::Denied), "{event} was open to a plugin with no permission");
+            assert_eq!(
+                fireworks.submit(listen_to(event)),
+                Err(peersus_plugin_api::error::Error::Denied),
+                "{event} was open to a plugin with no permission"
+            );
         }
-        tell(&host, events::TRANSFERS_CHANGED, serde_json::json!({ "id": "t1" }));
-        assert!(fireworks.try_recv().unwrap().is_none(), "a plugin with no permission was told something");
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED,
+            serde_json::json!({ "id": "t1" }),
+        );
+        assert!(
+            fireworks.try_recv().unwrap().is_none(),
+            "a plugin with no permission was told something"
+        );
     }
 
     #[test]
     fn through_the_real_hub_watching_gets_the_unnamed_event_and_never_the_named_one() {
         use crate::transfer_events as events;
-        let (host, fireworks, _hub) = hub_with_transfers_plugin(&[events::TRANSFERS_WATCH_CAPABILITY]);
-        fireworks.submit(listen_to(events::TRANSFERS_CHANGED)).unwrap();
+        let (host, fireworks, _hub) =
+            hub_with_transfers_plugin(&[events::TRANSFERS_WATCH_CAPABILITY]);
+        fireworks
+            .submit(listen_to(events::TRANSFERS_CHANGED))
+            .unwrap();
         assert_eq!(
             fireworks.submit(listen_to(events::TRANSFERS_CHANGED_NAMED)),
             Err(peersus_plugin_api::error::Error::Denied),
             "a plugin allowed only to watch could listen for names"
         );
-        tell(&host, events::TRANSFERS_CHANGED, serde_json::json!({ "id": "t1", "state": "complete" }));
-        tell(&host, events::TRANSFERS_CHANGED_NAMED, serde_json::json!({ "id": "t1", "name": "secret.pdf" }));
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED,
+            serde_json::json!({ "id": "t1", "state": "complete" }),
+        );
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED_NAMED,
+            serde_json::json!({ "id": "t1", "name": "secret.pdf" }),
+        );
         let told = fireworks.try_recv().unwrap();
-        assert!(matches!(&told, Some(Delivery::Event { data, .. }) if data["id"] == "t1" && data.get("name").is_none()), "{told:?}");
-        assert!(fireworks.try_recv().unwrap().is_none(), "the named event reached a plugin that was not allowed names");
+        assert!(
+            matches!(&told, Some(Delivery::Event { data, .. }) if data["id"] == "t1" && data.get("name").is_none()),
+            "{told:?}"
+        );
+        assert!(
+            fireworks.try_recv().unwrap().is_none(),
+            "the named event reached a plugin that was not allowed names"
+        );
     }
 
     #[test]
-    fn through_the_real_hub_the_permission_to_see_names_is_what_lets_a_plugin_hear_the_named_event() {
+    fn through_the_real_hub_the_permission_to_see_names_is_what_lets_a_plugin_hear_the_named_event()
+    {
         use crate::transfer_events as events;
-        let (host, fireworks, _hub) = hub_with_transfers_plugin(&[events::TRANSFERS_NAMES_CAPABILITY]);
-        fireworks.submit(listen_to(events::TRANSFERS_CHANGED_NAMED)).unwrap();
-        tell(&host, events::TRANSFERS_CHANGED_NAMED, serde_json::json!({ "id": "t1", "name": "secret.pdf" }));
-        assert!(matches!(fireworks.try_recv().unwrap(), Some(Delivery::Event { data, .. }) if data["name"] == "secret.pdf"));
+        let (host, fireworks, _hub) =
+            hub_with_transfers_plugin(&[events::TRANSFERS_NAMES_CAPABILITY]);
+        fireworks
+            .submit(listen_to(events::TRANSFERS_CHANGED_NAMED))
+            .unwrap();
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED_NAMED,
+            serde_json::json!({ "id": "t1", "name": "secret.pdf" }),
+        );
+        assert!(
+            matches!(fireworks.try_recv().unwrap(), Some(Delivery::Event { data, .. }) if data["name"] == "secret.pdf")
+        );
     }
 
     #[test]
     fn through_the_real_hub_withdrawing_the_permission_ends_the_events_at_once() {
         use crate::transfer_events as events;
-        let (host, fireworks, hub) = hub_with_transfers_plugin(&[events::TRANSFERS_WATCH_CAPABILITY]);
-        fireworks.submit(listen_to(events::TRANSFERS_CHANGED)).unwrap();
-        tell(&host, events::TRANSFERS_CHANGED, serde_json::json!({ "id": "t1" }));
+        let (host, fireworks, hub) =
+            hub_with_transfers_plugin(&[events::TRANSFERS_WATCH_CAPABILITY]);
+        fireworks
+            .submit(listen_to(events::TRANSFERS_CHANGED))
+            .unwrap();
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED,
+            serde_json::json!({ "id": "t1" }),
+        );
         hub.set_permissions("fireworks", BTreeSet::new()).unwrap();
-        assert!(fireworks.try_recv().unwrap().is_none(), "an event queued before the withdrawal was delivered after it");
-        tell(&host, events::TRANSFERS_CHANGED, serde_json::json!({ "id": "t2" }));
-        assert!(fireworks.try_recv().unwrap().is_none(), "a plugin whose permission was withdrawn was still told");
+        assert!(
+            fireworks.try_recv().unwrap().is_none(),
+            "an event queued before the withdrawal was delivered after it"
+        );
+        tell(
+            &host,
+            events::TRANSFERS_CHANGED,
+            serde_json::json!({ "id": "t2" }),
+        );
+        assert!(
+            fireworks.try_recv().unwrap().is_none(),
+            "a plugin whose permission was withdrawn was still told"
+        );
     }
 
     #[test]
     fn every_text_the_application_exports_fits_in_what_a_manifest_allows() {
         let mut registry = Registry::default();
-        registry.register(plugin_listening_to_transfers("fireworks", &["changed", "changed-named"])).unwrap();
-        registry.register(plugin_wanting_peers("clip", &["list", "send"])).unwrap();
-        registry.register(plugin_managing("watchdog", &["list", "restart"])).unwrap();
+        registry
+            .register(plugin_listening_to_transfers(
+                "fireworks",
+                &["changed", "changed-named"],
+            ))
+            .unwrap();
+        registry
+            .register(plugin_wanting_peers("clip", &["list", "send"]))
+            .unwrap();
+        registry
+            .register(plugin_managing("watchdog", &["list", "restart"]))
+            .unwrap();
         let limit = peersus_plugin_api::manifest::MAX_DESCRIPTION;
         for export in host_exports(&registry) {
-            let mut texts = vec![(format!("{} (service)", export.service), export.description.clone())];
+            let mut texts = vec![(
+                format!("{} (service)", export.service),
+                export.description.clone(),
+            )];
             for (member, details) in export.methods.iter().chain(&export.events) {
-                texts.push((format!("{}.{member}", export.service), details.description.clone()));
+                texts.push((
+                    format!("{}.{member}", export.service),
+                    details.description.clone(),
+                ));
             }
             for (what, text) in texts {
                 let length = text.chars().count();
-                assert!(length <= limit, "{what} is {length} characters and a manifest allows {limit}");
+                assert!(
+                    length <= limit,
+                    "{what} is {length} characters and a manifest allows {limit}"
+                );
             }
         }
     }
@@ -4086,19 +5040,30 @@ mod tests {
     fn what_a_window_is_told_a_plugin_can_be_granted_is_exactly_the_owners_two_sets() {
         let mut spec = plugin_managing("both", &["list", "restart"]);
         spec.manifest.imports.push(
-            plugin_wanting_peers("both", &["list", "send"]).manifest.imports.remove(0),
+            plugin_wanting_peers("both", &["list", "send"])
+                .manifest
+                .imports
+                .remove(0),
         );
         // A name the plugin merely listed in its own manifest: not grantable, so not shown.
-        spec.manifest.capabilities.insert("just.listed".into(), "Only listed by the plugin.".into());
+        spec.manifest
+            .capabilities
+            .insert("just.listed".into(), "Only listed by the plugin.".into());
 
         let told = grantable_for_window(&spec);
         let device: BTreeSet<_> = told.per_device.iter().cloned().collect();
         let outright: BTreeSet<_> = told.outright.iter().cloned().collect();
         assert_eq!(device, grantable_for_a_device(&spec));
         assert_eq!(outright, grantable_without_a_device(&spec));
-        assert!(device.is_disjoint(&outright), "a permission is offered both ways");
         assert!(
-            !device.iter().chain(&outright).any(|p| p.name == "just.listed"),
+            device.is_disjoint(&outright),
+            "a permission is offered both ways"
+        );
+        assert!(
+            !device
+                .iter()
+                .chain(&outright)
+                .any(|p| p.name == "just.listed"),
             "a name the plugin only listed was offered as a permission"
         );
         // The same plugin gives the same answer, so the window's rows do not reshuffle.
@@ -4115,7 +5080,10 @@ mod tests {
         // applied to what the owner holds when it ARRIVES, not to the picture the window had.
         let after_first = applied(&start, &a, false).unwrap();
         let after_second = applied(&after_first, &b, true).unwrap();
-        assert!(!after_second.allows(&a), "a withdrawal that was made was undone by the next flip");
+        assert!(
+            !after_second.allows(&a),
+            "a withdrawal that was made was undone by the next flip"
+        );
         assert!(after_second.allows(&b));
         assert_eq!(after_second.iter().count(), 1);
 
@@ -4165,6 +5133,82 @@ mod tests {
                 &[],
                 &standalone("viewer", &[(HOST, PLUGINS_RESTART_CAPABILITY)])
             ),
+            set(&[])
+        );
+    }
+
+    #[test]
+    fn a_plugin_holds_a_status_permission_at_the_hub_only_when_it_was_granted_outright_to_that_plugin()
+     {
+        use crate::status_service as status;
+        let spec = plugin_using_statuses("player", &["define", "set", "clear"], &[]);
+        let both = [
+            (HOST, status::STATUS_DEFINE_CAPABILITY),
+            (HOST, status::STATUS_SET_CAPABILITY),
+        ];
+        // No device is paired at all: the permissions are about this device, so this must hold.
+        assert_eq!(
+            plugin_grants(&spec, &[], &standalone("player", &both)),
+            set(&both)
+        );
+        // Granted one of them: that one only, so making a status is not turning it on.
+        assert_eq!(
+            plugin_grants(
+                &spec,
+                &[],
+                &standalone("player", &[(HOST, status::STATUS_DEFINE_CAPABILITY)])
+            ),
+            set(&[(HOST, status::STATUS_DEFINE_CAPABILITY)])
+        );
+        // Not granted, nothing held: a plugin can do nothing to a status until the person says so.
+        assert_eq!(plugin_grants(&spec, &[], &BTreeMap::new()), set(&[]));
+        // What was granted to another plugin says nothing about this one.
+        assert_eq!(
+            plugin_grants(&spec, &[], &standalone("someone-else", &both)),
+            set(&[])
+        );
+    }
+
+    #[test]
+    fn a_plugin_that_never_imported_what_a_status_permission_guards_does_not_hold_it_even_if_granted()
+     {
+        use crate::status_service as status;
+        // It reads and nothing else: being granted the permission to show a status gives it no way to do it.
+        let reader = plugin_using_statuses("reader", &["list"], &[]);
+        assert_eq!(
+            plugin_grants(
+                &reader,
+                &[],
+                &standalone(
+                    "reader",
+                    &[
+                        (HOST, status::STATUS_SET_CAPABILITY),
+                        (HOST, status::STATUS_DEFINE_CAPABILITY)
+                    ]
+                )
+            ),
+            set(&[]),
+            "a plugin held a permission for something it never asked to do"
+        );
+        assert_eq!(
+            plugin_grants(
+                &reader,
+                &[],
+                &standalone("reader", &[(HOST, status::STATUS_WATCH_CAPABILITY)])
+            ),
+            set(&[(HOST, status::STATUS_WATCH_CAPABILITY)])
+        );
+    }
+
+    #[test]
+    fn a_device_saying_a_status_permission_was_granted_does_not_give_it_to_the_plugin() {
+        use crate::status_service as status;
+        // Nothing should ever store this on a device, but a stored file is only ever as good as what wrote it. These permissions are about
+        // no device, so a device cannot supply them: otherwise a paired device could make a plugin show anything to everyone.
+        let spec = plugin_using_statuses("player", &["define", "set"], &[]);
+        let peer = granted_exactly("a", "player", HOST, status::STATUS_SET_CAPABILITY);
+        assert_eq!(
+            plugin_grants(&spec, std::slice::from_ref(&peer), &BTreeMap::new()),
             set(&[])
         );
     }
@@ -4351,20 +5395,35 @@ mod tests {
     /// held by the plugin and the plugin already subscribed to the events its permissions allow it to ask for.
     fn hub_with_transfers_plugin(
         granted: &[&str],
-    ) -> (peersus_plugin_api::hub::Channel, peersus_plugin_api::hub::Channel, Hub) {
+    ) -> (
+        peersus_plugin_api::hub::Channel,
+        peersus_plugin_api::hub::Channel,
+        Hub,
+    ) {
         use crate::transfer_events as events;
         let mut registry = Registry::default();
         let mut spec = plugin_listening_to_transfers("fireworks", &["changed", "changed-named"]);
         // A plugin can only be granted what its own manifest declares.
-        for capability in [events::TRANSFERS_WATCH_CAPABILITY, events::TRANSFERS_NAMES_CAPABILITY] {
-            spec.manifest.capabilities.insert(capability.to_owned(), "Lets the plugin hear about transfers.".to_owned());
+        for capability in [
+            events::TRANSFERS_WATCH_CAPABILITY,
+            events::TRANSFERS_NAMES_CAPABILITY,
+        ] {
+            spec.manifest.capabilities.insert(
+                capability.to_owned(),
+                "Lets the plugin hear about transfers.".to_owned(),
+            );
         }
         registry.register(spec.clone()).unwrap();
         let hub = Hub::default();
-        let host_generation = hub.register_host(HOST, host_manifest(&registry), BTreeSet::new()).unwrap();
+        let host_generation = hub
+            .register_host(HOST, host_manifest(&registry), BTreeSet::new())
+            .unwrap();
         let host = hub.connect(HOST, host_generation).unwrap();
-        let granted: BTreeSet<Permission> = granted.iter().map(|name| permission(HOST, name)).collect();
-        let generation = hub.register("fireworks", spec.manifest.clone(), granted).unwrap();
+        let granted: BTreeSet<Permission> =
+            granted.iter().map(|name| permission(HOST, name)).collect();
+        let generation = hub
+            .register("fireworks", spec.manifest.clone(), granted)
+            .unwrap();
         let fireworks = hub.connect("fireworks", generation).unwrap();
         (host, fireworks, hub)
     }
@@ -4599,6 +5658,8 @@ mod tests {
             paired_at: 1_700_000_123,
             last_seen: Some(1_700_999_456),
             online,
+            sleeping: false,
+            statuses: Vec::new(),
             grants: [(
                 PluginId::new("clip").unwrap(),
                 Grants::new([permission(HOST, PEERS_SEND_CAPABILITY)]).unwrap(),
@@ -4747,19 +5808,36 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_call_is_told_in_the_applications_own_words_by_the_reason_and_never_in_the_plugins() {
+    fn a_failed_call_is_told_in_the_applications_own_words_by_the_reason_and_never_in_the_plugins()
+    {
         use peersus_plugin_api::message::Outcome;
-        let told = |code: &str| action_failure_sentence(&Outcome::error(code, "the password is hunter2"));
-        assert_eq!(told("denied"), Some("A plugin was not allowed to complete the action"));
+        let told =
+            |code: &str| action_failure_sentence(&Outcome::error(code, "the password is hunter2"));
+        assert_eq!(
+            told("denied"),
+            Some("A plugin was not allowed to complete the action")
+        );
         assert_eq!(told("refused"), told("denied"));
-        assert_eq!(told("timeout"), Some("A plugin did not complete the action in time"));
+        assert_eq!(
+            told("timeout"),
+            Some("A plugin did not complete the action in time")
+        );
         assert_eq!(told("invalid-deadline"), told("timeout"));
         assert!(told("unavailable").unwrap().contains("not available"));
         assert!(told("busy").unwrap().contains("busy"));
         // A code nobody knows, in any spelling or shape, is the plain sentence: nothing it holds is in what is shown.
-        for code in ["disk-full", "/home/alex/secret.txt", "", "DENIED", "timeout\n"] {
+        for code in [
+            "disk-full",
+            "/home/alex/secret.txt",
+            "",
+            "DENIED",
+            "timeout\n",
+        ] {
             let sentence = told(code).unwrap();
-            assert_eq!(sentence, "A plugin could not complete the action", "{code:?}");
+            assert_eq!(
+                sentence, "A plugin could not complete the action",
+                "{code:?}"
+            );
             assert!(!sentence.contains("hunter2") && !sentence.contains("secret"));
         }
     }
@@ -4767,8 +5845,14 @@ mod tests {
     #[test]
     fn a_call_that_was_cancelled_or_went_well_has_no_failure_to_tell() {
         use peersus_plugin_api::message::Outcome;
-        assert_eq!(action_failure_sentence(&Outcome::error("cancelled", "x")), None);
-        assert_eq!(action_failure_sentence(&Outcome::ok(serde_json::json!({}))), None);
+        assert_eq!(
+            action_failure_sentence(&Outcome::error("cancelled", "x")),
+            None
+        );
+        assert_eq!(
+            action_failure_sentence(&Outcome::ok(serde_json::json!({}))),
+            None
+        );
         assert_eq!(code_for_the_log(&Outcome::ok(serde_json::json!({}))), None);
     }
 
@@ -5091,6 +6175,7 @@ mod tests {
         let policy = peersus_core::config::NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..peersus_core::config::NetworkSettings::default()
         };
         let application = peersus_net::transport::bind(SecretKey::generate(), &policy)
             .await
@@ -5165,24 +6250,55 @@ mod tests {
         use peersus_plugin_api::contributions::{Kind, Scope, Setting};
         let mut spec = plugin_importing("clip", HOST, CONFIG_SERVICE, 1, &["get"]);
         spec.manifest.contributions.settings = vec![
-            Setting { id: "automatic".into(), label: "Automatic".into(), help: None, scope: Scope::Global, kind: Kind::Toggle { default: false } },
-            Setting { id: "sync".into(), label: "Sync".into(), help: None, scope: Scope::Device, kind: Kind::Toggle { default: false } },
+            Setting {
+                id: "automatic".into(),
+                label: "Automatic".into(),
+                help: None,
+                scope: Scope::Global,
+                kind: Kind::Toggle { default: false },
+            },
+            Setting {
+                id: "sync".into(),
+                label: "Sync".into(),
+                help: None,
+                scope: Scope::Device,
+                kind: Kind::Toggle { default: false },
+            },
         ];
-        let saved: Values = serde_json::from_value(serde_json::json!({"automatic":"invalid", "undeclared":"private"})).unwrap();
+        let saved: Values = serde_json::from_value(
+            serde_json::json!({"automatic":"invalid", "undeclared":"private"}),
+        )
+        .unwrap();
         let mut peer = peer_granted("actual-network-key", &[]);
         let mut device = Values::default();
-        device.set(&spec.manifest.contributions.settings, Scope::Device, "sync", Value::Toggle(true)).unwrap();
+        device
+            .set(
+                &spec.manifest.contributions.settings,
+                Scope::Device,
+                "sync",
+                Value::Toggle(true),
+            )
+            .unwrap();
         peer.plugin_values.insert(spec.id.clone(), device);
         let foreign = PluginId::new("foreign").unwrap();
-        peer.plugin_values.insert(foreign.clone(), serde_json::from_value(serde_json::json!({"private":"do not expose"})).unwrap());
+        peer.plugin_values.insert(
+            foreign.clone(),
+            serde_json::from_value(serde_json::json!({"private":"do not expose"})).unwrap(),
+        );
         let aliases = crate::aliases::Aliases::new();
         let answer = configuration(&spec, Some(&saved), &aliases, &[peer.clone()]);
-        assert_eq!(answer, serde_json::json!({
-            "plugin": spec.id.as_str(),
-            "settings": {"automatic": false},
-            "peers": [{"device": aliases.alias(&spec.id, &peer.id), "online": peer.online, "settings": {"sync":true}, "permissions":[]}]
-        }));
-        assert_ne!(answer["peers"][0]["device"], aliases.alias(&foreign, &peer.id));
+        assert_eq!(
+            answer,
+            serde_json::json!({
+                "plugin": spec.id.as_str(),
+                "settings": {"automatic": false},
+                "peers": [{"device": aliases.alias(&spec.id, &peer.id), "online": peer.online, "settings": {"sync":true}, "permissions":[]}]
+            })
+        );
+        assert_ne!(
+            answer["peers"][0]["device"],
+            aliases.alias(&foreign, &peer.id)
+        );
         assert!(!answer.to_string().contains("actual-network-key"));
         assert!(!answer.to_string().contains("private"));
     }
@@ -5196,26 +6312,51 @@ mod tests {
         let exports = host_exports(&registry);
         assert_eq!(exports.len(), 1);
         assert_eq!(exports[0].consumers, ["clip".to_owned()].into());
-        assert_eq!(exports[0].methods.keys().map(String::as_str).collect::<Vec<_>>(), vec!["get"]);
+        assert_eq!(
+            exports[0]
+                .methods
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            vec!["get"]
+        );
         assert!(grantable(&spec).is_empty());
         // Configuration is information, never authorization: the per-device send guard
         // is still rechecked by the same path explicit share calls use.
         let sending = clip_spec();
         let peer = peer_granted("device", &[]);
         let aliases = crate::aliases::Aliases::new();
-        assert!(authorize_send(&aliases, &sending.id, &aliases.alias(&sending.id, &peer.id), &[peer]).is_err());
+        assert!(
+            authorize_send(
+                &aliases,
+                &sending.id,
+                &aliases.alias(&sending.id, &peer.id),
+                &[peer]
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn a_revoked_service_guard_blocks_a_new_send_even_with_stale_configuration() {
         let spec = plugin_that_receives(Some("sink.write"));
-        let allowed = peer_granted("device", &[("sink", &[(HOST, PEERS_SEND_CAPABILITY), ("sink", "sink.write")])]);
-        assert!(authorize_service_send(&spec, &allowed, &spec.manifest.exports[0].service, 1).is_ok());
+        let allowed = peer_granted(
+            "device",
+            &[(
+                "sink",
+                &[(HOST, PEERS_SEND_CAPABILITY), ("sink", "sink.write")],
+            )],
+        );
+        assert!(
+            authorize_service_send(&spec, &allowed, &spec.manifest.exports[0].service, 1).is_ok()
+        );
         let revoked = peer_granted("device", &[("sink", &[(HOST, PEERS_SEND_CAPABILITY)])]);
         let aliases = crate::aliases::Aliases::new();
         let alias = aliases.alias(&spec.id, &revoked.id);
         assert!(authorize_send(&aliases, &spec.id, &alias, std::slice::from_ref(&revoked)).is_ok());
-        assert!(authorize_service_send(&spec, &revoked, &spec.manifest.exports[0].service, 1).is_err());
+        assert!(
+            authorize_service_send(&spec, &revoked, &spec.manifest.exports[0].service, 1).is_err()
+        );
         assert!(authorize_service_send(&spec, &revoked, "an.unrelated.service", 1).is_ok());
     }
 }
@@ -5224,7 +6365,12 @@ mod tests {
 mod cancelled_action_regression {
     #[test]
     fn explicit_plugin_cancellation_is_not_a_failure() {
-        assert_eq!(super::action_state(&peersus_plugin_api::message::Outcome::error("cancelled", "ignored")),
-            peersus_core::model::ActionState::Cancelled);
+        assert_eq!(
+            super::action_state(&peersus_plugin_api::message::Outcome::error(
+                "cancelled",
+                "ignored"
+            )),
+            peersus_core::model::ActionState::Cancelled
+        );
     }
 }

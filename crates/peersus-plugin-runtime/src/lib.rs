@@ -4,8 +4,15 @@
 #![forbid(unsafe_code)]
 
 use peersus_plugin_host::frame::CONTROL_LIMIT;
-use std::{collections::BTreeMap, io::{self, Read, Write}, ops::Range};
-use wasmi::{Caller, Config, Engine, EnforcedLimits, Error, Linker, Memory, Module, Store, StoreLimits, StoreLimitsBuilder};
+use std::{
+    collections::BTreeMap,
+    io::{self, Read, Write},
+    ops::Range,
+};
+use wasmi::{
+    Caller, Config, EnforcedLimits, Engine, Error, Linker, Memory, Module, Store, StoreLimits,
+    StoreLimitsBuilder,
+};
 
 #[cfg(unix)]
 pub mod socket;
@@ -43,29 +50,42 @@ struct State<'a, T: Transport> {
 }
 
 fn memory<T: Transport>(caller: &mut Caller<'_, State<'_, T>>) -> Result<Memory, Error> {
-    caller.get_export("memory").and_then(|export| export.into_memory())
+    caller
+        .get_export("memory")
+        .and_then(|export| export.into_memory())
         .ok_or_else(|| Error::new("a plugin must export its memory"))
 }
 
 fn range(pointer: i32, length: i32) -> Result<Range<usize>, Error> {
     let start = usize::try_from(pointer).map_err(|_| Error::new("invalid guest memory range"))?;
     let length = usize::try_from(length).map_err(|_| Error::new("invalid guest memory range"))?;
-    if length > MAX_IO_BYTES { return Err(Error::new("guest I/O exceeds its bound")); }
-    let end = start.checked_add(length).ok_or_else(|| Error::new("invalid guest memory range"))?;
+    if length > MAX_IO_BYTES {
+        return Err(Error::new("guest I/O exceeds its bound"));
+    }
+    let end = start
+        .checked_add(length)
+        .ok_or_else(|| Error::new("invalid guest memory range"))?;
     Ok(start..end)
 }
 
-fn progress<T: Transport>(caller: &mut Caller<'_, State<'_, T>>, amount: usize) -> Result<i32, Error> {
+fn progress<T: Transport>(
+    caller: &mut Caller<'_, State<'_, T>>,
+    amount: usize,
+) -> Result<i32, Error> {
     // Only a real incoming message or positive data progress permits another work turn.
     // EOF, failed opens, arbitrary sends and a guest's compute loop never refill fuel.
-    if amount > 0 { caller.set_fuel(TURN_FUEL)?; }
+    if amount > 0 {
+        caller.set_fuel(TURN_FUEL)?;
+    }
     i32::try_from(amount).map_err(|_| Error::new("invalid transport response"))
 }
 
 /// Execute one module in its already isolated worker, returning when it leaves or traps.
 /// Callers must never execute an extension on an owner, UI, or Android main thread.
 pub fn run<T: Transport>(bytes: &[u8], transport: &mut T) -> Result<(), Error> {
-    if bytes.len() > MAX_MODULE_BYTES { return Err(Error::new("plugin module exceeds its size bound")); }
+    if bytes.len() > MAX_MODULE_BYTES {
+        return Err(Error::new("plugin module exceeds its size bound"));
+    }
     let mut config = Config::default();
     config.consume_fuel(true);
     config.set_max_stack_height(16 * 1024);
@@ -81,70 +101,159 @@ pub fn run<T: Transport>(bytes: &[u8], transport: &mut T) -> Result<(), Error> {
         .memories(1)
         .tables(1)
         .build();
-    let mut store = Store::new(&engine, State { transport, limits, streams: BTreeMap::new(), next_handle: 1 });
+    let mut store = Store::new(
+        &engine,
+        State {
+            transport,
+            limits,
+            streams: BTreeMap::new(),
+            next_handle: 1,
+        },
+    );
     store.limiter(|state| &mut state.limits);
     store.set_fuel(TURN_FUEL)?;
     let mut linker = Linker::new(&engine);
-    linker.func_wrap("peersus_v1", "receive", |mut caller: Caller<'_, State<'_, T>>, pointer: i32, length: i32| -> Result<i32, Error> {
-        let memory = memory(&mut caller)?;
-        let range = range(pointer, length)?;
-        let (bytes, state) = memory.data_and_store_mut(&mut caller);
-        let into = bytes.get_mut(range).ok_or_else(|| Error::new("invalid guest memory range"))?;
-        let amount = state.transport.receive(into).map_err(|_| Error::new("control receive failed"))?;
-        if amount > into.len() { return Err(Error::new("invalid transport response")); }
-        progress(&mut caller, amount)
-    })?;
-    linker.func_wrap("peersus_v1", "send", |mut caller: Caller<'_, State<'_, T>>, pointer: i32, length: i32| -> Result<i32, Error> {
-        let memory = memory(&mut caller)?;
-        let range = range(pointer, length)?;
-        let (bytes, state) = memory.data_and_store_mut(&mut caller);
-        let message = bytes.get(range).ok_or_else(|| Error::new("invalid guest memory range"))?;
-        if message.is_empty() { return Err(Error::new("empty control message")); }
-        state.transport.send(message).map_err(|_| Error::new("control send failed"))?;
-        Ok(0)
-    })?;
-    linker.func_wrap("peersus_v1", "data_open", |mut caller: Caller<'_, State<'_, T>>, kind: i32, number: i64| -> Result<i32, Error> {
-        let request = match kind {
-            0 => DataRequest::Ticket(number as u64),
-            1 => DataRequest::Claim(number as u64),
-            _ => return Err(Error::new("invalid data request")),
-        };
-        let state = caller.data_mut();
-        if state.streams.len() >= MAX_OPEN_STREAMS { return Err(Error::new("too many open data streams")); }
-        let handle = state.next_handle;
-        state.next_handle = handle.checked_add(1).ok_or_else(|| Error::new("data handles exhausted"))?;
-        let stream = state.transport.open_data(request).map_err(|_| Error::new("data connection failed"))?;
-        state.streams.insert(handle, stream);
-        Ok(handle)
-    })?;
-    linker.func_wrap("peersus_v1", "data_read", |mut caller: Caller<'_, State<'_, T>>, handle: i32, pointer: i32, length: i32| -> Result<i32, Error> {
-        let memory = memory(&mut caller)?;
-        let range = range(pointer, length)?;
-        let (bytes, state) = memory.data_and_store_mut(&mut caller);
-        let into = bytes.get_mut(range).ok_or_else(|| Error::new("invalid guest memory range"))?;
-        let stream = state.streams.get_mut(&handle).ok_or_else(|| Error::new("invalid data handle"))?;
-        let amount = stream.read(into).map_err(|_| Error::new("data read failed"))?;
-        progress(&mut caller, amount)
-    })?;
-    linker.func_wrap("peersus_v1", "data_write", |mut caller: Caller<'_, State<'_, T>>, handle: i32, pointer: i32, length: i32| -> Result<i32, Error> {
-        let memory = memory(&mut caller)?;
-        let range = range(pointer, length)?;
-        let (bytes, state) = memory.data_and_store_mut(&mut caller);
-        let from = bytes.get(range).ok_or_else(|| Error::new("invalid guest memory range"))?;
-        let stream = state.streams.get_mut(&handle).ok_or_else(|| Error::new("invalid data handle"))?;
-        let amount = stream.write(from).map_err(|_| Error::new("data write failed"))?;
-        progress(&mut caller, amount)
-    })?;
-    linker.func_wrap("peersus_v1", "data_shutdown", |mut caller: Caller<'_, State<'_, T>>, handle: i32| -> Result<i32, Error> {
-        let state = caller.data_mut();
-        let stream = state.streams.get_mut(&handle).ok_or_else(|| Error::new("invalid data handle"))?;
-        state.transport.shutdown_data(stream).map_err(|_| Error::new("data shutdown failed"))?;
-        Ok(0)
-    })?;
-    linker.func_wrap("peersus_v1", "data_close", |mut caller: Caller<'_, State<'_, T>>, handle: i32| -> Result<i32, Error> {
-        caller.data_mut().streams.remove(&handle).ok_or_else(|| Error::new("invalid data handle"))?;
-        Ok(0)
-    })?;
+    linker.func_wrap(
+        "peersus_v1",
+        "receive",
+        |mut caller: Caller<'_, State<'_, T>>, pointer: i32, length: i32| -> Result<i32, Error> {
+            let memory = memory(&mut caller)?;
+            let range = range(pointer, length)?;
+            let (bytes, state) = memory.data_and_store_mut(&mut caller);
+            let into = bytes
+                .get_mut(range)
+                .ok_or_else(|| Error::new("invalid guest memory range"))?;
+            let amount = state
+                .transport
+                .receive(into)
+                .map_err(|_| Error::new("control receive failed"))?;
+            if amount > into.len() {
+                return Err(Error::new("invalid transport response"));
+            }
+            progress(&mut caller, amount)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "send",
+        |mut caller: Caller<'_, State<'_, T>>, pointer: i32, length: i32| -> Result<i32, Error> {
+            let memory = memory(&mut caller)?;
+            let range = range(pointer, length)?;
+            let (bytes, state) = memory.data_and_store_mut(&mut caller);
+            let message = bytes
+                .get(range)
+                .ok_or_else(|| Error::new("invalid guest memory range"))?;
+            if message.is_empty() {
+                return Err(Error::new("empty control message"));
+            }
+            state
+                .transport
+                .send(message)
+                .map_err(|_| Error::new("control send failed"))?;
+            Ok(0)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "data_open",
+        |mut caller: Caller<'_, State<'_, T>>, kind: i32, number: i64| -> Result<i32, Error> {
+            let request = match kind {
+                0 => DataRequest::Ticket(number as u64),
+                1 => DataRequest::Claim(number as u64),
+                _ => return Err(Error::new("invalid data request")),
+            };
+            let state = caller.data_mut();
+            if state.streams.len() >= MAX_OPEN_STREAMS {
+                return Err(Error::new("too many open data streams"));
+            }
+            let handle = state.next_handle;
+            state.next_handle = handle
+                .checked_add(1)
+                .ok_or_else(|| Error::new("data handles exhausted"))?;
+            let stream = state
+                .transport
+                .open_data(request)
+                .map_err(|_| Error::new("data connection failed"))?;
+            state.streams.insert(handle, stream);
+            Ok(handle)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "data_read",
+        |mut caller: Caller<'_, State<'_, T>>,
+         handle: i32,
+         pointer: i32,
+         length: i32|
+         -> Result<i32, Error> {
+            let memory = memory(&mut caller)?;
+            let range = range(pointer, length)?;
+            let (bytes, state) = memory.data_and_store_mut(&mut caller);
+            let into = bytes
+                .get_mut(range)
+                .ok_or_else(|| Error::new("invalid guest memory range"))?;
+            let stream = state
+                .streams
+                .get_mut(&handle)
+                .ok_or_else(|| Error::new("invalid data handle"))?;
+            let amount = stream
+                .read(into)
+                .map_err(|_| Error::new("data read failed"))?;
+            progress(&mut caller, amount)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "data_write",
+        |mut caller: Caller<'_, State<'_, T>>,
+         handle: i32,
+         pointer: i32,
+         length: i32|
+         -> Result<i32, Error> {
+            let memory = memory(&mut caller)?;
+            let range = range(pointer, length)?;
+            let (bytes, state) = memory.data_and_store_mut(&mut caller);
+            let from = bytes
+                .get(range)
+                .ok_or_else(|| Error::new("invalid guest memory range"))?;
+            let stream = state
+                .streams
+                .get_mut(&handle)
+                .ok_or_else(|| Error::new("invalid data handle"))?;
+            let amount = stream
+                .write(from)
+                .map_err(|_| Error::new("data write failed"))?;
+            progress(&mut caller, amount)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "data_shutdown",
+        |mut caller: Caller<'_, State<'_, T>>, handle: i32| -> Result<i32, Error> {
+            let state = caller.data_mut();
+            let stream = state
+                .streams
+                .get_mut(&handle)
+                .ok_or_else(|| Error::new("invalid data handle"))?;
+            state
+                .transport
+                .shutdown_data(stream)
+                .map_err(|_| Error::new("data shutdown failed"))?;
+            Ok(0)
+        },
+    )?;
+    linker.func_wrap(
+        "peersus_v1",
+        "data_close",
+        |mut caller: Caller<'_, State<'_, T>>, handle: i32| -> Result<i32, Error> {
+            caller
+                .data_mut()
+                .streams
+                .remove(&handle)
+                .ok_or_else(|| Error::new("invalid data handle"))?;
+            Ok(0)
+        },
+    )?;
     let instance = linker.instantiate_and_start(&mut store, &module)?;
     memory_from_instance(&instance, &store)?;
     let entry = instance.get_typed_func::<(), i32>(&store, "peersus_main")?;
@@ -154,8 +263,14 @@ pub fn run<T: Transport>(bytes: &[u8], transport: &mut T) -> Result<(), Error> {
     }
 }
 
-fn memory_from_instance<T: Transport>(instance: &wasmi::Instance, store: &Store<State<'_, T>>) -> Result<(), Error> {
-    instance.get_memory(store, "memory").map(|_| ()).ok_or_else(|| Error::new("a plugin must export its memory"))
+fn memory_from_instance<T: Transport>(
+    instance: &wasmi::Instance,
+    store: &Store<State<'_, T>>,
+) -> Result<(), Error> {
+    instance
+        .get_memory(store, "memory")
+        .map(|_| ())
+        .ok_or_else(|| Error::new("a plugin must export its memory"))
 }
 
 #[cfg(test)]

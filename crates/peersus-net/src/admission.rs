@@ -86,11 +86,17 @@ mod tests {
         // Asking any number of times changes nothing: the code still admits its one device.
         assert!(gate.is_live(now));
         assert!(gate.is_live(now));
-        assert!(gate.consume(&invitation.capability, now), "asking whether it was live used it up");
+        assert!(
+            gate.consume(&invitation.capability, now),
+            "asking whether it was live used it up"
+        );
         assert!(!gate.is_live(now), "a used code was still reported live");
         // By time, and without anyone trying it.
         let fresh = Admission::new(&invitation, 100, now).unwrap();
         assert!(fresh.is_live(now + Duration::from_secs(299)));
-        assert!(!fresh.is_live(now + Duration::from_secs(300)), "an expired code was still reported live");
+        assert!(
+            !fresh.is_live(now + Duration::from_secs(300)),
+            "an expired code was still reported live"
+        );
     }
 }

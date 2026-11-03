@@ -14,9 +14,9 @@
 pub mod data;
 pub mod frame;
 pub mod link;
+pub mod module;
 pub mod pump;
 pub mod supervisor;
-pub mod module;
 
 #[cfg(unix)]
 mod service;

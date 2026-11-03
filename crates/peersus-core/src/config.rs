@@ -16,6 +16,13 @@ pub struct NetworkSettings {
     pub bind: Option<IpAddr>,
     /// Allow encrypted relay fallback when direct connectivity fails.
     pub allow_relay: bool,
+    /// A relay the person runs themselves, used instead of the public ones. `None` keeps the public relays.
+    /// Only the address is a preference; the access token is a secret and is never part of the settings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_url: Option<String>,
+    /// Explicit ordered fallbacks. Missing in older files: retain their exact relay choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_policy: Option<crate::relay::RelayPolicy>,
 }
 
 impl Default for NetworkSettings {
@@ -23,7 +30,41 @@ impl Default for NetworkSettings {
         Self {
             bind: None,
             allow_relay: true,
+            relay_url: None,
+            relay_policy: None,
         }
+    }
+}
+
+impl NetworkSettings {
+    /// Resolve old settings without silently adding a project or public relay.
+    pub fn effective_relay_policy(&self) -> crate::relay::RelayPolicy {
+        use crate::relay::{RelayPolicy, RelayTarget};
+        let mut policy = self.relay_policy.clone().unwrap_or_else(|| RelayPolicy {
+            targets: match &self.relay_url {
+                Some(url) => vec![RelayTarget::Custom(url.clone())],
+                None => vec![RelayTarget::Public],
+            },
+            ..RelayPolicy::default()
+        });
+        for target in &mut policy.targets {
+            if let RelayTarget::Project(url) = target
+                && url.trim_end_matches('/') == "https://axxa.dev"
+            {
+                *url = crate::relay::PROJECT_RELAY_URL.to_owned();
+            }
+        }
+        if !self.allow_relay {
+            policy.disabled.extend(0..policy.targets.len());
+        }
+        policy
+    }
+
+    pub fn has_custom_relay(&self) -> bool {
+        self.effective_relay_policy()
+            .targets
+            .iter()
+            .any(|target| matches!(target, crate::relay::RelayTarget::Custom(_)))
     }
 }
 
@@ -66,10 +107,30 @@ pub enum ThemeBase {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ThemeColor {
-    Background, Surface, Raised, Header, Sidebar, Border, Text, Muted,
-    Portal, PortalText, Send, Receive, Good, Bad, Warning, WarningBackground,
-    Button, ButtonText, Minimise, Maximise, Close,
-    Icons, ActiveIcons, ScannerOutline,
+    Background,
+    Surface,
+    Raised,
+    Header,
+    Sidebar,
+    Border,
+    Text,
+    Muted,
+    Portal,
+    PortalText,
+    Send,
+    Receive,
+    Good,
+    Bad,
+    Warning,
+    WarningBackground,
+    Button,
+    ButtonText,
+    Minimise,
+    Maximise,
+    Close,
+    Icons,
+    ActiveIcons,
+    ScannerOutline,
 }
 
 /// Sparse overrides retain the selected base for unchanged elements. Leaving Custom never
@@ -97,6 +158,23 @@ pub fn valid_theme_name(name: &str) -> bool {
         && name == name.trim()
         && name.chars().count() <= MAX_THEME_NAME_CHARS
         && !name.chars().any(char::is_control)
+}
+
+/// The longest relay address kept, in bytes: past any real host name, and a bound on what a settings file can hold.
+pub const MAX_RELAY_URL_BYTES: usize = 300;
+
+/// A single `https://` address with a host, and nothing that could carry a secret or break the line it is saved on.
+/// A user name, a password, a query or a fragment is refused, so the access token cannot be pasted into the address
+/// and end up saved in the settings file, where the token never belongs.
+pub fn valid_relay_url(url: &str) -> bool {
+    let Some(rest) = url.strip_prefix("https://") else {
+        return false;
+    };
+    let host = rest.strip_suffix('/').unwrap_or(rest);
+    url.len() <= MAX_RELAY_URL_BYTES
+        && !host.is_empty()
+        && !host.contains(['/', '?', '#', '@', '\\'])
+        && !url.chars().any(|c| c.is_control() || c.is_whitespace())
 }
 
 /// The bar down the left side, which is how every place of the application (send, receive, peers,
@@ -151,9 +229,18 @@ pub enum Language {
 
 impl Language {
     pub const ALL: [Self; 12] = [
-        Self::English, Self::Romanian, Self::German, Self::French,
-        Self::Spanish, Self::Italian, Self::Portuguese, Self::Polish,
-        Self::Dutch, Self::Turkish, Self::Czech, Self::Swedish,
+        Self::English,
+        Self::Romanian,
+        Self::German,
+        Self::French,
+        Self::Spanish,
+        Self::Italian,
+        Self::Portuguese,
+        Self::Polish,
+        Self::Dutch,
+        Self::Turkish,
+        Self::Czech,
+        Self::Swedish,
     ];
 
     /// BCP 47 tag used by platform resource selection.
@@ -258,9 +345,19 @@ pub struct Settings {
     /// would otherwise be refused whole. They are accepted and dropped on the spot, and never held
     /// or written: a value kept in memory and not written would make a `Settings` unequal to its
     /// own copy, and every save would be refused as "changed elsewhere".
-    #[serde(default, rename = "navigation", skip_serializing, deserialize_with = "forget")]
+    #[serde(
+        default,
+        rename = "navigation",
+        skip_serializing,
+        deserialize_with = "forget"
+    )]
     pub earlier_navigation: (),
-    #[serde(default, rename = "sidebar_open", skip_serializing, deserialize_with = "forget")]
+    #[serde(
+        default,
+        rename = "sidebar_open",
+        skip_serializing,
+        deserialize_with = "forget"
+    )]
     pub earlier_sidebar_open: (),
     /// Saved plugin values by plugin id. Values are validated against each plugin's
     /// manifest by the host before they are stored.
@@ -300,13 +397,15 @@ pub const MAX_NAME_CHARS: usize = 64;
 /// The longest folder path kept, in bytes: far past any real path, and a bound on what a settings file can hold.
 pub const MAX_FOLDER_BYTES: usize = 4096;
 
-
 impl Default for Settings {
     fn default() -> Self {
         Self {
             version: SCHEMA_VERSION,
             device_name: "My device".into(),
-            network: NetworkSettings::default(),
+            network: NetworkSettings {
+                relay_policy: Some(crate::relay::RelayPolicy::default()),
+                ..NetworkSettings::default()
+            },
             background: false,
             renderer: Renderer::Auto,
             theme: Theme::System,
@@ -343,6 +442,14 @@ pub enum SettingsError {
     /// Relay sockets cannot honor an explicit interface restriction.
     #[error("disable internet relays before selecting a bind address")]
     BoundRelay,
+    /// The address of the personal relay is not a usable `https://` address.
+    #[error("the relay address must start with https:// and be a single address without spaces")]
+    RelayUrl,
+    /// A personal relay is named while relays are switched off, so it would be chosen and never used.
+    #[error("turn internet relays on to use a relay of your own")]
+    RelayOff,
+    #[error("invalid relay fallback order, address or timing")]
+    RelayPolicy,
     /// The folder for incoming files is not a full path, or is unreasonably long.
     #[error("the folder for incoming files must be a full path")]
     SaveFolder,
@@ -366,9 +473,16 @@ impl SettingsError {
             Self::Scale => "interface scale must be between 0.75 and 2",
             Self::Bind => "bind requires a concrete unicast address",
             Self::BoundRelay => "disable internet relays before selecting a bind address",
+            Self::RelayUrl => {
+                "the relay address must start with https:// and be a single address without spaces"
+            }
+            Self::RelayOff => "turn internet relays on to use a relay of your own",
+            Self::RelayPolicy => "invalid relay fallback order, address or timing",
             Self::SaveFolder => "the folder for incoming files must be a full path",
             Self::OfferTimeout => "the wait for an answer must be between 5 seconds and 24 hours",
-            Self::ThemeName => "theme names must contain 1–64 non-control characters, without surrounding spaces",
+            Self::ThemeName => {
+                "theme names must contain 1–64 non-control characters, without surrounding spaces"
+            }
             Self::ThemeLibraryFull => "the theme library can contain at most 128 saved themes",
         }
     }
@@ -393,7 +507,9 @@ impl Settings {
         if self.saved_themes.len() > MAX_SAVED_THEMES {
             return Err(SettingsError::ThemeLibraryFull);
         }
-        if self.save_folder.as_ref().is_some_and(|folder| !folder.is_absolute() || folder.as_os_str().len() > MAX_FOLDER_BYTES) {
+        if self.save_folder.as_ref().is_some_and(|folder| {
+            !folder.is_absolute() || folder.as_os_str().len() > MAX_FOLDER_BYTES
+        }) {
             return Err(SettingsError::SaveFolder);
         }
         if !(MIN_OFFER_TIMEOUT..=MAX_OFFER_TIMEOUT).contains(&self.offer_timeout_seconds) {
@@ -409,6 +525,24 @@ impl Settings {
             Some(_) if self.network.allow_relay => return Err(SettingsError::BoundRelay),
             _ => {}
         }
+        if let Some(url) = &self.network.relay_url {
+            // A personal relay with relays switched off would be chosen and then silently never used.
+            if !self.network.allow_relay || !valid_relay_url(url) {
+                return Err(if valid_relay_url(url) {
+                    SettingsError::RelayOff
+                } else {
+                    SettingsError::RelayUrl
+                });
+            }
+        }
+        if self
+            .network
+            .relay_policy
+            .as_ref()
+            .is_some_and(|policy| !policy.is_valid())
+        {
+            return Err(SettingsError::RelayPolicy);
+        }
         Ok(())
     }
 }
@@ -421,6 +555,16 @@ pub enum BindChange {
     Automatic,
     /// Bind to this local address.
     Address(IpAddr),
+}
+
+/// Use the public relays, or one the person runs. The address is a preference; its access token is kept apart.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "mode", content = "url", rename_all = "kebab-case")]
+pub enum RelayChange {
+    /// The public relays.
+    Public,
+    /// A relay of one's own, at this `https://` address.
+    Own(String),
 }
 
 /// Partial edits from any client. Missing fields preserve saved preferences.
@@ -438,6 +582,12 @@ pub struct SettingsPatch {
     pub bind: Option<BindChange>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub allow_relay: Option<bool>,
+    /// Choose a relay of one's own, or give the choice back to the public relays.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay: Option<RelayChange>,
+    /// Replace the ordered fallback policy atomically; no address contains an access token.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relay_policy: Option<crate::relay::RelayPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -496,6 +646,32 @@ impl SettingsPatch {
         }
         if let Some(value) = self.allow_relay {
             next.network.allow_relay = value;
+            // "No relay" is one step: the address of a personal relay that can no longer be used goes with it.
+            // A patch that also picks one is the contradiction `validate` refuses, so it is kept for that.
+            if !value && self.relay.is_none() {
+                next.network.relay_url = None;
+            }
+        }
+        if let Some(value) = &self.relay {
+            next.network.relay_policy = None;
+            next.network.relay_url = match value {
+                RelayChange::Public => None,
+                RelayChange::Own(url) => {
+                    // Choosing a relay of one's own means wanting relays. Only a patch that also says, in so many
+                    // words, that they are off is left with that contradiction, and `validate` refuses it.
+                    if self.allow_relay.is_none() {
+                        next.network.allow_relay = true;
+                    }
+                    Some(url.clone())
+                }
+            };
+        }
+        if let Some(policy) = &self.relay_policy {
+            next.network.relay_policy = Some(policy.clone());
+            next.network.relay_url = None;
+            if self.allow_relay.is_none() {
+                next.network.allow_relay = policy.has_enabled_targets();
+            }
         }
         if let Some(value) = self.background {
             next.background = value;
@@ -519,7 +695,8 @@ impl SettingsPatch {
             if !valid_theme_name(&theme.name) {
                 return Err(SettingsError::ThemeName);
             }
-            next.saved_themes.insert(theme.name.clone(), theme.palette.clone());
+            next.saved_themes
+                .insert(theme.name.clone(), theme.palette.clone());
         }
         if let Some(value) = self.scale {
             next.scale = value;
@@ -556,6 +733,158 @@ impl SettingsPatch {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn with_relay(url: &str) -> Settings {
+        let mut s = Settings::default();
+        s.network.relay_url = Some(url.to_owned());
+        s
+    }
+
+    #[test]
+    fn settings_saved_before_the_personal_relay_still_load_and_keep_the_public_relays() {
+        // A file written by an older version has no `relay_url`; it must load, and must keep meaning "public relays".
+        let old = r#"{ "bind": null, "allow_relay": true }"#;
+        let network: NetworkSettings = serde_json::from_str(old).unwrap();
+        assert_eq!(network.relay_url, None);
+        assert!(network.allow_relay);
+        // And nothing is written for a person who never chose one, so an older owner reading the file is not surprised.
+        let written = serde_json::to_string(&NetworkSettings::default()).unwrap();
+        assert!(!written.contains("relay_url"), "{written}");
+    }
+
+    #[test]
+    fn a_personal_relay_address_is_kept_only_as_one_plain_https_address() {
+        for good in [
+            "https://r.example.org",
+            "https://r.example.org/",
+            "https://r.example.org:8443",
+        ] {
+            assert_eq!(with_relay(good).validate(), Ok(()), "{good}");
+        }
+        for bad in [
+            "",
+            "http://r.example.org",
+            "r.example.org",
+            "https://",
+            "https:///",
+            "https://r.example.org/path",
+            "https://r.example.org?token=abc",
+            "https://r.example.org#frag",
+            "https://user:secret@r.example.org",
+            "https://r.example.org\\evil",
+            "https://r.exam ple.org",
+            "https://r.example.org\n",
+            &format!("https://{}", "a".repeat(MAX_RELAY_URL_BYTES)),
+        ] {
+            assert_eq!(
+                with_relay(bad).validate(),
+                Err(SettingsError::RelayUrl),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn choosing_a_personal_relay_and_going_back_to_the_public_ones() {
+        let own = SettingsPatch {
+            relay: Some(RelayChange::Own("https://r.example.org".into())),
+            ..SettingsPatch::default()
+        };
+        let chosen = own.apply(&Settings::default()).unwrap();
+        assert_eq!(
+            chosen.network.relay_url.as_deref(),
+            Some("https://r.example.org")
+        );
+        assert!(
+            chosen.network.allow_relay,
+            "a personal relay is still a relay"
+        );
+
+        let back = SettingsPatch {
+            relay: Some(RelayChange::Public),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(back.apply(&chosen).unwrap().network.relay_url, None);
+
+        // A patch that is not about the relay leaves the choice alone.
+        let other = SettingsPatch {
+            reduced_motion: Some(true),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            other.apply(&chosen).unwrap().network.relay_url,
+            chosen.network.relay_url
+        );
+
+        // A refused address is refused whole, and the saved settings are untouched.
+        let bad = SettingsPatch {
+            relay: Some(RelayChange::Own("http://r.example.org".into())),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(bad.apply(&chosen), Err(SettingsError::RelayUrl));
+    }
+
+    #[test]
+    fn a_personal_relay_chosen_with_relays_off_switches_them_on_unless_the_patch_says_otherwise() {
+        let mut off = Settings::default();
+        off.network.allow_relay = false;
+        let own = SettingsPatch {
+            relay: Some(RelayChange::Own("https://r.example.org".into())),
+            ..SettingsPatch::default()
+        };
+        let chosen = own.apply(&off).unwrap();
+        assert!(
+            chosen.network.allow_relay,
+            "the relay that was just chosen must not be silently unused"
+        );
+        assert_eq!(
+            chosen.network.relay_url.as_deref(),
+            Some("https://r.example.org")
+        );
+
+        // Said in so many words that they are off, with a relay of one's own: refused, never half applied.
+        let both = SettingsPatch {
+            allow_relay: Some(false),
+            relay: own.relay.clone(),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            both.apply(&Settings::default()),
+            Err(SettingsError::RelayOff)
+        );
+
+        // The same state in a file edited by hand is refused too.
+        let mut contradictory = with_relay("https://r.example.org");
+        contradictory.network.allow_relay = false;
+        assert_eq!(contradictory.validate(), Err(SettingsError::RelayOff));
+
+        // Switching relays off while a personal one is saved is the same contradiction, so the address goes with it.
+        let switch_off = SettingsPatch {
+            allow_relay: Some(false),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(switch_off.apply(&chosen).unwrap().network.relay_url, None);
+    }
+
+    #[test]
+    fn a_patch_about_the_relay_is_written_with_only_that_field() {
+        let patch = SettingsPatch {
+            relay: Some(RelayChange::Public),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_string(&patch).unwrap(),
+            r#"{"relay":{"mode":"public"}}"#
+        );
+        let own = SettingsPatch {
+            relay: Some(RelayChange::Own("https://r.example.org".into())),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_string(&own).unwrap(),
+            r#"{"relay":{"mode":"own","url":"https://r.example.org"}}"#
+        );
+    }
 
     fn bound(address: [u8; 4]) -> Settings {
         let mut s = Settings::default();
@@ -595,6 +924,9 @@ mod tests {
                 SettingsError::Scale => SettingsError::Scale,
                 SettingsError::Bind => SettingsError::Bind,
                 SettingsError::BoundRelay => SettingsError::BoundRelay,
+                SettingsError::RelayUrl => SettingsError::RelayUrl,
+                SettingsError::RelayOff => SettingsError::RelayOff,
+                SettingsError::RelayPolicy => SettingsError::RelayPolicy,
                 SettingsError::SaveFolder => SettingsError::SaveFolder,
                 SettingsError::OfferTimeout => SettingsError::OfferTimeout,
                 SettingsError::ThemeName => SettingsError::ThemeName,
@@ -607,6 +939,9 @@ mod tests {
             SettingsError::Scale,
             SettingsError::Bind,
             SettingsError::BoundRelay,
+            SettingsError::RelayUrl,
+            SettingsError::RelayOff,
+            SettingsError::RelayPolicy,
             SettingsError::SaveFolder,
             SettingsError::OfferTimeout,
             SettingsError::ThemeName,
@@ -705,20 +1040,40 @@ mod tests {
             let mut json = serde_json::to_value(Settings::default()).unwrap();
             json["navigation"] = old.into();
             json["sidebar_open"] = true.into();
-            let loaded = serde_json::from_value::<Settings>(json).unwrap_or_else(|e| panic!("{old}: {e}"));
+            let loaded =
+                serde_json::from_value::<Settings>(json).unwrap_or_else(|e| panic!("{old}: {e}"));
             let rewritten = serde_json::to_value(&loaded).unwrap();
-            assert!(rewritten.get("navigation").is_none() && rewritten.get("sidebar_open").is_none(), "{old}");
+            assert!(
+                rewritten.get("navigation").is_none() && rewritten.get("sidebar_open").is_none(),
+                "{old}"
+            );
         }
     }
 
     #[test]
     fn a_patch_changes_the_one_option_and_nothing_else() {
         let current = Settings::default();
-        let on = SettingsPatch { collapse_to_icons: Some(true), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let on = SettingsPatch {
+            collapse_to_icons: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert!(on.collapse_to_icons);
-        assert_eq!(Settings { collapse_to_icons: false, ..on.clone() }, current);
+        assert_eq!(
+            Settings {
+                collapse_to_icons: false,
+                ..on.clone()
+            },
+            current
+        );
         // A patch that does not mention it leaves it alone.
-        let kept = SettingsPatch { reduced_motion: Some(true), ..SettingsPatch::default() }.apply(&on).unwrap();
+        let kept = SettingsPatch {
+            reduced_motion: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&on)
+        .unwrap();
         assert!(kept.collapse_to_icons);
     }
 
@@ -740,20 +1095,47 @@ mod tests {
     #[test]
     fn a_patch_turns_the_two_finger_option_off_and_changes_nothing_else() {
         let current = Settings::default();
-        let off = SettingsPatch { two_finger_settings: Some(false), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let off = SettingsPatch {
+            two_finger_settings: Some(false),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert!(!off.two_finger_settings);
-        assert_eq!(Settings { two_finger_settings: true, ..off.clone() }, current);
+        assert_eq!(
+            Settings {
+                two_finger_settings: true,
+                ..off.clone()
+            },
+            current
+        );
         // A patch that does not mention it leaves it alone, off as well as on.
-        let kept = SettingsPatch { reduced_motion: Some(true), ..SettingsPatch::default() }.apply(&off).unwrap();
+        let kept = SettingsPatch {
+            reduced_motion: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&off)
+        .unwrap();
         assert!(!kept.two_finger_settings);
-        let kept_on = SettingsPatch { reduced_motion: Some(true), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let kept_on = SettingsPatch {
+            reduced_motion: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert!(kept_on.two_finger_settings);
     }
 
     #[test]
     fn the_two_finger_option_is_written_as_one_key_by_its_patch() {
-        let one = SettingsPatch { two_finger_settings: Some(false), ..SettingsPatch::default() };
-        assert_eq!(serde_json::to_value(one).unwrap(), serde_json::json!({ "two_finger_settings": false }));
+        let one = SettingsPatch {
+            two_finger_settings: Some(false),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_value(one).unwrap(),
+            serde_json::json!({ "two_finger_settings": false })
+        );
     }
 
     #[test]
@@ -762,18 +1144,40 @@ mod tests {
         // before a field existed, and refuses fields it does not know, then still understands every
         // patch that does not mention it. Writing the unused fields as `null` would make a window
         // newer than its owner fail on every single change.
-        assert_eq!(serde_json::to_value(SettingsPatch::default()).unwrap(), serde_json::json!({}));
-        let one = SettingsPatch { reduced_motion: Some(true), ..SettingsPatch::default() };
-        assert_eq!(serde_json::to_value(one).unwrap(), serde_json::json!({ "reduced_motion": true }));
-        let icons = SettingsPatch { collapse_to_icons: Some(true), ..SettingsPatch::default() };
-        assert_eq!(serde_json::to_value(icons).unwrap(), serde_json::json!({ "collapse_to_icons": true }));
+        assert_eq!(
+            serde_json::to_value(SettingsPatch::default()).unwrap(),
+            serde_json::json!({})
+        );
+        let one = SettingsPatch {
+            reduced_motion: Some(true),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_value(one).unwrap(),
+            serde_json::json!({ "reduced_motion": true })
+        );
+        let icons = SettingsPatch {
+            collapse_to_icons: Some(true),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_value(icons).unwrap(),
+            serde_json::json!({ "collapse_to_icons": true })
+        );
     }
 
     #[test]
     fn a_patch_without_the_newer_fields_is_still_read() {
         // What a window older than the owner sends: nothing about the bar at all.
-        let read: SettingsPatch = serde_json::from_value(serde_json::json!({ "theme": "dark" })).unwrap();
-        assert_eq!(read, SettingsPatch { theme: Some(Theme::Dark), ..SettingsPatch::default() });
+        let read: SettingsPatch =
+            serde_json::from_value(serde_json::json!({ "theme": "dark" })).unwrap();
+        assert_eq!(
+            read,
+            SettingsPatch {
+                theme: Some(Theme::Dark),
+                ..SettingsPatch::default()
+            }
+        );
     }
 
     #[test]
@@ -784,8 +1188,10 @@ mod tests {
         // refused as "changed elsewhere" until the owner was restarted.
         let mut json = serde_json::to_value(Settings::default()).unwrap();
         json["navigation"] = "top".into();
-        let held: Settings = serde_json::from_value(json).expect("a file with the earlier field loads");
-        let sent_back: Settings = serde_json::from_value(serde_json::to_value(&held).unwrap()).unwrap();
+        let held: Settings =
+            serde_json::from_value(json).expect("a file with the earlier field loads");
+        let sent_back: Settings =
+            serde_json::from_value(serde_json::to_value(&held).unwrap()).unwrap();
         assert_eq!(held, sent_back);
     }
 
@@ -805,11 +1211,26 @@ mod tests {
     fn an_owner_that_predates_navigation_still_accepts_every_patch_that_does_not_use_it() {
         // The changes the Settings screen makes, written as the window writes them.
         for patch in [
-            SettingsPatch { reduced_motion: Some(true), ..SettingsPatch::default() },
-            SettingsPatch { allow_relay: Some(false), ..SettingsPatch::default() },
-            SettingsPatch { background: Some(true), ..SettingsPatch::default() },
-            SettingsPatch { theme: Some(Theme::Dark), ..SettingsPatch::default() },
-            SettingsPatch { device_name: Some("Laptop".into()), ..SettingsPatch::default() },
+            SettingsPatch {
+                reduced_motion: Some(true),
+                ..SettingsPatch::default()
+            },
+            SettingsPatch {
+                allow_relay: Some(false),
+                ..SettingsPatch::default()
+            },
+            SettingsPatch {
+                background: Some(true),
+                ..SettingsPatch::default()
+            },
+            SettingsPatch {
+                theme: Some(Theme::Dark),
+                ..SettingsPatch::default()
+            },
+            SettingsPatch {
+                device_name: Some("Laptop".into()),
+                ..SettingsPatch::default()
+            },
         ] {
             let written = serde_json::to_value(&patch).unwrap();
             let read = serde_json::from_value::<PatchBeforeNavigation>(written.clone());
@@ -817,15 +1238,26 @@ mod tests {
         }
         // And the one change it cannot know is refused by it, which is right: it is not applied
         // half, and the window says so.
-        let new = serde_json::to_value(SettingsPatch { collapse_to_icons: Some(true), ..SettingsPatch::default() }).unwrap();
+        let new = serde_json::to_value(SettingsPatch {
+            collapse_to_icons: Some(true),
+            ..SettingsPatch::default()
+        })
+        .unwrap();
         assert!(serde_json::from_value::<PatchBeforeNavigation>(new).is_err());
     }
 
     #[test]
-    fn incoming_files_are_saved_on_their_own_into_the_default_folder_until_the_person_says_otherwise() {
+    fn incoming_files_are_saved_on_their_own_into_the_default_folder_until_the_person_says_otherwise()
+     {
         let defaults = Settings::default();
-        assert!(!defaults.auto_save, "a new person is asked where each file goes, not told after the fact where it went");
-        assert_eq!(defaults.save_folder, None, "the default folder is worked out where a file is saved, not written");
+        assert!(
+            !defaults.auto_save,
+            "a new person is asked where each file goes, not told after the fact where it went"
+        );
+        assert_eq!(
+            defaults.save_folder, None,
+            "the default folder is worked out where a file is saved, not written"
+        );
         assert!(defaults.validate().is_ok());
     }
 
@@ -837,83 +1269,197 @@ mod tests {
         object.remove("auto_save");
         object.remove("save_folder");
         let read: Settings = serde_json::from_value(value).expect("an older file was refused");
-        assert!(!read.auto_save, "an older file turned saving on its own on, which nobody asked for");
+        assert!(
+            !read.auto_save,
+            "an older file turned saving on its own on, which nobody asked for"
+        );
         assert_eq!(read.save_folder, None);
     }
 
     #[test]
     fn sending_instantly_is_off_for_a_new_person_and_for_a_file_from_before_it_existed() {
-        assert!(!Settings::default().send_instantly, "a new person was sent files without the pause that protects a wrong choice");
+        assert!(
+            !Settings::default().send_instantly,
+            "a new person was sent files without the pause that protects a wrong choice"
+        );
         let mut value = serde_json::to_value(Settings::default()).unwrap();
         value.as_object_mut().unwrap().remove("send_instantly");
         let read: Settings = serde_json::from_value(value).expect("an older file was refused");
-        assert!(!read.send_instantly, "an older file turned sending instantly on, which nobody asked for");
+        assert!(
+            !read.send_instantly,
+            "an older file turned sending instantly on, which nobody asked for"
+        );
     }
 
     #[test]
     fn sending_instantly_changes_alone_and_is_written_as_one_key() {
-        let current = Settings { auto_save: true, reduced_motion: true, ..Settings::default() };
-        let on = SettingsPatch { send_instantly: Some(true), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let current = Settings {
+            auto_save: true,
+            reduced_motion: true,
+            ..Settings::default()
+        };
+        let on = SettingsPatch {
+            send_instantly: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert!(on.send_instantly);
-        assert_eq!(Settings { send_instantly: false, ..on.clone() }, current, "turning it on changed something else");
-        let off = SettingsPatch { send_instantly: Some(false), ..SettingsPatch::default() }.apply(&on).unwrap();
+        assert_eq!(
+            Settings {
+                send_instantly: false,
+                ..on.clone()
+            },
+            current,
+            "turning it on changed something else"
+        );
+        let off = SettingsPatch {
+            send_instantly: Some(false),
+            ..SettingsPatch::default()
+        }
+        .apply(&on)
+        .unwrap();
         assert_eq!(off, current);
         // A patch that does not mention it leaves it alone, off as well as on.
-        assert!(SettingsPatch { auto_save: Some(false), ..SettingsPatch::default() }.apply(&on).unwrap().send_instantly);
-        assert!(!SettingsPatch { auto_save: Some(false), ..SettingsPatch::default() }.apply(&off).unwrap().send_instantly);
-        let one = SettingsPatch { send_instantly: Some(true), ..SettingsPatch::default() };
-        assert_eq!(serde_json::to_value(one).unwrap(), serde_json::json!({ "send_instantly": true }));
+        assert!(
+            SettingsPatch {
+                auto_save: Some(false),
+                ..SettingsPatch::default()
+            }
+            .apply(&on)
+            .unwrap()
+            .send_instantly
+        );
+        assert!(
+            !SettingsPatch {
+                auto_save: Some(false),
+                ..SettingsPatch::default()
+            }
+            .apply(&off)
+            .unwrap()
+            .send_instantly
+        );
+        let one = SettingsPatch {
+            send_instantly: Some(true),
+            ..SettingsPatch::default()
+        };
+        assert_eq!(
+            serde_json::to_value(one).unwrap(),
+            serde_json::json!({ "send_instantly": true })
+        );
     }
 
     #[test]
     fn the_folder_for_incoming_files_must_be_a_full_path_of_reasonable_length() {
-        for bad in [std::path::PathBuf::from("relative/dir"), std::path::PathBuf::from("~/Downloads"), std::path::PathBuf::from("")] {
-            let s = Settings { save_folder: Some(bad.clone()), ..Settings::default() };
-            assert_eq!(s.validate(), Err(SettingsError::SaveFolder), "{bad:?} was accepted");
+        for bad in [
+            std::path::PathBuf::from("relative/dir"),
+            std::path::PathBuf::from("~/Downloads"),
+            std::path::PathBuf::from(""),
+        ] {
+            let s = Settings {
+                save_folder: Some(bad.clone()),
+                ..Settings::default()
+            };
+            assert_eq!(
+                s.validate(),
+                Err(SettingsError::SaveFolder),
+                "{bad:?} was accepted"
+            );
         }
         let too_long = std::path::PathBuf::from(format!("/{}", "a".repeat(MAX_FOLDER_BYTES)));
-        assert_eq!(Settings { save_folder: Some(too_long), ..Settings::default() }.validate(), Err(SettingsError::SaveFolder));
-        let good = Settings { save_folder: Some(std::path::PathBuf::from("/home/me/Received")), ..Settings::default() };
+        assert_eq!(
+            Settings {
+                save_folder: Some(too_long),
+                ..Settings::default()
+            }
+            .validate(),
+            Err(SettingsError::SaveFolder)
+        );
+        let good = Settings {
+            save_folder: Some(std::path::PathBuf::from("/home/me/Received")),
+            ..Settings::default()
+        };
         assert!(good.validate().is_ok());
     }
 
     #[test]
     fn the_save_settings_are_changed_by_a_patch_and_the_folder_can_be_given_back_to_the_default() {
         let current = Settings::default();
-        let on = SettingsPatch { auto_save: Some(true), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let on = SettingsPatch {
+            auto_save: Some(true),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert!(on.auto_save);
-        let off = SettingsPatch { auto_save: Some(false), ..SettingsPatch::default() }.apply(&on).unwrap();
+        let off = SettingsPatch {
+            auto_save: Some(false),
+            ..SettingsPatch::default()
+        }
+        .apply(&on)
+        .unwrap();
         assert!(!off.auto_save);
         // Independence, from BOTH states of saving on its own: choosing a folder must leave it as it was, whether it was on or
         // off (from only one state a change that sets it to that same value could not be seen).
         for starting in [on.clone(), off.clone()] {
             let chosen = SettingsPatch {
-                save_folder: Some(SaveFolderChange::Folder(std::path::PathBuf::from("/srv/in"))),
+                save_folder: Some(SaveFolderChange::Folder(std::path::PathBuf::from(
+                    "/srv/in",
+                ))),
                 ..SettingsPatch::default()
             }
             .apply(&starting)
             .unwrap();
-            assert_eq!(chosen.save_folder, Some(std::path::PathBuf::from("/srv/in")));
-            assert_eq!(chosen.auto_save, starting.auto_save, "choosing a folder changed whether saving on its own is on");
+            assert_eq!(
+                chosen.save_folder,
+                Some(std::path::PathBuf::from("/srv/in"))
+            );
+            assert_eq!(
+                chosen.auto_save, starting.auto_save,
+                "choosing a folder changed whether saving on its own is on"
+            );
             // And the other way: turning it on or off leaves the chosen folder where it is.
             for value in [true, false] {
-                let flipped = SettingsPatch { auto_save: Some(value), ..SettingsPatch::default() }.apply(&chosen).unwrap();
-                assert_eq!(flipped.save_folder, chosen.save_folder, "switching saving on its own to {value} lost the folder");
+                let flipped = SettingsPatch {
+                    auto_save: Some(value),
+                    ..SettingsPatch::default()
+                }
+                .apply(&chosen)
+                .unwrap();
+                assert_eq!(
+                    flipped.save_folder, chosen.save_folder,
+                    "switching saving on its own to {value} lost the folder"
+                );
             }
         }
         let chosen = SettingsPatch {
-            save_folder: Some(SaveFolderChange::Folder(std::path::PathBuf::from("/srv/in"))),
+            save_folder: Some(SaveFolderChange::Folder(std::path::PathBuf::from(
+                "/srv/in",
+            ))),
             ..SettingsPatch::default()
         }
         .apply(&current)
         .unwrap();
-        let back = SettingsPatch { save_folder: Some(SaveFolderChange::Default), ..SettingsPatch::default() }.apply(&chosen).unwrap();
+        let back = SettingsPatch {
+            save_folder: Some(SaveFolderChange::Default),
+            ..SettingsPatch::default()
+        }
+        .apply(&chosen)
+        .unwrap();
         assert_eq!(back.save_folder, None);
         // A folder that is not a full path is refused by the patch, and nothing is applied.
-        let bad = SettingsPatch { save_folder: Some(SaveFolderChange::Folder("nope".into())), ..SettingsPatch::default() };
+        let bad = SettingsPatch {
+            save_folder: Some(SaveFolderChange::Folder("nope".into())),
+            ..SettingsPatch::default()
+        };
         assert_eq!(bad.apply(&current), Err(SettingsError::SaveFolder));
         // A patch that does not mention them leaves them as they were.
-        let untouched = SettingsPatch { theme: Some(Theme::Dark), ..SettingsPatch::default() }.apply(&chosen).unwrap();
+        let untouched = SettingsPatch {
+            theme: Some(Theme::Dark),
+            ..SettingsPatch::default()
+        }
+        .apply(&chosen)
+        .unwrap();
         assert_eq!(untouched.save_folder, chosen.save_folder);
         assert_eq!(untouched.auto_save, chosen.auto_save);
     }
@@ -922,9 +1468,15 @@ mod tests {
     fn the_wait_for_an_answer_defaults_to_two_minutes_and_an_older_file_loads_with_it() {
         assert_eq!(Settings::default().offer_timeout_seconds, 120);
         let mut value = serde_json::to_value(Settings::default()).unwrap();
-        value.as_object_mut().unwrap().remove("offer_timeout_seconds");
+        value
+            .as_object_mut()
+            .unwrap()
+            .remove("offer_timeout_seconds");
         let read: Settings = serde_json::from_value(value).expect("an older file was refused");
-        assert_eq!(read.offer_timeout_seconds, DEFAULT_OFFER_TIMEOUT, "an older file got another wait than the default");
+        assert_eq!(
+            read.offer_timeout_seconds, DEFAULT_OFFER_TIMEOUT,
+            "an older file got another wait than the default"
+        );
     }
 
     #[test]
@@ -938,7 +1490,10 @@ mod tests {
             (MAX_OFFER_TIMEOUT + 1, false),
             (u32::MAX, false),
         ] {
-            let patch = SettingsPatch { offer_timeout_seconds: Some(seconds), ..SettingsPatch::default() };
+            let patch = SettingsPatch {
+                offer_timeout_seconds: Some(seconds),
+                ..SettingsPatch::default()
+            };
             let outcome = patch.apply(&Settings::default());
             assert_eq!(outcome.is_ok(), allowed, "{seconds} s: {outcome:?}");
             if !allowed {
@@ -950,12 +1505,32 @@ mod tests {
     #[test]
     fn changing_the_wait_changes_nothing_else_and_a_patch_that_does_not_mention_it_keeps_it() {
         let current = Settings::default();
-        let hour = SettingsPatch { offer_timeout_seconds: Some(3600), ..SettingsPatch::default() }.apply(&current).unwrap();
+        let hour = SettingsPatch {
+            offer_timeout_seconds: Some(3600),
+            ..SettingsPatch::default()
+        }
+        .apply(&current)
+        .unwrap();
         assert_eq!(hour.offer_timeout_seconds, 3600);
-        assert_eq!(Settings { offer_timeout_seconds: current.offer_timeout_seconds, ..hour.clone() }, current, "it changed something else");
-        let untouched = SettingsPatch { theme: Some(Theme::Dark), ..SettingsPatch::default() }.apply(&hour).unwrap();
+        assert_eq!(
+            Settings {
+                offer_timeout_seconds: current.offer_timeout_seconds,
+                ..hour.clone()
+            },
+            current,
+            "it changed something else"
+        );
+        let untouched = SettingsPatch {
+            theme: Some(Theme::Dark),
+            ..SettingsPatch::default()
+        }
+        .apply(&hour)
+        .unwrap();
         assert_eq!(untouched.offer_timeout_seconds, 3600);
         // The words a person is told are the ones the error carries.
-        assert_eq!(SettingsError::OfferTimeout.words(), SettingsError::OfferTimeout.to_string());
+        assert_eq!(
+            SettingsError::OfferTimeout.words(),
+            SettingsError::OfferTimeout.to_string()
+        );
     }
 }

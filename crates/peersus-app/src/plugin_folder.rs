@@ -41,21 +41,34 @@ pub fn look(directory: &Path) -> Looked {
     let manifest = discovery::read_package(directory).ok();
     let manifest_state = match manifest.as_ref().map(check_manifest) {
         Some(Ok(())) => Manifest::Good,
-        Some(Err(crate::plugin_host::RegistryError::UnsupportedPlatform)) => Manifest::UnsupportedPlatform,
+        Some(Err(crate::plugin_host::RegistryError::UnsupportedPlatform)) => {
+            Manifest::UnsupportedPlatform
+        }
         _ => Manifest::Unusable,
     };
-    let asks: BTreeSet<String> = manifest.as_ref().map(|m| m.capabilities.keys().cloned().collect()).unwrap_or_default();
+    let asks: BTreeSet<String> = manifest
+        .as_ref()
+        .map(|m| m.capabilities.keys().cloned().collect())
+        .unwrap_or_default();
     // The program: the file the manifest names, held to the same rules as a program the application will run. Without a
     // usable manifest there is no name to look for, and the plugin is broken anyway.
     let program_name = manifest.as_ref().map(|m| m.program_file().to_owned());
     let program_path = program_name.as_ref().map(|name| directory.join(name));
-    let program_fit = program_path.as_ref().zip(manifest.as_ref())
+    let program_fit = program_path
+        .as_ref()
+        .zip(manifest.as_ref())
         .is_some_and(|(path, manifest)| discovery::check_program(path, manifest.execution).is_ok());
     let approved = plugin_approval::read(directory);
     let approval = match (&approved, &manifest, &program_name, &program_path) {
         (Some(approved), Some(manifest), Some(name), Some(path)) => {
             let digest = plugin_approval::program_digest(path, MAX_PROGRAM_BYTES);
-            Approval::Given(plugin_approval::compare(approved, manifest, name, digest.as_deref(), &asks))
+            Approval::Given(plugin_approval::compare(
+                approved,
+                manifest,
+                name,
+                digest.as_deref(),
+                &asks,
+            ))
         }
         _ => Approval::None,
     };
@@ -68,13 +81,25 @@ pub fn look(directory: &Path) -> Looked {
         discovery::check_directory(store).is_ok() && discovery::check_directory(directory).is_ok()
     });
     let found = Found {
-        folder: if folder_safe { Folder::Safe } else { Folder::NotSafe },
+        folder: if folder_safe {
+            Folder::Safe
+        } else {
+            Folder::NotSafe
+        },
         manifest: manifest_state,
-        program: if program_fit { Program::Good } else { Program::Unusable },
+        program: if program_fit {
+            Program::Good
+        } else {
+            Program::Unusable
+        },
         approval,
         disabled,
     };
-    Looked { state: plugin_state::classify(&found), asks, approved }
+    Looked {
+        state: plugin_state::classify(&found),
+        asks,
+        approved,
+    }
 }
 
 #[cfg(test)]
@@ -118,7 +143,10 @@ mod tests {
         let program = folder.join("plugin");
         fs::write(&program, b"#!/bin/sh\nexit 0\n").unwrap();
         fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).unwrap();
-        Plugin { _store: store, folder }
+        Plugin {
+            _store: store,
+            folder,
+        }
     }
 
     /// Approve what is in the folder now, the way installing does: by the very same function, so that what these tests call
@@ -132,7 +160,10 @@ mod tests {
         let folder = folder();
         assert_eq!(look(folder.path()).state, State::NeedsApproval);
         // What it asks for is read so that the person can be shown it before approving.
-        assert_eq!(look(folder.path()).asks, BTreeSet::from(["thing.use".to_owned()]));
+        assert_eq!(
+            look(folder.path()).asks,
+            BTreeSet::from(["thing.use".to_owned()])
+        );
     }
 
     #[test]
@@ -147,19 +178,42 @@ mod tests {
 
     #[test]
     fn a_nonexecutable_module_becomes_ready_only_after_its_executor_is_approved() {
-        use peersus_plugin_api::manifest::{Execution, EXECUTION_ABI_VERSION};
-        for execution in [Execution::Wasm { abi: EXECUTION_ABI_VERSION }, Execution::NativeLibrary { abi: EXECUTION_ABI_VERSION }] {
+        use peersus_plugin_api::manifest::{EXECUTION_ABI_VERSION, Execution};
+        for execution in [
+            Execution::Wasm {
+                abi: EXECUTION_ABI_VERSION,
+            },
+            Execution::NativeLibrary {
+                abi: EXECUTION_ABI_VERSION,
+            },
+        ] {
             let folder = folder();
-            let mut manifest: peersus_plugin_api::manifest::Manifest = serde_json::from_str(MANIFEST).unwrap();
+            let mut manifest: peersus_plugin_api::manifest::Manifest =
+                serde_json::from_str(MANIFEST).unwrap();
             manifest.execution = execution;
-            fs::write(folder.path().join("plugin.json"), serde_json::to_vec(&manifest).unwrap()).unwrap();
-            fs::set_permissions(folder.path().join("plugin"), fs::Permissions::from_mode(0o600)).unwrap();
+            fs::write(
+                folder.path().join("plugin.json"),
+                serde_json::to_vec(&manifest).unwrap(),
+            )
+            .unwrap();
+            fs::set_permissions(
+                folder.path().join("plugin"),
+                fs::Permissions::from_mode(0o600),
+            )
+            .unwrap();
             assert_eq!(look(folder.path()).state, State::NeedsApproval);
             approve(folder.path());
             assert_eq!(look(folder.path()).state, State::Ready);
             manifest.execution = Execution::Process;
-            fs::write(folder.path().join("plugin.json"), serde_json::to_vec(&manifest).unwrap()).unwrap();
-            assert!(!look(folder.path()).state.may_run(), "changing the executor must never inherit a module approval");
+            fs::write(
+                folder.path().join("plugin.json"),
+                serde_json::to_vec(&manifest).unwrap(),
+            )
+            .unwrap();
+            assert!(
+                !look(folder.path()).state.may_run(),
+                "changing the executor must never inherit a module approval"
+            );
         }
     }
 
@@ -172,10 +226,19 @@ mod tests {
         approve(folder.path());
         fs::write(
             folder.path().join("plugin.json"),
-            MANIFEST.replace("Lets the thing do what it does.", "A new description, written later.").replace("  ", "\t"),
+            MANIFEST
+                .replace(
+                    "Lets the thing do what it does.",
+                    "A new description, written later.",
+                )
+                .replace("  ", "\t"),
         )
         .unwrap();
-        assert_eq!(look(folder.path()).state, State::Ready, "rewriting the manifest shut the plugin out");
+        assert_eq!(
+            look(folder.path()).state,
+            State::Ready,
+            "rewriting the manifest shut the plugin out"
+        );
     }
 
     #[test]
@@ -184,11 +247,10 @@ mod tests {
         approve(folder.path());
         fs::write(
             folder.path().join("plugin.json"),
-            MANIFEST
-                .replace(
-                    r#""capabilities": {"thing.use": "Lets the thing do what it does."}"#,
-                    r#""capabilities": {"thing.use": "x", "more.use": "Asks for more."}"#,
-                ),
+            MANIFEST.replace(
+                r#""capabilities": {"thing.use": "Lets the thing do what it does."}"#,
+                r#""capabilities": {"thing.use": "x", "more.use": "Asks for more."}"#,
+            ),
         )
         .unwrap();
         assert_eq!(look(folder.path()).state, State::NeedsApproval);
@@ -246,21 +308,36 @@ mod tests {
         fs::remove_file(folder.path().join("plugin.json")).unwrap();
         assert_eq!(look(folder.path()).state, State::Broken(Why::NoManifest));
         // A manifest that parses but that the application refuses is not usable either.
-        fs::write(folder.path().join("plugin.json"), MANIFEST.replace("\"manifest_version\": 1", "\"manifest_version\": 99")).unwrap();
+        fs::write(
+            folder.path().join("plugin.json"),
+            MANIFEST.replace("\"manifest_version\": 1", "\"manifest_version\": 99"),
+        )
+        .unwrap();
         assert_eq!(look(folder.path()).state, State::Broken(Why::NoManifest));
     }
 
     #[test]
     fn a_folder_with_no_program_fit_to_run_is_broken() {
         for (what, change) in [
-            ("no program", (|p: &Path| fs::remove_file(p).unwrap()) as fn(&Path)),
-            ("not runnable", |p| fs::set_permissions(p, fs::Permissions::from_mode(0o600)).unwrap()),
-            ("others can change it", |p| fs::set_permissions(p, fs::Permissions::from_mode(0o777)).unwrap()),
+            (
+                "no program",
+                (|p: &Path| fs::remove_file(p).unwrap()) as fn(&Path),
+            ),
+            ("not runnable", |p| {
+                fs::set_permissions(p, fs::Permissions::from_mode(0o600)).unwrap()
+            }),
+            ("others can change it", |p| {
+                fs::set_permissions(p, fs::Permissions::from_mode(0o777)).unwrap()
+            }),
         ] {
             let folder = folder();
             approve(folder.path());
             change(&folder.path().join("plugin"));
-            assert_eq!(look(folder.path()).state, State::Broken(Why::NoProgram), "{what}");
+            assert_eq!(
+                look(folder.path()).state,
+                State::Broken(Why::NoProgram),
+                "{what}"
+            );
         }
     }
 
@@ -272,16 +349,28 @@ mod tests {
         for mode in [0o770, 0o707, 0o777, 0o720] {
             let folder = folder();
             approve(folder.path());
-            assert_eq!(look(folder.path()).state, State::Ready, "the control was not ready, so what follows proves nothing");
+            assert_eq!(
+                look(folder.path()).state,
+                State::Ready,
+                "the control was not ready, so what follows proves nothing"
+            );
             fs::set_permissions(folder.path(), fs::Permissions::from_mode(mode)).unwrap();
-            assert_eq!(look(folder.path()).state, State::Broken(Why::NotSafe), "mode {mode:o} was trusted");
+            assert_eq!(
+                look(folder.path()).state,
+                State::Broken(Why::NotSafe),
+                "mode {mode:o} was trusted"
+            );
         }
         // A folder only its owner can change, and one others can read but not change, are fine.
         for mode in [0o700, 0o750, 0o755] {
             let folder = folder();
             approve(folder.path());
             fs::set_permissions(folder.path(), fs::Permissions::from_mode(mode)).unwrap();
-            assert_eq!(look(folder.path()).state, State::Ready, "mode {mode:o} was refused");
+            assert_eq!(
+                look(folder.path()).state,
+                State::Ready,
+                "mode {mode:o} was refused"
+            );
         }
     }
 
@@ -295,17 +384,33 @@ mod tests {
         for mode in [0o770, 0o707, 0o777, 0o720] {
             let plugin = folder();
             approve(plugin.path());
-            assert_eq!(look(plugin.path()).state, State::Ready, "the control was not ready, so what follows proves nothing");
+            assert_eq!(
+                look(plugin.path()).state,
+                State::Ready,
+                "the control was not ready, so what follows proves nothing"
+            );
             let store = plugin.path().parent().unwrap();
             fs::set_permissions(store, fs::Permissions::from_mode(mode)).unwrap();
-            assert_eq!(look(plugin.path()).state, State::Broken(Why::NotSafe), "a store of mode {mode:o} was trusted");
+            assert_eq!(
+                look(plugin.path()).state,
+                State::Broken(Why::NotSafe),
+                "a store of mode {mode:o} was trusted"
+            );
         }
         // A store only this user can change, whoever may read it, is fine.
         for mode in [0o700, 0o750, 0o755] {
             let plugin = folder();
             approve(plugin.path());
-            fs::set_permissions(plugin.path().parent().unwrap(), fs::Permissions::from_mode(mode)).unwrap();
-            assert_eq!(look(plugin.path()).state, State::Ready, "a store of mode {mode:o} was refused");
+            fs::set_permissions(
+                plugin.path().parent().unwrap(),
+                fs::Permissions::from_mode(mode),
+            )
+            .unwrap();
+            assert_eq!(
+                look(plugin.path()).state,
+                State::Ready,
+                "a store of mode {mode:o} was refused"
+            );
         }
     }
 
@@ -317,18 +422,27 @@ mod tests {
         let store = tempfile::tempdir().unwrap();
         fs::set_permissions(store.path(), fs::Permissions::from_mode(0o700)).unwrap();
         let missing = look(&store.path().join("missing")).state;
-        assert!(matches!(missing, State::Broken(_)), "a missing folder was {missing:?}");
+        assert!(
+            matches!(missing, State::Broken(_)),
+            "a missing folder was {missing:?}"
+        );
         let file = store.path().join("afile");
         fs::write(&file, b"x").unwrap();
         let not_a_folder = look(&file).state;
-        assert!(matches!(not_a_folder, State::Broken(_)), "a file in place of a folder was {not_a_folder:?}");
+        assert!(
+            matches!(not_a_folder, State::Broken(_)),
+            "a file in place of a folder was {not_a_folder:?}"
+        );
         // Neither may run, and neither is an error.
         assert!(!missing.may_run() && !not_a_folder.may_run());
         // In a place others can write (a shared temporary directory), the same is true, and it is the folder's being unsafe
         // that is said.
         let shared = tempfile::tempdir().unwrap();
         fs::set_permissions(shared.path(), fs::Permissions::from_mode(0o777)).unwrap();
-        assert_eq!(look(&shared.path().join("missing")).state, State::Broken(Why::NotSafe));
+        assert_eq!(
+            look(&shared.path().join("missing")).state,
+            State::Broken(Why::NotSafe)
+        );
     }
 
     #[test]
@@ -336,7 +450,10 @@ mod tests {
         let folder = folder();
         fs::write(
             folder.path().join("plugin.json"),
-            MANIFEST.replace("\"imports\": []", "\"imports\": [], \"program\": \"peersus-thing\""),
+            MANIFEST.replace(
+                "\"imports\": []",
+                "\"imports\": [], \"program\": \"peersus-thing\"",
+            ),
         )
         .unwrap();
         // The program it names is not there: broken, whatever file called `plugin` lies beside it.

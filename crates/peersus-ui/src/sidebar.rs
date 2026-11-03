@@ -38,7 +38,11 @@ impl Component for Entry {
     fn render(&self) -> impl IntoElement {
         let (tab, palette, on_select) = (self.tab, self.palette, self.on_select.clone());
         let mut hovered = use_state(|| false);
-        let own = if self.active { palette.active_icons } else { palette.icons };
+        let own = if self.active {
+            palette.active_icons
+        } else {
+            palette.icons
+        };
         let name = Sidebar::names_at(self.width);
         // A picture sits at the same distance from the left edge until the bar is about to be only
         // as wide as the pictures, where it is centred. Nothing is left to push it past the edge.
@@ -48,11 +52,19 @@ impl Component for Entry {
             .height(Size::px(44.))
             .padding((0., if pictures_only { 0. } else { INSET * name }))
             .horizontal()
-            .main_align(if pictures_only { Alignment::Center } else { Alignment::Start })
+            .main_align(if pictures_only {
+                Alignment::Center
+            } else {
+                Alignment::Start
+            })
             .cross_align(Alignment::Center)
             .spacing(12.)
             .corner_radius(12.)
-            .background(if self.active || hovered() { palette.surface } else { palette.sidebar })
+            .background(if self.active || hovered() {
+                palette.surface
+            } else {
+                palette.sidebar
+            })
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_press(move |_| on_select.call(tab))
@@ -68,7 +80,11 @@ impl Component for Entry {
                 glyph::name_of_tab(tab),
                 glyph::LIST,
                 &palette,
-                if self.active { own } else { glyph::resting_ink(&palette) },
+                if self.active {
+                    own
+                } else {
+                    glyph::resting_ink(&palette)
+                },
             ));
         // The name takes no room until it has begun to show, so a narrow bar holds the picture alone.
         if !pictures_only {
@@ -76,7 +92,11 @@ impl Component for Entry {
                 rect().opacity(name).child(
                     label()
                         .text(crate::i18n::tr(tab.title()))
-                        .color(if self.active { palette.text } else { palette.muted })
+                        .color(if self.active {
+                            palette.text
+                        } else {
+                            palette.muted
+                        })
                         .font_size(15.)
                         .max_lines(1),
                 ),
@@ -118,7 +138,11 @@ impl Component for Profile {
             .cross_align(Alignment::Center)
             .spacing(12.)
             .corner_radius(12.)
-            .background(if hovered() { palette.surface } else { palette.sidebar })
+            .background(if hovered() {
+                palette.surface
+            } else {
+                palette.sidebar
+            })
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_press(move |_| on_select.call(Sidebar::PROFILE))
@@ -159,7 +183,11 @@ impl Component for Bar {
         // One width, followed toward the state's own, from wherever it was last drawn: it starts
         // from nothing, so it grows in from the left edge, and a move turned round in the middle
         // goes back from that very spot.
-        let width = motion::use_toward(Sidebar::width_for(self.state), Sidebar::WIDE, self.reduced_motion);
+        let width = motion::use_toward(
+            Sidebar::width_for(self.state),
+            Sidebar::WIDE,
+            self.reduced_motion,
+        );
         let entry = |tab: SettingsTab| Entry {
             tab,
             active: tab == self.active,

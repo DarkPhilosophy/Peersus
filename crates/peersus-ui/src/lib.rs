@@ -4,51 +4,54 @@
 //! (which needs `unsafe`) lives in its own platform crate, never here.
 pub mod about;
 pub mod accent_picker;
+mod appearance;
 pub mod avatar;
 pub mod avatar_file;
 pub mod avatar_view;
 pub mod clipboard_files;
 pub mod font;
 pub mod glyph;
-pub mod icon;
-pub mod interface_size;
 pub mod i18n;
-pub mod language_picker;
+pub mod icon;
 pub mod intake;
-pub mod outgoing;
+pub mod interface_size;
+pub mod language_picker;
 pub mod link;
 pub mod motion;
+pub mod outgoing;
+mod plugin_controls;
 pub mod preview;
-pub mod qr_reader;
 pub mod qr;
+pub mod qr_reader;
+mod relay_choice;
 pub mod scanner;
-pub mod top_sheet;
 pub mod scatter;
+mod settings_navigation;
+pub mod settings_search;
 pub mod shelf;
 pub mod sidebar;
-pub mod theme;
-mod appearance;
-mod system_theme;
-pub mod view;
-mod plugin_controls;
 pub mod support;
-pub mod settings_search;
-mod settings_navigation;
+mod system_theme;
+pub mod theme;
+pub mod top_sheet;
+pub mod view;
 
+use freya::animation::*;
 use freya::prelude::*;
 #[cfg(not(target_os = "android"))]
 use freya::winit::window::ResizeDirection;
-use freya::animation::*;
 use link::{Link, Offline, Session};
 use peersus_app::runtime::Reply;
 use peersus_core::{
     Settings,
-    config::{CustomTheme, ThemeBase, SettingsPatch, Theme as ThemeChoice},
+    config::{CustomTheme, SettingsPatch, Theme as ThemeChoice, ThemeBase},
     model::{Command, PeerId, PluginInfo, PluginStatus},
 };
 use std::{path::PathBuf, sync::Arc};
 use theme::Palette;
-use view::{Approval, MENU_SHORTCUTS, Sidebar, Phase, Presence, Progress, SendState, SettingsTab, View};
+use view::{
+    Approval, MENU_SHORTCUTS, Phase, Presence, Progress, SendState, SettingsTab, Sidebar, View,
+};
 
 /// The launch configuration of the desktop entry: it finds the owner, starting it if none is there.
 ///
@@ -69,8 +72,13 @@ pub fn config_at(socket: PathBuf, platform: link::Platform) -> Result<LaunchConf
 }
 
 fn window_config(session: Arc<Session>) -> LaunchConfig {
-    LaunchConfig::new().with_font(font::FAMILY, font::BYTES).with_default_font(font::FAMILY).with_window(
-        WindowConfig::new(move || App { session: session.clone() })
+    LaunchConfig::new()
+        .with_font(font::FAMILY, font::BYTES)
+        .with_default_font(font::FAMILY)
+        .with_window(
+            WindowConfig::new(move || App {
+                session: session.clone(),
+            })
             // The toolkit takes a fixed title; what tells two windows apart is the device's
             // name in the header, which can change while the window is open.
             .with_title("Peersus")
@@ -82,7 +90,7 @@ fn window_config(session: Arc<Session>) -> LaunchConfig {
             .with_transparency(true)
             .with_background(Color::TRANSPARENT)
             .with_resizable(true),
-    )
+        )
 }
 
 // ---- window chrome ---------------------------------------------------------------------
@@ -110,14 +118,22 @@ const FUSE_FRAMES: u32 = 60;
 /// One function for every circle that has a fuse, so that the sparks are the same wherever a code burns. It makes its hook on EVERY draw, in the
 /// same order, whether or not it runs: a hook made only sometimes would change the order between two draws of the same component.
 fn use_sparks(reduced: bool, running: bool) -> u32 {
-    let run = use_animation_with_dependencies(&(reduced, running), move |conf, (reduced, running)| {
-        conf.on_creation(OnCreation::Run);
-        conf.on_change(OnChange::Rerun);
-        conf.on_finish(OnFinish::restart());
-        AnimNum::new(0., 1.).time(if *reduced || !*running { 0 } else { 900 }).function(Function::Linear)
-    });
+    let run =
+        use_animation_with_dependencies(&(reduced, running), move |conf, (reduced, running)| {
+            conf.on_creation(OnCreation::Run);
+            conf.on_change(OnChange::Rerun);
+            conf.on_finish(OnFinish::restart());
+            AnimNum::new(0., 1.)
+                .time(if *reduced || !*running { 0 } else { 900 })
+                .function(Function::Linear)
+        });
     let share: f32 = run.get().value();
-    view::FUSE_PARTICLE_FRAMES + if reduced || !running { 0 } else { (share * FUSE_FRAMES as f32) as u32 }
+    view::FUSE_PARTICLE_FRAMES
+        + if reduced || !running {
+            0
+        } else {
+            (share * FUSE_FRAMES as f32) as u32
+        }
 }
 
 /// The share of the life of a code that is left, from 1 to 0, as a smooth line: from where it is when `code` is first seen (`from`, the share left at
@@ -131,7 +147,13 @@ fn use_fuse(code: Option<u64>, from: f32, seconds: u64, reduced: bool) -> f32 {
     let run = use_animation_with_dependencies(&(code, reduced), move |conf, (code, reduced)| {
         conf.on_creation(OnCreation::Run);
         conf.on_change(OnChange::Rerun);
-        AnimNum::new(from, 0.).time(if *reduced || code.is_none() { 0 } else { seconds.saturating_mul(1_000) }).function(Function::Linear)
+        AnimNum::new(from, 0.)
+            .time(if *reduced || code.is_none() {
+                0
+            } else {
+                seconds.saturating_mul(1_000)
+            })
+            .function(Function::Linear)
     });
     if reduced { 1. } else { run.get().value() }
 }
@@ -169,13 +191,15 @@ impl Component for WindowDot {
             .on_press(move |e: Event<PressEventData>| {
                 e.stop_propagation();
                 let platform = Platform::get();
-                platform.clone().with_window(Platform::window_id(), move |window| match action {
-                    Dot::Minimise => window.set_minimized(true),
-                    Dot::Maximise => window.set_maximized(!window.is_maximized()),
-                    Dot::Close => {
-                        platform.close_window(window.id());
-                    }
-                });
+                platform
+                    .clone()
+                    .with_window(Platform::window_id(), move |window| match action {
+                        Dot::Minimise => window.set_minimized(true),
+                        Dot::Maximise => window.set_maximized(!window.is_maximized()),
+                        Dot::Close => {
+                            platform.close_window(window.id());
+                        }
+                    });
             })
     }
 }
@@ -186,7 +210,12 @@ fn resize_zones(width: f32, height: f32) -> impl IntoElement {
     const EDGE: f32 = 6.;
     // A generous diagonal grip, separate from the thinner straight edge handles.
     const CORNER: f32 = 16.;
-    let zone = |direction: ResizeDirection, cursor: CursorIcon, position: Position, w: f32, h: f32| -> Element {
+    let zone = |direction: ResizeDirection,
+                cursor: CursorIcon,
+                position: Position,
+                w: f32,
+                h: f32|
+     -> Element {
         rect()
             .position(position)
             .width(Size::px(w.max(0.)))
@@ -219,14 +248,62 @@ fn resize_zones(width: f32, height: f32) -> impl IntoElement {
         .height(Size::px(height))
         // Window grips must also receive presses outside the rounded content's clipping path.
         .layer(Layer::Overlay)
-        .child(zone(ResizeDirection::North, CursorIcon::NResize, at().top(0.).left(CORNER), width - CORNER * 2., EDGE))
-        .child(zone(ResizeDirection::South, CursorIcon::SResize, at().bottom(0.).left(CORNER), width - CORNER * 2., EDGE))
-        .child(zone(ResizeDirection::West, CursorIcon::WResize, at().top(CORNER).left(0.), EDGE, height - CORNER * 2.))
-        .child(zone(ResizeDirection::East, CursorIcon::EResize, at().top(CORNER).right(0.), EDGE, height - CORNER * 2.))
-        .child(zone(ResizeDirection::NorthWest, CursorIcon::NwResize, at().top(0.).left(0.), CORNER, CORNER))
-        .child(zone(ResizeDirection::NorthEast, CursorIcon::NeResize, at().top(0.).right(0.), CORNER, CORNER))
-        .child(zone(ResizeDirection::SouthWest, CursorIcon::SwResize, at().bottom(0.).left(0.), CORNER, CORNER))
-        .child(zone(ResizeDirection::SouthEast, CursorIcon::SeResize, at().bottom(0.).right(0.), CORNER, CORNER))
+        .child(zone(
+            ResizeDirection::North,
+            CursorIcon::NResize,
+            at().top(0.).left(CORNER),
+            width - CORNER * 2.,
+            EDGE,
+        ))
+        .child(zone(
+            ResizeDirection::South,
+            CursorIcon::SResize,
+            at().bottom(0.).left(CORNER),
+            width - CORNER * 2.,
+            EDGE,
+        ))
+        .child(zone(
+            ResizeDirection::West,
+            CursorIcon::WResize,
+            at().top(CORNER).left(0.),
+            EDGE,
+            height - CORNER * 2.,
+        ))
+        .child(zone(
+            ResizeDirection::East,
+            CursorIcon::EResize,
+            at().top(CORNER).right(0.),
+            EDGE,
+            height - CORNER * 2.,
+        ))
+        .child(zone(
+            ResizeDirection::NorthWest,
+            CursorIcon::NwResize,
+            at().top(0.).left(0.),
+            CORNER,
+            CORNER,
+        ))
+        .child(zone(
+            ResizeDirection::NorthEast,
+            CursorIcon::NeResize,
+            at().top(0.).right(0.),
+            CORNER,
+            CORNER,
+        ))
+        .child(zone(
+            ResizeDirection::SouthWest,
+            CursorIcon::SwResize,
+            at().bottom(0.).left(0.),
+            CORNER,
+            CORNER,
+        ))
+        .child(zone(
+            ResizeDirection::SouthEast,
+            CursorIcon::SeResize,
+            at().bottom(0.).right(0.),
+            CORNER,
+            CORNER,
+        ))
 }
 
 // ---- navigation ------------------------------------------------------------------------
@@ -287,6 +364,7 @@ struct Tab {
     page: Page,
     active: bool,
     palette: Palette,
+    dense: bool,
     on_select: EventHandler<Page>,
 }
 impl Component for Tab {
@@ -295,31 +373,52 @@ impl Component for Tab {
         let on_select = self.on_select.clone();
         let mut hovered = use_state(|| false);
         let accent = page.accent(&palette);
-        rect()
-            .padding((0., 22.))
+        let mut tab = rect()
+            .width(Size::flex(1.))
+            .padding((0., if self.dense { 6. } else { 22. }))
             .height(Size::fill())
             .horizontal()
             .cross_align(Alignment::center())
+            .content(Content::flex())
             .spacing(8.)
             .border(if self.active {
                 Border::new()
                     .fill(accent)
-                    .width(BorderWidth { top: 0., right: 0., bottom: 3., left: 0. })
+                    .width(BorderWidth {
+                        top: 0.,
+                        right: 0.,
+                        bottom: 3.,
+                        left: 0.,
+                    })
                     .alignment(BorderAlignment::Inner)
             } else {
                 // No border at all: a default one would box in every inactive tab.
-                Border::new().width(BorderWidth { top: 0., right: 0., bottom: 0., left: 0. })
+                Border::new().width(BorderWidth {
+                    top: 0.,
+                    right: 0.,
+                    bottom: 0.,
+                    left: 0.,
+                })
             })
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
-            .on_press(move |_| on_select.call(page))
-            .child(mono(page.number(), palette.muted, 11.))
-            .child(mono(
+            .on_press(move |_| on_select.call(page));
+        if !self.dense {
+            tab = tab.child(mono(page.number(), palette.muted, 11.));
+        }
+        tab.child(
+            mono(
                 i18n::tr(page.name()),
-                if self.active || hovered() { palette.text } else { palette.muted },
+                if self.active || hovered() {
+                    palette.text
+                } else {
+                    palette.muted
+                },
                 14.,
-            ))
+            )
+            .width(Size::flex(1.)),
+        )
     }
 }
 
@@ -367,17 +466,31 @@ impl Component for BottomTab {
             .border(if self.active {
                 Border::new()
                     .fill(accent)
-                    .width(BorderWidth { top: 3., right: 0., bottom: 0., left: 0. })
+                    .width(BorderWidth {
+                        top: 3.,
+                        right: 0.,
+                        bottom: 0.,
+                        left: 0.,
+                    })
                     .alignment(BorderAlignment::Inner)
             } else {
-                Border::new().width(BorderWidth { top: 0., right: 0., bottom: 0., left: 0. })
+                Border::new().width(BorderWidth {
+                    top: 0.,
+                    right: 0.,
+                    bottom: 0.,
+                    left: 0.,
+                })
             })
             .on_press(move |_| on_select.call(page))
             .child(glyph::picture_on(
                 place_name(page),
                 glyph::BAR,
                 accent,
-                if self.active { palette.text } else { glyph::resting_ink(&palette) },
+                if self.active {
+                    palette.text
+                } else {
+                    glyph::resting_ink(&palette)
+                },
                 palette.background,
             ))
             .child(mono(i18n::tr(page.name()), colour, 11.))
@@ -405,7 +518,12 @@ impl Component for BottomBar {
             .border(
                 Border::new()
                     .fill(self.palette.border)
-                    .width(BorderWidth { top: 1., right: 0., bottom: 0., left: 0. })
+                    .width(BorderWidth {
+                        top: 1.,
+                        right: 0.,
+                        bottom: 0.,
+                        left: 0.,
+                    })
                     .alignment(BorderAlignment::Inner),
             );
         for place in self.places {
@@ -440,7 +558,11 @@ impl Component for MenuButton {
         let mut touch = use_state(|| view::Touch::new(HEADER_ROUND));
         // The same kind of control as the three window buttons beside it: a disc, as large as theirs, filled with the accent the person
         // chose and with a mark drawn large enough to be read, so that Settings is no smaller and no paler than the buttons it stands with.
-        let fill = if hovered() { glyph::dim(palette.send, palette.background, 0.8) } else { palette.send };
+        let fill = if hovered() {
+            glyph::dim(palette.send, palette.background, 0.8)
+        } else {
+            palette.send
+        };
         let ink = glyph::ink_on(fill);
         rect()
             .width(Size::px(HEADER_ROUND))
@@ -457,11 +579,16 @@ impl Component for MenuButton {
                 // began elsewhere and is lifted over the button (the bar moves under a finger as the page scrolls) does not open Settings.
                 let (g, l) = (e.global_location(), e.element_location());
                 let mut next = view::Touch::new(HEADER_ROUND);
-                next.down((l.x as f32, l.y as f32), (g.x as f32, g.y as f32), monotonic_ms());
+                next.down(
+                    (l.x as f32, l.y as f32),
+                    (g.x as f32, g.y as f32),
+                    monotonic_ms(),
+                );
                 touch.set(next);
                 // The right button opens the menu. A single handler does both, because a second
                 // one on the same event could replace this one.
-                if matches!(&*e, PointerEventData::Mouse(m) if m.button == Some(MouseButton::Right)) {
+                if matches!(&*e, PointerEventData::Mouse(m) if m.button == Some(MouseButton::Right))
+                {
                     open.set(!open());
                 }
             })
@@ -485,7 +612,11 @@ impl Component for MenuButton {
                     // the same way and passes.
                     let (g, l) = (e.global_location(), e.element_location());
                     let mut next = *touch.peek();
-                    let pressed = next.up((l.x as f32, l.y as f32), (g.x as f32, g.y as f32), monotonic_ms());
+                    let pressed = next.up(
+                        (l.x as f32, l.y as f32),
+                        (g.x as f32, g.y as f32),
+                        monotonic_ms(),
+                    );
                     touch.set(next);
                     if !pressed {
                         return;
@@ -500,14 +631,25 @@ impl Component for MenuButton {
                     }
                 }
             })
-            .child(glyph::draw_duo("settings", glyph::HEADER_MARK, ink, ink, glyph::dim(glyph::soft_of(fill), fill, 0.9), glyph::soft_of(fill)))
+            .child(glyph::draw_duo(
+                "settings",
+                glyph::HEADER_MARK,
+                ink,
+                ink,
+                glyph::dim(glyph::soft_of(fill), fill, 0.9),
+                glyph::soft_of(fill),
+            ))
     }
 }
 
 /// What the right click on the menu button opens: shortcuts into the tabs of Settings, as a panel
 /// under the header at the right. Returned in two parts, the panel and the layer under it that
 /// takes a click anywhere else to close it, because only the panel moves when it opens.
-fn menu_layer(palette: Palette, on_open: EventHandler<SettingsTab>, mut open: State<bool>) -> (Element, Element) {
+fn menu_layer(
+    palette: Palette,
+    on_open: EventHandler<SettingsTab>,
+    mut open: State<bool>,
+) -> (Element, Element) {
     let mut panel = rect()
         .position(Position::new_absolute().top(66.).right(28.))
         .width(Size::px(200.))
@@ -515,7 +657,12 @@ fn menu_layer(palette: Palette, on_open: EventHandler<SettingsTab>, mut open: St
         .spacing(2.)
         .corner_radius(12.)
         .background(palette.raised)
-        .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+        .border(
+            Border::new()
+                .fill(palette.border)
+                .width(1.)
+                .alignment(BorderAlignment::Inner),
+        )
         // The backdrop closes the menu on a pointer-down: this one must not reach it, or the menu
         // would be gone before the click on an item is finished (a press is a down AND an up).
         .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation());
@@ -556,7 +703,11 @@ impl Component for MenuItem {
             .cross_align(Alignment::center())
             .spacing(10.)
             .corner_radius(8.)
-            .background(if hovered() { palette.surface } else { palette.raised })
+            .background(if hovered() {
+                palette.surface
+            } else {
+                palette.raised
+            })
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_press(move |e: Event<PressEventData>| {
@@ -565,8 +716,18 @@ impl Component for MenuItem {
                 e.stop_propagation();
                 on_choose.call(tab);
             })
-            .child(glyph::picture(glyph::name_of_tab(tab), glyph::LIST, &palette, palette.muted))
-            .child(label().text(i18n::tr(tab.title())).color(palette.text).font_size(14.))
+            .child(glyph::picture(
+                glyph::name_of_tab(tab),
+                glyph::LIST,
+                &palette,
+                palette.muted,
+            ))
+            .child(
+                label()
+                    .text(i18n::tr(tab.title()))
+                    .color(palette.text)
+                    .font_size(14.),
+            )
     }
 }
 
@@ -582,6 +743,8 @@ struct Shown {
     menu: bool,
     /// How much of the bar the page has scrolled out of sight, in pixels; nothing on a desktop.
     hidden: f32,
+    /// Available logical width, for keeping the header's controls within the window.
+    width: f32,
 }
 
 fn header(
@@ -594,16 +757,36 @@ fn header(
     menu_open: State<bool>,
 ) -> impl IntoElement {
     let hidden = shown.hidden;
-    let mut bar = rect()
+    // Keep the desktop's navigation and window controls when it is narrow; only
+    // decorative indices, status words and spare padding give way.
+    let dense = form == view::Form::Wide && (!shown.width.is_finite() || shown.width < 1000.);
+    let bar = rect()
         .width(Size::fill())
         .height(Size::px(view::HEADER_HEIGHT))
         .horizontal()
         .cross_align(Alignment::center())
         .content(Content::flex())
-        .padding((0., form.header_side_padding()))
-        .spacing(10.)
+        .padding((
+            0.,
+            if dense {
+                14.
+            } else {
+                form.header_side_padding()
+            },
+        ))
+        .spacing(if dense { 6. } else { 10. })
         .background(palette.header)
-        .border(Border::new().fill(palette.border).width(BorderWidth { top: 0., right: 0., bottom: 1., left: 0. }).alignment(BorderAlignment::Inner))
+        .border(
+            Border::new()
+                .fill(palette.border)
+                .width(BorderWidth {
+                    top: 0.,
+                    right: 0.,
+                    bottom: 1.,
+                    left: 0.,
+                })
+                .alignment(BorderAlignment::Inner),
+        )
         .window_drag()
         .child(
             // The mark stands for the first letter of the name: the word is `eersus` and the picture is its `p`, with no gap between them.
@@ -617,14 +800,36 @@ fn header(
                         .child(rect().margin((0., 0., 4., 0.)).child(Mark { palette }))
                         // The picture has a see-through border (22% of its side, 9.7 px at this size): the word is drawn back over it so that
                         // it starts where the picture's shapes end, with the air that is between two letters.
-                        .child(rect().margin((0., 0., 0., -8.)).child(label().text("eersus").color(palette.text).font_size(26.).font_weight(FontWeight::BOLD))),
+                        .child(
+                            rect().margin((0., 0., 0., -8.)).child(
+                                label()
+                                    .text("eersus")
+                                    .color(palette.text)
+                                    .font_size(26.)
+                                    .font_weight(FontWeight::BOLD),
+                            ),
+                        ),
                 )
-                .child(mono(crate::i18n::tr("THE TRANSFER PORTAL"), palette.muted, 10.)),
-        )
-        .child(rect().width(Size::flex(1.)));
+                .child(mono(
+                    crate::i18n::tr("THE TRANSFER PORTAL"),
+                    palette.muted,
+                    10.,
+                )),
+        );
+    let mut places = rect()
+        .width(Size::flex(1.))
+        .height(Size::fill())
+        .horizontal()
+        .content(Content::flex());
     if shown.tabs {
         for page in Page::MAIN {
-            bar = bar.child(Tab { page, active: page == active, palette, on_select: on_select.clone() });
+            places = places.child(Tab {
+                page,
+                active: page == active,
+                palette,
+                dense,
+                on_select: on_select.clone(),
+            });
         }
     }
     let mut status = rect()
@@ -638,13 +843,26 @@ fn header(
                 .corner_radius(4.)
                 .background(if connected { palette.good } else { palette.bad }),
         );
-    if form.header_says_connected_in_words() {
-        status = status.child(mono(if connected { "CONNECTED" } else { "NOT RUNNING" }, palette.muted, 11.));
+    if form.header_says_connected_in_words() && !dense {
+        status = status.child(mono(
+            if connected {
+                "CONNECTED"
+            } else {
+                "NOT RUNNING"
+            },
+            palette.muted,
+            11.,
+        ));
     }
-    let mut bar = bar.child(rect().width(Size::flex(1.))).child(status);
+    let mut bar = bar.child(places).child(status);
     // The menu is offered only when it opens something: until the device has a name there is nothing to open.
     if shown.menu {
-        bar = bar.child(MenuButton { palette, on_select, open: menu_open, sheet: form.settings_places_come_from_the_top() });
+        bar = bar.child(MenuButton {
+            palette,
+            on_select,
+            open: menu_open,
+            sheet: form.settings_places_come_from_the_top(),
+        });
     }
     if form.header_has_window_buttons() {
         bar = bar.child(
@@ -674,7 +892,12 @@ impl Component for Mark {
     fn render(&self) -> impl IntoElement {
         match icon::element(44., self.palette.header) {
             Some(picture) => picture,
-            None => rect().width(Size::px(44.)).height(Size::px(44.)).corner_radius(12.).background(self.palette.send).into(),
+            None => rect()
+                .width(Size::px(44.))
+                .height(Size::px(44.))
+                .corner_radius(12.)
+                .background(self.palette.send)
+                .into(),
         }
     }
 }
@@ -703,14 +926,22 @@ impl Component for App {
             Err(_) => ThemeChoice::System,
         };
         let choice = use_state(move || saved);
-        let initial_language = self.session.link.as_ref()
-            .map(|link| link.client().snapshot().settings.language).unwrap_or_default();
+        let initial_language = self
+            .session
+            .link
+            .as_ref()
+            .map(|link| link.client().snapshot().settings.language)
+            .unwrap_or_default();
         let language = use_state(move || initial_language);
         provide_context(i18n::Current(language));
         // The size of the interface, kept in the owner's settings. The toolkit multiplies every logical size by it, so
         // text, spacing and icons grow together and nothing here is multiplied by hand.
-        let initial_scale = self.session.link.as_ref()
-            .map(|link| link.client().snapshot().settings.scale).unwrap_or(1.0);
+        let initial_scale = self
+            .session
+            .link
+            .as_ref()
+            .map(|link| link.client().snapshot().settings.scale)
+            .unwrap_or(1.0);
         let scale = use_state(move || initial_scale);
         // The saved size is applied to the window at once when it opens, and after that once it has STOPPED changing for a moment, and
         // only if the window is not already at it. The slider reads the pointer against where the slider is on the screen, and applying
@@ -733,7 +964,10 @@ impl Component for App {
                 apply();
                 return;
             }
-            let mut told = link::after(std::time::Duration::from_millis(350), std::time::Duration::from_millis(50));
+            let mut told = link::after(
+                std::time::Duration::from_millis(350),
+                std::time::Duration::from_millis(50),
+            );
             spawn(async move {
                 if (&mut told).await.is_ok() && (*scale.peek() - wanted).abs() < f32::EPSILON {
                     apply();
@@ -742,27 +976,48 @@ impl Component for App {
         });
         // The accent the person chose, kept in the owner's settings like the size: what goes out is drawn in it, and so are the
         // main shapes of the pictures. It is read here, from the snapshot the window opened on, and kept up to date by `Connected`.
-        let initial_accent = self.session.link.as_ref()
-            .map(|link| link.client().snapshot().settings.accent).unwrap_or(peersus_core::Settings::default().accent);
+        let initial_accent = self
+            .session
+            .link
+            .as_ref()
+            .map(|link| link.client().snapshot().settings.accent)
+            .unwrap_or(peersus_core::Settings::default().accent);
         let accent = use_state(move || initial_accent);
-        let initial_custom = self.session.link.as_ref().map(|link| link.client().snapshot().settings.custom_theme.clone()).unwrap_or_default();
+        let initial_custom = self
+            .session
+            .link
+            .as_ref()
+            .map(|link| link.client().snapshot().settings.custom_theme.clone())
+            .unwrap_or_default();
         let custom = use_state(move || initial_custom);
         let preview = use_state(|| None::<CustomTheme>);
         provide_context(appearance::Preview(preview));
         let mut system_dark = use_state(|| *self.session.system_theme.borrow());
         let mut system_updates = self.session.system_theme.clone();
-        use_hook(move || spawn(async move {
-            loop {
-                system_dark.set_if_modified(*system_updates.borrow_and_update());
-                if system_updates.changed().await.is_err() { break; }
-            }
-        }));
-        let platform_dark = system_dark().unwrap_or(*Platform::get().current_window().preferred_theme.read() == PreferredTheme::Dark);
-        let custom_palette = preview.read().clone().or_else(|| (choice() == ThemeChoice::Custom).then(|| custom.read().clone()));
+        use_hook(move || {
+            spawn(async move {
+                loop {
+                    system_dark.set_if_modified(*system_updates.borrow_and_update());
+                    if system_updates.changed().await.is_err() {
+                        break;
+                    }
+                }
+            })
+        });
+        let platform_dark = system_dark().unwrap_or(
+            *Platform::get().current_window().preferred_theme.read() == PreferredTheme::Dark,
+        );
+        let custom_palette = preview
+            .read()
+            .clone()
+            .or_else(|| (choice() == ThemeChoice::Custom).then(|| custom.read().clone()));
         let (palette, dark) = if let Some(custom) = custom_palette {
             (Palette::custom(&custom), custom.base == ThemeBase::Dark)
         } else {
-            (Palette::of_choice(choice(), platform_dark, accent()), choice() == ThemeChoice::Dark || (choice() == ThemeChoice::System && platform_dark))
+            (
+                Palette::of_choice(choice(), platform_dark, accent()),
+                choice() == ThemeChoice::Dark || (choice() == ThemeChoice::System && platform_dark),
+            )
         };
         // The toolkit's own components read this theme when they are drawn. It is set once by
         // the hook, so it is brought up to date here whenever the choice changes it.
@@ -774,7 +1029,8 @@ impl Component for App {
         if let Some(appearance) = self.session.platform.appearance.clone()
             && preview.read().is_none()
         {
-            let word = |(r, g, b): (u8, u8, u8)| (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b);
+            let word =
+                |(r, g, b): (u8, u8, u8)| (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b);
             let colours = [
                 word(palette.surface),
                 word(palette.raised),
@@ -822,6 +1078,10 @@ impl Component for App {
         if let Some(overlay) = self.session.platform.overlay.clone() {
             provide_context(overlay);
         }
+        // Whether the system leaves this program out of its battery optimisation (Android): provided once, for its row of Settings.
+        if let Some(battery) = self.session.platform.battery.clone() {
+            provide_context(battery);
+        }
         if let Some(opener) = self.session.platform.open_url.clone() {
             provide_context(opener);
         }
@@ -845,7 +1105,9 @@ impl Component for App {
                             (f64::from(logical.width) * scale).round().max(0.) as u32,
                             (f64::from(logical.height) * scale).round().max(0.) as u32,
                         );
-                        safe.set_if_modified(view::SafeArea::from_physical(rectangle, screen, scale));
+                        safe.set_if_modified(view::SafeArea::from_physical(
+                            rectangle, screen, scale,
+                        ));
                         if area.changed().await.is_err() {
                             break;
                         }
@@ -881,7 +1143,10 @@ impl Component for App {
         // so none of them is shown: the screen that asks for a name has nothing else on it. It starts from the
         // snapshot the window opened on, so that a device that already has a name never flashes without them.
         let saved_named = match &self.session.link {
-            Ok(link) => link.client().snapshot().settings.device_name.trim() != Settings::default().device_name,
+            Ok(link) => {
+                link.client().snapshot().settings.device_name.trim()
+                    != Settings::default().device_name
+            }
             Err(_) => false,
         };
         let named = use_state(move || saved_named);
@@ -998,11 +1263,20 @@ impl Component for App {
                 now,
                 menu_open,
                 inset_top: safe().top,
-                inset_bottom: safe().bottom + if form.bottom_places().is_empty() || !tabs { 0. } else { 64. },
+                inset_bottom: safe().bottom
+                    + if form.bottom_places().is_empty() || !tabs {
+                        0.
+                    } else {
+                        64.
+                    },
                 room_height: size().1,
             }
             .into(),
-            Err(reason) => Unreachable { reason: reason.clone(), palette }.into(),
+            Err(reason) => Unreachable {
+                reason: reason.clone(),
+                palette,
+            }
+            .into(),
         };
         // The fingers that are down now, by the number the system gave each: what tells a touch of two fingers from one.
         let fingers: State<view::Fingers> = use_state(view::Fingers::default);
@@ -1028,9 +1302,20 @@ impl Component for App {
             .background(palette.background)
             // A desktop window has rounded corners, and what is drawn inside is cut to them. Where the platform reserves a safe area (a
             // phone), the window is the whole screen and has square corners.
-            .corner_radius(if safe().top + safe().right + safe().bottom + safe().left == 0. { 12. } else { 0. })
+            .corner_radius(
+                if safe().top + safe().right + safe().bottom + safe().left == 0. {
+                    12.
+                } else {
+                    0.
+                },
+            )
             .overflow(Overflow::Clip)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             // Two fingers down bring Settings down from the top (Android; an option, on by default). Counted by the fingers that are down at the
             // same moment (`view::Fingers`), so a swipe or a pinch on a page does not open it twice, and it does nothing while Settings is already
             // open: a layer does not open itself. A finger whose lift never reached here (it was lifted over the sheet as it closed) is not counted
@@ -1039,7 +1324,12 @@ impl Component for App {
                 let mut fingers = fingers;
                 move |e: Event<TouchEventData>| {
                     let wanted = fingers.write().went_down(e.finger_id, monotonic_ms());
-                    if wanted && two_fingers() && tabs && form.settings_places_come_from_the_top() && !menu_open() {
+                    if wanted
+                        && two_fingers()
+                        && tabs
+                        && form.settings_places_come_from_the_top()
+                        && !menu_open()
+                    {
                         link::circle_log("two fingers: Settings opens");
                         menu_open.set(true);
                     }
@@ -1061,7 +1351,16 @@ impl Component for App {
                 palette,
                 current,
                 self.session.link.is_ok(),
-                Shown { tabs: tabs && form.bottom_places().is_empty(), menu: tabs, hidden: if form.header_hides_on_scroll() { bar_hide().hidden() } else { 0. } },
+                Shown {
+                    tabs: tabs && form.bottom_places().is_empty(),
+                    menu: tabs,
+                    width: size().0,
+                    hidden: if form.header_hides_on_scroll() {
+                        bar_hide().hidden()
+                    } else {
+                        0.
+                    },
+                },
                 form,
                 on_select.clone(),
                 menu_open,
@@ -1081,7 +1380,12 @@ impl Component for App {
                         picture: own_picture()
                             .and_then(|digest| pictures.read().get(&digest))
                             .map(avatar_view::Shared),
-                        state: Sidebar::state_for(tabs, current == Page::Settings, keep_icons(), form),
+                        state: Sidebar::state_for(
+                            tabs,
+                            current == Page::Settings,
+                            keep_icons(),
+                            form,
+                        ),
                         reduced_motion: reduced_motion(),
                         palette,
                         on_select: on_open_tab.clone(),
@@ -1094,15 +1398,13 @@ impl Component for App {
             // the room it takes, the page above it gives way, and nothing can be drawn over it or under it. Only a window that
             // reaches the owner has one.
             .maybe_child(match (&self.session.link, offer.read().clone()) {
-                (Ok(link), Some(offered)) => {
-                    Some(Element::from(IncomingOffer {
-                        link: link.clone(),
-                        offered,
-                        palette,
-                        now: now(),
-                        buttons: self.session.platform.offer_buttons.clone(),
-                    }))
-                }
+                (Ok(link), Some(offered)) => Some(Element::from(IncomingOffer {
+                    link: link.clone(),
+                    offered,
+                    palette,
+                    now: now(),
+                    buttons: self.session.platform.offer_buttons.clone(),
+                })),
                 _ => None,
             })
             .child(if form.bottom_places().is_empty() || !tabs {
@@ -1146,7 +1448,13 @@ impl Component for Unreachable {
             .expanded()
             .center()
             .spacing(10.)
-            .child(label().text(title).color(self.palette.text).font_size(28.).font_weight(FontWeight::BOLD))
+            .child(
+                label()
+                    .text(title)
+                    .color(self.palette.text)
+                    .font_size(28.)
+                    .font_weight(FontWeight::BOLD),
+            )
             .child(label().text(text).color(self.palette.muted).font_size(15.))
     }
 }
@@ -1277,11 +1585,19 @@ impl Component for Connected {
                     // staging (nothing sent to this person is lost); what the platform says of each hand-over is taken so the
                     // list does not grow, and is written to the diagnostics.
                     if let Some(sink) = &sink {
-                        for handoff in view::handoffs(&View::of(&latest).transfers, |id| sink.picked.tree_for(id)) {
+                        for handoff in view::handoffs(&View::of(&latest).transfers, |id| {
+                            sink.picked.tree_for(id)
+                        }) {
                             (sink.deliver)(&handoff);
                         }
                         // A transfer that ended without arriving goes nowhere: the folder remembered for it is let go of.
-                        for item in View::of(&latest).transfers.iter().filter(|item| item.incoming && matches!(item.phase, view::Phase::Cancelled | view::Phase::Failed(_))) {
+                        for item in View::of(&latest).transfers.iter().filter(|item| {
+                            item.incoming
+                                && matches!(
+                                    item.phase,
+                                    view::Phase::Cancelled | view::Phase::Failed(_)
+                                )
+                        }) {
                             sink.picked.forget(&item.id);
                         }
                         // Results are taken on the clock (above), not here: a result that arrives after the last snapshot is not lost.
@@ -1334,17 +1650,30 @@ impl Component for Connected {
 
         let palette = self.palette;
         if !alive() {
-            return Unreachable { reason: Offline::NotRunning, palette }.into();
+            return Unreachable {
+                reason: Offline::NotRunning,
+                palette,
+            }
+            .into();
         }
         let current = view.read().clone();
         let mut page = rect().expanded().vertical();
         // Until the device has a name, there is nothing else on screen but the question.
         let screenshot_run = std::env::var("PEERSUS_PAGE").is_ok_and(|page| !page.is_empty());
         if current.needs_a_name() && !screenshot_run {
-            return page.child(Welcome { link: link.clone(), palette, form: self.form }).into();
+            return page
+                .child(Welcome {
+                    link: link.clone(),
+                    palette,
+                    form: self.form,
+                })
+                .into();
         }
         for error in &current.errors {
-            page = page.child(ErrorBanner { text: error.clone(), palette });
+            page = page.child(ErrorBanner {
+                text: error.clone(),
+                palette,
+            });
         }
         if let Some(text) = not_delivered.read().clone() {
             page = page.child(ErrorBanner { text, palette });
@@ -1352,9 +1681,17 @@ impl Component for Connected {
         // A pairing request has a clock on it and is a decision about who may connect, so it is
         // shown on whatever screen the person is on, above it, and not only on Receive.
         if !current.approvals.is_empty() {
-            let mut requests = rect().width(Size::fill()).padding((16., 56.)).spacing(12.).background(palette.surface);
+            let mut requests = rect()
+                .width(Size::fill())
+                .padding((16., 56.))
+                .spacing(12.)
+                .background(palette.surface);
             for approval in &current.approvals {
-                requests = requests.child(ApprovalCard { link: link.clone(), approval: approval.clone(), palette });
+                requests = requests.child(ApprovalCard {
+                    link: link.clone(),
+                    approval: approval.clone(),
+                    palette,
+                });
             }
             page = page.child(requests);
         }
@@ -1392,29 +1729,45 @@ impl Component for Connected {
                 camera: self.camera.clone(),
             }
             .into(),
-            Page::Transfers => TransfersPage { link: link.clone(), view: current.clone(), palette, form: self.form }.into(),
-            Page::Peers => DevicesPage { link: link.clone(), view: current.clone(), pictures: held.read().clone(), palette, form: self.form, room: self.room, camera: self.camera.clone(), file_picker: self.file_picker.clone() }.into(),
-            Page::Settings => {
-                SettingsPage {
-                    link: link.clone(),
-                    view: current.clone(),
-                    pictures: held.read().clone(),
-                    palette,
-                    form: self.form,
-                    tab: self.settings_tab,
-                    on_close: None,
-                    picture: current
-                        .profile_picture
-                        .and_then(|digest| self.pictures.read().get(&digest))
-                        .map(avatar_view::Shared),
-                    file_picker: self.file_picker.clone(),
-                    notifications: self.notifications.clone(),
-                    camera_choice: self.camera_choice.clone(),
-                    camera: self.camera.clone(),
-                    room: self.room,
-                }
-                .into()
+            Page::Transfers => TransfersPage {
+                link: link.clone(),
+                view: current.clone(),
+                palette,
+                form: self.form,
             }
+            .into(),
+            Page::Peers => DevicesPage {
+                link: link.clone(),
+                view: current.clone(),
+                pictures: held.read().clone(),
+                palette,
+                form: self.form,
+                room: self.room,
+                camera: self.camera.clone(),
+                file_picker: self.file_picker.clone(),
+            }
+            .into(),
+            Page::Settings => SettingsPage {
+                link: link.clone(),
+                view: current.clone(),
+                pictures: held.read().clone(),
+                palette,
+                form: self.form,
+                tab: self.settings_tab,
+                on_close: None,
+                picture: current
+                    .profile_picture
+                    .and_then(|digest| self.pictures.read().get(&digest))
+                    .map(avatar_view::Shared),
+                file_picker: self.file_picker.clone(),
+                notifications: self.notifications.clone(),
+                camera_choice: self.camera_choice.clone(),
+                camera: self.camera.clone(),
+                room: self.room,
+                inset_top: self.inset_top,
+                inset_bottom: self.inset_bottom,
+            }
+            .into(),
         };
         // While the Settings overlay is open on a phone, the page under it takes no pointer at all, a touch, a drag or a wheel: an element that is
         // not interactive is skipped by the toolkit before any event is delivered, and so are all of its children (the scrolling of the page
@@ -1450,6 +1803,8 @@ impl Component for Connected {
                     camera_choice: self.camera_choice.clone(),
                     camera: self.camera.clone(),
                     room: self.room,
+                    inset_top: self.inset_top,
+                    inset_bottom: self.inset_bottom,
                 }
                 .into(),
                 on_close: EventHandler::new(move |()| menu_open.set(false)),
@@ -1489,7 +1844,14 @@ impl Component for ErrorBanner {
                 ((palette.bad.1 as u16 + palette.surface.1 as u16 * 2) / 3) as u8,
                 ((palette.bad.2 as u16 + palette.surface.2 as u16 * 2) / 3) as u8,
             ))
-            .child(rect().width(Size::flex(1.)).child(label().text(i18n::tr(&self.text).to_owned()).color(palette.text).font_size(13.)))
+            .child(
+                rect().width(Size::flex(1.)).child(
+                    label()
+                        .text(i18n::tr(&self.text).to_owned())
+                        .color(palette.text)
+                        .font_size(13.),
+                ),
+            )
             .child(
                 rect()
                     .padding((2., 10.))
@@ -1519,19 +1881,38 @@ impl Component for Welcome {
             let value = name.read().trim().to_owned();
             if !value.is_empty() {
                 link.send(Command::PatchSettings {
-                    patch: SettingsPatch { device_name: Some(value), ..Default::default() },
+                    patch: SettingsPatch {
+                        device_name: Some(value),
+                        ..Default::default()
+                    },
                 });
             }
         };
         // The field fills the room it has, up to a width a person can read a name in. It is never given a
         // fixed width: on a phone that width is wider than the screen, and the button beside it was off it.
-        let field = Input::new(name).placeholder(crate::i18n::tr("For example: Alex's laptop")).width(Size::fill());
-        let button = Button::new().filled().on_press(save).child(crate::i18n::tr("Continue"));
+        let field = Input::new(name)
+            .placeholder(crate::i18n::tr("For example: Alex's laptop"))
+            .width(Size::fill());
+        let button = Button::new()
+            .filled()
+            .on_press(save)
+            .child(crate::i18n::tr("Continue"));
         let ask: Element = if form.ask_stacks_field_and_button() {
             // One above the other, the button as wide as the field: easy to reach, and always on screen.
-            rect().width(Size::fill()).spacing(12.).child(field).child(button.width(Size::fill())).into()
+            rect()
+                .width(Size::fill())
+                .spacing(12.)
+                .child(field)
+                .child(button.width(Size::fill()))
+                .into()
         } else {
-            rect().width(Size::fill()).horizontal().spacing(10.).child(field).child(button).into()
+            rect()
+                .width(Size::fill())
+                .horizontal()
+                .spacing(10.)
+                .child(field)
+                .child(button)
+                .into()
         };
         rect()
             .expanded()
@@ -1582,11 +1963,20 @@ impl Component for HeadlineView {
         // A line is as tall as its letters need, with a little more for the tail of a "y", so the
         // second sits close under the first as in the prototype and nothing is cut.
         let line = move |text: &'static str, colour: (u8, u8, u8), slanted: bool| -> Element {
-            let mut words = label().text(text).color(colour).font_size(size).font_weight(FontWeight::BOLD).max_lines(1);
+            let mut words = label()
+                .text(text)
+                .color(colour)
+                .font_size(size)
+                .font_weight(FontWeight::BOLD)
+                .max_lines(1);
             if slanted {
                 words = words.font_slant(FontSlant::Italic);
             }
-            rect().width(Size::fill()).height(Size::px(size * 1.12)).child(words).into()
+            rect()
+                .width(Size::fill())
+                .height(Size::px(size * 1.12))
+                .child(words)
+                .into()
         };
         rect()
             .width(Size::fill())
@@ -1596,8 +1986,20 @@ impl Component for HeadlineView {
     }
 }
 
-fn headline(first: &'static str, second: &'static str, palette: Palette, accent: (u8, u8, u8), form: view::Form) -> impl IntoElement {
-    HeadlineView { first, second, palette, accent, form }
+fn headline(
+    first: &'static str,
+    second: &'static str,
+    palette: Palette,
+    accent: (u8, u8, u8),
+    form: view::Form,
+) -> impl IntoElement {
+    HeadlineView {
+        first,
+        second,
+        palette,
+        accent,
+        form,
+    }
 }
 
 /// The dark disc at the heart of a screen, with rings, as in the prototype.
@@ -1613,7 +2015,17 @@ fn portal(
     children: Vec<Element>,
     extent: f32,
 ) -> impl IntoElement {
-    Portal { palette, accent, on_press, children, extent, life: None, sparks: 0, hold: None, going: 0. }
+    Portal {
+        palette,
+        accent,
+        on_press,
+        children,
+        extent,
+        life: None,
+        sparks: 0,
+        hold: None,
+        going: 0.,
+    }
 }
 
 /// The portal of a code that has a life: the same, and the ring round it shows how much of that life is left (1 whole, 0 gone), so that the
@@ -1626,32 +2038,32 @@ fn portal_with_life(
     life: f32,
     sparks: u32,
 ) -> impl IntoElement {
-    Portal { palette, accent, on_press: None, children, extent, life: Some(life), sparks, hold: None, going: 0. }
+    Portal {
+        palette,
+        accent,
+        on_press: None,
+        children,
+        extent,
+        life: Some(life),
+        sparks,
+        hold: None,
+        going: 0.,
+    }
 }
 
-/// The circle of the Send page: pressed to choose files when none are listed, and when they are, made to do what the page says (`HoldToSend`): a
-/// touch makes a code when no device is picked, and it is held until it fills to send to the devices that are. `on_press` is the choosing.
-/// `life` is the share, from 1 to 0, of the life a code on show still has: the fuse burns round it, outside the disc and never in it, so that the
-/// code inside is as it was drawn and scans as it did; `None` when the circle shows no code.
-fn portal_held(
-    palette: Palette,
-    accent: (u8, u8, u8),
-    on_press: Option<EventHandler<()>>,
-    children: Vec<Element>,
-    extent: f32,
-    hold: Option<HoldToSend>,
-    going: f32,
-    life: Option<f32>,
-    sparks: u32,
-) -> impl IntoElement {
-    Portal { palette, accent, on_press, children, extent, life, sparks, hold, going }
-}
+/// One layer of the fuse's light: its width, its blur (none for the thin core), its colour and its opacity.
+type FuseLight = (f32, Option<f32>, (u8, u8, u8), u8);
 
 /// The title above the circle, centred, as a phone shows them on Send AND on Receive: the one place that decides the space between
 /// them, so the two circles are at the same height on the two pages. (Two pages that each wrote their own number were 12 pixels
 /// apart.) What comes after the circle is the page's own.
 fn title_above_circle(form: view::Form, hero: impl IntoElement, circle: impl IntoElement) -> Rect {
-    rect().width(Size::fill()).spacing(form.page_section_gap()).cross_align(Alignment::center()).child(hero).child(circle)
+    rect()
+        .width(Size::fill())
+        .spacing(form.page_section_gap())
+        .cross_align(Alignment::center())
+        .child(hero)
+        .child(circle)
 }
 
 /// Whether a finger is held on a circle long enough to be a hold (and not a swipe), written by the circle and read by the page under it, so
@@ -1682,7 +2094,13 @@ struct HoldToSend {
 /// or the network can change while a finger is down, and which would then fill the circle at once or never.
 fn monotonic_ms() -> u64 {
     static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-    u64::try_from(START.get_or_init(std::time::Instant::now).elapsed().as_millis()).unwrap_or(u64::MAX)
+    u64::try_from(
+        START
+            .get_or_init(std::time::Instant::now)
+            .elapsed()
+            .as_millis(),
+    )
+    .unwrap_or(u64::MAX)
 }
 
 /// The disc with its rings. What presses it is a GESTURE judged by [`view::Touch`], and not the toolkit's own press, which
@@ -1716,11 +2134,20 @@ impl Component for Portal {
         let ring = |size: f32, colour: (u8, u8, u8), width: f32| -> Element {
             let size = size * share;
             rect()
-                .position(Position::new_absolute().left((extent - size) / 2.).top((extent - size) / 2.))
+                .position(
+                    Position::new_absolute()
+                        .left((extent - size) / 2.)
+                        .top((extent - size) / 2.),
+                )
                 .width(Size::px(size))
                 .height(Size::px(size))
                 .corner_radius(size / 2.)
-                .border(Border::new().fill(colour).width(width).alignment(BorderAlignment::Inner))
+                .border(
+                    Border::new()
+                        .fill(colour)
+                        .width(width)
+                        .alignment(BorderAlignment::Inner),
+                )
                 .into()
         };
         let disc_size = qr::PORTAL_DISC * share;
@@ -1735,7 +2162,12 @@ impl Component for Portal {
             .center()
             .spacing(8.)
             .background(palette.portal)
-            .border(Border::new().fill(accent).width(line).alignment(BorderAlignment::Inner));
+            .border(
+                Border::new()
+                    .fill(accent)
+                    .width(line)
+                    .alignment(BorderAlignment::Inner),
+            );
         // How full the circle is while it is held, from 0 to 1. Only the Send circle has one; it is set from the clock while a finger is down, and
         // is back to 0 the moment it is lifted, so that nothing is left filling in a page nobody touches. Made BEFORE the disc is finished, because
         // the disc is what it fills.
@@ -1749,7 +2181,11 @@ impl Component for Portal {
         if growing > 0. {
             disc = disc.child(
                 rect()
-                    .position(Position::new_absolute().left((disc_size - growing) / 2.).top((disc_size - growing) / 2.))
+                    .position(
+                        Position::new_absolute()
+                            .left((disc_size - growing) / 2.)
+                            .top((disc_size - growing) / 2.),
+                    )
                     .width(Size::px(growing))
                     .height(Size::px(growing))
                     .corner_radius(growing / 2.)
@@ -1938,7 +2374,11 @@ impl Component for Portal {
                 let scale = share.max(0.5);
                 let dot = |x: f32, y: f32, size: f32, colour: Color| -> Element {
                     rect()
-                        .position(Position::new_absolute().left(x - size / 2.).top(y - size / 2.))
+                        .position(
+                            Position::new_absolute()
+                                .left(x - size / 2.)
+                                .top(y - size / 2.),
+                        )
                         .width(Size::px(size))
                         .height(Size::px(size))
                         .corner_radius(size / 2.)
@@ -1954,24 +2394,42 @@ impl Component for Portal {
                     // round to the top (`view::fuse_arc`, the same place `view::fuse_tip` puts the tip). A wide faint stroke blurred under a thin bright
                     // one is the glow. It lies on the thin ring outside the disc of the code and never reaches it, so what is scanned is as it was drawn.
                     .background(RenderCallback::new(move |context| {
-                        use freya::engine::prelude::{Paint, PaintCap, PaintStyle, SkBlurStyle, SkMaskFilter, SkRect};
-                        let RenderTarget::Background { canvas, .. } = &context.target else { return };
-                        let Some((start, sweep)) = view::fuse_arc(left) else { return };
+                        use freya::engine::prelude::{
+                            Paint, PaintCap, PaintStyle, SkBlurStyle, SkMaskFilter, SkRect,
+                        };
+                        let RenderTarget::Background { canvas, .. } = &context.target else {
+                            return;
+                        };
+                        let Some((start, sweep)) = view::fuse_arc(left) else {
+                            return;
+                        };
                         // The toolkit has already moved the canvas to the corner of this element and scaled it by the display's factor before it calls
                         // this, so everything here is in the same logical units as `centre`, `radius` and `scale`: the line lies on the ring the tip
                         // and the sparks are on, on any screen. Scaled once more by the factor it came out as large as the screen's density.
-                        let oval = SkRect::from_xywh(centre - radius, centre - radius, 2. * radius, 2. * radius);
+                        let oval = SkRect::from_xywh(
+                            centre - radius,
+                            centre - radius,
+                            2. * radius,
+                            2. * radius,
+                        );
                         let (red, green, blue) = accent;
                         // The light of a fuse is not one even band: it falls off gradually from a bright thin core. So the line is three layers, from the
                         // outside in: a wide faint haze, a nearer softer light, and the thin core, which is the accent lifted toward white because
                         // what burns is lighter than what is painted. Each is blurred less and is more opaque than the one outside it. The haze is the
                         // widest and stays within the space between the ring and the disc of the code (half its width and three times its blur, together,
                         // are less than that space): no light of it falls on the code, which is scanned as it was drawn.
-                        let lift = |channel: u8, by: f32| (f32::from(channel) + (255. - f32::from(channel)) * by).round() as u8;
-                        let layers: [(f32, Option<f32>, (u8, u8, u8), u8); 3] = [
+                        let lift = |channel: u8, by: f32| {
+                            (f32::from(channel) + (255. - f32::from(channel)) * by).round() as u8
+                        };
+                        let layers: [FuseLight; 3] = [
                             (8., Some(2.), (red, green, blue), 60),
                             (4.5, Some(1.2), (red, green, blue), 120),
-                            (2.2, None, (lift(red, 0.35), lift(green, 0.35), lift(blue, 0.35)), 255),
+                            (
+                                2.2,
+                                None,
+                                (lift(red, 0.35), lift(green, 0.35), lift(blue, 0.35)),
+                                255,
+                            ),
                         ];
                         for (width, blur, (r, g, b), alpha) in layers {
                             let mut paint = Paint::default();
@@ -1981,7 +2439,11 @@ impl Component for Portal {
                             paint.set_stroke_width(width * scale);
                             paint.set_color(Color::from_rgb(r, g, b).with_a(alpha));
                             if let Some(sigma) = blur {
-                                paint.set_mask_filter(SkMaskFilter::blur(SkBlurStyle::Normal, sigma * scale, false));
+                                paint.set_mask_filter(SkMaskFilter::blur(
+                                    SkBlurStyle::Normal,
+                                    sigma * scale,
+                                    false,
+                                ));
                             }
                             // A whole fuse is a closed ring: an arc of 360 degrees leaves a seam where its two ends meet, so it is drawn as a circle.
                             if sweep >= 360. {
@@ -1993,12 +2455,19 @@ impl Component for Portal {
                     }));
                 // The tip: a bright point with a halo, where the burnt part ends.
                 let (tip_x, tip_y) = view::fuse_tip(left, radius, centre);
-                fuse = fuse.child(dot(tip_x, tip_y, 16. * scale, Color::from_rgb(255, 200, 80).with_a(60))).child(dot(
-                    tip_x,
-                    tip_y,
-                    7. * scale,
-                    Color::from_rgb(255, 245, 210),
-                ));
+                fuse = fuse
+                    .child(dot(
+                        tip_x,
+                        tip_y,
+                        16. * scale,
+                        Color::from_rgb(255, 200, 80).with_a(60),
+                    ))
+                    .child(dot(
+                        tip_x,
+                        tip_y,
+                        7. * scale,
+                        Color::from_rgb(255, 245, 210),
+                    ));
                 // The sparks, which fly off the tip: only OUTSIDE the disc of the code. One that would be inside it is not drawn, so that nothing of
                 // them lies on the code.
                 let disc_radius = qr::PORTAL_DISC * share / 2.;
@@ -2007,7 +2476,9 @@ impl Component for Portal {
                     if view::point_on_disc(x, y, centre, disc_radius, 2. * scale) {
                         continue;
                     }
-                    let colour = Color::from_rgb(particle.colour.0, particle.colour.1, particle.colour.2).with_a((particle.alpha.clamp(0., 1.) * 255.) as u8);
+                    let colour =
+                        Color::from_rgb(particle.colour.0, particle.colour.1, particle.colour.2)
+                            .with_a((particle.alpha.clamp(0., 1.) * 255.) as u8);
                     fuse = fuse.child(dot(x, y, particle.size * scale, colour));
                 }
                 fuse
@@ -2041,7 +2512,11 @@ impl Component for Solid {
             .background(if !enabled {
                 palette.raised
             } else if hovered() {
-                (palette.button.0 / 10 * 8, palette.button.1 / 10 * 8, palette.button.2 / 10 * 8)
+                (
+                    palette.button.0 / 10 * 8,
+                    palette.button.1 / 10 * 8,
+                    palette.button.2 / 10 * 8,
+                )
             } else {
                 palette.button
             })
@@ -2062,7 +2537,11 @@ impl Component for Solid {
             .child(
                 label()
                     .text(i18n::tr(self.text))
-                    .color(if enabled { palette.button_text } else { palette.muted })
+                    .color(if enabled {
+                        palette.button_text
+                    } else {
+                        palette.muted
+                    })
                     .font_size(17.)
                     .font_weight(FontWeight::BOLD),
             )
@@ -2076,11 +2555,19 @@ fn section(text: &'static str, palette: Palette) -> Label {
 /// Who made a package and where to read about it, as text a person reads before trusting it: the author and version, and
 /// the link. What the package SAYS about itself, shown as such; it is never made something to press, because following an
 /// address out of a list is how a person is led somewhere else.
-fn package_lines(card: Rect, package: &peersus_plugin_api::package::Package, palette: Palette) -> Rect {
+fn package_lines(
+    card: Rect,
+    package: &peersus_plugin_api::package::Package,
+    palette: Palette,
+) -> Rect {
     let mut card = card;
     if !package.author.is_empty() {
         card = card.child(mono(
-            i18n::format(i18n::language(), "by {author} · version {version}", &[("author", &package.author), ("version", &package.version)]),
+            i18n::format(
+                i18n::language(),
+                "by {author} · version {version}",
+                &[("author", &package.author), ("version", &package.version)],
+            ),
             palette.send,
             11.,
         ));
@@ -2094,9 +2581,15 @@ fn package_lines(card: Rect, package: &peersus_plugin_api::package::Package, pal
 /// The scrolling area under a screen's header. Its side margin is the form's: the prototype's wide one on a
 /// desktop, a small one on a phone, where the same space would take a third of the screen.
 fn frame(palette: Palette, form: view::Form, content: impl IntoElement) -> impl IntoElement {
-    Scrolling { palette, form, content: content.into_element(), see_through: false, tops: None, go_to: None }
+    Scrolling {
+        palette,
+        form,
+        content: content.into_element(),
+        see_through: false,
+        tops: None,
+        go_to: None,
+    }
 }
-
 
 /// The scrolling area of a page, with its OWN scroll position (a page that is left starts again at its top) and the header's hiding
 /// told from it: on a phone the bar goes up as the page is read down and comes back as it is scrolled up (see [`view::HeaderHide`]).
@@ -2134,7 +2627,8 @@ impl Component for Scrolling {
         // A finger that has been held on a circle long enough to be a hold is the circle's, and the page under it stays where it is: it
         // must not follow a finger that trembles, which carried the page, and the bar over it, up and down under the hold. Before that a
         // finger that moves is a swipe, and the page scrolls as it always did.
-        let holding = try_consume_context::<State<HoldingCircle>>().is_some_and(|state| state.read().0);
+        let holding =
+            try_consume_context::<State<HoldingCircle>>().is_some_and(|state| state.read().0);
         // `position()` reads the position in a way that this component is drawn again for, so it runs after every move of the page.
         let top = -controller.position().y;
         // The bar hides as a PAGE is read down. The panel of Settings is not a page under the bar but a layer over it, so what is scrolled in it
@@ -2148,21 +2642,30 @@ impl Component for Scrolling {
                 hide.set(next);
             }
         }
-        let scroll = ScrollView::new_controlled(controller).expanded().drag_scrolling(!holding).child(
-            rect()
-                .width(Size::fill())
-                .padding((form.page_vertical_padding(), form.page_side_margin()))
-                .spacing(18.)
-                .background(if self.see_through { Color::TRANSPARENT } else { Color::from(palette.background) })
-                .child(self.content.clone()),
-        );
+        let scroll = ScrollView::new_controlled(controller)
+            .expanded()
+            .drag_scrolling(!holding)
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .padding((form.page_vertical_padding(), form.page_side_margin()))
+                    .spacing(18.)
+                    .background(if self.see_through {
+                        Color::TRANSPARENT
+                    } else {
+                        Color::from(palette.background)
+                    })
+                    .child(self.content.clone()),
+            );
         let Some(tops) = self.tops else {
             return scroll.into_element();
         };
         // The scrollbar is still the toolkit's own, drawn by it; the group icons are added on its track.
         let offsets = tops.read().clone();
         scroll
-            .scrollbar(move |context: ScrollBarContext| GroupMarks::on(palette, offsets.clone(), context))
+            .scrollbar(move |context: ScrollBarContext| {
+                GroupMarks::on(palette, offsets.clone(), context)
+            })
             .into_element()
     }
 }
@@ -2199,12 +2702,19 @@ impl GroupMarks {
         let track = (viewport - Self::BAR_MARGIN * 2.).max(0.);
         let controller = context.scroll_controller;
         // On the layer of the toolkit's own scrollbar (999), above the cards and controls of the page, which would otherwise be drawn over it.
-        let mut marks = rect().position(Position::new_absolute().top(0.).right(0.)).layer(999).width(Size::px(Self::COLUMN)).height(Size::px(viewport));
+        let mut marks = rect()
+            .position(Position::new_absolute().top(0.).right(0.))
+            .layer(999)
+            .width(Size::px(Self::COLUMN))
+            .height(Size::px(viewport));
         // Where each icon sits: the share of the bar that its group's top is of the whole page, so that a long group has room on the bar and short
         // ones are near each other. Never closer than one icon to the one before, so that two do not lie on one another, and never past the end.
         let content = context.content_size.height.max(1.);
         let room = (track - Self::NODE_CURRENT).max(0.);
-        let mut places: Vec<f32> = offsets.iter().map(|top| (top / content).clamp(0., 1.) * track).collect();
+        let mut places: Vec<f32> = offsets
+            .iter()
+            .map(|top| (top / content).clamp(0., 1.) * track)
+            .collect();
         for index in 1..places.len() {
             places[index] = places[index].max(places[index - 1] + Self::NODE);
         }
@@ -2215,29 +2725,62 @@ impl GroupMarks {
             *place = place.clamp(0., room);
         }
         for (index, which) in SettingsTab::ALL.into_iter().enumerate() {
-            let Some(place) = places.get(index).copied() else { break };
+            let Some(place) = places.get(index).copied() else {
+                break;
+            };
             let is_current = current == Some(index);
             // Lit: the group being read and the ones before it.
             let passed = current.is_some_and(|read| index <= read);
-            let (size, icon) = if is_current { (Self::NODE_CURRENT, Self::ICON_CURRENT) } else { (Self::NODE, Self::ICON) };
-            let fill = if passed || is_current { accent } else { palette.raised };
-            let ink = if passed || is_current { glyph::ink_on(accent) } else { glyph::resting_ink(&palette) };
+            let (size, icon) = if is_current {
+                (Self::NODE_CURRENT, Self::ICON_CURRENT)
+            } else {
+                (Self::NODE, Self::ICON)
+            };
+            let fill = if passed || is_current {
+                accent
+            } else {
+                palette.raised
+            };
+            let ink = if passed || is_current {
+                glyph::ink_on(accent)
+            } else {
+                glyph::resting_ink(&palette)
+            };
             let target = offsets.get(index).copied().unwrap_or(0.);
             let mut controller = controller;
             marks = marks.child(
                 rect()
-                    .position(Position::new_absolute().top(Self::BAR_MARGIN + Self::NODE_CURRENT / 2. + place - size / 2.).left((Self::COLUMN - size) / 2.))
+                    .position(
+                        Position::new_absolute()
+                            .top(Self::BAR_MARGIN + Self::NODE_CURRENT / 2. + place - size / 2.)
+                            .left((Self::COLUMN - size) / 2.),
+                    )
                     .width(Size::px(size))
                     .height(Size::px(size))
                     .corner_radius(size / 2.)
                     .center()
                     .background(fill)
-                    .border(Border::new().fill(if passed || is_current { accent } else { palette.border }).width(2.).alignment(BorderAlignment::Inner))
+                    .border(
+                        Border::new()
+                            .fill(if passed || is_current {
+                                accent
+                            } else {
+                                palette.border
+                            })
+                            .width(2.)
+                            .alignment(BorderAlignment::Inner),
+                    )
                     // A press on an icon scrolls to its group: the scroll position is negative as the content goes up.
                     .on_press(move |_| {
                         controller.scroll_to_y(-(target as i32));
                     })
-                    .child(glyph::picture_on(glyph::name_of_tab(which), icon, fill, ink, fill)),
+                    .child(glyph::picture_on(
+                        glyph::name_of_tab(which),
+                        icon,
+                        fill,
+                        ink,
+                        fill,
+                    )),
             );
         }
         rect().child(bar).child(marks).into()
@@ -2252,7 +2795,9 @@ fn hint(state: &SendState) -> &'static str {
         SendState::Ready(devices) if devices.len() > 1 => "Goes straight to the devices you picked",
         SendState::Ready(_) => "Goes straight to the device you picked",
         SendState::ByCode => "No device picked: a code will be made",
-        SendState::ChosenUnavailable => "A device you picked is not available. Pick again, or none to use a code",
+        SendState::ChosenUnavailable => {
+            "A device you picked is not available. Pick again, or none to use a code"
+        }
     }
 }
 
@@ -2273,7 +2818,11 @@ impl SendNotice {
         let language = i18n::language();
         match self {
             Self::Message(message) => i18n::translate(language, message).to_owned(),
-            Self::Refused(count) => i18n::format(language, "{refused} selected files could not be offered.", &[("refused", &count.to_string())]),
+            Self::Refused(count) => i18n::format(
+                language,
+                "{refused} selected files could not be offered.",
+                &[("refused", &count.to_string())],
+            ),
             Self::Intake(summary) => summary.words_in(language).unwrap_or_default(),
         }
     }
@@ -2287,9 +2836,21 @@ async fn show_files_code(
     mut notice: State<Option<SendNotice>>,
 ) {
     match production.ready.await {
-        Ok(Ok(Some(link::ReadyCode { code, generation, expires_at, total, names: _ }))) => {
+        Ok(Ok(Some(link::ReadyCode {
+            code,
+            generation,
+            expires_at,
+            total,
+            names: _,
+        }))) => {
             expired.set(None);
-            shown.set(Some(ShownCode { code, generation, expected: total, made_at: unix_now(), ends_at: expires_at }));
+            shown.set(Some(ShownCode {
+                code,
+                generation,
+                expected: total,
+                made_at: unix_now(),
+                ends_at: expires_at,
+            }));
             // The owner publishes nothing when a code runs out unscanned: the window stops drawing it itself, at the
             // deadline the reply carried, and only if it is still that code.
             let left = view::until_expiry(expires_at, unix_now());
@@ -2304,7 +2865,11 @@ async fn show_files_code(
                     if refused > 0 {
                         notice.set(Some(SendNotice::Refused(refused)));
                     }
-                    if shown.peek().as_ref().is_some_and(|code| code.generation == generation) {
+                    if shown
+                        .peek()
+                        .as_ref()
+                        .is_some_and(|code| code.generation == generation)
+                    {
                         let expected = total.saturating_sub(refused);
                         if expected == 0 {
                             shown.set(None);
@@ -2313,12 +2878,16 @@ async fn show_files_code(
                         }
                     }
                 }
-                Err(_) => notice.set(Some(SendNotice::Message("The file producer stopped before finishing the selection."))),
+                Err(_) => notice.set(Some(SendNotice::Message(
+                    "The file producer stopped before finishing the selection.",
+                ))),
             }
         }
         Ok(Ok(None)) => {}
         Ok(Err(reason)) => notice.set(Some(SendNotice::Message(reason))),
-        Err(_) => notice.set(Some(SendNotice::Message("The file producer stopped before creating a code."))),
+        Err(_) => notice.set(Some(SendNotice::Message(
+            "The file producer stopped before creating a code.",
+        ))),
     }
 }
 
@@ -2345,7 +2914,11 @@ fn unix_now() -> u64 {
 
 /// Offer the files the person picked to the destinations. With no destination nothing is sent:
 /// the choice of files alone never decides who receives them.
-fn send_files(link: &Link, destinations: &[String], paths: Vec<PathBuf>) -> tokio::sync::oneshot::Receiver<link::Sent> {
+fn send_files(
+    link: &Link,
+    destinations: &[String],
+    paths: Vec<PathBuf>,
+) -> tokio::sync::oneshot::Receiver<link::Sent> {
     link.send_paths(destinations.iter().cloned().map(PeerId).collect(), paths)
 }
 
@@ -2353,15 +2926,26 @@ fn send_files(link: &Link, destinations: &[String], paths: Vec<PathBuf>) -> toki
 /// own and no code. The same rules as Send to a picked device: on a platform with a picker of its own (Android) the files come back
 /// open and go in commands of at most the most the owner accepts, and on a desktop the dialog's paths are judged by the same intake
 /// (a folder, a file that is gone) and offered together. What was left out is said in `said`, as on the Send page.
-fn choose_and_send(link: &Link, picker: Option<link::FilePicker>, peer: String, mut said: State<Option<SendNotice>>) {
+fn choose_and_send(
+    link: &Link,
+    picker: Option<link::FilePicker>,
+    peer: String,
+    mut said: State<Option<SendNotice>>,
+) {
     said.set(None);
     if let Some(picker) = picker {
         picker.picked.opened_streaming();
         (picker.open)(true);
-        let batches = link::await_picked(picker.picked.clone(), link::LOOK_EVERY, link::PICKER_PATIENCE);
+        let batches = link::await_picked(
+            picker.picked.clone(),
+            link::LOOK_EVERY,
+            link::PICKER_PATIENCE,
+        );
         let handed_off = link.send_picked(vec![PeerId(peer)], batches);
         spawn(async move {
-            if let Ok(refused) = handed_off.await && refused > 0 {
+            if let Ok(refused) = handed_off.await
+                && refused > 0
+            {
                 said.set(Some(SendNotice::Refused(refused)));
             }
         });
@@ -2374,7 +2958,7 @@ fn choose_and_send(link: &Link, picker: Option<link::FilePicker>, peer: String, 
             let intake = intake::accept(files.iter().map(|file| file.path().to_path_buf()));
             said.set(SendNotice::intake(&intake));
             // The quick send of a device's own card shows no batch under a circle: the answer is not wanted.
-            let _ = send_files(&link, std::slice::from_ref(&peer), intake.taken);
+            drop(send_files(&link, std::slice::from_ref(&peer), intake.taken));
         }
         #[cfg(target_os = "android")]
         let _ = (&link, &peer, &said);
@@ -2450,7 +3034,11 @@ impl Component for SendPage {
                 lap.set(next_lap);
                 shown.set(None);
                 expired.set(None);
-                let kept = view::ids_kept_on_new_choice(&transfers_for_handlers.peek(), &batch_ids.peek(), None);
+                let kept = view::ids_kept_on_new_choice(
+                    &transfers_for_handlers.peek(),
+                    &batch_ids.peek(),
+                    None,
+                );
                 batch_ids.set(kept);
                 // More files join what already waits (the model refuses a file that is already in the list); a choice made with nothing waiting is
                 // the first, and is the whole list.
@@ -2462,7 +3050,8 @@ impl Component for SendPage {
         // The files of an Android selection, held by number in the registry and only LISTED: they wait here, in a guard that lets go of them if
         // the page is left, until the circle is used. Not state: a guard cannot be compared or copied, and what the page shows of it is
         // `staged_names`.
-        let held_files: std::rc::Rc<std::cell::RefCell<Option<link::Gathered>>> = use_hook(Default::default);
+        let held_files: std::rc::Rc<std::cell::RefCell<Option<link::Gathered>>> =
+            use_hook(Default::default);
         let mut staged_names: State<Vec<String>> = use_state(Vec::new);
         // Where what is listed would go: the devices picked (as `send_state` has judged them), none, or one that went away.
         let aim = view::aim_of(&state);
@@ -2473,7 +3062,9 @@ impl Component for SendPage {
             let aim = aim.clone();
             move |act: view::CircleAct| {
                 let (devices, with_code) = match (&act, &aim) {
-                    (view::CircleAct::Send, view::Aim::Devices(devices)) => (devices.clone(), false),
+                    (view::CircleAct::Send, view::Aim::Devices(devices)) => {
+                        (devices.clone(), false)
+                    }
                     (view::CircleAct::MakeCode, view::Aim::Code) => (Vec::new(), true),
                     _ => return,
                 };
@@ -2549,9 +3140,15 @@ impl Component for SendPage {
         let begin_files = EventHandler::new({
             let (file_picker, held_files) = (file_picker.clone(), held_files.clone());
             move |()| {
-                let Some(picker) = file_picker.clone() else { return };
+                let Some(picker) = file_picker.clone() else {
+                    return;
+                };
                 // Ten minutes is far more than choosing files takes, and it ends a wait nothing will answer.
-                let mut batches = link::await_picked(picker.picked.clone(), link::LOOK_EVERY, link::PICKER_PATIENCE);
+                let mut batches = link::await_picked(
+                    picker.picked.clone(),
+                    link::LOOK_EVERY,
+                    link::PICKER_PATIENCE,
+                );
                 let (picked, held_files) = (picker.picked.clone(), held_files.clone());
                 spawn(async move {
                     let mut gathered = link::Gathered::new(picked);
@@ -2579,12 +3176,19 @@ impl Component for SendPage {
                             Some(earlier) => earlier.absorb(gathered),
                             None => *guard = Some(gathered),
                         }
-                        guard.as_ref().map(link::Gathered::names).unwrap_or_default()
+                        guard
+                            .as_ref()
+                            .map(link::Gathered::names)
+                            .unwrap_or_default()
                     };
                     // A new selection is a new transfer: the code of the one before no longer describes the circle.
                     shown.set(None);
                     expired.set(None);
-                    let kept = view::ids_kept_on_new_choice(&transfers_for_handlers.peek(), &batch_ids.peek(), None);
+                    let kept = view::ids_kept_on_new_choice(
+                        &transfers_for_handlers.peek(),
+                        &batch_ids.peek(),
+                        None,
+                    );
                     batch_ids.set(kept);
                     staged_names.set(names);
                 });
@@ -2673,8 +3277,11 @@ impl Component for SendPage {
             devices = devices.child(DeviceCard {
                 id: device.id.clone(),
                 name: device.name.clone(),
-                picture: device.picture.and_then(|digest| self.pictures.get(&digest)).map(avatar_view::Shared),
-                online: device.presence == Presence::Online,
+                picture: device
+                    .picture
+                    .and_then(|digest| self.pictures.get(&digest))
+                    .map(avatar_view::Shared),
+                presence: device.presence.clone(),
                 picked: self.chosen.contains(&device.id),
                 palette,
                 form: self.form,
@@ -2682,7 +3289,13 @@ impl Component for SendPage {
             });
         }
         let devices: Element = if self.view.devices.is_empty() {
-            label().text(crate::i18n::tr("No saved devices yet. Send by code, and keep the device when asked.")).color(palette.muted).font_size(15.).into()
+            label()
+                .text(crate::i18n::tr(
+                    "No saved devices yet. Send by code, and keep the device when asked.",
+                ))
+                .color(palette.muted)
+                .font_size(15.)
+                .into()
         } else {
             devices.into()
         };
@@ -2707,21 +3320,37 @@ impl Component for SendPage {
         // they would go, the code that was made and what the owner reports of it, and the transfers of the batch chosen now. The page reads the answer and
         // chooses nothing of its own: not the words, not whether a touch does anything, not what it does.
         let code_state = shown.read().as_ref().map(|made| {
-            if expired.read().is_some_and(|generation| generation == made.generation) {
+            if expired
+                .read()
+                .is_some_and(|generation| generation == made.generation)
+            {
                 view::CodeCircle::Gone
             } else {
-                view::code_circle_selection(made.generation, self.view.files_code, &self.view.transfers, made.expected as usize)
+                view::code_circle_selection(
+                    made.generation,
+                    self.view.files_code,
+                    &self.view.transfers,
+                    made.expected as usize,
+                )
             }
         });
-        let batch_now = view::batch_of(&self.view.transfers, &batch_ids.read(), shown.read().as_ref().map(|made| made.generation));
+        let batch_now = view::batch_of(
+            &self.view.transfers,
+            &batch_ids.read(),
+            shown.read().as_ref().map(|made| made.generation),
+        );
         let batch_transfers = &batch_now;
-        let listed_count = if staged_names.read().is_empty() { staged_paths.read().len() } else { staged_names.read().len() };
+        let listed_count = if staged_names.read().is_empty() {
+            staged_paths.read().len()
+        } else {
+            staged_names.read().len()
+        };
         let circle = view::circle_view(&view::CircleInputs {
             listed: listed_count,
             aim: aim.clone(),
             send_instantly: self.view.settings.send_instantly,
             code: code_state.clone(),
-            batch: &batch_transfers,
+            batch: batch_transfers,
             handed_over: *handed_over.read(),
         });
         let picked = match &aim {
@@ -2732,24 +3361,47 @@ impl Component for SendPage {
         // the code was made gets one drawn for its new size; a memo that captured the size never saw it change.
         let drawn = use_state(|| std::rc::Rc::new(std::cell::RefCell::new(qr::Drawn::default())));
         let scale = *Platform::get().current_window().scale_factor.peek();
-        let disc = qr::disc_physical(view::Form::portal_extent(qr::PORTAL_OUTER, self.room), scale);
+        let disc = qr::disc_physical(
+            view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
+            scale,
+        );
         // The picture is drawn only while the circle says it is the code, and never from a code that was spent.
         let picture = match (circle.shows_code, shown.read().as_ref()) {
-            (true, Some(made)) => drawn.read().borrow_mut().of(&made.code, disc).map(|handle| qr::picture_from(handle, scale)),
+            (true, Some(made)) => drawn
+                .read()
+                .borrow_mut()
+                .of(&made.code, disc)
+                .map(|handle| qr::picture_from(handle, scale)),
             _ => None,
         };
         // While the files wait for the other device, the time this device still waits for the answer, from the window's clock.
-        let circle_clock = code_state
-            .as_ref()
-            .zip(shown.read().as_ref())
-            .and_then(|(code, made)| view::circle_time_in(i18n::language(), code, made.generation, &self.view.transfers, self.now));
+        let circle_clock =
+            code_state
+                .as_ref()
+                .zip(shown.read().as_ref())
+                .and_then(|(code, made)| {
+                    view::circle_time_in(
+                        i18n::language(),
+                        code,
+                        made.generation,
+                        &self.view.transfers,
+                        self.now,
+                    )
+                });
         // How long the result of an ended batch has been on the circle, from the window's own clock: the page notes the first second it saw the batch
         // as ended (the owner keeps no end time of a transfer), for the lap it belongs to, and the model says how clear it still is (see
         // `view::result_opacity`). A newer lap (files chosen, or a send) leaves an older result behind at once.
-        let ended_now = matches!(view::stage_of(&view::CircleInputs {
-            listed: listed_count, aim: aim.clone(), send_instantly: self.view.settings.send_instantly, code: code_state.clone(),
-            batch: &batch_transfers, handed_over: *handed_over.read(),
-        }), view::Stage::Ended { .. });
+        let ended_now = matches!(
+            view::stage_of(&view::CircleInputs {
+                listed: listed_count,
+                aim: aim.clone(),
+                send_instantly: self.view.settings.send_instantly,
+                code: code_state.clone(),
+                batch: batch_transfers,
+                handed_over: *handed_over.read(),
+            }),
+            view::Stage::Ended { .. }
+        );
         {
             let noted = *result_noted.peek();
             match (ended_now, noted) {
@@ -2762,29 +3414,73 @@ impl Component for SendPage {
             Some((noted_lap, ended_at)) => {
                 let ended_ms = ended_at.saturating_mul(1_000);
                 let now_ms = self.now.saturating_mul(1_000);
-                (view::shows_result(noted_lap, *lap.read(), ended_ms, now_ms), view::result_opacity(ended_ms, now_ms))
+                (
+                    view::shows_result(noted_lap, *lap.read(), ended_ms, now_ms),
+                    view::result_opacity(ended_ms, now_ms),
+                )
             }
             None => (true, 1.),
         };
-        let words = view::circle_view_words_in(i18n::language(), &circle, code_state.as_ref(), picked, result_shown);
+        let words = view::circle_view_words_in(
+            i18n::language(),
+            &circle,
+            code_state.as_ref(),
+            picked,
+            result_shown,
+        );
         // The words of a result fade toward the colour of the circle, in the clearness the model gives; every other state is drawn clear.
-        let ink = if ended_now && result_shown { glyph::dim(palette.portal_text, palette.portal, clearness) } else { palette.portal_text };
+        let ink = if ended_now && result_shown {
+            glyph::dim(palette.portal_text, palette.portal, clearness)
+        } else {
+            palette.portal_text
+        };
         let centre: Vec<Element> = match picture {
             Some(picture) => vec![picture],
             None if words.asks_for_files => vec![
                 mono(words.kicker.clone(), palette.portal_text, 12.).into(),
-                label().text(words.headline.clone()).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(words.line.clone()).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(i18n::tr(if unavailable { hint(&state) } else { self.form.circle_invitation() })).color(palette.portal_text).font_size(14.).into(),
+                label()
+                    .text(words.headline.clone())
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(words.line.clone())
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(i18n::tr(if unavailable {
+                        hint(&state)
+                    } else {
+                        self.form.circle_invitation()
+                    }))
+                    .color(palette.portal_text)
+                    .font_size(14.)
+                    .into(),
             ],
             None => [
                 mono(words.kicker.clone(), ink, 12.).into(),
-                label().text(words.headline.clone()).color(ink).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(words.line.clone()).color(ink).font_size(14.).into(),
+                label()
+                    .text(words.headline.clone())
+                    .color(ink)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(words.line.clone())
+                    .color(ink)
+                    .font_size(14.)
+                    .into(),
             ]
             .into_iter()
             .chain(circle_clock.map(|text| {
-                let colour = if text.ends_with("0:00") { palette.bad } else { palette.portal_text };
+                let colour = if text.ends_with("0:00") {
+                    palette.bad
+                } else {
+                    palette.portal_text
+                };
                 mono(text, colour, 12.).into()
             }))
             .collect(),
@@ -2794,7 +3490,11 @@ impl Component for SendPage {
         // and not a number read from the clock once a second: the sparks fly from its tip, and a tip that moves a step a second made them shake.
         let reduced = self.link.client().snapshot().settings.reduced_motion;
         let code_sparks = use_sparks(reduced, circle.shows_code);
-        let on_show = shown.read().as_ref().filter(|_| circle.shows_code).map(|made| (made.generation, made.made_at, made.ends_at));
+        let on_show = shown
+            .read()
+            .as_ref()
+            .filter(|_| circle.shows_code)
+            .map(|made| (made.generation, made.made_at, made.ends_at));
         let (burns, left, remaining) = match on_show {
             Some((generation, made_at, ends_at)) => (
                 Some(generation),
@@ -2805,21 +3505,28 @@ impl Component for SendPage {
         };
         let code_fuse = use_fuse(burns, left, remaining, reduced);
         // A circle that is shut (a code drawn, or a transfer going) answers no touch at all; one that is open does what the decision says.
-        let disc = portal_held(
+        // The circle of the Send page: pressed to choose files when none are listed, and when they are, made to do what the page says
+        // (`HoldToSend`): a touch makes a code when no device is picked, and it is held until it fills to send to the devices that are.
+        // `life` is the share, from 1 to 0, of the life a code on show still has: the fuse burns round it, outside the disc and never in it,
+        // so that the code inside is as it was drawn and scans as it did; `None` when the circle shows no code.
+        let disc = Portal {
             palette,
             accent,
-            (!unavailable && circle.does.is_some()).then(|| choose.clone()),
-            centre,
-            view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
-            circle.does.filter(|_| !unavailable).map(|does| HoldToSend { does, on_act: on_circle.clone() }),
+            on_press: (!unavailable && circle.does.is_some()).then(|| choose.clone()),
+            children: centre,
+            extent: view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
+            hold: circle.does.filter(|_| !unavailable).map(|does| HoldToSend {
+                does,
+                on_act: on_circle.clone(),
+            }),
             // How far the files have come while they go: the circle fills as they move, as it fills under a finger, in the same colour and way.
-            view::circle_fill(&circle.batch, 0.),
+            going: view::circle_fill(&circle.batch, 0.),
             // The time the code has left, as the fuse that burns round it: smooth, from the owner's own deadline (`use_fuse`), and only while the code
             // is what the circle shows. Nothing is written in the code or on the disc, so what is scanned is what was drawn.
-            burns.map(|_| code_fuse),
+            life: burns.map(|_| code_fuse),
             // The sparks of its tip, the same as the fuse of a code on the Pair page (`use_sparks`): in flight only while a code burns.
-            code_sparks,
-        );
+            sparks: code_sparks,
+        };
 
         // The files that were chosen and are only listed, as the circle's own context: no button of its own, no history. The circle is the only
         // control: with no device picked a touch on it makes a code; with devices picked it is held until it fills and sends to them.
@@ -2829,7 +3536,10 @@ impl Component for SendPage {
             staged_paths
                 .read()
                 .iter()
-                .filter_map(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+                .filter_map(|path| {
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                })
                 .collect()
         } else {
             staged_names.read().clone()
@@ -2845,29 +3555,57 @@ impl Component for SendPage {
                     view::ListRow::Transfer(_) => None,
                 })
                 .collect();
-            Transfers { context: true, items: batch, prepared, actions: Some(file_actions.clone()), ..transfers(&self.link, &self.view, palette) }
+            Transfers {
+                context: true,
+                items: batch,
+                prepared,
+                actions: Some(file_actions.clone()),
+                ..transfers(&self.link, &self.view, palette)
+            }
         };
-        let mut page = rect().width(Size::fill()).spacing(self.form.page_section_gap());
+        let mut page = rect()
+            .width(Size::fill())
+            .spacing(self.form.page_section_gap());
         if self.form.send_is_the_circle_alone() {
             // A phone held upright: the title small above, then the circle, which is itself the button that chooses.
             // The saved devices are under it, and the pairing is in Peers, a tap away at the bottom.
-            page = page.cross_align(Alignment::center()).child(title_above_circle(self.form, hero, disc));
+            page = page
+                .cross_align(Alignment::center())
+                .child(title_above_circle(self.form, hero, disc));
             if let Some(said) = *notice.read() {
-                page = page.child(label().text(said.words()).color(palette.muted).font_size(14.));
+                page = page.child(
+                    label()
+                        .text(said.words())
+                        .color(palette.muted)
+                        .font_size(14.),
+                );
             }
             // What is going on or has gone is the circle's own business, so it comes right under it, before the devices: where a transfer
             // can be followed and stopped without scrolling past a list of devices.
             page = page.child(files_list);
             // The devices whose pairing was finished, under that: to send to one of them is a tap, and they are the only ones here. A
             // device only seen in the history is not, until it has been paired.
-            page = page.child(section("OR PICK A SAVED DEVICE", palette)).child(devices);
+            page = page
+                .child(section("OR PICK A SAVED DEVICE", palette))
+                .child(devices);
         } else {
             page = page.child(
-                rect().width(Size::fill()).horizontal().cross_align(Alignment::center()).content(Content::flex()).child(hero).child(disc),
+                rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .cross_align(Alignment::center())
+                    .content(Content::flex())
+                    .child(hero)
+                    .child(disc),
             );
             // What the last batch left out, in a sentence: a folder dropped in, a file that is gone.
             if let Some(said) = *notice.read() {
-                page = page.child(label().text(said.words()).color(palette.muted).font_size(14.));
+                page = page.child(
+                    label()
+                        .text(said.words())
+                        .color(palette.muted)
+                        .font_size(14.),
+                );
             }
             page = page
                 .child(files_list)
@@ -2911,7 +3649,7 @@ struct DeviceCard {
     id: String,
     name: String,
     picture: Option<avatar_view::Shared>,
-    online: bool,
+    presence: Presence,
     picked: bool,
     palette: Palette,
     form: view::Form,
@@ -2922,7 +3660,12 @@ impl Component for DeviceCard {
     fn render(&self) -> impl IntoElement {
         let palette = self.palette;
         let mut hovered = use_state(|| false);
-        let (online, id, on_choose) = (self.online, self.id.clone(), self.on_choose.clone());
+        let (reachable, id, on_choose) = (
+            self.presence.reachable(),
+            self.id.clone(),
+            self.on_choose.clone(),
+        );
+        let (word, word_colour) = palette.of_presence(&self.presence);
         rect()
             .key(self.id.clone())
             .width(self.form.device_card_width().map_or(Size::fill(), Size::px))
@@ -2931,18 +3674,26 @@ impl Component for DeviceCard {
             .cross_align(Alignment::center())
             .spacing(14.)
             .corner_radius(14.)
-            .opacity(if online { 1. } else { 0.55 })
-            .background(if hovered() && online { palette.raised } else { palette.surface })
+            .opacity(if reachable { 1. } else { 0.55 })
+            .background(if hovered() && reachable {
+                palette.raised
+            } else {
+                palette.surface
+            })
             .border(
                 Border::new()
-                    .fill(if self.picked { palette.send } else { palette.border })
+                    .fill(if self.picked {
+                        palette.send
+                    } else {
+                        palette.border
+                    })
                     .width(if self.picked { 2. } else { 1. })
                     .alignment(BorderAlignment::Inner),
             )
             .on_pointer_enter(move |_| hovered.set(true))
             .on_pointer_leave(move |_| hovered.set(false))
             .on_press(move |_| {
-                if online {
+                if reachable {
                     on_choose.call(id.clone());
                 }
             })
@@ -2954,8 +3705,14 @@ impl Component for DeviceCard {
             })
             .child(
                 rect()
-                    .child(label().text(self.name.clone()).color(palette.text).font_size(17.).font_weight(FontWeight::BOLD))
-                    .child(mono(if online { "ONLINE" } else { "OFFLINE" }, if online { palette.good } else { palette.muted }, 11.)),
+                    .child(
+                        label()
+                            .text(self.name.clone())
+                            .color(palette.text)
+                            .font_size(17.)
+                            .font_weight(FontWeight::BOLD),
+                    )
+                    .child(mono(word, word_colour, 11.)),
             )
     }
 }
@@ -2986,12 +3743,18 @@ struct CodeScan {
     stop: EventHandler<()>,
 }
 
-fn use_code_scan(link: &Link, camera: Option<link::CameraControl>, room: f32, owner_said: State<Option<String>>) -> CodeScan {
+fn use_code_scan(
+    link: &Link,
+    camera: Option<link::CameraControl>,
+    room: f32,
+    owner_said: State<Option<String>>,
+) -> CodeScan {
     let mut looking: State<view::Looking> = use_state(view::Looking::default);
     // What the camera sees, as the circle shows it: the latest picture, empty until the first frame and again after.
     let mut picture: State<Option<Arc<preview::Shown>>> = use_state(|| None);
     // The scan in progress, kept where Stop can reach it: stopping ends it from here, whatever the watcher is doing.
-    let scan: std::rc::Rc<std::cell::RefCell<Option<scanner::Scanner>>> = use_hook(Default::default);
+    let scan: std::rc::Rc<std::cell::RefCell<Option<scanner::Scanner>>> =
+        use_hook(Default::default);
     // The disc's size on the glass in pixels, which is the side of the picture made for it: a picture larger than the disc
     // is wasted work and a smaller one is stretched.
     let side = qr::disc_physical(
@@ -3079,7 +3842,12 @@ fn use_code_scan(link: &Link, camera: Option<link::CameraControl>, room: f32, ow
             (camera.close)();
         });
     }
-    CodeScan { looking, picture, open, stop }
+    CodeScan {
+        looking,
+        picture,
+        open,
+        stop,
+    }
 }
 
 /// What the circle of Receive holds while the camera is on: the picture of what it sees, filling the disc, a dot on each
@@ -3108,10 +3876,16 @@ impl Component for CameraCircle {
         // which is the mistake `qr::Drawn` was written against. It costs one copy of a picture about as large as the disc,
         // a few times a second, which is what the picture is.
         let handle = qr::portal_handle(&self.picture.picture);
-        let mut camera = rect().width(Size::px(disc)).height(Size::px(disc)).corner_radius(disc / 2.);
+        let mut camera = rect()
+            .width(Size::px(disc))
+            .height(Size::px(disc))
+            .corner_radius(disc / 2.);
         if let Some(handle) = handle {
             camera = camera.child(
-                image(handle).sampling_mode(SamplingMode::Nearest).width(Size::px(disc)).height(Size::px(disc)),
+                image(handle)
+                    .sampling_mode(SamplingMode::Nearest)
+                    .width(Size::px(disc))
+                    .height(Size::px(disc)),
             );
         }
         // A dot on every corner of every code that was found, in the green of "good".
@@ -3126,7 +3900,12 @@ impl Component for CameraCircle {
                         .height(Size::px(DOT))
                         .corner_radius(DOT / 2.)
                         .background(palette.good)
-                        .border(Border::new().fill(palette.scanner_outline).width(2.).alignment(BorderAlignment::Inner)),
+                        .border(
+                            Border::new()
+                                .fill(palette.scanner_outline)
+                                .width(2.)
+                                .alignment(BorderAlignment::Inner),
+                        ),
                 );
             }
         }
@@ -3134,8 +3913,16 @@ impl Component for CameraCircle {
         // Stop sits at the bottom of the circle, over the picture, where a thumb finds it.
         camera.child(
             rect()
-                .position(Position::new_absolute().left(disc / 2. - 44.).top(disc - 64.))
-                .child(Button::new().on_press(move |_| on_stop.call(())).child(crate::i18n::tr("Stop"))),
+                .position(
+                    Position::new_absolute()
+                        .left(disc / 2. - 44.)
+                        .top(disc - 64.),
+                )
+                .child(
+                    Button::new()
+                        .on_press(move |_| on_stop.call(()))
+                        .child(crate::i18n::tr("Stop")),
+                ),
         )
     }
 }
@@ -3168,14 +3955,27 @@ impl Component for ReceivePage {
         // The circle makes no code: a device that receives has nothing to show. It is the place where a code from the
         // other device is taken: pasted below, or, on a phone, read by its camera. Pairing is in Peers.
         let camera = self.camera.clone();
-        let CodeScan { looking, picture, open: open_camera, stop: stop_camera } =
-            use_code_scan(&self.link, camera.clone(), self.room, owner_said);
+        let CodeScan {
+            looking,
+            picture,
+            open: open_camera,
+            stop: stop_camera,
+        } = use_code_scan(&self.link, camera.clone(), self.room, owner_said);
         let shown_now = picture.read().clone();
         let words = |headline: &'static str, line: &'static str| -> Vec<Element> {
             vec![
                 mono(i18n::tr("READY TO RECEIVE"), palette.portal_text, 12.).into(),
-                label().text(i18n::tr(headline)).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(i18n::tr(line)).color(palette.portal_text).font_size(14.).into(),
+                label()
+                    .text(i18n::tr(headline))
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(i18n::tr(line))
+                    .color(palette.portal_text)
+                    .font_size(14.)
+                    .into(),
             ]
         };
         let mut camera_in_circle = false;
@@ -3183,12 +3983,26 @@ impl Component for ReceivePage {
             match view::circle_for(looking(), shown_now.is_some()) {
                 view::Circle::Words(headline, line) => words(headline, line),
                 // One small line and nothing else, for the moment the camera takes to give its first frame.
-                view::Circle::Starting(line) => vec![label().text(i18n::tr(line)).color(palette.portal_text).font_size(14.).into()],
+                view::Circle::Starting(line) => vec![
+                    label()
+                        .text(i18n::tr(line))
+                        .color(palette.portal_text)
+                        .font_size(14.)
+                        .into(),
+                ],
                 // The camera, and nothing written over it.
                 view::Circle::Camera => match shown_now {
                     Some(picture) => {
                         camera_in_circle = true;
-                        vec![CameraCircle { picture, room: self.room, palette, on_stop: stop_camera.clone() }.into()]
+                        vec![
+                            CameraCircle {
+                                picture,
+                                room: self.room,
+                                palette,
+                                on_stop: stop_camera.clone(),
+                            }
+                            .into(),
+                        ]
                     }
                     None => Vec::new(),
                 },
@@ -3196,9 +4010,23 @@ impl Component for ReceivePage {
         } else {
             vec![
                 mono(i18n::tr("READY TO RECEIVE"), palette.portal_text, 12.).into(),
-                label().text(i18n::tr("PASTE")).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(i18n::tr("THE CODE")).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(i18n::tr("from the other device")).color(palette.portal_text).font_size(14.).into(),
+                label()
+                    .text(i18n::tr("PASTE"))
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(i18n::tr("THE CODE"))
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(i18n::tr("from the other device"))
+                    .color(palette.portal_text)
+                    .font_size(14.)
+                    .into(),
             ]
         };
 
@@ -3219,21 +4047,39 @@ impl Component for ReceivePage {
                     .font_size(if form.page_puts_portal_beside_text() { 20. } else { 15. }),
             );
 
-        let paste = Input::new(join_text).placeholder(crate::i18n::tr("Paste the code")).width(if form.page_puts_portal_beside_text() {
-            Size::px(520.)
-        } else {
-            Size::fill()
-        });
+        let paste = Input::new(join_text)
+            .placeholder(crate::i18n::tr("Paste the code"))
+            .width(if form.page_puts_portal_beside_text() {
+                Size::px(520.)
+            } else {
+                Size::fill()
+            });
         let join_button = Button::new().on_press(join).child(crate::i18n::tr("Join"));
         let join_row: Element = if form.page_puts_portal_beside_text() {
-            rect().horizontal().spacing(10.).child(paste).child(join_button).into()
+            rect()
+                .horizontal()
+                .spacing(10.)
+                .child(paste)
+                .child(join_button)
+                .into()
         } else {
-            rect().width(Size::fill()).spacing(10.).child(paste).child(join_button.width(Size::fill())).into()
+            rect()
+                .width(Size::fill())
+                .spacing(10.)
+                .child(paste)
+                .child(join_button.width(Size::fill()))
+                .into()
         };
         // With the camera in the circle a press on it does nothing: Stop is the one way to end a scan, and a touch that
         // restarted the camera would be a button that does something other than what it is.
         let on_press = (camera.is_some() && !camera_in_circle).then(|| open_camera.clone());
-        let portal = portal(palette, accent, on_press, centre, view::Form::portal_extent(qr::PORTAL_OUTER, self.room));
+        let portal = portal(
+            palette,
+            accent,
+            on_press,
+            centre,
+            view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
+        );
         let introduction: Element = if form.page_puts_portal_beside_text() {
             rect()
                 .width(Size::fill())
@@ -3257,7 +4103,12 @@ impl Component for ReceivePage {
                     .spacing(10.)
                     .child(section("HAVE A CODE FROM ANOTHER DEVICE?", palette))
                     .child(join_row)
-                    .maybe_child(owner_said.read().clone().map(|reason| label().text(i18n::tr(&reason).to_owned()).color(palette.bad).font_size(14.))),
+                    .maybe_child(owner_said.read().clone().map(|reason| {
+                        label()
+                            .text(i18n::tr(&reason).to_owned())
+                            .color(palette.bad)
+                            .font_size(14.)
+                    })),
             );
         // Pasting a code belongs to the Receive circle, before the bounded list of incoming files.
         if !self.view.transfers.is_empty() {
@@ -3321,58 +4172,113 @@ impl Component for CodeTaker {
                 None => refused.set(true),
             }
         };
-        let CodeScan { looking, picture, open, stop } = use_code_scan(&self.link, self.camera.clone(), self.room, owner_said);
+        let CodeScan {
+            looking,
+            picture,
+            open,
+            stop,
+        } = use_code_scan(&self.link, self.camera.clone(), self.room, owner_said);
         let shown_now = picture.read().clone();
         let words = |headline: &'static str, line: &'static str| -> Vec<Element> {
             vec![
                 mono(i18n::tr("CONNECT"), palette.portal_text, 12.).into(),
-                label().text(i18n::tr(headline)).color(palette.portal_text).font_size(34.).font_weight(FontWeight::BOLD).into(),
-                label().text(i18n::tr(line)).color(palette.portal_text).font_size(14.).into(),
+                label()
+                    .text(i18n::tr(headline))
+                    .color(palette.portal_text)
+                    .font_size(34.)
+                    .font_weight(FontWeight::BOLD)
+                    .into(),
+                label()
+                    .text(i18n::tr(line))
+                    .color(palette.portal_text)
+                    .font_size(14.)
+                    .into(),
             ]
         };
         let mut camera_in_circle = false;
         let centre: Vec<Element> = match view::circle_for(looking(), shown_now.is_some()) {
             view::Circle::Words(headline, line) => words(headline, line),
-            view::Circle::Starting(line) => vec![label().text(i18n::tr(line)).color(palette.portal_text).font_size(14.).into()],
+            view::Circle::Starting(line) => vec![
+                label()
+                    .text(i18n::tr(line))
+                    .color(palette.portal_text)
+                    .font_size(14.)
+                    .into(),
+            ],
             view::Circle::Camera => match shown_now {
                 Some(picture) => {
                     camera_in_circle = true;
-                    vec![CameraCircle { picture, room: self.room, palette, on_stop: stop.clone() }.into()]
+                    vec![
+                        CameraCircle {
+                            picture,
+                            room: self.room,
+                            palette,
+                            on_stop: stop.clone(),
+                        }
+                        .into(),
+                    ]
                 }
                 None => Vec::new(),
             },
         };
-        let paste = Input::new(text).placeholder(crate::i18n::tr("Paste the code")).width(if form.page_puts_portal_beside_text() {
-            Size::px(520.)
-        } else {
-            Size::fill()
-        });
+        let paste = Input::new(text)
+            .placeholder(crate::i18n::tr("Paste the code"))
+            .width(if form.page_puts_portal_beside_text() {
+                Size::px(520.)
+            } else {
+                Size::fill()
+            });
         let join_button = Button::new().on_press(join).child(crate::i18n::tr("Join"));
         let join_row: Element = if form.page_puts_portal_beside_text() {
-            rect().horizontal().spacing(10.).child(paste).child(join_button).into()
+            rect()
+                .horizontal()
+                .spacing(10.)
+                .child(paste)
+                .child(join_button)
+                .into()
         } else {
-            rect().width(Size::fill()).spacing(10.).child(paste).child(join_button.width(Size::fill())).into()
+            rect()
+                .width(Size::fill())
+                .spacing(10.)
+                .child(paste)
+                .child(join_button.width(Size::fill()))
+                .into()
         };
         let mut taker = rect().width(Size::fill()).spacing(12.);
         // The circle is only where there is a camera to read with; elsewhere the code is pasted.
         if self.camera.is_some() {
             let on_press = (!camera_in_circle).then(|| open.clone());
             taker = taker.child(
-                rect().width(Size::fill()).cross_align(Alignment::center()).child(portal(
-                    palette,
-                    accent,
-                    on_press,
-                    centre,
-                    view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
-                )),
+                rect()
+                    .width(Size::fill())
+                    .cross_align(Alignment::center())
+                    .child(portal(
+                        palette,
+                        accent,
+                        on_press,
+                        centre,
+                        view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
+                    )),
             );
         }
-        taker = taker.child(section("OR PASTE THE CODE FROM THE OTHER DEVICE", palette)).child(join_row);
+        taker = taker
+            .child(section("OR PASTE THE CODE FROM THE OTHER DEVICE", palette))
+            .child(join_row);
         if *refused.read() {
-            taker = taker.child(label().text(crate::i18n::tr("That is not a code from another device.")).color(palette.muted).font_size(14.));
+            taker = taker.child(
+                label()
+                    .text(crate::i18n::tr("That is not a code from another device."))
+                    .color(palette.muted)
+                    .font_size(14.),
+            );
         }
         if let Some(reason) = owner_said.read().clone() {
-            taker = taker.child(label().text(i18n::tr(&reason).to_owned()).color(palette.bad).font_size(14.));
+            taker = taker.child(
+                label()
+                    .text(i18n::tr(&reason).to_owned())
+                    .color(palette.bad)
+                    .font_size(14.),
+            );
         }
         taker
     }
@@ -3413,7 +4319,10 @@ impl Component for PairingSection {
                             failure.set(None);
                             invitation.set(Some(code));
                             // At the end of its life: the code leaves the screen, if it is still the code on show. Nothing is asked for in its place.
-                            let mut over = link::after(std::time::Duration::from_secs(view::CODE_LIFE_SECONDS), std::time::Duration::from_millis(250));
+                            let mut over = link::after(
+                                std::time::Duration::from_secs(view::CODE_LIFE_SECONDS),
+                                std::time::Duration::from_millis(250),
+                            );
                             spawn(async move {
                                 if (&mut over).await.is_ok() && *generation.peek() == mine {
                                     invitation.set(None);
@@ -3421,7 +4330,9 @@ impl Component for PairingSection {
                             });
                         }
                         // Never swallowed: an error nobody can see is a button that seems to do nothing.
-                        Ok(_) => failure.set(Some("The owner answered with something else.".to_owned())),
+                        Ok(_) => {
+                            failure.set(Some("The owner answered with something else.".to_owned()))
+                        }
                         Err(error) => failure.set(Some(error.to_string())),
                     }
                 });
@@ -3446,11 +4357,20 @@ impl Component for PairingSection {
         // so that it is gone at the moment the code leaves the screen and the owner stops admitting it. With reduced motion it does not move: it is
         // drawn whole, and the code still leaves the screen on its time.
         let reduced = self.link.client().snapshot().settings.reduced_motion;
-        let fuse = use_animation_with_dependencies(&(*generation.read(), reduced), move |conf, (_, reduced)| {
-            conf.on_creation(OnCreation::Run);
-            conf.on_change(OnChange::Rerun);
-            AnimNum::new(1., 0.).time(if *reduced { 0 } else { view::CODE_LIFE_SECONDS * 1000 }).function(Function::Linear)
-        });
+        let fuse = use_animation_with_dependencies(
+            &(*generation.read(), reduced),
+            move |conf, (_, reduced)| {
+                conf.on_creation(OnCreation::Run);
+                conf.on_change(OnChange::Rerun);
+                AnimNum::new(1., 0.)
+                    .time(if *reduced {
+                        0
+                    } else {
+                        view::CODE_LIFE_SECONDS * 1000
+                    })
+                    .function(Function::Linear)
+            },
+        );
         // The sparks of its tip (see `use_sparks`): still with reduced motion.
         let sparks = use_sparks(reduced, true);
         // The drawing is kept between draws, together with what it was made for. It is read through the cache and
@@ -3460,10 +4380,17 @@ impl Component for PairingSection {
             view::Form::portal_extent(qr::PORTAL_OUTER, self.room),
             *Platform::get().current_window().scale_factor.peek(),
         );
-        let shown = mode.read().shows_code().then(|| invitation.read().clone()).flatten();
+        let shown = mode
+            .read()
+            .shows_code()
+            .then(|| invitation.read().clone())
+            .flatten();
         let picture = shown.as_deref().and_then(|code| {
             drawn.read().borrow_mut().of(code, disc).map(|handle| {
-                qr::picture_from(handle, *Platform::get().current_window().scale_factor.peek())
+                qr::picture_from(
+                    handle,
+                    *Platform::get().current_window().scale_factor.peek(),
+                )
             })
         });
         let mut section_box = rect()
@@ -3474,7 +4401,13 @@ impl Component for PairingSection {
                 rect()
                     .horizontal()
                     .spacing(12.)
-                    .child(Solid { text: "Pair", accent, palette, enabled: true, on_press: create })
+                    .child(Solid {
+                        text: "Pair",
+                        accent,
+                        palette,
+                        enabled: true,
+                        on_press: create,
+                    })
                     .child(Solid {
                         text: "Connect",
                         accent: palette.receive,
@@ -3489,7 +4422,12 @@ impl Component for PairingSection {
             .child(mono(i18n::tr(view::PAIR_EXPLAINS), palette.muted, 12.))
             .child(mono(i18n::tr(view::PAIR_WARNS), palette.muted, 12.));
         if let Some(said) = failure.read().clone() {
-            section_box = section_box.child(label().text(i18n::tr(&said).to_owned()).color(palette.muted).font_size(14.));
+            section_box = section_box.child(
+                label()
+                    .text(i18n::tr(&said).to_owned())
+                    .color(palette.muted)
+                    .font_size(14.),
+            );
         }
         if let (true, Some(picture)) = (mode.read().shows_code(), picture) {
             // The code as a picture in the portal, which is how a code this long is carried to another device. The ring round it is a fuse that
@@ -3503,7 +4441,14 @@ impl Component for PairingSection {
                 rect()
                     .width(Size::fill())
                     .cross_align(Alignment::center())
-                    .child(portal_with_life(palette, accent, vec![picture], extent, life, frame)),
+                    .child(portal_with_life(
+                        palette,
+                        accent,
+                        vec![picture],
+                        extent,
+                        life,
+                        frame,
+                    )),
             );
         }
         if let Some(code) = shown {
@@ -3516,10 +4461,20 @@ impl Component for PairingSection {
                         .padding(12.)
                         .corner_radius(10.)
                         .background(palette.surface)
-                        .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+                        .border(
+                            Border::new()
+                                .fill(palette.border)
+                                .width(1.)
+                                .alignment(BorderAlignment::Inner),
+                        )
                         .child(
                             SelectableText::new()
-                                .span(Span::new(code).color(palette.text).font_size(11.).font_family("monospace"))
+                                .span(
+                                    Span::new(code)
+                                        .color(palette.text)
+                                        .font_size(11.)
+                                        .font_family("monospace"),
+                                )
                                 .width(Size::fill()),
                         ),
                 );
@@ -3527,14 +4482,16 @@ impl Component for PairingSection {
         // The other side of pairing: the code of the device that is pairing with this one, scanned or pasted. Without it a
         // device that was shown a code has no way to answer it from here.
         if mode.read().takes_code() {
-            section_box = section_box.child(section("CONNECT TO THE OTHER DEVICE", palette)).child(CodeTaker {
-                link: self.link.clone(),
-                palette,
-                accent: palette.receive,
-                form: self.form,
-                room: self.room,
-                camera: self.camera.clone(),
-            });
+            section_box = section_box
+                .child(section("CONNECT TO THE OTHER DEVICE", palette))
+                .child(CodeTaker {
+                    link: self.link.clone(),
+                    palette,
+                    accent: palette.receive,
+                    form: self.form,
+                    room: self.room,
+                    camera: self.camera.clone(),
+                });
         }
         section_box
     }
@@ -3566,8 +4523,23 @@ impl Component for ApprovalCard {
             .spacing(12.)
             .corner_radius(14.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.receive).width(1.).alignment(BorderAlignment::Inner))
-            .child(label().text(i18n::format(i18n::language(), "{name} wants to pair", &[("name", &approval.name)])).color(palette.text).font_size(20.).font_weight(FontWeight::BOLD))
+            .border(
+                Border::new()
+                    .fill(palette.receive)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .child(
+                label()
+                    .text(i18n::format(
+                        i18n::language(),
+                        "{name} wants to pair",
+                        &[("name", &approval.name)],
+                    ))
+                    .color(palette.text)
+                    .font_size(20.)
+                    .font_weight(FontWeight::BOLD),
+            )
             .child(mono(meta, palette.muted, 11.));
         if !approval.answered {
             let mut choices = rect().horizontal().spacing(10.);
@@ -3577,15 +4549,30 @@ impl Component for ApprovalCard {
                 choices = choices.child(
                     Button::new()
                         .filled()
-                        .on_press(move |_| link.send(Command::ChoosePairing { request: request.clone(), number }))
-                        .child(label().text(number.to_string()).font_size(24.).font_weight(FontWeight::BOLD)),
+                        .on_press(move |_| {
+                            link.send(Command::ChoosePairing {
+                                request: request.clone(),
+                                number,
+                            })
+                        })
+                        .child(
+                            label()
+                                .text(number.to_string())
+                                .font_size(24.)
+                                .font_weight(FontWeight::BOLD),
+                        ),
                 );
             }
             let link = self.link.clone();
             let request = approval.request.clone();
             choices = choices.child(
                 Button::new()
-                    .on_press(move |_| link.send(Command::RejectPairing { request: request.clone() })).child(crate::i18n::tr("Refuse")),
+                    .on_press(move |_| {
+                        link.send(Command::RejectPairing {
+                            request: request.clone(),
+                        })
+                    })
+                    .child(crate::i18n::tr("Refuse")),
             );
             card = card.child(choices);
         }
@@ -3606,8 +4593,14 @@ impl Component for TransfersHeader {
     fn render(&self) -> impl IntoElement {
         let palette = self.palette;
         let mut asking = use_state(view::Confirm::default);
-        let mut row = rect().width(Size::fill()).horizontal().cross_align(Alignment::center()).content(Content::flex());
-        row = row.child(section("TRANSFERS", palette)).child(rect().width(Size::flex(1.)));
+        let mut row = rect()
+            .width(Size::fill())
+            .horizontal()
+            .cross_align(Alignment::center())
+            .content(Content::flex());
+        row = row
+            .child(section("TRANSFERS", palette))
+            .child(rect().width(Size::flex(1.)));
         // Nothing over, nothing to clear: a button that does nothing is not shown, and a question left open is dropped with it.
         if !self.can_clear {
             if *asking.peek() != view::Confirm::Idle {
@@ -3624,7 +4617,8 @@ impl Component for TransfersHeader {
                     .on_press(move |_| {
                         let given_up = asking.peek().cancelled();
                         asking.set(given_up);
-                    }).child(crate::i18n::tr("Keep")),
+                    })
+                    .child(crate::i18n::tr("Keep")),
             );
         }
         buttons = buttons.child(
@@ -3667,7 +4661,11 @@ impl Component for ListHeader {
             .cross_align(Alignment::center())
             .content(Content::flex())
             .child(rect().width(Size::flex(1.)))
-            .child(Button::new().on_press(move |_| on_press.call(action)).child(crate::i18n::tr(words)))
+            .child(
+                Button::new()
+                    .on_press(move |_| on_press.call(action))
+                    .child(crate::i18n::tr(words)),
+            )
     }
 }
 
@@ -3693,9 +4691,12 @@ fn transfers(link: &Link, view: &View, palette: Palette) -> Transfers {
 /// not the whole record, which is the Transfers tab's.
 fn transfers_here(link: &Link, view: &View, palette: Palette) -> Transfers {
     let items = view::of_this_run(&view.transfers, &view.transfers_at_start);
-    Transfers { context: true, items, ..transfers(link, view, palette) }
+    Transfers {
+        context: true,
+        items,
+        ..transfers(link, view, palette)
+    }
 }
-
 
 #[derive(PartialEq)]
 struct Transfers {
@@ -3750,16 +4751,34 @@ struct AcceptButton {
 impl Component for AcceptButton {
     fn render(&self) -> impl IntoElement {
         let said: State<Option<String>> = use_state(|| None);
-        let (link, ids, auto_save, chosen) = (self.link.clone(), self.ids.clone(), self.auto_save, self.save_folder.clone());
+        let (link, ids, auto_save, chosen) = (
+            self.link.clone(),
+            self.ids.clone(),
+            self.auto_save,
+            self.save_folder.clone(),
+        );
         let sink = try_consume_context::<link::FolderSink>();
-        let button = Button::new().on_press(move |_| accept(&link, &ids, auto_save, chosen.as_deref(), sink.clone(), said));
+        let button = Button::new().on_press(move |_| {
+            accept(
+                &link,
+                &ids,
+                auto_save,
+                chosen.as_deref(),
+                sink.clone(),
+                said,
+            )
+        });
         let button = if self.filled { button.filled() } else { button };
         // The column takes what is left beside the other button of its row and no more, so that the sentence that says why the folder was not
         // chosen wraps inside it: left to the width of its text it widened the row and pushed Cancel off the edge of the screen.
         rect()
             .width(Size::flex(1.))
             .spacing(6.)
-            .maybe_child(said.read().clone().map(|words| label().text(words).color(self.palette.bad).font_size(13.)))
+            .maybe_child(
+                said.read()
+                    .clone()
+                    .map(|words| label().text(words).color(self.palette.bad).font_size(13.)),
+            )
             .child(button.child(crate::i18n::tr("Accept")))
     }
 }
@@ -3771,11 +4790,20 @@ impl Component for AcceptButton {
 ///
 /// What the disk says of the chosen folder is looked at now, when the button is pressed and not when the page was drawn: a
 /// folder that was there then can be gone.
-fn accept(link: &Link, ids: &[String], auto_save: bool, chosen: Option<&std::path::Path>, sink: Option<link::FolderSink>, mut said: State<Option<String>>) {
+fn accept(
+    link: &Link,
+    ids: &[String],
+    auto_save: bool,
+    chosen: Option<&std::path::Path>,
+    sink: Option<link::FolderSink>,
+    mut said: State<Option<String>>,
+) {
     let state = chosen.map_or(view::Folder::Unusable, view::look_at);
     let (client, ids) = (link.client().clone(), ids.to_vec());
     // The folder is asked for once, for the first file: the others go where that one goes. Nothing to accept is nothing to do.
-    let Some(first) = ids.first().cloned() else { return };
+    let Some(first) = ids.first().cloned() else {
+        return;
+    };
     #[cfg(target_os = "android")]
     let (transfer, rest) = (first.clone(), ids.clone());
     #[cfg(not(target_os = "android"))]
@@ -3784,9 +4812,19 @@ fn accept(link: &Link, ids: &[String], auto_save: bool, chosen: Option<&std::pat
     // it, which the platform empties into the folder the person chose once the file is whole; elsewhere all go to the one folder.
     let answer = move |directory: std::path::PathBuf, mut said: State<Option<String>>| async move {
         for id in ids {
-            let directory = if cfg!(target_os = "android") { directory.join(&id) } else { directory.clone() };
+            let directory = if cfg!(target_os = "android") {
+                directory.join(&id)
+            } else {
+                directory.clone()
+            };
             let _ = std::fs::create_dir_all(&directory);
-            match client.command(Command::AcceptTransfer { transfer: id, directory }).await {
+            match client
+                .command(Command::AcceptTransfer {
+                    transfer: id,
+                    directory,
+                })
+                .await
+            {
                 Ok(_) => said.set(None),
                 Err(reason) => said.set(Some(reason.to_owned())),
             }
@@ -3800,11 +4838,19 @@ fn accept(link: &Link, ids: &[String], auto_save: bool, chosen: Option<&std::pat
         view::Destination::Ask { lost } => {
             #[cfg(not(target_os = "android"))]
             {
-                said.set(lost.map(|_| "The folder chosen for incoming files is gone. Choose another.".to_owned()));
+                said.set(lost.map(|_| {
+                    "The folder chosen for incoming files is gone. Choose another.".to_owned()
+                }));
                 spawn(async move {
-                    match rfd::AsyncFileDialog::new().set_title("Save the file in").pick_folder().await {
+                    match rfd::AsyncFileDialog::new()
+                        .set_title("Save the file in")
+                        .pick_folder()
+                        .await
+                    {
                         Some(folder) => answer(folder.path().to_path_buf(), said).await,
-                        None => said.set(Some("No folder was chosen, so the file was not accepted.".to_owned())),
+                        None => said.set(Some(
+                            "No folder was chosen, so the file was not accepted.".to_owned(),
+                        )),
                     }
                 });
             }
@@ -3814,7 +4860,9 @@ fn accept(link: &Link, ids: &[String], auto_save: bool, chosen: Option<&std::pat
             {
                 let _ = lost;
                 let Some(sink) = sink else {
-                    said.set(Some("Choosing a folder is not available on this device.".to_owned()));
+                    said.set(Some(
+                        "Choosing a folder is not available on this device.".to_owned(),
+                    ));
                     return;
                 };
                 // Saving on its own is on and the person chose a folder in Settings: the files go there without asking, which is what the
@@ -3851,7 +4899,9 @@ fn accept(link: &Link, ids: &[String], auto_save: bool, chosen: Option<&std::pat
                             }
                             answer(sink.staging.clone(), said).await;
                         }
-                        _ => said.set(Some("No folder was chosen, so the file was not accepted.".to_owned())),
+                        _ => said.set(Some(
+                            "No folder was chosen, so the file was not accepted.".to_owned(),
+                        )),
                     }
                 });
             }
@@ -3894,14 +4944,33 @@ impl Component for IncomingOffer {
             if !pressed.is_empty() {
                 let chosen = self.offered.save_folder.clone();
                 let sink = try_consume_context::<link::FolderSink>();
-                accept(&self.link, &pressed, self.offered.auto_save, chosen.as_deref(), sink, said_on_accept);
+                accept(
+                    &self.link,
+                    &pressed,
+                    self.offered.auto_save,
+                    chosen.as_deref(),
+                    sink,
+                    said_on_accept,
+                );
             }
         }
-        let mut unticked: State<std::collections::BTreeSet<String>> = use_state(std::collections::BTreeSet::new);
-        let ticked: Vec<String> = files.iter().filter(|file| !unticked.read().contains(&file.id)).map(|file| file.id.clone()).collect();
+        let mut unticked: State<std::collections::BTreeSet<String>> =
+            use_state(std::collections::BTreeSet::new);
+        let ticked: Vec<String> = files
+            .iter()
+            .filter(|file| !unticked.read().contains(&file.id))
+            .map(|file| file.id.clone())
+            .collect();
         let all: Vec<String> = files.iter().map(|file| file.id.clone()).collect();
         let several = files.len() > 1;
-        let (cancel_link, cancel_all) = (self.link.clone(), if all.is_empty() { vec![offer.id.clone()] } else { all.clone() });
+        let (cancel_link, cancel_all) = (
+            self.link.clone(),
+            if all.is_empty() {
+                vec![offer.id.clone()]
+            } else {
+                all.clone()
+            },
+        );
         // With the list open, the one name is the list said worse: it is left out, so that the bar does not name one file above and show
         // two below. The line that says how many wait stays, since it is true of the whole queue.
         let open = several && listing();
@@ -3911,12 +4980,43 @@ impl Component for IncomingOffer {
             .padding(16.)
             .spacing(10.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.receive).width(1.).alignment(BorderAlignment::Inner))
-            .child(label().text(view::offer_words_in(i18n::language(), offer)).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
-            .maybe_child((!open).then(|| label().text(offer.name.clone()).color(palette.muted).font_size(14.)))
-            .maybe_child(view::queue_words_in(i18n::language(), self.offered.waiting).map(|words| mono(words, palette.muted, 11.)))
+            .border(
+                Border::new()
+                    .fill(palette.receive)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .child(
+                label()
+                    .text(view::offer_words_in(i18n::language(), offer))
+                    .color(palette.text)
+                    .font_size(16.)
+                    .font_weight(FontWeight::BOLD),
+            )
+            .maybe_child((!open).then(|| {
+                label()
+                    .text(offer.name.clone())
+                    .color(palette.muted)
+                    .font_size(14.)
+            }))
+            .maybe_child(
+                view::queue_words_in(i18n::language(), self.offered.waiting)
+                    .map(|words| mono(words, palette.muted, 11.)),
+            )
             .maybe_child(view::time_left(offer.expires_at, self.now).map(|seconds| {
-                mono(i18n::format(i18n::language(), "ENDS IN {time}", &[("time", &view::clock_words(seconds))]), if seconds <= 10 { palette.bad } else { palette.muted }, 12.)
+                mono(
+                    i18n::format(
+                        i18n::language(),
+                        "ENDS IN {time}",
+                        &[("time", &view::clock_words(seconds))],
+                    ),
+                    if seconds <= 10 {
+                        palette.bad
+                    } else {
+                        palette.muted
+                    },
+                    12.,
+                )
             }));
         let mut bar = bar;
         if several && listing() {
@@ -3924,7 +5024,13 @@ impl Component for IncomingOffer {
             for file in files {
                 let id = file.id.clone();
                 let on = !unticked.read().contains(&id);
-                let place = file.folders.iter().map(String::as_str).chain(std::iter::once(file.name.as_str())).collect::<Vec<_>>().join("/");
+                let place = file
+                    .folders
+                    .iter()
+                    .map(String::as_str)
+                    .chain(std::iter::once(file.name.as_str()))
+                    .collect::<Vec<_>>()
+                    .join("/");
                 list = list.child(
                     rect()
                         .key(id.clone())
@@ -3935,23 +5041,56 @@ impl Component for IncomingOffer {
                         .cross_align(Alignment::center())
                         .child(Switch::new(WritableSetter::new(on, move |value: bool| {
                             let mut now = unticked.write();
-                            if value { now.remove(&id); } else { now.insert(id.clone()); }
+                            if value {
+                                now.remove(&id);
+                            } else {
+                                now.insert(id.clone());
+                            }
                         })))
-                        .child(label().text(place).color(palette.text).font_size(14.).width(Size::flex(1.)))
-                        .child(rect().width(Size::auto()).child(mono(view::size_in_words(file.bytes), palette.muted, 12.))),
+                        .child(
+                            label()
+                                .text(place)
+                                .color(palette.text)
+                                .font_size(14.)
+                                .width(Size::flex(1.)),
+                        )
+                        .child(rect().width(Size::auto()).child(mono(
+                            view::size_in_words(file.bytes),
+                            palette.muted,
+                            12.,
+                        ))),
                 );
             }
             bar = bar.child(list);
         }
-        let accept_ids = if several { ticked.clone() } else { vec![offer.id.clone()] };
-        let mut buttons = rect().width(Size::fill()).horizontal().content(Content::flex()).cross_align(Alignment::start()).spacing(10.);
-        buttons = buttons.child(Button::new().on_press(move |_| {
-            for transfer in &cancel_all {
-                cancel_link.send(Command::CancelTransfer { transfer: transfer.clone() });
-            }
-        }).child(crate::i18n::tr("Cancel")));
+        let accept_ids = if several {
+            ticked.clone()
+        } else {
+            vec![offer.id.clone()]
+        };
+        let mut buttons = rect()
+            .width(Size::fill())
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::start())
+            .spacing(10.);
+        buttons = buttons.child(
+            Button::new()
+                .on_press(move |_| {
+                    for transfer in &cancel_all {
+                        cancel_link.send(Command::CancelTransfer {
+                            transfer: transfer.clone(),
+                        });
+                    }
+                })
+                .child(crate::i18n::tr("Cancel")),
+        );
         if several {
-            buttons = buttons.child(Button::new().on_press(move |_| listing.set(!listing())).child(crate::i18n::tr("View files")));
+            buttons = buttons.child(
+                Button::new()
+                    .on_press(move |_| listing.set(!listing()))
+                    .child(crate::i18n::tr("View files")),
+            );
         }
         buttons = buttons.child(AcceptButton {
             link: self.link.clone(),
@@ -3986,7 +5125,11 @@ impl Component for TransferCard {
             Phase::Cancelled => ("CANCELLED".to_owned(), palette.muted),
             Phase::Failed(reason) => (format!("FAILED · {reason}"), palette.bad),
         };
-        let direction = if item.incoming { "INCOMING" } else { "OUTGOING" };
+        let direction = if item.incoming {
+            "INCOMING"
+        } else {
+            "OUTGOING"
+        };
         let mut card = rect()
             .key(item.id.clone())
             .width(Size::fill())
@@ -3994,25 +5137,53 @@ impl Component for TransferCard {
             .spacing(8.)
             .corner_radius(12.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             .child(
                 rect()
                     .horizontal()
                     .spacing(8.)
                     .cross_align(Alignment::center())
-                    .maybe_child((item.phase == Phase::Done).then(|| label().text("\u{2713}").color(palette.good).font_size(16.).font_weight(FontWeight::BOLD)))
-                    .child(label().text(item.name.clone()).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD)),
+                    .maybe_child((item.phase == Phase::Done).then(|| {
+                        label()
+                            .text("\u{2713}")
+                            .color(palette.good)
+                            .font_size(16.)
+                            .font_weight(FontWeight::BOLD)
+                    }))
+                    .child(
+                        label()
+                            .text(item.name.clone())
+                            .color(palette.text)
+                            .font_size(16.)
+                            .font_weight(FontWeight::BOLD),
+                    ),
             )
             .child(mono(format!("{direction} · {state}"), colour, 11.))
             .child(ProgressBar::new(f32::from(item.percent)).width(Size::fill()));
         // Cancel on the left and Accept on the right, on one row: Accept is the answer the right hand presses, and its column takes what is
         // left beside Cancel, so that the sentence that says why a folder was not chosen wraps inside it and never pushes Cancel off the edge.
-        let mut answers = rect().width(Size::fill()).horizontal().content(Content::flex()).cross_align(Alignment::start()).spacing(10.);
+        let mut answers = rect()
+            .width(Size::fill())
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::start())
+            .spacing(10.);
         if item.stoppable() {
             let link = self.link.clone();
             let id = item.id.clone();
             answers = answers.child(
-                Button::new().on_press(move |_| link.send(Command::CancelTransfer { transfer: id.clone() })).child(crate::i18n::tr("Cancel")),
+                Button::new()
+                    .on_press(move |_| {
+                        link.send(Command::CancelTransfer {
+                            transfer: id.clone(),
+                        })
+                    })
+                    .child(crate::i18n::tr("Cancel")),
             );
         }
         if item.acceptable() {
@@ -4050,7 +5221,11 @@ impl Component for HistoryRow {
             // Not in the history: what is going is a card above it. Said plainly if one ever got here, never hidden.
             Phase::Waiting | Phase::Moving => (format!("{}%", item.percent), palette.send),
         };
-        let direction = if item.incoming { "INCOMING" } else { "OUTGOING" };
+        let direction = if item.incoming {
+            "INCOMING"
+        } else {
+            "OUTGOING"
+        };
         rect()
             .width(Size::fill())
             .height(Size::px(view::HISTORY_ROW_HEIGHT))
@@ -4058,9 +5233,21 @@ impl Component for HistoryRow {
             .spacing(2.)
             .corner_radius(10.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             .main_align(Alignment::center())
-            .child(label().text(item.name.clone()).color(palette.text).font_size(15.).font_weight(FontWeight::BOLD).max_lines(1))
+            .child(
+                label()
+                    .text(item.name.clone())
+                    .color(palette.text)
+                    .font_size(15.)
+                    .font_weight(FontWeight::BOLD)
+                    .max_lines(1),
+            )
             .child(mono(format!("{direction} · {state}"), colour, 11.))
     }
 }
@@ -4080,10 +5267,16 @@ impl Component for Transfers {
         // each device when it went to more than one, then that device's files), from what X has not hidden; elsewhere, the transfers in the order they
         // always had. The drawing below walks these and decides nothing about grouping.
         let shown: Vec<view::BatchRow> = if self.context {
-            let visible: Vec<Progress> = view::not_put_away(&self.items, &put_away.read()).into_iter().cloned().collect();
+            let visible: Vec<Progress> = view::not_put_away(&self.items, &put_away.read())
+                .into_iter()
+                .cloned()
+                .collect();
             view::batch_rows(&visible)
         } else {
-            view::transfer_list(&self.items).cloned().map(view::BatchRow::Transfer).collect()
+            view::transfer_list(&self.items)
+                .cloned()
+                .map(view::BatchRow::Transfer)
+                .collect()
         };
         let header: Element = if self.context {
             match view::header_action(&self.items, &put_away.read(), *folded.read()) {
@@ -4091,18 +5284,20 @@ impl Component for Transfers {
                     let items = self.items.clone();
                     ListHeader {
                         action,
-                        on_press: EventHandler::new(move |action: view::HeaderAction| match action {
-                            view::HeaderAction::Minimize => folded.set(true),
-                            view::HeaderAction::Expand => folded.set(false),
-                            // Only what is over is put away, and only when nothing is going: the model says which (see `put_away_now`).
-                            view::HeaderAction::Hide => {
-                                let mut now = put_away.peek().clone();
-                                now.extend(view::put_away_now(&items));
-                                now.sort();
-                                now.dedup();
-                                put_away.set(now);
-                            }
-                        }),
+                        on_press: EventHandler::new(
+                            move |action: view::HeaderAction| match action {
+                                view::HeaderAction::Minimize => folded.set(true),
+                                view::HeaderAction::Expand => folded.set(false),
+                                // Only what is over is put away, and only when nothing is going: the model says which (see `put_away_now`).
+                                view::HeaderAction::Hide => {
+                                    let mut now = put_away.peek().clone();
+                                    now.extend(view::put_away_now(&items));
+                                    now.sort();
+                                    now.dedup();
+                                    put_away.set(now);
+                                }
+                            },
+                        ),
                     }
                     .into_element()
                 }
@@ -4149,9 +5344,18 @@ impl Component for Transfers {
             // straight into the page's own column, which already scrolls.
             let mut history_list = rect().width(Size::fill()).spacing(view::HISTORY_ROW_GAP);
             for item in history.iter().take(view::HISTORY_ROWS_MADE) {
-                history_list = history_list.child(rect().key(item.id.clone()).child(HistoryRow { item: item.clone(), palette }));
+                history_list = history_list.child(rect().key(item.id.clone()).child(HistoryRow {
+                    item: item.clone(),
+                    palette,
+                }));
             }
-            return rect().width(Size::fill()).spacing(10.).child(header).child(going).child(history_list).into_element();
+            return rect()
+                .width(Size::fill())
+                .spacing(10.)
+                .child(header)
+                .child(going)
+                .child(history_list)
+                .into_element();
         }
         let mut list = rect().width(Size::fill()).spacing(10.);
         for row in shown {
@@ -4161,19 +5365,20 @@ impl Component for Transfers {
                 // read here and not guessed from the circle, which says only how the batch as a whole goes.
                 view::BatchRow::Device { name, state, .. } => {
                     let (words, tone) = view::device_state_words_in(i18n::language(), &state);
-                    let colour = match tone {
-                        view::Tone::Good => palette.good,
-                        view::Tone::Ask | view::Tone::Going => palette.send,
-                        view::Tone::Bad => palette.bad,
-                        view::Tone::Quiet => palette.muted,
-                    };
+                    let colour = palette.of_tone(tone);
                     list = list.child(
                         rect()
                             .width(Size::fill())
                             .horizontal()
                             .spacing(8.)
                             .cross_align(Alignment::center())
-                            .child(label().text(name).color(palette.text).font_size(14.).font_weight(FontWeight::BOLD))
+                            .child(
+                                label()
+                                    .text(name)
+                                    .color(palette.text)
+                                    .font_size(14.)
+                                    .font_weight(FontWeight::BOLD),
+                            )
                             .child(mono(words, colour, 11.)),
                     );
                     continue;
@@ -4202,9 +5407,17 @@ impl Component for Transfers {
                     .content(Content::flex())
                     .spacing(10.)
                     .cross_align(Alignment::center())
-                    .child(Button::new().on_press(move |_| add_more.call(())).child(i18n::tr("+ Add more files")))
+                    .child(
+                        Button::new()
+                            .on_press(move |_| add_more.call(()))
+                            .child(i18n::tr("+ Add more files")),
+                    )
                     .child(rect().width(Size::flex(1.)))
-                    .child(Button::new().on_press(move |_| clear.call(())).child(i18n::tr("Clear the list"))),
+                    .child(
+                        Button::new()
+                            .on_press(move |_| clear.call(()))
+                            .child(i18n::tr("Clear the list")),
+                    ),
             );
         }
         for (index, name) in self.prepared.iter().enumerate() {
@@ -4219,20 +5432,40 @@ impl Component for Transfers {
                     .spacing(8.)
                     .corner_radius(12.)
                     .background(palette.surface)
-                    .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+                    .border(
+                        Border::new()
+                            .fill(palette.border)
+                            .width(1.)
+                            .alignment(BorderAlignment::Inner),
+                    )
                     .child(
                         rect()
                             .width(Size::flex(1.))
                             .spacing(8.)
-                            .child(label().text(name.clone()).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
-                            .child(mono("OUTGOING \u{b7} PREPARED".to_owned(), palette.muted, 11.)),
+                            .child(
+                                label()
+                                    .text(name.clone())
+                                    .color(palette.text)
+                                    .font_size(16.)
+                                    .font_weight(FontWeight::BOLD),
+                            )
+                            .child(mono(
+                                "OUTGOING \u{b7} PREPARED".to_owned(),
+                                palette.muted,
+                                11.,
+                            )),
                     )
                     .maybe_child(remove.map(|remove| {
-                        Element::from(Button::new().on_press(move |_| remove.call(index)).child("\u{2715}"))
+                        Element::from(
+                            Button::new()
+                                .on_press(move |_| remove.call(index))
+                                .child("\u{2715}"),
+                        )
                     })),
             );
         }
-        let list: Element = match view::transfer_list_height(self.items.len() + self.prepared.len()) {
+        let list: Element = match view::transfer_list_height(self.items.len() + self.prepared.len())
+        {
             Some(height) => rect()
                 .width(Size::fill())
                 .height(Size::px(height))
@@ -4269,28 +5502,51 @@ impl Component for TransfersPage {
         let query = use_state(String::new);
         let mut filter = use_state(view::TransferFilter::default);
         let typed = query.read().clone();
-        let found: Vec<Progress> = view::find_transfers(&self.view.transfers, &typed, *filter.read()).into_iter().cloned().collect();
+        let found: Vec<Progress> =
+            view::find_transfers(&self.view.transfers, &typed, *filter.read())
+                .into_iter()
+                .cloned()
+                .collect();
         // One chip for each filter, the one in use filled. Words only, so that they are translated like any other and need no picture. Each word is
         // ONE line (`max_lines(1)`), as on the plugin buttons: a chip is as wide as its word, and the row, wider than the page, scrolls sideways. A
         // word left free to wrap was squeezed to what was left of the page and broke letter by letter down a chip 170 px tall.
         let mut chips = rect().width(Size::auto()).horizontal().spacing(8.);
         for which in view::TransferFilter::ALL {
-            let button = Button::new().on_press(move |_| filter.set(which)).child(label().text(i18n::tr(which.label())).max_lines(1));
-            chips = chips.child(if *filter.read() == which { Element::from(button.filled()) } else { Element::from(button) });
+            let button = Button::new()
+                .on_press(move |_| filter.set(which))
+                .child(label().text(i18n::tr(which.label())).max_lines(1));
+            chips = chips.child(if *filter.read() == which {
+                Element::from(button.filled())
+            } else {
+                Element::from(button)
+            });
         }
         let nothing = self.view.transfers.is_empty() || found.is_empty();
         let mut page = rect()
             .width(Size::fill())
             .spacing(self.form.page_section_gap())
             .child(section("TRANSFERS", palette))
-            .child(Input::new(query).placeholder(i18n::tr("Search transfers")).width(Size::fill()))
+            .child(
+                Input::new(query)
+                    .placeholder(i18n::tr("Search transfers"))
+                    .width(Size::fill()),
+            )
             // The chips are one row of buttons, and the scroll view they sit in is as tall as that row (`auto`), and not the toolkit's default of
             // `fill`, which takes all the height that is left in the page and leaves nothing for the list after it.
-            .child(ScrollView::new().direction(Direction::Horizontal).height(Size::auto()).child(chips));
+            .child(
+                ScrollView::new()
+                    .direction(Direction::Horizontal)
+                    .height(Size::auto())
+                    .child(chips),
+            );
         if nothing {
             page = page.child(
                 label()
-                    .text(i18n::tr(if self.view.transfers.is_empty() { "Nothing has been sent or received yet." } else { "No transfer matches." }))
+                    .text(i18n::tr(if self.view.transfers.is_empty() {
+                        "Nothing has been sent or received yet."
+                    } else {
+                        "No transfer matches."
+                    }))
                     .color(palette.muted)
                     .font_size(15.),
             );
@@ -4335,7 +5591,50 @@ impl Component for DevicesPage {
         for device in &self.view.devices {
             let link = self.link.clone();
             let id = device.id.clone();
-            let online = device.presence == Presence::Online;
+            let reachable = device.presence.reachable();
+            let (word, word_colour) = palette.of_presence(&device.presence);
+            let stack = self.form.device_card_buttons_stack();
+            let send = SendToDevice {
+                link: link.clone(),
+                peer: id.clone(),
+                online: reachable,
+                file_picker: self.file_picker.clone(),
+            };
+            let forget = Button::new()
+                .on_press(move |_| {
+                    link.send(Command::ForgetPeer {
+                        peer: PeerId(id.clone()),
+                    })
+                })
+                .child(crate::i18n::tr("Forget"));
+            let mut head = rect()
+                .width(Size::fill())
+                .horizontal()
+                .cross_align(Alignment::center())
+                .content(Content::flex())
+                .spacing(14.)
+                .child(avatar_view::Avatar {
+                    picture: device
+                        .picture
+                        .and_then(|digest| self.pictures.get(&digest))
+                        .map(avatar_view::Shared)
+                        .map(|shared| shared.0.clone()),
+                    name: device.name.clone(),
+                    size: 40.,
+                    palette,
+                })
+                .child(
+                    rect()
+                        .width(Size::flex(1.))
+                        .child(
+                            label()
+                                .text(device.name.clone())
+                                .color(palette.text)
+                                .font_size(17.)
+                                .font_weight(FontWeight::BOLD),
+                        )
+                        .child(mono(word, word_colour, 11.)),
+                );
             let mut card = rect()
                 .key(device.id.clone())
                 .width(Size::fill())
@@ -4343,29 +5642,36 @@ impl Component for DevicesPage {
                 .spacing(10.)
                 .corner_radius(12.)
                 .background(palette.surface)
-                .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
-                .child(
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                );
+            if stack {
+                // On a phone the buttons go under the name, one below the other, so the name keeps the whole row and is read across.
+                card = card.child(head).child(
                     rect()
                         .width(Size::fill())
-                        .horizontal()
-                        .cross_align(Alignment::center())
-                        .content(Content::flex())
-                        .spacing(14.)
-                        .child(avatar_view::Avatar {
-                            picture: device.picture.and_then(|digest| self.pictures.get(&digest)).map(avatar_view::Shared).map(|shared| shared.0.clone()),
-                            name: device.name.clone(),
-                            size: 40.,
-                            palette,
-                        })
-                        .child(
-                            rect()
-                                .width(Size::flex(1.))
-                                .child(label().text(device.name.clone()).color(palette.text).font_size(17.).font_weight(FontWeight::BOLD))
-                                .child(mono(if online { "ONLINE" } else { "OFFLINE" }, if online { palette.good } else { palette.muted }, 11.)),
-                        )
-                        .child(SendToDevice { link: link.clone(), peer: id.clone(), online, file_picker: self.file_picker.clone() })
-                        .child(Button::new().on_press(move |_| link.send(Command::ForgetPeer { peer: PeerId(id.clone()) })).child(crate::i18n::tr("Forget"))),
+                        .spacing(8.)
+                        .child(send)
+                        .child(forget),
                 );
+            } else {
+                // On the desktop they stay in the row, beside the name, as they always were.
+                head = head.child(send).child(forget);
+                card = card.child(head);
+            }
+            // The test of the connection: a button, and what it found under it across the whole card, so that the words of an answer are read
+            // as a paragraph and never squeezed into the row of buttons. Told from the snapshot; the advice follows the relay setting.
+            card = card.child(TestConnection {
+                link: self.link.clone(),
+                peer: device.id.clone(),
+                found: device.link_test,
+                saved: device.typed_address.clone(),
+                relays_on: self.view.settings.network.allow_relay,
+                palette,
+            });
             // What was sent to and received from THIS device, told apart from every other by its identity and not by the name it
             // gave itself.
             let (history, more) = view::history_shown(&device.id, &self.view.transfers);
@@ -4373,15 +5679,34 @@ impl Component for DevicesPage {
                 card = card.child(mono(crate::i18n::tr("HISTORY"), palette.muted, 11.));
             }
             for item in history {
-                card = card.child(label().text(view::history_line_in(i18n::language(), item)).color(palette.muted).font_size(13.));
+                card = card.child(
+                    label()
+                        .text(view::history_line_in(i18n::language(), item))
+                        .color(palette.muted)
+                        .font_size(13.),
+                );
             }
             if more > 0 {
-                card = card.child(label().text(i18n::format(i18n::language(), "+ {count} more", &[("count", &more.to_string())])).color(palette.muted).font_size(13.));
+                card = card.child(
+                    label()
+                        .text(i18n::format(
+                            i18n::language(),
+                            "+ {count} more",
+                            &[("count", &more.to_string())],
+                        ))
+                        .color(palette.muted)
+                        .font_size(13.),
+                );
             }
             list = list.child(card);
         }
         if self.view.devices.is_empty() {
-            list = list.child(label().text(crate::i18n::tr("No paired peers yet. Pair a device above.")).color(palette.muted).font_size(16.));
+            list = list.child(
+                label()
+                    .text(crate::i18n::tr("No paired peers yet. Pair a device above."))
+                    .color(palette.muted)
+                    .font_size(16.),
+            );
         }
         // Devices met by a code and never paired have no saved entry, but what was sent to and received from them is a history
         // all the same: one card for each identity, with the name it gave itself as a label. Nothing here pairs or allows anything.
@@ -4395,7 +5720,12 @@ impl Component for DevicesPage {
                 .spacing(10.)
                 .corner_radius(12.)
                 .background(palette.surface)
-                .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                )
                 .child(
                     rect()
                         .width(Size::fill())
@@ -4404,29 +5734,68 @@ impl Component for DevicesPage {
                         .content(Content::flex())
                         .spacing(14.)
                         // A device met by a code never shows a picture (none crosses a link made for files), so this is its initial.
-                        .child(avatar_view::Avatar { picture: None, name: name.map_or("Another device".to_owned(), str::to_owned), size: 40., palette })
+                        .child(avatar_view::Avatar {
+                            picture: None,
+                            name: name.map_or("Another device".to_owned(), str::to_owned),
+                            size: 40.,
+                            palette,
+                        })
                         .child(
                             rect()
                                 .width(Size::flex(1.))
-                                .child(label().text(name.map_or("Another device".to_owned(), str::to_owned)).color(palette.text).font_size(17.).font_weight(FontWeight::BOLD))
+                                .child(
+                                    label()
+                                        .text(
+                                            name.map_or("Another device".to_owned(), str::to_owned),
+                                        )
+                                        .color(palette.text)
+                                        .font_size(17.)
+                                        .font_weight(FontWeight::BOLD),
+                                )
                                 .child(mono(crate::i18n::tr("NOT PAIRED"), palette.muted, 11.)),
-                        )
+                        ),
                 )
                 .child(mono(crate::i18n::tr("HISTORY"), palette.muted, 11.));
             let (shown, more) = view::history_shown(peer, &self.view.transfers);
             for item in shown {
-                card = card.child(label().text(view::history_line_in(i18n::language(), item)).color(palette.muted).font_size(13.));
+                card = card.child(
+                    label()
+                        .text(view::history_line_in(i18n::language(), item))
+                        .color(palette.muted)
+                        .font_size(13.),
+                );
             }
             if more > 0 {
-                card = card.child(label().text(i18n::format(i18n::language(), "+ {count} more", &[("count", &more.to_string())])).color(palette.muted).font_size(13.));
+                card = card.child(
+                    label()
+                        .text(i18n::format(
+                            i18n::language(),
+                            "+ {count} more",
+                            &[("count", &more.to_string())],
+                        ))
+                        .color(palette.muted)
+                        .font_size(13.),
+                );
             }
             met = met.child(card);
         }
         let mut body = rect()
             .width(Size::fill())
             .spacing(18.)
-            .child(label().text(crate::i18n::tr("Peers")).color(palette.text).font_size(44.).font_weight(FontWeight::BOLD))
-            .child(PairingSection { link: self.link.clone(), palette, room: self.room, form: self.form, camera: self.camera.clone() })
+            .child(
+                label()
+                    .text(crate::i18n::tr("Peers"))
+                    .color(palette.text)
+                    .font_size(44.)
+                    .font_weight(FontWeight::BOLD),
+            )
+            .child(PairingSection {
+                link: self.link.clone(),
+                palette,
+                room: self.room,
+                form: self.form,
+                camera: self.camera.clone(),
+            })
             .child(section("PAIRED PEERS", palette))
             .child(list);
         if !unpaired.is_empty() {
@@ -4450,15 +5819,186 @@ struct SendToDevice {
 impl Component for SendToDevice {
     fn render(&self) -> impl IntoElement {
         let said: State<Option<SendNotice>> = use_state(|| None);
-        let (link, peer, picker, online) = (self.link.clone(), self.peer.clone(), self.file_picker.clone(), self.online);
+        let (link, peer, picker, online) = (
+            self.link.clone(),
+            self.peer.clone(),
+            self.file_picker.clone(),
+            self.online,
+        );
         let button = Button::new()
             .enabled(online)
             .on_press(move |_| {
                 if online {
                     choose_and_send(&link, picker.clone(), peer.clone(), said);
                 }
-            }).child(crate::i18n::tr("Send"));
-        rect().spacing(4.).cross_align(Alignment::end()).child(button).maybe_child((*said.read()).map(|notice| label().text(notice.words()).font_size(11.)))
+            })
+            .child(crate::i18n::tr("Send"));
+        rect()
+            .spacing(4.)
+            .cross_align(Alignment::end())
+            .child(button)
+            .maybe_child((*said.read()).map(|notice| label().text(notice.words()).font_size(11.)))
+    }
+}
+
+/// The test of the connection to a paired device, on its card, and the place to say where the device can be found when it cannot be reached
+/// where it was paired. One button asks the owner to try the device now. A second opens a field for an IP address or a name (with a port or
+/// without one), with what it does and does not help under it, and Save and test, which keeps the address and then tries the device: the SAME
+/// test, so what it found is shown in one place, under the buttons, in words and coloured by how it stands.
+///
+/// The answer to a test is told in the snapshot and comes later (it can take half a minute), so this shows what the snapshot holds and nothing it
+/// keeps of its own, except whether the field is open, what is typed in it, and the owner's sentence if it refused the address. An old answer is
+/// cleared before a new test begins, so one is never taken for the other.
+///
+/// The advice depends on whether the internet relays are on, read from the settings the window already has: it is what decides whether "turn them
+/// on" is the thing to say. And the field says plainly what an address cannot do: it cannot reach a device that no network lets a connection in.
+#[derive(PartialEq)]
+struct TestConnection {
+    link: Link,
+    peer: String,
+    found: Option<peersus_core::model::LinkTest>,
+    /// What the person typed for this device before, as they would type it again.
+    saved: Option<String>,
+    relays_on: bool,
+    palette: Palette,
+}
+
+impl Component for TestConnection {
+    fn render(&self) -> impl IntoElement {
+        let palette = self.palette;
+        let words = view::address_words_in(i18n::language());
+        // The field starts with what was saved, so that it is read and mended and not typed again from nothing.
+        let saved = self.saved.clone();
+        let mut text = use_state(move || saved.clone().unwrap_or_default());
+        let mut open = use_state(|| false);
+        let mut owner_said: State<Option<String>> = use_state(|| None);
+        // A test that is going on is not started again, and says so by being a button that does nothing.
+        let trying = self.found == Some(peersus_core::model::LinkTest::Trying);
+
+        let (link, peer) = (self.link.clone(), self.peer.clone());
+        let test = Button::new()
+            .enabled(!trying)
+            .on_press(move |_| {
+                let peer = PeerId(peer.clone());
+                link.send(Command::ClearLinkTest { peer: peer.clone() });
+                link.send(Command::TestLink { peer });
+            })
+            .child(crate::i18n::tr("Test connection"));
+        let toggle = Button::new()
+            .on_press(move |_| {
+                owner_said.set(None);
+                open.set(!open());
+            })
+            .child(words.title.clone());
+        let mut block = rect()
+            .width(Size::fill())
+            .spacing(6.)
+            .child(test)
+            .child(toggle);
+
+        if open() {
+            let (link, peer) = (self.link.clone(), self.peer.clone());
+            let save = move |_| {
+                owner_said.set(None);
+                let typed = text.read().trim().to_owned();
+                // Empty is not an error: it is asking for the address to be taken away, which the owner does when it is told none.
+                let address = (!typed.is_empty()).then_some(typed);
+                let (link, peer) = (link.clone(), PeerId(peer.clone()));
+                spawn(async move {
+                    match link.set_address(peer.clone(), address).await {
+                        // Taken: the same test as the button above, so the result is told where every result is.
+                        Ok(()) => link.send(Command::TestLink { peer }),
+                        Err(sentence) => owner_said.set(Some(sentence)),
+                    }
+                });
+            };
+            let (link, peer) = (self.link.clone(), self.peer.clone());
+            let clear = move |_| {
+                owner_said.set(None);
+                text.set(String::new());
+                let (link, peer) = (link.clone(), PeerId(peer.clone()));
+                spawn(async move {
+                    if let Err(sentence) = link.set_address(peer, None).await {
+                        owner_said.set(Some(sentence));
+                    }
+                });
+            };
+            let mut panel = rect()
+                .width(Size::fill())
+                .spacing(8.)
+                .padding(12.)
+                .corner_radius(10.)
+                .background(palette.raised)
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                )
+                .child(
+                    Input::new(text)
+                        .placeholder(words.placeholder.clone())
+                        .width(Size::fill()),
+                );
+            // What the owner said when it would not take the address: under the field, and gone with the next try.
+            if let Some(sentence) = owner_said.read().clone() {
+                panel = panel.child(
+                    label()
+                        .text(i18n::tr(&sentence).to_owned())
+                        .color(palette.bad)
+                        .font_size(13.),
+                );
+            }
+            for line in &words.explanation {
+                panel = panel.child(
+                    label()
+                        .text(line.clone())
+                        .color(palette.muted)
+                        .font_size(13.),
+                );
+            }
+            panel = panel.child(
+                rect()
+                    .width(Size::fill())
+                    .spacing(8.)
+                    .child(Button::new().on_press(save).child(words.save.clone()))
+                    .maybe_child(
+                        self.saved
+                            .is_some()
+                            .then(|| Button::new().on_press(clear).child(words.clear.clone())),
+                    ),
+            );
+            block = block.child(panel);
+        }
+
+        if let Some(found) = self.found {
+            let (title, advice, tone) =
+                view::link_test_words_in(i18n::language(), found, self.relays_on);
+            let (link, peer) = (self.link.clone(), self.peer.clone());
+            block = block.child(
+                rect()
+                    .width(Size::fill())
+                    .spacing(4.)
+                    .child(
+                        label()
+                            .text(title)
+                            .color(palette.of_tone(tone))
+                            .font_size(14.)
+                            .font_weight(FontWeight::BOLD),
+                    )
+                    .child(label().text(advice).color(palette.muted).font_size(13.))
+                    .maybe_child((!trying).then(|| {
+                        Button::new()
+                            .on_press(move |_| {
+                                link.send(Command::ClearLinkTest {
+                                    peer: PeerId(peer.clone()),
+                                })
+                            })
+                            .child(crate::i18n::tr("Close"))
+                    })),
+            );
+        }
+        block
     }
 }
 
@@ -4478,10 +6018,19 @@ fn permission_block(
 ) -> Element {
     let mut block = rect().width(Size::fill()).spacing(8.);
     for row in view::PermissionRows::of_in(i18n::language(), plugin, offered, held) {
-        let (link, id, permission, peer) =
-            (link.clone(), plugin.id.clone(), row.permission.clone(), peer.clone());
-        let target = settings_search::Target::Permission { plugin: id.clone(), permission: permission.clone(), peer: peer.clone() };
-        block = block.child(settings_navigation::anchor(target,
+        let (link, id, permission, peer) = (
+            link.clone(),
+            plugin.id.clone(),
+            row.permission.clone(),
+            peer.clone(),
+        );
+        let target = settings_search::Target::Permission {
+            plugin: id.clone(),
+            permission: permission.clone(),
+            peer: peer.clone(),
+        };
+        block = block.child(settings_navigation::anchor(
+            target,
             rect()
                 .width(Size::fill())
                 .horizontal()
@@ -4492,17 +6041,26 @@ fn permission_block(
                     rect()
                         .width(Size::flex(1.))
                         .child(mono(row.permission.name.clone(), palette.send, 11.))
-                        .child(label().text(row.description.clone()).color(palette.muted).font_size(13.)),
+                        .child(
+                            label()
+                                .text(row.description.clone())
+                                .color(palette.muted)
+                                .font_size(13.),
+                        ),
                 )
-                .child(Switch::new(WritableSetter::new(row.allowed, move |value: bool| {
-                    link.send(Command::Allow {
-                        plugin: id.clone(),
-                        peer: peer.clone(),
-                        permission: permission.clone(),
-                        on: value,
-                    });
-                }))),
-            palette));
+                .child(Switch::new(WritableSetter::new(
+                    row.allowed,
+                    move |value: bool| {
+                        link.send(Command::Allow {
+                            plugin: id.clone(),
+                            peer: peer.clone(),
+                            permission: permission.clone(),
+                            on: value,
+                        });
+                    },
+                ))),
+            palette,
+        ));
     }
     block.into()
 }
@@ -4523,6 +6081,7 @@ impl Component for PluginManager {
     fn render(&self) -> impl IntoElement {
         let palette = self.palette;
         let mut asking = use_state(view::RemoveAsk::default);
+        let mut opened = use_state(|| None::<peersus_core::plugins::PluginId>);
         let store_query = use_state(String::new);
         let mut list = rect().width(Size::fill()).spacing(10.);
         #[cfg(not(target_os = "android"))]
@@ -4531,125 +6090,115 @@ impl Component for PluginManager {
         use_hook(move || {
             let (send, receive) = tokio::sync::oneshot::channel();
             std::thread::spawn(move || {
-                let found = std::env::current_exe().ok().map(|path| peersus_app::discovery::bundles_near(&path)).unwrap_or_default();
+                let found = std::env::current_exe()
+                    .ok()
+                    .map(|path| peersus_app::discovery::bundles_near(&path))
+                    .unwrap_or_default();
                 let _ = send.send(found);
             });
-            spawn(async move { if let Ok(found) = receive.await { bundles.set(found); } });
+            spawn(async move {
+                if let Ok(found) = receive.await {
+                    bundles.set(found);
+                }
+            });
         });
-        // THE STORE. What the maintainer approved, with who made it, installed or removed with one click. Every rule
-        // (which button, which words, what the search finds) is `view`'s; this only draws it. The link is shown as
-        // text and is not opened from here: following an address out of a list is how a person is led somewhere else.
-        {
-            let store = &self.view.store;
-            let typed = store_query.read().clone();
-            let rows = view::store_rows(store, &typed);
-            let acting = view::store_can_act(store);
-            let refresh_link = self.link.clone();
-            let mut section = rect()
-                .width(Size::fill())
-                .spacing(8.)
-                .child(self::section("STORE", palette))
-                .child(
-                    rect()
-                        .width(Size::fill())
-                        .spacing(8.)
-                        .maybe(!self.compact, |row| row.horizontal().cross_align(Alignment::center()).content(Content::flex()))
-                        .child(rect().width(if self.compact { Size::fill() } else { Size::flex(1.) }).child(
-                            Input::new(store_query).placeholder(i18n::tr("Search the store")).width(Size::fill()),
-                        ))
-                        .child(
-                            Button::new()
-                                .enabled(acting)
-                                .on_press(move |_| refresh_link.send(Command::StoreRefresh {}))
-                                .child(i18n::tr(if store.listings.is_empty() { "Refresh" } else { "Refresh the list" })),
-                        ),
-                );
-            if let Some(words) = view::store_empty(store, &rows, &typed) {
-                section = section.child(label().text(i18n::tr(words)).color(palette.muted).font_size(13.));
-            }
-            for row in &rows {
-                let name = String::from(row.listing.plugin.clone());
-                let removing = *asking.read() == view::RemoveAsk::Asking(row.listing.plugin.clone());
-                let mut buttons = rect().spacing(8.);
-                if !self.compact { buttons = buttons.horizontal(); }
-                if let Some(text) = row.action.button() {
-                    let (link, plugin) = (self.link.clone(), row.listing.plugin.clone());
-                    buttons = buttons.child(
-                        Button::new()
-                            .filled()
-                            .enabled(acting)
-                            .on_press(move |_| link.send(Command::StoreInstall { plugin: plugin.clone() }))
-                            .child(i18n::tr(text)),
-                    );
-                }
-                if row.action.can_remove() {
-                    let (link, plugin) = (self.link.clone(), row.listing.plugin.clone());
-                    buttons = buttons.child(
-                        Button::new()
-                            .on_press(move |_| {
-                                let (next, remove) = asking.read().clone().pressed(&plugin);
-                                asking.set(next);
-                                if remove {
-                                    link.send(Command::RemovePackage { plugin: plugin.clone() });
-                                }
-                            })
-                            .child(i18n::tr(if removing { "Remove for good?" } else { "Remove" })),
-                    );
-                }
-                if removing {
-                    buttons = buttons.child(Button::new().on_press(move |_| asking.set(view::RemoveAsk::None.cancelled())).child(i18n::tr("Keep")));
-                }
-                let mut card = rect()
-                    .key(format!("store-{name}"))
-                    .width(Size::fill())
-                    .padding(14.)
-                    .spacing(6.)
-                    .corner_radius(12.)
-                    .background(palette.surface)
-                    .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
-                    .child(label().text(name.clone()).color(palette.text).font_size(17.).font_weight(FontWeight::BOLD))
-                    .child(mono(
-                        i18n::format(i18n::language(), "by {author} · version {version}", &[("author", &row.listing.author), ("version", &row.listing.version)]),
-                        palette.send,
-                        11.,
-                    ));
-                if !row.listing.description.is_empty() {
-                    card = card.child(label().text(row.listing.description.clone()).color(palette.muted).font_size(13.));
-                }
-                card = card.child(mono(row.listing.link.clone(), palette.muted, 11.));
-                if let Some(installed) = row.listing.installed_version.as_deref() {
-                    card = card.child(mono(
-                        i18n::format(i18n::language(), "Installed: version {version}", &[("version", installed)]),
-                        palette.good,
-                        11.,
-                    ));
-                }
-                if let Some(note) = row.action.note() {
-                    card = card.child(label().text(i18n::tr(note)).color(palette.muted).font_size(13.));
-                }
-                if removing {
-                    card = card.child(
-                        label().text(i18n::tr("This also forgets everything it was allowed to do, on every device. Press again to remove it."))
-                            .color(palette.bad)
-                            .font_size(13.),
-                    );
-                }
-                section = section.child(card.child(buttons));
-            }
-            list = list.child(section);
-        }
-        // Everything below is what is installed, and the manual way to install: its own heading.
-        list = list.child(self::section("INSTALLED", palette));
-        // One way to install. A package is a folder or one archive of one; the person does not say
-        // which, the owner looks at the path. The button opens the system's file dialog, which is
-        // where an archive is found; a folder is dropped on this page, because the system's dialogs
-        // cannot pick a folder and a file in the same window. Both send the same command and nothing
-        // is installed by either: the owner reads the package and shows it below first.
+        // Catalog membership enriches the extension's existing card; it is not a second list.
+        let typed = store_query.read().clone();
+        let rows = view::extension_rows(&self.view.plugins, &self.view.store, &typed);
+        let acting = view::store_can_act(&self.view.store);
+        let refresh_link = self.link.clone();
         let install_link = self.link.clone();
         let drop_link = self.link.clone();
         let mut refused = use_state(|| None::<&'static str>);
         #[cfg(target_os = "android")]
         let plugin_picker = try_consume_context::<link::PluginPicker>();
+        list = list.child(
+            rect()
+                .width(Size::fill())
+                .spacing(8.)
+                .maybe(!self.compact, |row| {
+                    row.horizontal()
+                        .cross_align(Alignment::center())
+                        .content(Content::flex())
+                })
+                .child(
+                    rect()
+                        .width(if self.compact {
+                            Size::fill()
+                        } else {
+                            Size::flex(1.)
+                        })
+                        .child(
+                            Input::new(store_query)
+                                .placeholder(i18n::tr("Search extensions"))
+                                .width(Size::fill()),
+                        ),
+                )
+                .child(
+                    Button::new()
+                        .filled()
+                        .on_press(move |_| {
+                            let link = install_link.clone();
+                            #[cfg(target_os = "android")]
+                            let plugin_picker = plugin_picker.clone();
+                            spawn(async move {
+                                #[cfg(not(target_os = "android"))]
+                                // No filter: every file is shown. A filter would hide a package
+                                // whose name does not end as expected, with no word about why, and a
+                                // file that is not an archive is refused by the owner in plain words.
+                                if let Some(file) = rfd::AsyncFileDialog::new()
+                                    .set_title("Choose a plugin archive (.tar, .tar.gz, .tgz)")
+                                    .pick_file()
+                                    .await
+                                    && let Some(source) =
+                                        peersus_core::model::SourceDir::new(file.path())
+                                {
+                                    link.send(Command::StageInstall { source });
+                                }
+                                #[cfg(target_os = "android")]
+                                {
+                                    let _ = &link;
+                                    match plugin_picker
+                                        .as_ref()
+                                        .ok_or("The plugin picker is unavailable")
+                                        .and_then(|picker| (picker.0)())
+                                    {
+                                        Ok(()) => refused.set(None),
+                                        Err(words) => refused.set(Some(words)),
+                                    }
+                                }
+                            });
+                        })
+                        .child(format!("+ {}", i18n::tr("Install from file"))),
+                )
+                .child(
+                    Button::new()
+                        .enabled(acting)
+                        .on_press(move |_| refresh_link.send(Command::StoreRefresh {}))
+                        .child(i18n::tr("Refresh")),
+                ),
+        );
+        if let Some(words) = view::store_notice(&self.view.store) {
+            list = list.child(
+                label()
+                    .text(i18n::tr(words))
+                    .color(palette.muted)
+                    .font_size(13.),
+            );
+        }
+        if rows.is_empty() && !typed.trim().is_empty() {
+            list = list.child(
+                label()
+                    .text(i18n::tr("No extension matches your search."))
+                    .color(palette.muted)
+                    .font_size(13.),
+            );
+        }
+        // One way to install. A package is a folder or one archive of one; the person does not say
+        // which, the owner looks at the path. The button opens the system's file dialog, which is
+        // where an archive is found; a folder is dropped on this page, because the system's dialogs
+        // cannot pick a folder and a file in the same window. Both send the same command and nothing
+        // is installed by either: the owner reads the package and shows it below first.
         list = list.child(
             rect()
                 .width(Size::fill())
@@ -4667,38 +6216,6 @@ impl Component for PluginManager {
                     }
                 })
                 .child(
-                    Button::new()
-                        .filled()
-                        .on_press(move |_| {
-                            let link = install_link.clone();
-                            #[cfg(target_os = "android")]
-                            let plugin_picker = plugin_picker.clone();
-                            spawn(async move {
-                                #[cfg(not(target_os = "android"))]
-                                // No filter: every file is shown. A filter would hide a package
-                                // whose name does not end as expected, with no word about why, and a
-                                // file that is not an archive is refused by the owner in plain words.
-                                if let Some(file) = rfd::AsyncFileDialog::new()
-                                    .set_title("Choose a plugin archive (.tar, .tar.gz, .tgz)")
-                                    .pick_file()
-                                    .await
-                                    && let Some(source) = peersus_core::model::SourceDir::new(file.path())
-                                {
-                                    link.send(Command::StageInstall { source });
-                                }
-                                #[cfg(target_os = "android")]
-                                {
-                                    let _ = &link;
-                                    match plugin_picker.as_ref().ok_or("The plugin picker is unavailable").and_then(|picker| (picker.0)()) {
-                                        Ok(()) => refused.set(None),
-                                        Err(words) => refused.set(Some(words)),
-                                    }
-                                }
-                            });
-                        })
-                        .child(i18n::tr("Install")),
-                )
-                .child(
                     label().text(crate::i18n::tr("Choose a plugin archive, or drop a folder or an archive here."))
                         .color(palette.muted)
                         .font_size(13.),
@@ -4710,42 +6227,217 @@ impl Component for PluginManager {
                 })),
         );
         #[cfg(not(target_os = "android"))]
-        for bundle in bundles.read().iter().filter(|bundle| !self.view.plugins.iter().any(|installed| installed.id.as_str() == bundle.id)) {
+        for bundle in bundles.read().iter().filter(|bundle| {
+            !self
+                .view
+                .plugins
+                .iter()
+                .any(|installed| installed.id.as_str() == bundle.id)
+        }) {
             let (link, source) = (self.link.clone(), bundle.source.clone());
-            list = list.child(Button::new()
-                .child(i18n::format(i18n::language(), "Install bundled {name}", &[("name", &bundle.id)]))
-                .on_press(move |_| {
-                    if let Some(source) = peersus_core::model::SourceDir::new(source.clone()) {
-                        link.send(Command::StageInstall { source });
-                    }
-                }));
+            list = list.child(
+                Button::new()
+                    .child(i18n::format(
+                        i18n::language(),
+                        "Install bundled {name}",
+                        &[("name", &bundle.id)],
+                    ))
+                    .on_press(move |_| {
+                        if let Some(source) = peersus_core::model::SourceDir::new(source.clone()) {
+                            link.send(Command::StageInstall { source });
+                        }
+                    }),
+            );
         }
-        for info in &self.view.plugins {
+        let mut cards: Vec<Element> = Vec::new();
+        for entry in &rows {
+            let expanded = opened.read().as_ref() == Some(entry.id);
+            // The catalog owns the stable header, whether this package is installed or not.
+            let package = entry.installed.and_then(|info| info.package.as_ref());
+            let (author, version, description) = if let Some(listing) = entry.listing {
+                (
+                    listing.author.as_str(),
+                    listing.version.as_str(),
+                    listing.description.as_str(),
+                )
+            } else if let Some(package) = package {
+                (
+                    package.author.as_str(),
+                    package.version.as_str(),
+                    package.description.as_str(),
+                )
+            } else {
+                ("", "", "")
+            };
+            let mut heading = rect()
+                .width(Size::fill())
+                .horizontal()
+                .cross_align(Alignment::center())
+                .content(Content::flex())
+                .spacing(10.)
+                .child(
+                    rect().width(Size::flex(1.)).child(
+                        label()
+                            .text(entry.id.as_str().to_owned())
+                            .color(palette.text)
+                            .font_size(18.)
+                            .font_weight(FontWeight::BOLD),
+                    ),
+                );
+            if entry.listing.is_some() {
+                heading =
+                    heading.child(label().text("🛒 Store").color(palette.good).font_size(12.));
+            }
+            let mut card = rect()
+                .key(entry.id.as_str().to_owned())
+                .width(Size::fill())
+                .padding(18.)
+                .spacing(12.)
+                .corner_radius(12.)
+                .background(palette.surface)
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                )
+                .child(heading)
+                .child(rect().height(Size::px(22.)).child(mono(
+                    if author.is_empty() && version.is_empty() {
+                        String::new()
+                    } else {
+                        i18n::format(
+                            i18n::language(),
+                            "by {author} · version {version}",
+                            &[("author", author), ("version", version)],
+                        )
+                    },
+                    palette.muted,
+                    11.,
+                )))
+                .child(
+                    rect().height(Size::px(54.)).overflow(Overflow::Clip).child(
+                        label()
+                            .text(description.to_owned())
+                            .color(palette.muted)
+                            .font_size(13.),
+                    ),
+                );
+            let Some(info) = entry.installed else {
+                let (link, plugin) = (self.link.clone(), entry.id.clone());
+                card = card.child(
+                    rect()
+                        .height(Size::px(92.))
+                        .spacing(8.)
+                        .child(
+                            label()
+                                .text(i18n::tr("Not installed"))
+                                .color(palette.muted)
+                                .font_size(12.),
+                        )
+                        .child(
+                            rect()
+                                .horizontal()
+                                .spacing(8.)
+                                .child({
+                                    let plugin = entry.id.clone();
+                                    Button::new()
+                                        .on_press(move |_| {
+                                            let close = opened.read().as_ref() == Some(&plugin);
+                                            opened.set(if close {
+                                                None
+                                            } else {
+                                                Some(plugin.clone())
+                                            });
+                                        })
+                                        .child(i18n::tr(if expanded { "Close" } else { "Open" }))
+                                })
+                                .child(
+                                    Button::new()
+                                        .filled()
+                                        .enabled(acting)
+                                        .on_press(move |_| {
+                                            link.send(Command::StoreInstall {
+                                                plugin: plugin.clone(),
+                                            });
+                                        })
+                                        .child(i18n::tr("Install")),
+                                ),
+                        ),
+                );
+                if expanded && let Some(listing) = entry.listing {
+                    card = card
+                        .child(
+                            label()
+                                .text(listing.description.clone())
+                                .color(palette.muted)
+                                .font_size(13.),
+                        )
+                        .child(mono(listing.link.clone(), palette.muted, 11.));
+                }
+                cards.push(settings_navigation::anchor(
+                    settings_search::Target::Plugin(entry.id.clone()),
+                    card,
+                    palette,
+                ));
+                continue;
+            };
             let PluginInfo { id, manifest, .. } = info;
             let (word, tone) = view::plugin_word(info);
             let actions = view::PluginActions::for_plugin(info);
-            let name = String::from(id.clone());
             let confirming = *asking.read() == view::RemoveAsk::Asking(id.clone());
-            let mut buttons = rect().spacing(8.);
-            if !self.compact { buttons = buttons.horizontal(); }
+            let mut buttons = rect()
+                .maybe(!confirming, |row| row.horizontal())
+                .spacing(8.)
+                .cross_align(Alignment::center());
+            if matches!(
+                actions.main,
+                view::PluginMain::Enable | view::PluginMain::Disable
+            ) {
+                let (link, plugin) = (self.link.clone(), id.clone());
+                buttons = buttons.child(Switch::new(WritableSetter::new(
+                    // Enabled permission is independent of a stopped or restarting process.
+                    matches!(info.standing, peersus_core::model::Standing::Ready),
+                    move |enabled: bool| {
+                        link.send(if enabled {
+                            Command::EnablePlugin {
+                                plugin: plugin.clone(),
+                            }
+                        } else {
+                            Command::DisablePlugin {
+                                plugin: plugin.clone(),
+                            }
+                        });
+                    },
+                )));
+            }
+            let plugin = id.clone();
+            buttons = buttons.child(
+                Button::new()
+                    .on_press(move |_| {
+                        let close = opened.read().as_ref() == Some(&plugin);
+                        opened.set(if close { None } else { Some(plugin.clone()) });
+                    })
+                    .child(i18n::tr(if expanded { "Close" } else { "Open" })),
+            );
             {
                 let plugin = id.clone();
                 let main = match actions.main.clone() {
-                    view::PluginMain::Disable => Some(("Disable", Command::DisablePlugin { plugin })),
-                    view::PluginMain::Enable => Some(("Enable", Command::EnablePlugin { plugin })),
+                    view::PluginMain::Disable | view::PluginMain::Enable => None,
                     // Given back exactly as the owner reported it: what is approved is what was displayed.
-                    view::PluginMain::Approve { program } => Some(("Approve", Command::ApprovePlugin { plugin, program })),
+                    view::PluginMain::Approve { program } => {
+                        Some(("Approve", Command::ApprovePlugin { plugin, program }))
+                    }
                     view::PluginMain::None => None,
                 };
                 if let Some((text, command)) = main {
                     let link = self.link.clone();
-                    buttons = buttons.child(Button::new().on_press(move |_| link.send(command.clone())).child(i18n::tr(text)));
+                    buttons = buttons.child(
+                        Button::new()
+                            .on_press(move |_| link.send(command.clone()))
+                            .child(i18n::tr(text)),
+                    );
                 }
-            }
-            if actions.can_restart {
-                let (link, plugin) = (self.link.clone(), id.clone());
-                buttons = buttons
-                    .child(Button::new().on_press(move |_| link.send(Command::RestartPlugin { plugin: plugin.clone() })).child(i18n::tr("Restart")));
             }
             let (link, plugin) = (self.link.clone(), id.clone());
             buttons = buttons.child(
@@ -4754,67 +6446,140 @@ impl Component for PluginManager {
                         let (next, remove) = asking.read().clone().pressed(&plugin);
                         asking.set(next);
                         if remove {
-                            link.send(Command::RemovePackage { plugin: plugin.clone() });
+                            opened.set(None);
+                            link.send(Command::RemovePackage {
+                                plugin: plugin.clone(),
+                            });
+                        } else {
+                            opened.set(Some(plugin.clone()));
                         }
                     })
-                    .child(i18n::tr(if confirming { "Remove for good?" } else { "Remove" })),
+                    .child(i18n::tr(if confirming {
+                        "Remove for good?"
+                    } else {
+                        "Remove"
+                    })),
             );
             if confirming {
-                buttons = buttons.child(Button::new().on_press(move |_| asking.set(view::RemoveAsk::None.cancelled())).child(crate::i18n::tr("Keep")));
+                buttons = buttons.child(
+                    Button::new()
+                        .on_press(move |_| asking.set(view::RemoveAsk::None.cancelled()))
+                        .child(crate::i18n::tr("Keep")),
+                );
             }
-            let mut heading = rect().width(Size::fill()).spacing(6.)
-                .child(label().text(name.clone()).color(palette.text).font_size(18.).font_weight(FontWeight::BOLD))
-                .child(mono(
-                    i18n::tr(word),
-                    match tone {
-                        view::Tone::Good => palette.good,
-                        view::Tone::Ask => palette.send,
-                        view::Tone::Bad => palette.bad,
-                        view::Tone::Quiet => palette.muted,
-                        view::Tone::Going => palette.send,
-                    },
-                    11.,
-                ));
-            if !self.compact {
-                heading = heading.horizontal().cross_align(Alignment::center()).content(Content::flex());
+            let store_row = entry.listing.map(view::StoreRow::of);
+            if let Some(row) = &store_row
+                && matches!(row.action, view::StoreAction::Update)
+            {
+                let (link, plugin) = (self.link.clone(), id.clone());
+                buttons = buttons.child(
+                    Button::new()
+                        .filled()
+                        .enabled(acting)
+                        .on_press(move |_| {
+                            link.send(Command::StoreInstall {
+                                plugin: plugin.clone(),
+                            })
+                        })
+                        .child(i18n::tr("Update")),
+                );
             }
-            let mut card = rect()
-                .key(name.clone())
-                .width(Size::fill())
-                .padding(18.)
-                .spacing(12.)
-                .corner_radius(12.)
-                .background(palette.surface)
-                .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
-                .child(heading)
-                .child(buttons);
-            if confirming {
-                card = card.child(
+            card = card.child(
+                rect()
+                    .maybe(!confirming, |footer| footer.height(Size::px(92.)))
+                    .spacing(8.)
+                    .child(mono(i18n::tr(word), palette.of_tone(tone), 11.))
+                    .child(buttons),
+            );
+            if expanded {
+                if actions.can_restart {
+                    let (link, plugin) = (self.link.clone(), id.clone());
+                    card = card.child(
+                        Button::new()
+                            .on_press(move |_| {
+                                link.send(Command::RestartPlugin {
+                                    plugin: plugin.clone(),
+                                });
+                            })
+                            .child(i18n::tr("Restart")),
+                    );
+                }
+                if let Some(note) = store_row.as_ref().and_then(|row| row.action.note()) {
+                    card = card.child(
+                        label()
+                            .text(i18n::tr(note))
+                            .color(palette.muted)
+                            .font_size(13.),
+                    );
+                }
+                if confirming {
+                    card = card.child(
                     label().text(crate::i18n::tr("This also forgets everything it was allowed to do, on every device. Press again to remove it."))
                         .color(palette.bad)
                         .font_size(13.),
                 );
+                }
+                if let Some(note) = view::plugin_note(info) {
+                    card = card.child(
+                        label()
+                            .text(i18n::tr(note))
+                            .color(palette.muted)
+                            .font_size(13.),
+                    );
+                }
+                if let Some(package) = &info.package {
+                    card = package_lines(card, package, palette);
+                }
+                for (name, description) in &manifest.capabilities {
+                    card = card.child(
+                        rect()
+                            .width(Size::fill())
+                            .spacing(6.)
+                            .child(mono(name.clone(), palette.send, 11.))
+                            .child(
+                                label()
+                                    .text(description.clone())
+                                    .color(palette.muted)
+                                    .font_size(13.),
+                            ),
+                    );
+                }
+                card = card.child(plugin_controls::Controls {
+                    link: self.link.clone(),
+                    view: self.view.clone(),
+                    plugin: info.clone(),
+                    pictures: self.pictures.clone(),
+                    palette,
+                });
             }
-            if let Some(note) = view::plugin_note(info) {
-                card = card.child(label().text(i18n::tr(note)).color(palette.muted).font_size(13.));
-            }
-            if let Some(package) = &info.package {
-                card = package_lines(card, package, palette);
-            }
-            for (name, description) in &manifest.capabilities {
-                card = card.child(
-                    rect()
-                        .width(Size::fill())
-                        .spacing(6.)
-                        .child(mono(name.clone(), palette.send, 11.))
-                        .child(label().text(description.clone()).color(palette.muted).font_size(13.)),
-                );
-            }
-            card = card.child(plugin_controls::Controls { link: self.link.clone(), view: self.view.clone(), plugin: info.clone(), pictures: self.pictures.clone(), palette });
-            list = list.child(settings_navigation::anchor(settings_search::Target::Plugin(id.clone()), card, palette));
+            cards.push(settings_navigation::anchor(
+                settings_search::Target::Plugin(id.clone()),
+                card,
+                palette,
+            ));
         }
-        if self.view.plugins.is_empty() {
-            list = list.child(label().text(crate::i18n::tr("No plugins installed.")).color(palette.muted).font_size(16.));
+        let mut cards = cards.into_iter();
+        while let Some(card) = cards.next() {
+            if self.compact {
+                list = list.child(card);
+            } else {
+                let mut row = rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .content(Content::flex())
+                    .spacing(14.)
+                    .child(rect().width(Size::flex(1.)).child(card));
+                row = row.child(rect().width(Size::flex(1.)).children(cards.next()));
+                list = list.child(row);
+            }
+        }
+        if rows.is_empty() && typed.trim().is_empty() && self.view.store.listings.is_empty() {
+            list = list.child(
+                label()
+                    .text(crate::i18n::tr("No plugins installed."))
+                    .color(palette.muted)
+                    .font_size(16.),
+            );
         }
         // Packages the owner has read and is holding for confirmation: what each is and what it asks
         // for, shown BEFORE anything is installed, and installed only if the person says so.
@@ -4872,7 +6637,12 @@ impl Component for PluginManager {
                         .width(Size::fill())
                         .spacing(6.)
                         .child(mono(capability.clone(), palette.send, 11.))
-                        .child(label().text(description.clone()).color(palette.muted).font_size(13.)),
+                        .child(
+                            label()
+                                .text(description.clone())
+                                .color(palette.muted)
+                                .font_size(13.),
+                        ),
                 );
             }
             list = list.child(card);
@@ -4881,8 +6651,21 @@ impl Component for PluginManager {
     }
 }
 
-fn plugin_cards(link: &Link, view: &View, pictures: &shelf::Held, palette: Palette, compact: bool) -> Element {
-    PluginManager { link: link.clone(), view: view.clone(), pictures: pictures.clone(), palette, compact }.into()
+fn plugin_cards(
+    link: &Link,
+    view: &View,
+    pictures: &shelf::Held,
+    palette: Palette,
+    compact: bool,
+) -> Element {
+    PluginManager {
+        link: link.clone(),
+        view: view.clone(),
+        pictures: pictures.clone(),
+        palette,
+        compact,
+    }
+    .into()
 }
 
 // ---- Settings --------------------------------------------------------------------------
@@ -4909,6 +6692,9 @@ struct SettingsPage {
     /// The platform's camera and the window's width, for the test of the camera in its row (Android).
     camera: Option<link::CameraControl>,
     room: f32,
+    /// Bounds for floating controls, excluding the system bars and main navigation.
+    inset_top: f32,
+    inset_bottom: f32,
 }
 
 /// The folder incoming files are saved in on their own, said in full so that nothing about where a file goes is hidden,
@@ -4924,10 +6710,16 @@ fn save_folder_row(link: &Link, folder: Option<&std::path::Path>, palette: Palet
         {
             let link = choose_link.clone();
             spawn(async move {
-                if let Some(folder) = rfd::AsyncFileDialog::new().set_title("Folder for incoming files").pick_folder().await {
+                if let Some(folder) = rfd::AsyncFileDialog::new()
+                    .set_title("Folder for incoming files")
+                    .pick_folder()
+                    .await
+                {
                     link.send(Command::PatchSettings {
                         patch: SettingsPatch {
-                            save_folder: Some(peersus_core::config::SaveFolderChange::Folder(folder.path().to_path_buf())),
+                            save_folder: Some(peersus_core::config::SaveFolderChange::Folder(
+                                folder.path().to_path_buf(),
+                            )),
                             ..SettingsPatch::default()
                         },
                     });
@@ -4946,13 +6738,24 @@ fn save_folder_row(link: &Link, folder: Option<&std::path::Path>, palette: Palet
             },
         });
     };
-    let mut row = rect().width(Size::fill()).spacing(8.).child(mono(shown, palette.text, 12.));
+    let mut row = rect()
+        .width(Size::fill())
+        .spacing(8.)
+        .child(mono(shown, palette.text, 12.));
     row = row.child(
         rect()
             .horizontal()
             .spacing(10.)
-            .child(Button::new().on_press(choose).child(crate::i18n::tr("Choose folder")))
-            .maybe_child(folder.map(|_| Button::new().on_press(clear).child(crate::i18n::tr("Use none")))),
+            .child(
+                Button::new()
+                    .on_press(choose)
+                    .child(crate::i18n::tr("Choose folder")),
+            )
+            .maybe_child(folder.map(|_| {
+                Button::new()
+                    .on_press(clear)
+                    .child(crate::i18n::tr("Use none"))
+            })),
     );
     row.into()
 }
@@ -4961,7 +6764,6 @@ fn save_folder_row(link: &Link, folder: Option<&std::path::Path>, palette: Palet
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Preference {
     ReducedMotion,
-    Relay,
     Background,
     CollapseToIcons,
     AutoSave,
@@ -4970,13 +6772,11 @@ enum Preference {
 }
 
 impl Preference {
-    /// The edit that sets this preference to `on`, and changes nothing else, except for the relays: see
-    /// [`view::relay_patch`].
+    /// The edit that sets this preference to `on`, and changes nothing else.
     fn patch(self, on: bool) -> SettingsPatch {
         let mut patch = SettingsPatch::default();
         match self {
             Preference::ReducedMotion => patch.reduced_motion = Some(on),
-            Preference::Relay => return view::relay_patch(on),
             Preference::Background => patch.background = Some(on),
             Preference::CollapseToIcons => patch.collapse_to_icons = Some(on),
             Preference::AutoSave => patch.auto_save = Some(on),
@@ -5014,16 +6814,37 @@ impl Component for ToggleRow {
             .content(Content::flex())
             .corner_radius(12.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
             .child(
                 rect()
                     .width(Size::flex(1.))
-                    .child(label().text(i18n::tr(self.text)).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
-                    .child(label().text(i18n::tr(self.note)).color(palette.muted).font_size(13.)),
+                    .child(
+                        label()
+                            .text(i18n::tr(self.text))
+                            .color(palette.text)
+                            .font_size(16.)
+                            .font_weight(FontWeight::BOLD),
+                    )
+                    .child(
+                        label()
+                            .text(i18n::tr(self.note))
+                            .color(palette.muted)
+                            .font_size(13.),
+                    ),
             )
-            .child(Switch::new(WritableSetter::new(self.on, move |value: bool| {
-                link.send(Command::PatchSettings { patch: which.patch(value) });
-            })))
+            .child(Switch::new(WritableSetter::new(
+                self.on,
+                move |value: bool| {
+                    link.send(Command::PatchSettings {
+                        patch: which.patch(value),
+                    });
+                },
+            )))
     }
 }
 
@@ -5115,8 +6936,64 @@ impl Component for OverlayRow {
     }
 }
 
+/// Whether the system leaves this program out of its battery optimisation, and the way to the screen of the system where the person chooses.
+/// Read again while the row is on the screen, because the person decides it there and comes back to the answer already given. It states
+/// what the system says and does not ask for the exemption itself.
 #[derive(PartialEq)]
-struct ClipboardRow { control: link::ClipboardControl, palette: Palette }
+struct BatteryRow {
+    control: link::BatteryControl,
+    palette: Palette,
+}
+
+impl Component for BatteryRow {
+    fn render(&self) -> impl IntoElement {
+        let palette = self.palette;
+        let control = self.control.clone();
+        let mut unrestricted: State<bool> = use_state(|| (control.unrestricted)());
+        use_hook({
+            let control = control.clone();
+            move || {
+                let mut ticks = link::clock(unix_now, std::time::Duration::from_millis(500));
+                spawn(async move {
+                    loop {
+                        unrestricted.set_if_modified((control.unrestricted)());
+                        if ticks.changed().await.is_err() {
+                            break;
+                        }
+                    }
+                });
+            }
+        });
+        let on = *unrestricted.read();
+        let open = self.control.open.clone();
+        rect()
+            .width(Size::fill())
+            .padding(16.)
+            .horizontal()
+            .cross_align(Alignment::center())
+            .content(Content::flex())
+            .corner_radius(12.)
+            .background(palette.surface)
+            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
+            .child(
+                rect()
+                    .width(Size::flex(1.))
+                    .child(label().text(i18n::tr("Battery")).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
+                    .child(label().text(i18n::tr(if on {
+                        "On: the network of the background service keeps working while the phone is idle."
+                    } else {
+                        "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+                    })).color(palette.muted).font_size(13.)),
+            )
+            .child(Button::new().on_press(move |_| open()).child(i18n::tr("Settings")))
+    }
+}
+
+#[derive(PartialEq)]
+struct ClipboardRow {
+    control: link::ClipboardControl,
+    palette: Palette,
+}
 
 impl Component for ClipboardRow {
     fn render(&self) -> impl IntoElement {
@@ -5127,18 +7004,44 @@ impl Component for ClipboardRow {
             spawn(async move {
                 loop {
                     status.set_if_modified((control.status)());
-                    if ticks.changed().await.is_err() { break; }
+                    if ticks.changed().await.is_err() {
+                        break;
+                    }
                 }
             });
         });
         let palette = self.palette;
         let open = self.control.open.clone();
-        rect().width(Size::fill()).padding(16.).spacing(8.).corner_radius(12.)
+        rect()
+            .width(Size::fill())
+            .padding(16.)
+            .spacing(8.)
+            .corner_radius(12.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
-            .child(label().text(i18n::tr("Background clipboard access")).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
-            .child(label().text(status.read().clone()).color(palette.muted).font_size(13.))
-            .child(Button::new().on_press(move |_| open()).child(i18n::tr("Settings")))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .child(
+                label()
+                    .text(i18n::tr("Background clipboard access"))
+                    .color(palette.text)
+                    .font_size(16.)
+                    .font_weight(FontWeight::BOLD),
+            )
+            .child(
+                label()
+                    .text(status.read().clone())
+                    .color(palette.muted)
+                    .font_size(13.),
+            )
+            .child(
+                Button::new()
+                    .on_press(move |_| open())
+                    .child(i18n::tr("Settings")),
+            )
     }
 }
 
@@ -5175,7 +7078,11 @@ impl Component for SavedFolderRow {
         let chosen = tree.read().is_some();
         let (choose, forget) = (sink.choose_saved.clone(), sink.forget_saved.clone());
         let mut row = rect().width(Size::fill()).spacing(8.).child(mono(
-            i18n::tr(if chosen { "A folder is chosen. Files go straight into it." } else { "No folder chosen. Every file asks where it goes." }),
+            i18n::tr(if chosen {
+                "A folder is chosen. Files go straight into it."
+            } else {
+                "No folder chosen. Every file asks where it goes."
+            }),
             palette.text,
             12.,
         ));
@@ -5183,7 +7090,11 @@ impl Component for SavedFolderRow {
             rect()
                 .horizontal()
                 .spacing(10.)
-                .child(Button::new().on_press(move |_| choose()).child(i18n::tr("Choose folder")))
+                .child(
+                    Button::new()
+                        .on_press(move |_| choose())
+                        .child(i18n::tr("Choose folder")),
+                )
                 .maybe_child(chosen.then(|| {
                     let mut tree = tree;
                     Button::new()
@@ -5212,7 +7123,11 @@ fn camera_words(line: &str) -> Option<(String, String, bool)> {
         40..=79 => "Main",
         _ => "Zoom",
     };
-    let near = if centimetres == 0 { String::new() } else { format!(" · {centimetres} cm") };
+    let near = if centimetres == 0 {
+        String::new()
+    } else {
+        format!(" · {centimetres} cm")
+    };
     Some((id.clone(), format!("{} {id}{near}", i18n::tr(kind)), chosen))
 }
 
@@ -5234,16 +7149,29 @@ impl Component for CameraRow {
         let mut picked: State<Option<String>> = use_state(|| None);
         let lines = (self.choice.list)();
         let cameras: Vec<(String, String, bool)> = lines.lines().filter_map(camera_words).collect();
-        let current = picked.read().clone().unwrap_or_else(|| cameras.iter().find(|camera| camera.2).map(|camera| camera.0.clone()).unwrap_or_default());
+        let current = picked.read().clone().unwrap_or_else(|| {
+            cameras
+                .iter()
+                .find(|camera| camera.2)
+                .map(|camera| camera.0.clone())
+                .unwrap_or_default()
+        });
         let button = |id: String, words: String| -> Element {
             let choose = self.choice.choose.clone();
             let selected = current == id;
             let target = id.clone();
-            let button = Button::new().width(Size::fill()).on_press(move |_| {
-                picked.set(Some(target.clone()));
-                choose(&target);
-            }).child(words);
-            if selected { button.filled().into() } else { button.into() }
+            let button = Button::new()
+                .width(Size::fill())
+                .on_press(move |_| {
+                    picked.set(Some(target.clone()));
+                    choose(&target);
+                })
+                .child(words);
+            if selected {
+                button.filled().into()
+            } else {
+                button.into()
+            }
         };
         // A grid of two columns: every button fills a cell of the same width, and a last row of one leaves its second cell empty, so that
         // the buttons line up in columns and none runs off the edge of the card or breaks its words.
@@ -5254,7 +7182,8 @@ impl Component for CameraRow {
             }
             cell.into()
         };
-        let mut buttons: Vec<Element> = vec![button(String::new(), i18n::tr("Automatic").to_owned())];
+        let mut buttons: Vec<Element> =
+            vec![button(String::new(), i18n::tr("Automatic").to_owned())];
         for (id, words, _) in cameras {
             buttons.push(button(id, words));
         }
@@ -5274,15 +7203,34 @@ impl Component for CameraRow {
         // looking at what it shows of a screen. It is the same scan as the circle of Peers (a code read here is joined all the same), and
         // it is closed when this page is left.
         let owner_said: State<Option<String>> = use_state(|| None);
-        let CodeScan { looking, picture, open, stop } = use_code_scan(&self.link, self.camera.clone(), self.room, owner_said);
+        let CodeScan {
+            looking,
+            picture,
+            open,
+            stop,
+        } = use_code_scan(&self.link, self.camera.clone(), self.room, owner_said);
         let shown = picture.read().clone();
         let scanning = looking() == view::Looking::Scanning;
         let test: Element = match shown {
-            Some(picture) => CameraCircle { picture, room: self.room, palette, on_stop: stop.clone() }.into(),
-            None if scanning => label().text(i18n::tr("starting the camera")).color(palette.muted).font_size(14.).into(),
+            Some(picture) => CameraCircle {
+                picture,
+                room: self.room,
+                palette,
+                on_stop: stop.clone(),
+            }
+            .into(),
+            None if scanning => label()
+                .text(i18n::tr("starting the camera"))
+                .color(palette.muted)
+                .font_size(14.)
+                .into(),
             None => {
                 let open = open.clone();
-                Button::new().width(Size::fill()).on_press(move |_| open.call(())).child(i18n::tr("Test the camera")).into()
+                Button::new()
+                    .width(Size::fill())
+                    .on_press(move |_| open.call(()))
+                    .child(i18n::tr("Test the camera"))
+                    .into()
             }
         };
         rect()
@@ -5291,11 +7239,34 @@ impl Component for CameraRow {
             .spacing(10.)
             .corner_radius(12.)
             .background(palette.surface)
-            .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner))
-            .child(label().text(i18n::tr("Camera")).color(palette.text).font_size(16.).font_weight(FontWeight::BOLD))
-            .child(label().text(i18n::tr("Choose the camera that reads a code, and press Test to see what it shows.")).color(palette.muted).font_size(13.))
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .child(
+                label()
+                    .text(i18n::tr("Camera"))
+                    .color(palette.text)
+                    .font_size(16.)
+                    .font_weight(FontWeight::BOLD),
+            )
+            .child(
+                label()
+                    .text(i18n::tr(
+                        "Choose the camera that reads a code, and press Test to see what it shows.",
+                    ))
+                    .color(palette.muted)
+                    .font_size(13.),
+            )
             .child(row)
-            .child(rect().width(Size::fill()).cross_align(Alignment::center()).child(test))
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .cross_align(Alignment::center())
+                    .child(test),
+            )
     }
 }
 
@@ -5311,7 +7282,13 @@ impl Component for SettingsPage {
         let selected = use_state(|| None::<settings_search::Target>);
         let go_to: State<Option<f32>> = use_state(|| None);
         let mut tap = use_state(view::Tap::default);
-        let navigation = settings_navigation::Navigation { origin, requested, selected, go_to, tap };
+        let navigation = settings_navigation::Navigation {
+            origin,
+            requested,
+            selected,
+            go_to,
+            tap,
+        };
         provide_context(navigation);
         let name = use_state(|| settings.device_name.clone());
         let save_link = self.link.clone();
@@ -5319,7 +7296,10 @@ impl Component for SettingsPage {
             let value = name.read().trim().to_owned();
             if !value.is_empty() {
                 save_link.send(Command::PatchSettings {
-                    patch: SettingsPatch { device_name: Some(value), ..Default::default() },
+                    patch: SettingsPatch {
+                        device_name: Some(value),
+                        ..Default::default()
+                    },
                 });
             }
         };
@@ -5351,10 +7331,14 @@ impl Component for SettingsPage {
                                     Ok(Ok(picture)) => {
                                         picture_refused.set(None);
                                         let client = link.client().clone();
-                                        let _ = client.command(Command::SetProfilePicture { picture }).await;
+                                        let _ = client
+                                            .command(Command::SetProfilePicture { picture })
+                                            .await;
                                     }
                                     Ok(Err(refused)) => picture_refused.set(Some(refused.words())),
-                                    Err(_) => picture_refused.set(Some("That picture could not be read.")),
+                                    Err(_) => {
+                                        picture_refused.set(Some("That picture could not be read."))
+                                    }
                                 }
                             }
                         }
@@ -5408,16 +7392,32 @@ impl Component for SettingsPage {
                 .on_press(move |_| {
                     theme_preview.set(None);
                     link.send(Command::PatchSettings {
-                        patch: SettingsPatch { theme: Some(value), ..Default::default() },
+                        patch: SettingsPatch {
+                            theme: Some(value),
+                            ..Default::default()
+                        },
                     })
                 })
                 .child(i18n::tr(text));
-            if selected { button.filled().into() } else { button.into() }
+            if selected {
+                button.filled().into()
+            } else {
+                button.into()
+            }
         };
 
-        let toggle = |text: &'static str, note: &'static str, on: bool, which: Preference| -> Element {
-            ToggleRow { link: self.link.clone(), palette, text, note, on, which }.into()
-        };
+        let toggle =
+            |text: &'static str, note: &'static str, on: bool, which: Preference| -> Element {
+                ToggleRow {
+                    link: self.link.clone(),
+                    palette,
+                    text,
+                    note,
+                    on,
+                    which,
+                }
+                .into()
+            };
 
         let tab = self.tab;
         let card = |children: Vec<Element>| -> Element {
@@ -5427,7 +7427,12 @@ impl Component for SettingsPage {
                 .spacing(8.)
                 .corner_radius(12.)
                 .background(palette.surface)
-                .border(Border::new().fill(palette.border).width(1.).alignment(BorderAlignment::Inner));
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                );
             for child in children {
                 card = card.child(child);
             }
@@ -5438,13 +7443,25 @@ impl Component for SettingsPage {
                 .width(Size::fill())
                 .horizontal()
                 .content(Content::flex())
-                .child(label().text(i18n::tr(name)).color(palette.muted).font_size(14.))
+                .child(
+                    label()
+                        .text(i18n::tr(name))
+                        .color(palette.muted)
+                        .font_size(14.),
+                )
                 .child(rect().width(Size::flex(1.)))
-                .child(label().text(value).color(palette.text).font_size(14.).font_weight(FontWeight::BOLD))
+                .child(
+                    label()
+                        .text(value)
+                        .color(palette.text)
+                        .font_size(14.)
+                        .font_weight(FontWeight::BOLD),
+                )
                 .into()
         };
 
-        let build = |which: SettingsTab| -> Element { match which {
+        let build = |which: SettingsTab| -> Element {
+            match which {
             SettingsTab::Overview => {
                 let moving = self.view.transfers.iter().filter(|t| t.stoppable()).count();
                 let online = self.view.devices.iter().filter(|d| d.presence == Presence::Online).count();
@@ -5517,15 +7534,20 @@ impl Component for SettingsPage {
                         .child(Button::new().filled().on_press(save_name.clone()).width(Size::fill()).child(crate::i18n::tr("Save")))
                 } else {
                     rect()
+                        .width(Size::fill())
+                        .max_width(Size::px(460.))
+                        .content(Content::flex())
                         .horizontal()
                         .spacing(10.)
-                        .child(Input::new(name).placeholder(crate::i18n::tr("Device name")).width(Size::px(360.)))
+                        .child(Input::new(name).placeholder(crate::i18n::tr("Device name")).width(Size::flex(1.)))
                         .child(Button::new().filled().on_press(save_name.clone()).child(crate::i18n::tr("Save")))
                 })
                 .child(language_picker::Picker {
                     link: self.link.clone(),
                     settings: settings.clone(),
                     palette,
+                    inset_top: self.inset_top,
+                    inset_bottom: self.inset_bottom,
                     // On a phone this page lies on the panel of the Settings overlay, whose colour is lifted; elsewhere on the page's own.
                     ground: if self.form == view::Form::Compact { palette.raised } else { palette.background },
                 })
@@ -5546,6 +7568,7 @@ impl Component for SettingsPage {
                 }))
                 .maybe_child(self.notifications.clone().map(|control| -> Element { NotificationsRow { control, palette }.into() }))
                 .maybe_child(try_consume_context::<link::OverlayControl>().map(|control| -> Element { OverlayRow { control, palette }.into() }))
+                .maybe_child(try_consume_context::<link::BatteryControl>().map(|control| -> Element { BatteryRow { control, palette }.into() }))
                 .maybe_child(try_consume_context::<link::ClipboardControl>().map(|control| -> Element { ClipboardRow { control, palette }.into() }))
                 .maybe_child(self.camera_choice.clone().map(|choice| -> Element {
                     CameraRow { link: self.link.clone(), choice, camera: self.camera.clone(), room: self.room, palette }.into()
@@ -5601,12 +7624,20 @@ impl Component for SettingsPage {
                 .width(Size::fill())
                 .spacing(14.)
                 .child(section("CONNECTIONS", palette))
-                .child(toggle(
-                    "Use internet relays",
-                    "Lets devices connect across networks. Off keeps traffic on this network.",
-                    settings.network.allow_relay,
-                    Preference::Relay,
-                ))
+                .child(relay_choice::Picker { link: self.link.clone(), settings: settings.clone(), diagnostics: self.view.relay, palette, compact: self.form == view::Form::Compact })
+                // The port this device listens on, which another device writes after this one's address to find it again. Read only: the system
+                // chooses it when the program starts, so it is different each time, and it is shown here and not kept.
+                .child(card(vec![
+                    fact(
+                        "Listening port",
+                        self.view.listening_port.map_or_else(|| "—".to_owned(), |port| port.to_string()),
+                    ),
+                    label()
+                        .text(i18n::tr("Another device writes this port after the address of this one to find it. It changes each time the program starts."))
+                        .color(palette.muted)
+                        .font_size(13.)
+                        .into(),
+                ]))
                 .into(),
             SettingsTab::Extensions => rect()
                 .width(Size::fill())
@@ -5729,19 +7760,28 @@ impl Component for SettingsPage {
                     .collect::<Vec<Element>>();
                 page.child(card(notices)).into()
             }
-        } };
+        }
+        };
         // Search replaces the page content; it never creates a second scroll area in the header.
-        let found = settings_search::search(&typed, &self.view, i18n::language(), settings_search::Features {
-            notifications: self.notifications.is_some(), camera: self.camera_choice.is_some(),
-            overlay: try_consume_context::<link::OverlayControl>().is_some(),
-            clipboard: try_consume_context::<link::ClipboardControl>().is_some(),
-        });
+        let found = settings_search::search(
+            &typed,
+            &self.view,
+            i18n::language(),
+            settings_search::Features {
+                notifications: self.notifications.is_some(),
+                camera: self.camera_choice.is_some(),
+                overlay: try_consume_context::<link::OverlayControl>().is_some(),
+                battery: try_consume_context::<link::BatteryControl>().is_some(),
+                clipboard: try_consume_context::<link::ClipboardControl>().is_some(),
+            },
+        );
         let mut results = rect().width(Size::fill()).spacing(10.);
         for entry in &found {
             let mut tab = self.tab;
             let mut navigation = navigation;
             results = results.child(settings_navigation::ResultButton {
-                entry: entry.clone(), palette,
+                entry: entry.clone(),
+                palette,
                 on_select: EventHandler::new(move |target: settings_search::Target| {
                     query.set(String::new());
                     tab.set(target.tab());
@@ -5751,7 +7791,12 @@ impl Component for SettingsPage {
             });
         }
         if searching && found.is_empty() {
-            results = results.child(label().text(i18n::tr("Nothing in Settings looks like that.")).color(palette.muted).font_size(14.));
+            results = results.child(
+                label()
+                    .text(i18n::tr("Nothing in Settings looks like that."))
+                    .color(palette.muted)
+                    .font_size(14.),
+            );
         }
         // Where the container of the groups and each group's title are laid out, in the window's own coordinates: a group's top in what is scrolled is
         // the difference of the two, which does not change as the page moves under the window. `None` until it was laid out.
@@ -5766,7 +7811,8 @@ impl Component for SettingsPage {
             });
             for (index, which) in SettingsTab::ALL.into_iter().enumerate() {
                 page = page
-                    .child(settings_navigation::anchor(settings_search::Target::Group(which),
+                    .child(settings_navigation::anchor(
+                        settings_search::Target::Group(which),
                         rect()
                             .width(Size::fill())
                             .horizontal()
@@ -5779,23 +7825,42 @@ impl Component for SettingsPage {
                                     title_tops.set_if_modified(next);
                                 }
                             })
-                            .child(label().text(i18n::tr(which.title())).color(palette.text).font_size(26.).font_weight(FontWeight::BOLD)),
-                        palette))
+                            .child(
+                                label()
+                                    .text(i18n::tr(which.title()))
+                                    .color(palette.text)
+                                    .font_size(26.)
+                                    .font_weight(FontWeight::BOLD),
+                            ),
+                        palette,
+                    ))
                     .child(build(which));
             }
             page.into()
         } else {
-            rect().width(Size::fill()).on_sized({
-                let mut origin = origin;
-                move |e: Event<SizedEventData>| origin.set_if_modified(Some(e.area.min_y()))
-            }).child(settings_navigation::anchor(settings_search::Target::Group(tab()), build(tab()), palette)).into()
+            rect()
+                .width(Size::fill())
+                .on_sized({
+                    let mut origin = origin;
+                    move |e: Event<SizedEventData>| origin.set_if_modified(Some(e.area.min_y()))
+                })
+                .child(settings_navigation::anchor(
+                    settings_search::Target::Group(tab()),
+                    build(tab()),
+                    palette,
+                ))
+                .into()
         };
         // The tops of the groups once the container and every title have been laid out.
         if let (Some(origin), titles) = (*origin.peek(), *title_tops.read())
             && titles.iter().all(Option::is_some)
         {
             let first = titles[0].unwrap_or(origin);
-            let measured: Vec<f32> = titles.iter().flatten().map(|top| (top - first).max(0.)).collect();
+            let measured: Vec<f32> = titles
+                .iter()
+                .flatten()
+                .map(|top| (top - first).max(0.))
+                .collect();
             let mut tops = tops;
             tops.set_if_modified(measured);
         }
@@ -5803,28 +7868,58 @@ impl Component for SettingsPage {
         // The fixed header owns only title/input; the page has one scrolling body.
         let compact = self.form == view::Form::Compact;
         let narrow_header = compact && self.room < 320.;
-        let title = label().text(i18n::tr("Settings")).color(palette.text)
-            .font_size(if compact { 20. } else { 32. }).font_weight(FontWeight::BOLD).max_lines(1);
-        let mut controls = rect().width(Size::fill()).horizontal().content(Content::flex())
-            .cross_align(Alignment::center()).spacing(if compact { 10. } else { 20. });
-        if !narrow_header { controls = controls.child(title.clone()); }
-        controls = controls.child(rect().width(Size::flex(1.)).child(
-            Input::new(query).placeholder(i18n::tr("Search settings")).width(Size::fill()),
-        )).maybe_child(self.on_close.clone().map(|close| {
-            Button::new().on_press(move |_| close.call(())).child(label().text(i18n::tr("Close")).max_lines(1))
-        }));
-        let mut header = rect().width(Size::fill()).spacing(8.)
+        let title = label()
+            .text(i18n::tr("Settings"))
+            .color(palette.text)
+            .font_size(if compact { 20. } else { 32. })
+            .font_weight(FontWeight::BOLD)
+            .max_lines(1);
+        let mut controls = rect()
+            .width(Size::fill())
+            .horizontal()
+            .content(Content::flex())
+            .cross_align(Alignment::center())
+            .spacing(if compact { 10. } else { 20. });
+        if !narrow_header {
+            controls = controls.child(title.clone());
+        }
+        controls = controls
+            .child(
+                rect().width(Size::flex(1.)).child(
+                    Input::new(query)
+                        .placeholder(i18n::tr("Search settings"))
+                        .width(Size::fill()),
+                ),
+            )
+            .maybe_child(self.on_close.clone().map(|close| {
+                Button::new()
+                    .on_press(move |_| close.call(()))
+                    .child(label().text(i18n::tr("Close")).max_lines(1))
+            }));
+        let mut header = rect()
+            .width(Size::fill())
+            .spacing(8.)
             .padding((12., self.form.page_side_margin()));
-        if narrow_header { header = header.child(title); }
+        if narrow_header {
+            header = header.child(title);
+        }
         let header = header.child(controls);
         let scroll = Scrolling {
-            palette, form: self.form, content, see_through: compact,
-            tops: (compact && !searching).then_some(tops), go_to: Some(go_to),
+            palette,
+            form: self.form,
+            content,
+            see_through: compact,
+            tops: (compact && !searching).then_some(tops),
+            go_to: Some(go_to),
         };
         rect()
             .expanded()
             .content(Content::flex())
-            .background(if compact { palette.raised } else { palette.background })
+            .background(if compact {
+                palette.raised
+            } else {
+                palette.background
+            })
             .on_capture_global_pointer_move(move |event: Event<PointerEventData>| {
                 let point = event.global_location();
                 let mut next = *tap.peek();
@@ -5833,9 +7928,23 @@ impl Component for SettingsPage {
             })
             .on_touch_cancel(move |_| tap.set(view::Tap::default()))
             .child(header)
-            .child(rect().width(Size::fill()).height(Size::px(1.)).background(palette.border))
-            .child(rect().key(if searching { "settings-search-results" } else { "settings-content" })
-                .width(Size::fill()).height(Size::flex(1.)).child(scroll))
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .height(Size::px(1.))
+                    .background(palette.border),
+            )
+            .child(
+                rect()
+                    .key(if searching {
+                        "settings-search-results"
+                    } else {
+                        "settings-content"
+                    })
+                    .width(Size::fill())
+                    .height(Size::flex(1.))
+                    .child(scroll),
+            )
             .into_element()
     }
 }

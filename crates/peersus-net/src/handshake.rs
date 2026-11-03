@@ -119,7 +119,10 @@ pub async fn accept(
     // A bare gate is one code shown to pair: that is the only thing it has ever been.
     accept_with(
         connection,
-        |capability| gate.consume(capability, Instant::now()).then_some(Purpose::Pairing),
+        |capability| {
+            gate.consume(capability, Instant::now())
+                .then_some(Purpose::Pairing)
+        },
         name,
     )
     .await
@@ -147,7 +150,15 @@ pub(crate) async fn accept_with(
         let purpose = consume(&hello.capability).ok_or(Error::Refused)?;
         validate_name(&hello.name)?;
         let nonce = rand::random();
-        transport::send(&mut tx, &Welcome { nonce, name, purpose }).await?;
+        transport::send(
+            &mut tx,
+            &Welcome {
+                nonce,
+                name,
+                purpose,
+            },
+        )
+        .await?;
         tx.finish().map_err(|_| Error::Connection)?;
         Ok::<_, Error>((nonce, hello.name, hello.address, purpose))
     }
@@ -177,17 +188,34 @@ mod tests {
     fn bulk_selection_fails_closed_for_old_receivers_without_changing_legacy_purposes() {
         #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
         #[serde(rename_all = "kebab-case")]
-        enum LegacyPurpose { Pairing, Files }
-        for (current, legacy) in [(Purpose::Pairing, LegacyPurpose::Pairing), (Purpose::Files, LegacyPurpose::Files)] {
+        enum LegacyPurpose {
+            Pairing,
+            Files,
+        }
+        for (current, legacy) in [
+            (Purpose::Pairing, LegacyPurpose::Pairing),
+            (Purpose::Files, LegacyPurpose::Files),
+        ] {
             let encoded = serde_json::to_vec(&current).unwrap();
-            assert_eq!(serde_json::from_slice::<LegacyPurpose>(&encoded).unwrap(), legacy);
-            assert_eq!(serde_json::from_slice::<Purpose>(&serde_json::to_vec(&legacy).unwrap()).unwrap(), current);
+            assert_eq!(
+                serde_json::from_slice::<LegacyPurpose>(&encoded).unwrap(),
+                legacy
+            );
+            assert_eq!(
+                serde_json::from_slice::<Purpose>(&serde_json::to_vec(&legacy).unwrap()).unwrap(),
+                current
+            );
         }
         let selection = Purpose::FileSelection { files: 40 };
         let encoded = serde_json::to_vec(&selection).unwrap();
-        assert_eq!(serde_json::from_slice::<Purpose>(&encoded).unwrap(), selection);
-        assert!(serde_json::from_slice::<LegacyPurpose>(&encoded).is_err(),
-            "an old receiver silently downgraded a larger authenticated selection");
+        assert_eq!(
+            serde_json::from_slice::<Purpose>(&encoded).unwrap(),
+            selection
+        );
+        assert!(
+            serde_json::from_slice::<LegacyPurpose>(&encoded).is_err(),
+            "an old receiver silently downgraded a larger authenticated selection"
+        );
     }
 
     #[tokio::test]
@@ -195,6 +223,7 @@ mod tests {
         let policy = NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         };
         let a = transport::bind(SecretKey::generate(), &policy)
             .await

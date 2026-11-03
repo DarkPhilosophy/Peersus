@@ -17,7 +17,8 @@ use tokio::{
 /// The largest request a local client may send: that of the largest picture a window can set, which is
 /// `MAX_EDGE` squared pixels of four bytes written in hex, with a little for the command around it.
 /// Anything larger cannot be a valid command and is turned away before it is read.
-pub const REQUEST_LIMIT: usize = 2 * 4 * (peersus_core::profile::MAX_EDGE as usize).pow(2) + 4 * 1024;
+pub const REQUEST_LIMIT: usize =
+    2 * 4 * (peersus_core::profile::MAX_EDGE as usize).pow(2) + 4 * 1024;
 const RESPONSE_LIMIT: usize = 4 * 1024 * 1024;
 const DEADLINE: Duration = Duration::from_secs(15);
 
@@ -25,7 +26,10 @@ const DEADLINE: Duration = Duration::from_secs(15);
 #[serde(tag = "operation", deny_unknown_fields)]
 enum Request {
     Snapshot,
-    Command { command: Command },
+    /// Boxed: a command carries a whole settings edit, far larger than the other two requests, which carry nothing.
+    Command {
+        command: Box<Command>,
+    },
     /// A window saying it is attached, and staying so for as long as it holds the connection open.
     Lease,
 }
@@ -95,7 +99,10 @@ async fn handle(
         .map_err(|_| io::Error::from(io::ErrorKind::TimedOut))??;
     let lease = matches!(request, Request::Lease);
     if lease && presence.windows() >= MOST_LEASES {
-        let refused = Response { result: Err("Too many windows are attached".to_owned()), snapshot: (*client.snapshot()).clone() };
+        let refused = Response {
+            result: Err("Too many windows are attached".to_owned()),
+            snapshot: (*client.snapshot()).clone(),
+        };
         return write_frame(&mut stream, &refused, RESPONSE_LIMIT).await;
     }
     // Taken before the answer is written and held until this function ends, however it ends: the window
@@ -104,7 +111,7 @@ async fn handle(
     let result = match request {
         Request::Snapshot | Request::Lease => Ok(None),
         Request::Command { command } => client
-            .command(command)
+            .command(*command)
             .await
             .map(Some)
             .map_err(str::to_owned),
@@ -113,9 +120,12 @@ async fn handle(
         result,
         snapshot: (*client.snapshot()).clone(),
     };
-    tokio::time::timeout(DEADLINE, write_frame(&mut stream, &response, RESPONSE_LIMIT))
-        .await
-        .map_err(|_| io::Error::from(io::ErrorKind::TimedOut))??;
+    tokio::time::timeout(
+        DEADLINE,
+        write_frame(&mut stream, &response, RESPONSE_LIMIT),
+    )
+    .await
+    .map_err(|_| io::Error::from(io::ErrorKind::TimedOut))??;
     if held.is_some() {
         // The window is attached for as long as it keeps this open. It sends nothing more, so a read that
         // ends, by end of stream or by an error, is the window going. The owner stopping ends it too:
@@ -138,7 +148,11 @@ async fn handle(
 /// is counted in `presence` and takes none of the places ordinary requests have: the places for requests
 /// are [`REQUESTS_AT_ONCE`], and each open lease adds one more, so that windows attached to the owner can
 /// never leave a command line client waiting. At most [`MOST_LEASES`] are held; one over is turned away.
-pub async fn serve(listener: Listener, client: Client, presence: crate::lifetime::Presence) -> io::Result<()> {
+pub async fn serve(
+    listener: Listener,
+    client: Client,
+    presence: crate::lifetime::Presence,
+) -> io::Result<()> {
     #[cfg(windows)]
     let mut listener = listener;
     let mut tasks = JoinSet::new();
@@ -189,7 +203,13 @@ pub async fn snapshot(path: &Path) -> io::Result<Snapshot> {
 }
 /// Execute once; the returned snapshot includes acknowledged preference changes.
 pub async fn command(path: &Path, command: Command) -> io::Result<(Reply, Snapshot)> {
-    let response = exchange(path, Request::Command { command }).await?;
+    let response = exchange(
+        path,
+        Request::Command {
+            command: Box::new(command),
+        },
+    )
+    .await?;
     let reply = response
         .result
         .map_err(io::Error::other)?
@@ -361,7 +381,10 @@ mod tests {
     fn one_look_at_the_owner_that_fails_is_not_the_owner_being_gone() {
         // Not at once, and not after a couple: a socket busy for a moment or a screen waking is not an owner that died.
         for failures in 0..FAILURES_BEFORE_GIVING_UP {
-            assert!(!gives_up(failures), "{failures} failures in a row ended the bridge");
+            assert!(
+                !gives_up(failures),
+                "{failures} failures in a row ended the bridge"
+            );
         }
         // At the threshold, and past it, the owner is taken as gone.
         assert!(gives_up(FAILURES_BEFORE_GIVING_UP));

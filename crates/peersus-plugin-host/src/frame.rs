@@ -11,14 +11,22 @@ pub const CONTROL_LIMIT: usize = 64 * 1024;
 
 fn checked_length(length: usize, maximum: usize) -> io::Result<u32> {
     if length == 0 || length > maximum {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid frame size"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid frame size",
+        ));
     }
-    u32::try_from(length).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Invalid frame size"))
+    u32::try_from(length)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "Invalid frame size"))
 }
 
 /// Read directly into a worker's bounded buffer, without decoding and re-encoding JSON.
 /// A clean EOF before the prefix returns zero; a partial prefix/body is an error.
-pub fn read_blocking_into(stream: &mut impl io::Read, into: &mut [u8], maximum: usize) -> io::Result<usize> {
+pub fn read_blocking_into(
+    stream: &mut impl io::Read,
+    into: &mut [u8],
+    maximum: usize,
+) -> io::Result<usize> {
     let mut prefix = [0; 4];
     match stream.read_exact(&mut prefix[..1]) {
         Err(error) if error.kind() == io::ErrorKind::UnexpectedEof => return Ok(0),
@@ -32,15 +40,24 @@ pub fn read_blocking_into(stream: &mut impl io::Read, into: &mut [u8], maximum: 
 }
 
 /// The same wire frame for a single-threaded worker's already encoded message.
-pub fn write_blocking_bytes(stream: &mut impl io::Write, bytes: &[u8], maximum: usize) -> io::Result<()> {
+pub fn write_blocking_bytes(
+    stream: &mut impl io::Write,
+    bytes: &[u8],
+    maximum: usize,
+) -> io::Result<()> {
     let length = checked_length(bytes.len(), maximum)?;
     stream.write_all(&length.to_be_bytes())?;
     stream.write_all(bytes)?;
     stream.flush()
 }
 
-pub fn write_blocking<T: Serialize>(stream: &mut impl io::Write, value: &T, maximum: usize) -> io::Result<()> {
-    let bytes = serde_json::to_vec(value).map_err(|_| io::Error::other("Could not encode frame"))?;
+pub fn write_blocking<T: Serialize>(
+    stream: &mut impl io::Write,
+    value: &T,
+    maximum: usize,
+) -> io::Result<()> {
+    let bytes =
+        serde_json::to_vec(value).map_err(|_| io::Error::other("Could not encode frame"))?;
     write_blocking_bytes(stream, &bytes, maximum)
 }
 
@@ -142,11 +159,19 @@ mod tests {
         let mut buffer = [0; 1024];
         for expected in [json!({"n":1}), json!({"n":2})] {
             let length = read_blocking_into(&mut input, &mut buffer, 1024).unwrap();
-            assert_eq!(serde_json::from_slice::<Value>(&buffer[..length]).unwrap(), expected);
+            assert_eq!(
+                serde_json::from_slice::<Value>(&buffer[..length]).unwrap(),
+                expected
+            );
         }
-        assert_eq!(read_blocking_into(&mut input, &mut buffer, 1024).unwrap(), 0);
+        assert_eq!(
+            read_blocking_into(&mut input, &mut buffer, 1024).unwrap(),
+            0
+        );
         for truncated in [encoded[..2].to_vec(), encoded[..6].to_vec()] {
-            assert!(read_blocking_into(&mut io::Cursor::new(truncated), &mut buffer, 1024).is_err());
+            assert!(
+                read_blocking_into(&mut io::Cursor::new(truncated), &mut buffer, 1024).is_err()
+            );
         }
     }
 
@@ -155,11 +180,16 @@ mod tests {
         for announced in [0u32, 1025, u32::MAX] {
             let mut input = io::Cursor::new(announced.to_be_bytes());
             let mut buffer = [7; 1024];
-            assert_eq!(read_blocking_into(&mut input, &mut buffer, 1024).unwrap_err().kind(), io::ErrorKind::InvalidData);
+            assert_eq!(
+                read_blocking_into(&mut input, &mut buffer, 1024)
+                    .unwrap_err()
+                    .kind(),
+                io::ErrorKind::InvalidData
+            );
             assert_eq!(buffer, [7; 1024]);
         }
         let mut output = Vec::new();
-        assert!(write_blocking_bytes(&mut output, &[1;1025], 1024).is_err());
+        assert!(write_blocking_bytes(&mut output, &[1; 1025], 1024).is_err());
         assert!(output.is_empty());
     }
 
@@ -167,14 +197,22 @@ mod tests {
     async fn blocking_and_async_frames_are_wire_compatible() {
         let mut bytes = Vec::new();
         write_blocking(&mut bytes, &json!({"direction":"blocking"}), 1024).unwrap();
-        assert_eq!(read::<Value>(&mut bytes.as_slice(), 1024).await.unwrap(), json!({"direction":"blocking"}));
+        assert_eq!(
+            read::<Value>(&mut bytes.as_slice(), 1024).await.unwrap(),
+            json!({"direction":"blocking"})
+        );
         let (mut sender, mut receiver) = duplex(1024);
-        write(&mut sender, &json!({"direction":"async"}), 1024).await.unwrap();
+        write(&mut sender, &json!({"direction":"async"}), 1024)
+            .await
+            .unwrap();
         drop(sender);
         let mut encoded = Vec::new();
         receiver.read_to_end(&mut encoded).await.unwrap();
         let mut buffer = [0; 1024];
         let length = read_blocking_into(&mut io::Cursor::new(encoded), &mut buffer, 1024).unwrap();
-        assert_eq!(serde_json::from_slice::<Value>(&buffer[..length]).unwrap(), json!({"direction":"async"}));
+        assert_eq!(
+            serde_json::from_slice::<Value>(&buffer[..length]).unwrap(),
+            json!({"direction":"async"})
+        );
     }
 }

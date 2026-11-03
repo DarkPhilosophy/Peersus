@@ -18,7 +18,10 @@ pub struct Point {
 
 impl Point {
     fn minus(self, other: Point) -> Point {
-        Point { x: self.x - other.x, y: self.y - other.y }
+        Point {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
     }
     fn length(self) -> f32 {
         self.x.hypot(self.y)
@@ -76,7 +79,10 @@ fn is_finder(five: &[(bool, usize)]) -> bool {
         return false;
     }
     let unit = total as f32 / 7.;
-    [1., 1., 3., 1., 1.].iter().zip(five).all(|(want, run)| (run.1 as f32 - want * unit).abs() <= unit * 0.5 + 0.5)
+    [1., 1., 3., 1., 1.]
+        .iter()
+        .zip(five)
+        .all(|(want, run)| (run.1 as f32 - want * unit).abs() <= unit * 0.5 + 0.5)
 }
 
 /// A finder pattern found by a line through its middle: where the middle is and how wide the pattern is, in pixels.
@@ -87,7 +93,13 @@ struct Seen {
 }
 
 /// The finder patterns a line of the frame shows, found along `direction` (a step of whole pixels) starting at `from`.
-fn along(frame: &Frame, threshold: u8, from: (isize, isize), direction: (isize, isize), length: usize) -> Vec<Seen> {
+fn along(
+    frame: &Frame,
+    threshold: u8,
+    from: (isize, isize),
+    direction: (isize, isize),
+    length: usize,
+) -> Vec<Seen> {
     let points = (0..length as isize).map(|t| (from.0 + direction.0 * t, from.1 + direction.1 * t));
     let runs = runs_of(points.map(|(x, y)| frame.dark(x, y, threshold)));
     // A hit's width is its length in steps. Along a diagonal a step is longer than a pixel, but the same finder crossed along its
@@ -100,7 +112,10 @@ fn along(frame: &Frame, threshold: u8, from: (isize, isize), direction: (isize, 
             let steps: usize = runs[index..index + 5].iter().map(|run| run.1).sum();
             let middle = at as f32 + steps as f32 / 2.;
             found.push(Seen {
-                middle: Point { x: from.0 as f32 + direction.0 as f32 * middle, y: from.1 as f32 + direction.1 as f32 * middle },
+                middle: Point {
+                    x: from.0 as f32 + direction.0 as f32 * middle,
+                    y: from.1 as f32 + direction.1 as f32 * middle,
+                },
                 width: steps as f32,
             });
         }
@@ -113,24 +128,43 @@ fn along(frame: &Frame, threshold: u8, from: (isize, isize), direction: (isize, 
 /// a chance run of the right proportions in the data does not.
 fn confirmed(frame: &Frame, threshold: u8, seen: Seen) -> bool {
     let reach = (seen.width * 1.2).ceil() as isize + 2;
-    let centre = (seen.middle.x.round() as isize, seen.middle.y.round() as isize);
-    [(1, 0), (0, 1), (1, 1), (-1, 1)].into_iter().all(|direction| {
-        let from = (centre.0 - direction.0 * reach, centre.1 - direction.1 * reach);
-        let hits = along(frame, threshold, from, direction, 2 * reach as usize + 1);
-        hits.iter().any(|hit| hit.middle.minus(seen.middle).length() <= seen.width / 5. + 1.)
-    })
+    let centre = (
+        seen.middle.x.round() as isize,
+        seen.middle.y.round() as isize,
+    );
+    [(1, 0), (0, 1), (1, 1), (-1, 1)]
+        .into_iter()
+        .all(|direction| {
+            let from = (
+                centre.0 - direction.0 * reach,
+                centre.1 - direction.1 * reach,
+            );
+            let hits = along(frame, threshold, from, direction, 2 * reach as usize + 1);
+            hits.iter()
+                .any(|hit| hit.middle.minus(seen.middle).length() <= seen.width / 5. + 1.)
+        })
 }
 
 /// Where a scan along `direction` starts each of its lines, for a frame of `width` by `height`: every pixel of the edges it enters by.
-fn lines_of(direction: (isize, isize), width: usize, height: usize) -> Vec<((isize, isize), usize)> {
+fn lines_of(
+    direction: (isize, isize),
+    width: usize,
+    height: usize,
+) -> Vec<((isize, isize), usize)> {
     let (w, h) = (width as isize, height as isize);
     match direction {
         (1, 0) => (0..h).map(|y| ((0, y), width)).collect(),
         (0, 1) => (0..w).map(|x| ((x, 0), height)).collect(),
         // Down to the right: enter by the top edge and by the left edge.
-        (1, 1) => (0..w).map(|x| ((x, 0), (w - x).min(h) as usize)).chain((1..h).map(|y| ((0, y), (h - y).min(w) as usize))).collect(),
+        (1, 1) => (0..w)
+            .map(|x| ((x, 0), (w - x).min(h) as usize))
+            .chain((1..h).map(|y| ((0, y), (h - y).min(w) as usize)))
+            .collect(),
         // Down to the left: enter by the top edge and by the right edge.
-        _ => (0..w).map(|x| ((x, 0), (x + 1).min(h) as usize)).chain((1..h).map(|y| ((w - 1, y), (h - y).min(w) as usize))).collect(),
+        _ => (0..w)
+            .map(|x| ((x, 0), (x + 1).min(h) as usize))
+            .chain((1..h).map(|y| ((w - 1, y), (h - y).min(w) as usize)))
+            .collect(),
     }
 }
 
@@ -152,9 +186,14 @@ fn row_candidates(frame: &Frame, threshold: u8) -> Vec<(Point, f32, usize)> {
                 let nearest = candidates
                     .iter_mut()
                     .filter(|(point, wide, _)| {
-                        (*wide - seen.width).abs() <= *wide * 0.25 && point.minus(seen.middle).length() <= *wide / 3.
+                        (*wide - seen.width).abs() <= *wide * 0.25
+                            && point.minus(seen.middle).length() <= *wide / 3.
                     })
-                    .min_by(|a, b| a.0.minus(seen.middle).length().total_cmp(&b.0.minus(seen.middle).length()));
+                    .min_by(|a, b| {
+                        a.0.minus(seen.middle)
+                            .length()
+                            .total_cmp(&b.0.minus(seen.middle).length())
+                    });
                 match nearest {
                     Some((point, wide, count)) => {
                         // The mean of what the lines saw: a ring read on several lines has its middle where they agree.
@@ -178,23 +217,43 @@ pub fn finder_middles(luma: &[u8], width: usize, height: usize) -> Vec<(Point, f
     if width < 21 || height < 21 || luma.len() != width * height {
         return Vec::new();
     }
-    let Some(threshold) = threshold_of(luma) else { return Vec::new() };
-    let frame = Frame { luma, width, height };
-    let mut strong: Vec<(Point, f32, usize)> =
-        row_candidates(&frame, threshold).into_iter().filter(|(_, wide, count)| *count as f32 >= (*wide / 7.).max(2.)).collect();
+    let Some(threshold) = threshold_of(luma) else {
+        return Vec::new();
+    };
+    let frame = Frame {
+        luma,
+        width,
+        height,
+    };
+    let mut strong: Vec<(Point, f32, usize)> = row_candidates(&frame, threshold)
+        .into_iter()
+        .filter(|(_, wide, count)| *count as f32 >= (*wide / 7.).max(2.))
+        .collect();
     // A round ring crossed along its diagonal shows 1:1:3:1:1 a second time, smaller, at the same middle. That is the same finder and not
     // another: at one place the widest is kept, which is the ring's own width.
     strong.sort_by(|a, b| b.1.total_cmp(&a.1));
     let mut kept: Vec<(Point, f32, usize)> = Vec::new();
     for candidate in strong {
-        if !kept.iter().any(|(point, wide, _)| point.minus(candidate.0).length() <= *wide / 4.) {
+        if !kept
+            .iter()
+            .any(|(point, wide, _)| point.minus(candidate.0).length() <= *wide / 4.)
+        {
             kept.push(candidate);
         }
     }
     kept.sort_by_key(|candidate| std::cmp::Reverse(candidate.2));
     kept.truncate(12);
     kept.into_iter()
-        .filter(|(point, wide, _)| confirmed(&frame, threshold, Seen { middle: *point, width: *wide }))
+        .filter(|(point, wide, _)| {
+            confirmed(
+                &frame,
+                threshold,
+                Seen {
+                    middle: *point,
+                    width: *wide,
+                },
+            )
+        })
         .map(|(point, wide, _)| (point, wide))
         .collect()
 }
@@ -261,17 +320,34 @@ pub fn find(luma: &[u8], width: usize, height: usize) -> Option<Found> {
     let across = (right.minus(corner).length() + down.minus(corner).length()) / 2. / module;
     let measured = across + 7.;
     let threshold = threshold_of(luma)?;
-    let frame = Frame { luma, width, height };
-    let mut sizes: Vec<usize> = (0..=35).map(|version| 21 + 4 * version).filter(|size| (*size as f32 - measured).abs() <= 6.).collect();
-    sizes.sort_by(|a, b| (*a as f32 - measured).abs().total_cmp(&(*b as f32 - measured).abs()));
+    let frame = Frame {
+        luma,
+        width,
+        height,
+    };
+    let mut sizes: Vec<usize> = (0..=35)
+        .map(|version| 21 + 4 * version)
+        .filter(|size| (*size as f32 - measured).abs() <= 6.)
+        .collect();
+    sizes.sort_by(|a, b| {
+        (*a as f32 - measured)
+            .abs()
+            .total_cmp(&(*b as f32 - measured).abs())
+    });
     let mut shape: Option<[Point; 4]> = None;
     for size in sizes {
         let span = size as f32 - 7.;
-        let step = |from: Point, to: Point| Point { x: (to.x - from.x) / span, y: (to.y - from.y) / span };
+        let step = |from: Point, to: Point| Point {
+            x: (to.x - from.x) / span,
+            y: (to.y - from.y) / span,
+        };
         let (u, v) = (step(corner, right), step(corner, down));
         // `at(x, y)` is the point `x` modules right and `y` modules down from the code's top left corner, which is where the module grid is
         // counted from. A finder is seven modules wide, so its middle is 3.5 modules from the corner: that is where `corner` is.
-        let at = |x: f32, y: f32| Point { x: corner.x + (x - 3.5) * u.x + (y - 3.5) * v.x, y: corner.y + (x - 3.5) * u.y + (y - 3.5) * v.y };
+        let at = |x: f32, y: f32| Point {
+            x: corner.x + (x - 3.5) * u.x + (y - 3.5) * v.x,
+            y: corner.y + (x - 3.5) * u.y + (y - 3.5) * v.y,
+        };
         let edge = size as f32;
         let corners = [at(0., 0.), at(edge, 0.), at(edge, edge), at(0., edge)];
         shape.get_or_insert(corners);
@@ -295,17 +371,27 @@ pub fn find(luma: &[u8], width: usize, height: usize) -> Option<Found> {
                 .into_iter()
                 .filter(|(dx, dy)| {
                     let point = at(cx + dx, cy + dy);
-                    frame.dark(point.x.round() as isize, point.y.round() as isize, threshold)
+                    frame.dark(
+                        point.x.round() as isize,
+                        point.y.round() as isize,
+                        threshold,
+                    )
                 })
                 .count();
             dark >= 3
         });
         if let Ok((_, text)) = rqrr::Grid::new(grid).decode() {
-            return Some(Found { corners, text: Some(text) });
+            return Some(Found {
+                corners,
+                text: Some(text),
+            });
         }
     }
     // Found and not read: the corners of the nearest size say where it is.
-    shape.map(|corners| Found { corners, text: None })
+    shape.map(|corners| Found {
+        corners,
+        text: None,
+    })
 }
 
 /// What a code found by its finders says, or `None` if there is none or it cannot be read. See [`find`].
@@ -322,10 +408,28 @@ mod tests {
         let finder = [(true, 4), (false, 4), (true, 12), (false, 4), (true, 4)];
         assert!(is_finder(&finder));
         // A little blur: still a finder.
-        assert!(is_finder(&[(true, 4), (false, 5), (true, 11), (false, 4), (true, 5)]));
+        assert!(is_finder(&[
+            (true, 4),
+            (false, 5),
+            (true, 11),
+            (false, 4),
+            (true, 5)
+        ]));
         // Not: a bar, a wrong middle, or starting on light.
-        assert!(!is_finder(&[(true, 4), (false, 4), (true, 4), (false, 4), (true, 4)]));
-        assert!(!is_finder(&[(false, 4), (true, 4), (false, 12), (true, 4), (false, 4)]));
+        assert!(!is_finder(&[
+            (true, 4),
+            (false, 4),
+            (true, 4),
+            (false, 4),
+            (true, 4)
+        ]));
+        assert!(!is_finder(&[
+            (false, 4),
+            (true, 4),
+            (false, 12),
+            (true, 4),
+            (false, 4)
+        ]));
         assert!(!is_finder(&finder[..4]));
     }
 

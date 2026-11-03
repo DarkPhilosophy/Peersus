@@ -15,14 +15,19 @@ serde_json.workspace = true
 thiserror.workspace = true
 sha2.workspace = true
 subtle.workspace = true
+zeroize.workspace = true
 iroh.workspace = true
 iroh-base.workspace = true
 data-encoding.workspace = true
 tokio.workspace = true
+futures-util.workspace = true
 tempfile.workspace = true
 rand.workspace = true
 hex.workspace = true
 rustix.workspace = true
+
+[dev-dependencies]
+iroh-relay = { version = "1.4.1", default-features = false, features = ["server", "test-utils"] }
 
 [lints]
 workspace = true

@@ -216,6 +216,7 @@ async fn start(
         network: NetworkSettings {
             bind: Some("127.0.0.1".parse().unwrap()),
             allow_relay: false,
+            ..NetworkSettings::default()
         },
         ..Settings::default()
     };
@@ -677,6 +678,7 @@ async fn paired_sender(root: &std::path::Path, label: &str, runtime: &Client) ->
     let policy = NetworkSettings {
         bind: Some("127.0.0.1".parse().unwrap()),
         allow_relay: false,
+        ..NetworkSettings::default()
     };
     let endpoint = transport::bind(SecretKey::generate(), &policy)
         .await
@@ -2969,11 +2971,17 @@ async fn start_with_packages_and_registry(
     std::fs::create_dir_all(&path).unwrap();
     let mut store = SettingsStore::open(path.join("preferences.json")).unwrap();
     let settings = Settings {
-        network: NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false },
+        network: NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        },
         ..Settings::default()
     };
     store.replace(settings.clone()).unwrap();
-    let endpoint = transport::bind(SecretKey::generate(), &settings.network).await.unwrap();
+    let endpoint = transport::bind(SecretKey::generate(), &settings.network)
+        .await
+        .unwrap();
     let network = NetworkHost::new(
         endpoint,
         settings.device_name,
@@ -2983,10 +2991,18 @@ async fn start_with_packages_and_registry(
     let directory = sockets();
     let private = directory.path().to_path_buf();
     let standalone = peersus_net::grants::StandaloneGrants::open(path.join("grants.json")).unwrap();
-    let (runtime, client) =
-        Runtime::new(network, standalone, store, registry, directory.path().to_path_buf()).unwrap();
+    let (runtime, client) = Runtime::new(
+        network,
+        standalone,
+        store,
+        registry,
+        directory.path().to_path_buf(),
+    )
+    .unwrap();
     let mut runtime = runtime.with_packages(peersus_app::plugin_manager::Manager::new(data));
-    if let Some(plugin) = bundled { runtime = runtime.with_launcher(plugin, Arc::new(BundledTestLauncher)); }
+    if let Some(plugin) = bundled {
+        runtime = runtime.with_launcher(plugin, Arc::new(BundledTestLauncher));
+    }
     let task = tokio::spawn(async move {
         runtime.run().await;
         drop(directory);
@@ -2996,11 +3012,19 @@ async fn start_with_packages_and_registry(
 
 struct BundledTestLauncher;
 impl peersus_plugin_host::supervisor::Launcher for BundledTestLauncher {
-    fn launch(&self, bootstrap: peersus_plugin_host::supervisor::Bootstrap) -> std::io::Result<Box<dyn peersus_plugin_host::supervisor::Lifecycle>> {
+    fn launch(
+        &self,
+        bootstrap: peersus_plugin_host::supervisor::Bootstrap,
+    ) -> std::io::Result<Box<dyn peersus_plugin_host::supervisor::Lifecycle>> {
         peersus_plugin_host::supervisor::Launch {
-            program: plugin_binary(), arguments: vec![], socket: bootstrap.socket,
-            data_socket: bootstrap.data_socket, token: bootstrap.token,
-        }.spawn().map(|running| Box::new(running) as Box<dyn peersus_plugin_host::supervisor::Lifecycle>)
+            program: plugin_binary(),
+            arguments: vec![],
+            socket: bootstrap.socket,
+            data_socket: bootstrap.data_socket,
+            token: bootstrap.token,
+        }
+        .spawn()
+        .map(|running| Box::new(running) as Box<dyn peersus_plugin_host::supervisor::Lifecycle>)
     }
 }
 
@@ -3014,21 +3038,87 @@ async fn an_external_store_does_not_break_or_replace_a_bundled_service() {
     let mut bundled = spec("included");
     bundled.program = None;
     registry.register(bundled).unwrap();
-    let (client, task, _) = start_with_packages_and_registry(root.path(), "owner", data.path(), registry, Some(id("included"))).await;
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("included") && p.status == PluginStatus::Running)).await;
-    client.command(Command::DisablePlugin { plugin: id("included") }).await.expect("a package store must not require a bundled plugin to have an external folder");
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("included") && p.status == PluginStatus::Stopped)).await;
-    client.command(Command::EnablePlugin { plugin: id("included") }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("included") && p.status == PluginStatus::Running)).await;
+    let (client, task, _) = start_with_packages_and_registry(
+        root.path(),
+        "owner",
+        data.path(),
+        registry,
+        Some(id("included")),
+    )
+    .await;
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("included") && p.status == PluginStatus::Running)
+    })
+    .await;
+    client
+        .command(Command::DisablePlugin {
+            plugin: id("included"),
+        })
+        .await
+        .expect("a package store must not require a bundled plugin to have an external folder");
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("included") && p.status == PluginStatus::Stopped)
+    })
+    .await;
+    client
+        .command(Command::EnablePlugin {
+            plugin: id("included"),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("included") && p.status == PluginStatus::Running)
+    })
+    .await;
     let replacement = package_on_disk(source.path(), "included");
-    assert!(client.command(Command::StageInstall { source: source_dir(&replacement) }).await.is_err(), "an external package must not replace a bundled lifecycle");
-    assert!(client.command(Command::RemovePackage { plugin: id("included") }).await.is_err());
-    assert!(client.snapshot().plugins.iter().any(|p| p.id == id("included") && p.status == PluginStatus::Running));
+    assert!(
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&replacement)
+            })
+            .await
+            .is_err(),
+        "an external package must not replace a bundled lifecycle"
+    );
+    assert!(
+        client
+            .command(Command::RemovePackage {
+                plugin: id("included")
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .snapshot()
+            .plugins
+            .iter()
+            .any(|p| p.id == id("included") && p.status == PluginStatus::Running)
+    );
     assert!(!data.path().join("plugins/included").exists());
-    client.command(Command::InvokeAction { plugin: id("included"), action: "status".into(), peer: None }).await.unwrap();
-    until(&client, |s| action_state_of(s, "included", "status") == Some(peersus_core::model::ActionState::Done)).await;
+    client
+        .command(Command::InvokeAction {
+            plugin: id("included"),
+            action: "status".into(),
+            peer: None,
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        action_state_of(s, "included", "status") == Some(peersus_core::model::ActionState::Done)
+    })
+    .await;
     client.command(Command::Shutdown {}).await.unwrap();
-    tokio::time::timeout(Duration::from_secs(10), task).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(10), task)
+        .await
+        .unwrap()
+        .unwrap();
 }
 
 /// A package on disk the way a person would have it: a folder named for the plugin, with its
@@ -3037,7 +3127,11 @@ fn package_on_disk(parent: &std::path::Path, name: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt;
     let dir = parent.join(name);
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("plugin.json"), serde_json::to_vec(&spec(name).manifest).unwrap()).unwrap();
+    std::fs::write(
+        dir.join("plugin.json"),
+        serde_json::to_vec(&spec(name).manifest).unwrap(),
+    )
+    .unwrap();
     std::fs::copy(plugin_binary(), dir.join("plugin")).unwrap();
     std::fs::set_permissions(dir.join("plugin"), std::fs::Permissions::from_mode(0o700)).unwrap();
     dir
@@ -3059,11 +3153,17 @@ async fn start_from_store(
     std::fs::create_dir_all(&path).unwrap();
     let mut store = SettingsStore::open(path.join("preferences.json")).unwrap();
     let settings = Settings {
-        network: NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false },
+        network: NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        },
         ..Settings::default()
     };
     store.replace(settings.clone()).unwrap();
-    let endpoint = transport::bind(SecretKey::generate(), &settings.network).await.unwrap();
+    let endpoint = transport::bind(SecretKey::generate(), &settings.network)
+        .await
+        .unwrap();
     let network = NetworkHost::new(
         endpoint,
         settings.device_name,
@@ -3073,8 +3173,14 @@ async fn start_from_store(
     let directory = sockets();
     let standalone = peersus_net::grants::StandaloneGrants::open(path.join("grants.json")).unwrap();
     let found = peersus_app::plugin_manager::Manager::new(data).load();
-    let (runtime, client) =
-        Runtime::new(network, standalone, store, found.registry, directory.path().to_path_buf()).unwrap();
+    let (runtime, client) = Runtime::new(
+        network,
+        standalone,
+        store,
+        found.registry,
+        directory.path().to_path_buf(),
+    )
+    .unwrap();
     let runtime = runtime
         .with_packages(peersus_app::plugin_manager::Manager::new(data))
         .with_disabled(found.disabled)
@@ -3087,11 +3193,16 @@ async fn start_from_store(
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_plugin_that_was_broken_before_the_program_started_is_in_the_snapshot_and_can_be_removed_and_installed_again() {
+async fn a_plugin_that_was_broken_before_the_program_started_is_in_the_snapshot_and_can_be_removed_and_installed_again()
+ {
     use peersus_core::model::Standing;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
-    std::fs::set_permissions(data.path(), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path(),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     let parent = tempfile::tempdir().unwrap();
     let broken = id("wrecked");
 
@@ -3100,7 +3211,14 @@ async fn a_plugin_that_was_broken_before_the_program_started_is_in_the_snapshot_
     peersus_app::plugin_manager::Manager::new(data.path())
         .install(&package_on_disk(parent.path(), "wrecked"))
         .unwrap();
-    std::fs::write(data.path().join("plugins").join("wrecked").join("plugin.json"), b"destroyed {{{").unwrap();
+    std::fs::write(
+        data.path()
+            .join("plugins")
+            .join("wrecked")
+            .join("plugin.json"),
+        b"destroyed {{{",
+    )
+    .unwrap();
     std::fs::write(data.path().join("installed.json"), b"destroyed {{{").unwrap();
 
     let (client, _task) = start_from_store(root.path(), "owner", data.path()).await;
@@ -3112,23 +3230,48 @@ async fn a_plugin_that_was_broken_before_the_program_started_is_in_the_snapshot_
 
     // And it can be removed from where the person is: the owner no longer answers "unknown plugin" for what it did not load.
     client
-        .command(Command::RemovePackage { plugin: broken.clone() })
+        .command(Command::RemovePackage {
+            plugin: broken.clone(),
+        })
         .await
         .expect("a plugin that never loaded could not be removed");
     let after = until(&client, |s| s.plugins.iter().all(|p| p.id != broken)).await;
     assert!(after.plugins.iter().all(|p| p.id != broken));
-    assert!(!data.path().join("plugins").join("wrecked").exists(), "its folder was left behind");
+    assert!(
+        !data.path().join("plugins").join("wrecked").exists(),
+        "its folder was left behind"
+    );
 
     // The name is free: the same plugin installs again and runs.
     let source = package_on_disk(parent.path(), "wrecked");
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == broken)).await;
-    client.command(Command::ConfirmInstall { plugin: broken.clone() }).await.unwrap();
+    client
+        .command(Command::ConfirmInstall {
+            plugin: broken.clone(),
+        })
+        .await
+        .unwrap();
     let again = until(&client, |s| {
-        s.plugins.iter().any(|p| p.id == broken && p.status == peersus_core::model::PluginStatus::Running)
+        s.plugins
+            .iter()
+            .any(|p| p.id == broken && p.status == peersus_core::model::PluginStatus::Running)
     })
     .await;
-    assert_eq!(again.plugins.iter().find(|p| p.id == broken).unwrap().standing, Standing::Ready);
+    assert_eq!(
+        again
+            .plugins
+            .iter()
+            .find(|p| p.id == broken)
+            .unwrap()
+            .standing,
+        Standing::Ready
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -3136,24 +3279,49 @@ async fn a_plugin_nobody_approved_is_listed_and_not_run() {
     use peersus_core::model::Standing;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
-    std::fs::set_permissions(data.path(), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path(),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     let parent = tempfile::tempdir().unwrap();
     let manager = peersus_app::plugin_manager::Manager::new(data.path());
-    manager.install(&package_on_disk(parent.path(), "approved")).unwrap();
+    manager
+        .install(&package_on_disk(parent.path(), "approved"))
+        .unwrap();
     // A package put in the store by hand: good in every way, and nobody approved it.
     let by_hand = package_on_disk(&data.path().join("plugins"), "unapproved");
-    std::fs::set_permissions(&by_hand, std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        &by_hand,
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
 
     let (client, _task) = start_from_store(root.path(), "owner", data.path()).await;
     let seen = until(&client, |s| s.plugins.len() == 2).await;
-    let standing = |name: &str| seen.plugins.iter().find(|p| p.id.as_str() == name).map(|p| (p.standing, p.status));
+    let standing = |name: &str| {
+        seen.plugins
+            .iter()
+            .find(|p| p.id.as_str() == name)
+            .map(|p| (p.standing, p.status))
+    };
     assert_eq!(standing("approved").map(|s| s.0), Some(Standing::Ready));
-    assert_eq!(standing("unapproved"), Some((Standing::NeedsApproval, peersus_core::model::PluginStatus::Stopped)));
+    assert_eq!(
+        standing("unapproved"),
+        Some((
+            Standing::NeedsApproval,
+            peersus_core::model::PluginStatus::Stopped
+        ))
+    );
     // Nothing of it ever runs: the registry never held it, so there is no process to start.
     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
     let later = client.snapshot();
     assert_eq!(
-        later.plugins.iter().find(|p| p.id.as_str() == "unapproved").map(|p| p.status),
+        later
+            .plugins
+            .iter()
+            .find(|p| p.id.as_str() == "unapproved")
+            .map(|p| p.status),
         Some(peersus_core::model::PluginStatus::Stopped)
     );
 }
@@ -3163,22 +3331,49 @@ async fn a_plugin_that_cannot_be_run_is_not_approved_even_when_its_program_can_b
     use peersus_core::model::Standing;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
-    std::fs::set_permissions(data.path(), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path(),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     std::fs::create_dir_all(data.path().join("plugins")).unwrap();
-    std::fs::set_permissions(data.path().join("plugins"), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path().join("plugins"),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     // Complete in every way except that its program is not allowed to run: Broken, yet its bytes can be measured.
     let folder = package_on_disk(&data.path().join("plugins"), "inert");
     std::fs::set_permissions(&folder, std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
-    std::fs::set_permissions(folder.join("plugin"), std::os::unix::fs::PermissionsExt::from_mode(0o600)).unwrap();
-    let measured = peersus_app::plugin_approval::program_digest(&folder.join("plugin"), 64 * 1024 * 1024)
-        .expect("the program could not be measured");
+    std::fs::set_permissions(
+        folder.join("plugin"),
+        std::os::unix::fs::PermissionsExt::from_mode(0o600),
+    )
+    .unwrap();
+    let measured =
+        peersus_app::plugin_approval::program_digest(&folder.join("plugin"), 64 * 1024 * 1024)
+            .expect("the program could not be measured");
 
     let (client, _task) = start_from_store(root.path(), "owner", data.path()).await;
-    let seen = until(&client, |s| s.plugins.iter().any(|p| p.id.as_str() == "inert")).await;
+    let seen = until(&client, |s| {
+        s.plugins.iter().any(|p| p.id.as_str() == "inert")
+    })
+    .await;
     assert_eq!(seen.plugins[0].standing, Standing::Broken);
     // With the right digest for the bytes that are there, it is still refused: broken is not something to approve.
-    assert!(client.command(Command::ApprovePlugin { plugin: id("inert"), program: measured }).await.is_err());
-    assert!(!folder.join("approval.json").exists(), "a plugin that cannot run was approved");
+    assert!(
+        client
+            .command(Command::ApprovePlugin {
+                plugin: id("inert"),
+                program: measured
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        !folder.join("approval.json").exists(),
+        "a plugin that cannot run was approved"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -3186,12 +3381,24 @@ async fn approving_a_plugin_as_it_was_shown_runs_it_at_once_and_what_was_not_sho
     use peersus_core::model::{PluginStatus, Standing};
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
-    std::fs::set_permissions(data.path(), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path(),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     std::fs::create_dir_all(data.path().join("plugins")).unwrap();
-    std::fs::set_permissions(data.path().join("plugins"), std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        data.path().join("plugins"),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     // Put in the store by hand: complete, and nobody approved it.
     let waiting = package_on_disk(&data.path().join("plugins"), "waiting");
-    std::fs::set_permissions(&waiting, std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        &waiting,
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .unwrap();
     // And one that is broken: no usable manifest.
     let broken = package_on_disk(&data.path().join("plugins"), "wrecked");
     std::fs::set_permissions(&broken, std::os::unix::fs::PermissionsExt::from_mode(0o700)).unwrap();
@@ -3200,7 +3407,11 @@ async fn approving_a_plugin_as_it_was_shown_runs_it_at_once_and_what_was_not_sho
     let (client, _task) = start_from_store(root.path(), "owner", data.path()).await;
     let seen = until(&client, |s| s.plugins.len() == 2).await;
     let shown = |snapshot: &Snapshot, name: &str| {
-        snapshot.plugins.iter().find(|p| p.id.as_str() == name).map(|p| (p.standing, p.program.clone()))
+        snapshot
+            .plugins
+            .iter()
+            .find(|p| p.id.as_str() == name)
+            .map(|p| (p.standing, p.program.clone()))
     };
     let (standing, digest) = shown(&seen, "waiting").unwrap();
     assert_eq!(standing, Standing::NeedsApproval);
@@ -3216,19 +3427,41 @@ async fn approving_a_plugin_as_it_was_shown_runs_it_at_once_and_what_was_not_sho
         ("nothing", digest.clone()),
     ] {
         let refused = client
-            .command(Command::ApprovePlugin { plugin: id(name), program: program.clone() })
+            .command(Command::ApprovePlugin {
+                plugin: id(name),
+                program: program.clone(),
+            })
             .await;
         assert!(refused.is_err(), "{name} with {program:?} was approved");
     }
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    assert_eq!(client.snapshot().plugins.iter().find(|p| p.id.as_str() == "waiting").map(|p| p.status), Some(PluginStatus::Stopped));
+    assert_eq!(
+        client
+            .snapshot()
+            .plugins
+            .iter()
+            .find(|p| p.id.as_str() == "waiting")
+            .map(|p| p.status),
+        Some(PluginStatus::Stopped)
+    );
 
     // Swapped after it was shown: the digest that was shown is not what is there, so it is not approved and never runs.
     let program = waiting.join("plugin");
     let kept = std::fs::read(&program).unwrap();
     std::fs::write(&program, b"another program").unwrap();
-    assert!(client.command(Command::ApprovePlugin { plugin: id("waiting"), program: digest.clone() }).await.is_err());
-    assert!(!waiting.join("approval.json").exists(), "an approval was written for a program that was not shown");
+    assert!(
+        client
+            .command(Command::ApprovePlugin {
+                plugin: id("waiting"),
+                program: digest.clone()
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        !waiting.join("approval.json").exists(),
+        "an approval was written for a program that was not shown"
+    );
     // The owner holds the digest it REPORTED, and does not take the folder's word for what was shown: the digest of the
     // swapped program is what is on disk now, which the manager would accept, and it is still not what the window was shown.
     let swapped = {
@@ -3240,21 +3473,45 @@ async fn approving_a_plugin_as_it_was_shown_runs_it_at_once_and_what_was_not_sho
         hash.update([1u8]);
         hex::encode(hash.finalize())
     };
-    assert!(client.command(Command::ApprovePlugin { plugin: id("waiting"), program: swapped }).await.is_err());
-    assert!(!waiting.join("approval.json").exists(), "the owner approved a program it never showed");
+    assert!(
+        client
+            .command(Command::ApprovePlugin {
+                plugin: id("waiting"),
+                program: swapped
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        !waiting.join("approval.json").exists(),
+        "the owner approved a program it never showed"
+    );
     std::fs::write(&program, kept).unwrap();
 
     // Approved as shown: it runs at once, with no restart, and it is ready.
     client
-        .command(Command::ApprovePlugin { plugin: id("waiting"), program: digest })
+        .command(Command::ApprovePlugin {
+            plugin: id("waiting"),
+            program: digest,
+        })
         .await
         .expect("what was shown could not be approved");
     let running = until(&client, |s| {
-        s.plugins.iter().any(|p| p.id.as_str() == "waiting" && p.status == PluginStatus::Running)
+        s.plugins
+            .iter()
+            .any(|p| p.id.as_str() == "waiting" && p.status == PluginStatus::Running)
     })
     .await;
     assert_eq!(shown(&running, "waiting"), Some((Standing::Ready, None)));
-    assert_eq!(running.plugins.iter().filter(|p| p.id.as_str() == "waiting").count(), 1, "it is listed twice after approval");
+    assert_eq!(
+        running
+            .plugins
+            .iter()
+            .filter(|p| p.id.as_str() == "waiting")
+            .count(),
+        1,
+        "it is listed twice after approval"
+    );
     assert!(waiting.join("approval.json").exists());
 }
 
@@ -3269,30 +3526,80 @@ async fn a_plugin_installed_from_the_window_runs_at_once_and_a_removed_one_leave
     let extra = id("extra");
 
     // 1. The person chooses the folder: it is READ and shown, and nothing is installed.
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     let shown = until(&client, |s| s.staged.iter().any(|p| p.id == extra)).await;
-    assert!(shown.plugins.iter().all(|p| p.id != extra), "it was installed by only being shown");
+    assert!(
+        shown.plugins.iter().all(|p| p.id != extra),
+        "it was installed by only being shown"
+    );
     assert!(!data.path().join("plugins").join("extra").exists());
 
     // 2. Confirming installs it and it RUNS, with no restart of the owner.
-    client.command(Command::ConfirmInstall { plugin: extra.clone() }).await.unwrap();
-    let running = until(&client, |s| s.plugins.iter().any(|p| p.id == extra && p.status == Running)).await;
-    assert!(running.staged.is_empty(), "it is still waiting after it was confirmed");
+    client
+        .command(Command::ConfirmInstall {
+            plugin: extra.clone(),
+        })
+        .await
+        .unwrap();
+    let running = until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == extra && p.status == Running)
+    })
+    .await;
+    assert!(
+        running.staged.is_empty(),
+        "it is still waiting after it was confirmed"
+    );
 
     // 3. It starts with NOTHING granted: a new plugin is a new thing.
-    assert!(running.grants.get(&extra).is_none_or(|g| g.is_empty()), "it started with rights");
+    assert!(
+        running.grants.get(&extra).is_none_or(|g| g.is_empty()),
+        "it started with rights"
+    );
 
     // Running is not enough: the owner's imports must include the freshly installed
     // plugin, so its real unguarded action works without restarting the application.
     invoke(&client, "extra", "status", None).await.unwrap();
-    until(&client, |s| action_state_of(s, "extra", "status") == Some(peersus_core::model::ActionState::Done)).await;
+    until(&client, |s| {
+        action_state_of(s, "extra", "status") == Some(peersus_core::model::ActionState::Done)
+    })
+    .await;
 
     // 4. Disabling stops it and it stays installed; enabling runs it again.
-    client.command(Command::DisablePlugin { plugin: extra.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == extra && p.status != Running)).await;
-    assert!(data.path().join("plugins").join("extra").exists(), "disabling removed it");
-    client.command(Command::EnablePlugin { plugin: extra.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == extra && p.status == Running)).await;
+    client
+        .command(Command::DisablePlugin {
+            plugin: extra.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == extra && p.status != Running)
+    })
+    .await;
+    assert!(
+        data.path().join("plugins").join("extra").exists(),
+        "disabling removed it"
+    );
+    client
+        .command(Command::EnablePlugin {
+            plugin: extra.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == extra && p.status == Running)
+    })
+    .await;
 
     // 5. Grant it something outright, then remove it: files, rights and listing all go.
     client
@@ -3303,17 +3610,41 @@ async fn a_plugin_installed_from_the_window_runs_at_once_and_a_removed_one_leave
         })
         .await
         .ok();
-    client.command(Command::RemovePackage { plugin: extra.clone() }).await.unwrap();
+    client
+        .command(Command::RemovePackage {
+            plugin: extra.clone(),
+        })
+        .await
+        .unwrap();
     let gone = until(&client, |s| s.plugins.iter().all(|p| p.id != extra)).await;
-    assert!(!data.path().join("plugins").join("extra").exists(), "its files stayed");
-    assert!(!gone.grants.contains_key(&extra), "its rights stayed in the record");
+    assert!(
+        !data.path().join("plugins").join("extra").exists(),
+        "its files stayed"
+    );
+    assert!(
+        !gone.grants.contains_key(&extra),
+        "its rights stayed in the record"
+    );
 
     // 6. A package installed afterwards under the SAME name starts with nothing again.
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == extra)).await;
-    client.command(Command::ConfirmInstall { plugin: extra.clone() }).await.unwrap();
+    client
+        .command(Command::ConfirmInstall {
+            plugin: extra.clone(),
+        })
+        .await
+        .unwrap();
     let again = until(&client, |s| s.plugins.iter().any(|p| p.id == extra)).await;
-    assert!(again.grants.get(&extra).is_none_or(|g| g.is_empty()), "the new package inherited rights");
+    assert!(
+        again.grants.get(&extra).is_none_or(|g| g.is_empty()),
+        "the new package inherited rights"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -3325,13 +3656,25 @@ async fn a_package_that_changed_after_it_was_shown_is_not_installed() {
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
     let swap = id("swap");
 
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == swap)).await;
     // After the look and before the confirmation, the program in the folder is replaced.
     std::fs::write(source.join("plugin"), b"#!/bin/sh\necho changed\n").unwrap();
-    let answer = client.command(Command::ConfirmInstall { plugin: swap.clone() }).await;
+    let answer = client
+        .command(Command::ConfirmInstall {
+            plugin: swap.clone(),
+        })
+        .await;
     assert!(answer.is_err(), "a package that changed was installed");
-    assert!(!data.path().join("plugins").join("swap").exists(), "its files were installed");
+    assert!(
+        !data.path().join("plugins").join("swap").exists(),
+        "its files were installed"
+    );
     let after = until(&client, |s| s.staged.iter().all(|p| p.id != swap)).await;
     assert!(after.plugins.iter().all(|p| p.id != swap));
 }
@@ -3342,12 +3685,17 @@ async fn without_a_store_of_packages_the_install_commands_are_refused() {
     let (client, _task) = start(root.path(), "owner", Registry::default()).await;
     let parent = tempfile::tempdir().unwrap();
     let source = package_on_disk(parent.path(), "nope");
-    let staged = client.command(Command::StageInstall { source: source_dir(&source) }).await;
+    let staged = client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await;
     assert!(staged.is_err(), "an owner with no store accepted a package");
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_plugin_changed_behind_the_applications_back_can_still_be_removed_and_leaves_nothing_running() {
+async fn a_plugin_changed_behind_the_applications_back_can_still_be_removed_and_leaves_nothing_running()
+ {
     use peersus_core::model::PluginStatus::Running;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
@@ -3355,28 +3703,56 @@ async fn a_plugin_changed_behind_the_applications_back_can_still_be_removed_and_
     let source = package_on_disk(parent.path(), "stays");
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
     let stays = id("stays");
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == stays)).await;
-    client.command(Command::ConfirmInstall { plugin: stays.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == stays && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: stays.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == stays && p.status == Running)
+    })
+    .await;
 
     // Someone changes the installed files behind the application's back. This used to leave the plugin installed and
     // impossible to remove (the store refused to delete what it had not installed); a plugin must never be in a state
     // that can be neither used nor left, so the removal now goes through whatever the files are.
-    let installed = data.path().join("plugins").join("stays").join("plugin.json");
+    let installed = data
+        .path()
+        .join("plugins")
+        .join("stays")
+        .join("plugin.json");
     std::fs::write(&installed, b"{}").unwrap();
 
     client
-        .command(Command::RemovePackage { plugin: stays.clone() })
+        .command(Command::RemovePackage {
+            plugin: stays.clone(),
+        })
         .await
         .expect("a plugin that was changed could not be removed");
     let after = until(&client, |s| s.plugins.iter().all(|p| p.id != stays)).await;
-    assert!(after.plugins.iter().all(|p| p.id != stays), "it is still listed after it was removed");
-    assert!(!data.path().join("plugins").join("stays").exists(), "its folder was left behind");
+    assert!(
+        after.plugins.iter().all(|p| p.id != stays),
+        "it is still listed after it was removed"
+    );
+    assert!(
+        !data.path().join("plugins").join("stays").exists(),
+        "its folder was left behind"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn what_a_window_turns_on_for_a_device_is_what_the_owner_offered_and_is_kept_across_a_restart() {
+async fn what_a_window_turns_on_for_a_device_is_what_the_owner_offered_and_is_kept_across_a_restart()
+ {
     use peersus_core::model::PluginStatus::Running;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
@@ -3387,39 +3763,96 @@ async fn what_a_window_turns_on_for_a_device_is_what_the_owner_offered_and_is_ke
     let device = {
         let (client, task) = start_with_packages(root.path(), "first", data.path()).await;
         let (other, _other_task) = start(root.path(), "other", Registry::default()).await;
-        client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&source),
+            })
+            .await
+            .unwrap();
         until(&client, |s| s.staged.iter().any(|p| p.id == allowed)).await;
-        client.command(Command::ConfirmInstall { plugin: allowed.clone() }).await.unwrap();
-        let installed = until(&client, |s| s.plugins.iter().any(|p| p.id == allowed && p.status == Running)).await;
+        client
+            .command(Command::ConfirmInstall {
+                plugin: allowed.clone(),
+            })
+            .await
+            .unwrap();
+        let installed = until(&client, |s| {
+            s.plugins
+                .iter()
+                .any(|p| p.id == allowed && p.status == Running)
+        })
+        .await;
         let device = pair(&client, &other).await;
 
         // What the window offers is what the owner SAYS can be granted: for a device, and nothing else.
-        let told = &installed.plugins.iter().find(|p| p.id == allowed).unwrap().grantable;
-        assert!(!told.per_device.is_empty(), "the owner offers a plugin that guards something nothing at all");
-        assert!(told.outright.is_empty(), "a plugin with no application guard was offered an outright grant");
+        let told = &installed
+            .plugins
+            .iter()
+            .find(|p| p.id == allowed)
+            .unwrap()
+            .grantable;
+        assert!(
+            !told.per_device.is_empty(),
+            "the owner offers a plugin that guards something nothing at all"
+        );
+        assert!(
+            told.outright.is_empty(),
+            "a plugin with no application guard was offered an outright grant"
+        );
         let wanted = Grants::new(told.per_device.iter().cloned()).unwrap();
 
         // Turned on for the device from the window: accepted, and the snapshot shows it for that device.
         let answer = client
-            .command(Command::SetGrants { plugin: allowed.clone(), peer: Some(device.clone()), grants: wanted.clone() })
+            .command(Command::SetGrants {
+                plugin: allowed.clone(),
+                peer: Some(device.clone()),
+                grants: wanted.clone(),
+            })
             .await;
-        assert!(answer.is_ok(), "the owner refused what the Permissions tab offered: {:?}", answer.as_ref().err());
+        assert!(
+            answer.is_ok(),
+            "the owner refused what the Permissions tab offered: {:?}",
+            answer.as_ref().err()
+        );
         let shown = until(&client, |s| {
-            s.peers.iter().any(|p| p.id == device && p.grants.get(&allowed).is_some_and(|g| !g.is_empty()))
+            s.peers
+                .iter()
+                .any(|p| p.id == device && p.grants.get(&allowed).is_some_and(|g| !g.is_empty()))
         })
         .await;
-        let held = shown.peers.iter().find(|p| p.id == device).unwrap().grants.get(&allowed).unwrap().clone();
+        let held = shown
+            .peers
+            .iter()
+            .find(|p| p.id == device)
+            .unwrap()
+            .grants
+            .get(&allowed)
+            .unwrap()
+            .clone();
         assert_eq!(held, wanted);
 
         // Turned off again: gone for that device.
         client
-            .command(Command::SetGrants { plugin: allowed.clone(), peer: Some(device.clone()), grants: Grants::default() })
+            .command(Command::SetGrants {
+                plugin: allowed.clone(),
+                peer: Some(device.clone()),
+                grants: Grants::default(),
+            })
             .await
             .unwrap();
-        until(&client, |s| s.peers.iter().any(|p| p.id == device && p.grants.get(&allowed).is_none_or(|g| g.is_empty()))).await;
+        until(&client, |s| {
+            s.peers
+                .iter()
+                .any(|p| p.id == device && p.grants.get(&allowed).is_none_or(|g| g.is_empty()))
+        })
+        .await;
         // And on once more, to see that it survives the owner being shut down.
         client
-            .command(Command::SetGrants { plugin: allowed.clone(), peer: Some(device.clone()), grants: wanted.clone() })
+            .command(Command::SetGrants {
+                plugin: allowed.clone(),
+                peer: Some(device.clone()),
+                grants: wanted.clone(),
+            })
             .await
             .unwrap();
         client.command(Command::Shutdown {}).await.unwrap();
@@ -3431,7 +3864,10 @@ async fn what_a_window_turns_on_for_a_device_is_what_the_owner_offered_and_is_ke
     let (client, _task) = start_loaded(root.path(), "first", data.path(), found).await;
     let after = until(&client, |s| s.plugins.iter().any(|p| p.id == allowed)).await;
     assert!(
-        after.peers.iter().any(|p| p.id == device && p.grants.get(&allowed).is_some_and(|g| !g.is_empty())),
+        after
+            .peers
+            .iter()
+            .any(|p| p.id == device && p.grants.get(&allowed).is_some_and(|g| !g.is_empty())),
         "what was allowed for the device was lost over a restart"
     );
 }
@@ -3445,16 +3881,41 @@ async fn giving_up_a_shown_package_installs_nothing_and_cannot_be_confirmed_afte
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
     let declined = id("declined");
 
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == declined)).await;
-    client.command(Command::CancelInstall { plugin: declined.clone() }).await.unwrap();
+    client
+        .command(Command::CancelInstall {
+            plugin: declined.clone(),
+        })
+        .await
+        .unwrap();
     let after = until(&client, |s| s.staged.iter().all(|p| p.id != declined)).await;
-    assert!(after.plugins.iter().all(|p| p.id != declined), "it was installed by being given up");
+    assert!(
+        after.plugins.iter().all(|p| p.id != declined),
+        "it was installed by being given up"
+    );
     assert!(!data.path().join("plugins").join("declined").exists());
     // What was given up cannot be confirmed afterwards: it has to be chosen and shown again.
-    assert!(client.command(Command::ConfirmInstall { plugin: declined.clone() }).await.is_err());
+    assert!(
+        client
+            .command(Command::ConfirmInstall {
+                plugin: declined.clone()
+            })
+            .await
+            .is_err()
+    );
     // And giving up what is not waiting is refused, not silently accepted.
-    assert!(client.command(Command::CancelInstall { plugin: declined }).await.is_err());
+    assert!(
+        client
+            .command(Command::CancelInstall { plugin: declined })
+            .await
+            .is_err()
+    );
 }
 
 /// A package that names no files besides its manifest and program, with a file beside them that is
@@ -3465,17 +3926,23 @@ fn package_with_a_huge_rest(parent: &std::path::Path, name: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     let mut manifest = spec(name).manifest;
     manifest.files = Some(Vec::new());
-    std::fs::write(dir.join("plugin.json"), serde_json::to_vec(&manifest).unwrap()).unwrap();
+    std::fs::write(
+        dir.join("plugin.json"),
+        serde_json::to_vec(&manifest).unwrap(),
+    )
+    .unwrap();
     std::fs::copy(plugin_binary(), dir.join("plugin")).unwrap();
     std::fs::set_permissions(dir.join("plugin"), std::fs::Permissions::from_mode(0o700)).unwrap();
     let big = std::fs::File::create(dir.join("sources.bin")).unwrap();
-    big.set_len(peersus_app::plugin_manager::MAX_BYTES + 1).unwrap();
+    big.set_len(peersus_app::plugin_manager::MAX_BYTES + 1)
+        .unwrap();
     std::fs::write(dir.join("README.md"), b"read me").unwrap();
     dir
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn the_same_package_with_a_huge_rest_installs_from_a_folder_and_from_an_archive_without_the_rest() {
+async fn the_same_package_with_a_huge_rest_installs_from_a_folder_and_from_an_archive_without_the_rest()
+ {
     use peersus_core::model::PluginStatus::Running;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
@@ -3484,13 +3951,31 @@ async fn the_same_package_with_a_huge_rest_installs_from_a_folder_and_from_an_ar
 
     // As a folder.
     let folder = package_with_a_huge_rest(parent.path(), "asfolder");
-    client.command(Command::StageInstall { source: source_dir(&folder) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&folder),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == id("asfolder"))).await;
-    client.command(Command::ConfirmInstall { plugin: id("asfolder") }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("asfolder") && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: id("asfolder"),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("asfolder") && p.status == Running)
+    })
+    .await;
     let installed = data.path().join("plugins").join("asfolder");
     assert!(installed.join("plugin").is_file());
-    assert!(!installed.join("sources.bin").exists(), "the huge file was installed from a folder");
+    assert!(
+        !installed.join("sources.bin").exists(),
+        "the huge file was installed from a folder"
+    );
     assert!(!installed.join("README.md").exists());
 
     // As an archive: the very same kind of package.
@@ -3498,24 +3983,53 @@ async fn the_same_package_with_a_huge_rest_installs_from_a_folder_and_from_an_ar
     let archive = archive_of(&again, parent.path());
     // The archive really carries the huge file: otherwise leaving it out proves nothing.
     let mut listed = Vec::new();
-    for entry in tar::Archive::new(flate2::read::GzDecoder::new(std::fs::File::open(&archive).unwrap()))
-        .entries()
-        .unwrap()
+    for entry in tar::Archive::new(flate2::read::GzDecoder::new(
+        std::fs::File::open(&archive).unwrap(),
+    ))
+    .entries()
+    .unwrap()
     {
         let entry = entry.unwrap();
-        listed.push((entry.path().unwrap().to_string_lossy().into_owned(), entry.header().size().unwrap()));
+        listed.push((
+            entry.path().unwrap().to_string_lossy().into_owned(),
+            entry.header().size().unwrap(),
+        ));
     }
     assert!(
-        listed.iter().any(|(name, size)| name.ends_with("sources.bin") && *size > peersus_app::plugin_manager::MAX_BYTES),
+        listed
+            .iter()
+            .any(|(name, size)| name.ends_with("sources.bin")
+                && *size > peersus_app::plugin_manager::MAX_BYTES),
         "the test archive does not hold the huge file, so it proves nothing: {listed:?}"
     );
-    client.command(Command::StageInstall { source: source_dir(&archive) }).await.unwrap();
-    until(&client, |s| s.staged.iter().any(|p| p.id == id("asarchive"))).await;
-    client.command(Command::ConfirmInstall { plugin: id("asarchive") }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("asarchive") && p.status == Running)).await;
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&archive),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.staged.iter().any(|p| p.id == id("asarchive"))
+    })
+    .await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: id("asarchive"),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("asarchive") && p.status == Running)
+    })
+    .await;
     let installed = data.path().join("plugins").join("asarchive");
     assert!(installed.join("plugin").is_file());
-    assert!(!installed.join("sources.bin").exists(), "the huge file was installed from an archive");
+    assert!(
+        !installed.join("sources.bin").exists(),
+        "the huge file was installed from an archive"
+    );
     assert!(!installed.join("README.md").exists());
 }
 
@@ -3524,7 +4038,10 @@ async fn the_same_package_with_a_huge_rest_installs_from_a_folder_and_from_an_ar
 fn archive_of(folder: &std::path::Path, into: &std::path::Path) -> PathBuf {
     let name = folder.file_name().unwrap().to_string_lossy().into_owned();
     let file = into.join(format!("{name}.tar.gz"));
-    let encoder = flate2::write::GzEncoder::new(std::fs::File::create(&file).unwrap(), flate2::Compression::fast());
+    let encoder = flate2::write::GzEncoder::new(
+        std::fs::File::create(&file).unwrap(),
+        flate2::Compression::fast(),
+    );
     let mut builder = tar::Builder::new(encoder);
     builder.follow_symlinks(false);
     builder.append_dir_all(&name, folder).unwrap();
@@ -3537,7 +4054,11 @@ fn unpacked_folders(private: &std::path::Path) -> usize {
     std::fs::read_dir(private)
         .unwrap()
         .filter_map(Result::ok)
-        .filter(|e| e.file_name().to_string_lossy().starts_with(".peersus-archive"))
+        .filter(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .starts_with(".peersus-archive")
+        })
         .count()
 }
 
@@ -3601,22 +4122,49 @@ async fn a_package_whose_manifest_is_toml_installs_and_runs_from_a_folder_and_fr
 
     for (name, as_archive) in [("tomlfolder", false), ("tomlarchive", true)] {
         let folder = package_with_toml_manifest(parent.path(), name);
-        let source = if as_archive { archive_of(&folder, parent.path()) } else { folder };
-        client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+        let source = if as_archive {
+            archive_of(&folder, parent.path())
+        } else {
+            folder
+        };
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&source),
+            })
+            .await
+            .unwrap();
         let shown = until(&client, |s| s.staged.iter().any(|p| p.id == id(name))).await;
         // What it asks for is shown from the TOML manifest, as it would be from a JSON one.
         let staged = shown.staged.iter().find(|p| p.id == id(name)).unwrap();
-        assert_eq!(staged.manifest.exports.len(), 1, "{name}: the TOML manifest was not read");
-        assert!(staged.manifest.capabilities.contains_key(&format!("{name}.use")));
-        client.command(Command::ConfirmInstall { plugin: id(name) }).await.unwrap();
-        until(&client, |s| s.plugins.iter().any(|p| p.id == id(name) && p.status == Running)).await;
+        assert_eq!(
+            staged.manifest.exports.len(),
+            1,
+            "{name}: the TOML manifest was not read"
+        );
+        assert!(
+            staged
+                .manifest
+                .capabilities
+                .contains_key(&format!("{name}.use"))
+        );
+        client
+            .command(Command::ConfirmInstall { plugin: id(name) })
+            .await
+            .unwrap();
+        until(&client, |s| {
+            s.plugins
+                .iter()
+                .any(|p| p.id == id(name) && p.status == Running)
+        })
+        .await;
         let installed = data.path().join("plugins").join(name);
         assert!(installed.join("plugin.toml").is_file() && !installed.join("plugin.json").exists());
     }
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn a_package_given_as_an_archive_is_shown_confirmed_and_run_like_a_folder_and_leaves_nothing() {
+async fn a_package_given_as_an_archive_is_shown_confirmed_and_run_like_a_folder_and_leaves_nothing()
+{
     use peersus_core::model::PluginStatus::Running;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
@@ -3629,18 +4177,46 @@ async fn a_package_given_as_an_archive_is_shown_confirmed_and_run_like_a_folder_
 
     // Choosing the archive shows what the package asks for, as choosing the folder does, and
     // installs nothing.
-    client.command(Command::StageInstall { source: source_dir(&archive) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&archive),
+        })
+        .await
+        .unwrap();
     let shown = until(&client, |s| s.staged.iter().any(|p| p.id == zipped)).await;
-    assert!(shown.plugins.iter().all(|p| p.id != zipped), "it was installed by only being shown");
+    assert!(
+        shown.plugins.iter().all(|p| p.id != zipped),
+        "it was installed by only being shown"
+    );
     assert!(!data.path().join("plugins").join("zipped").exists());
 
-    client.command(Command::ConfirmInstall { plugin: zipped.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == zipped && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: zipped.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == zipped && p.status == Running)
+    })
+    .await;
     // It is installed from what was unpacked, with the program runnable.
-    assert!(data.path().join("plugins").join("zipped").join("plugin").is_file());
+    assert!(
+        data.path()
+            .join("plugins")
+            .join("zipped")
+            .join("plugin")
+            .is_file()
+    );
     // And the unpacked copy is gone once the install is done. Counted only because the copy WAS
     // there while the package waited, which the other test shows.
-    assert_eq!(unpacked_folders(&private), before, "an unpacked archive was left behind after installing");
+    assert_eq!(
+        unpacked_folders(&private),
+        before,
+        "an unpacked archive was left behind after installing"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -3653,23 +4229,52 @@ async fn an_archive_that_is_refused_installs_nothing_and_says_why_and_leaves_not
     let (client, _task, private) = start_with_packages_in(root.path(), "owner", data.path()).await;
     let before = unpacked_folders(&private);
 
-    assert!(client.command(Command::StageInstall { source: source_dir(&bad) }).await.is_err());
+    assert!(
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&bad)
+            })
+            .await
+            .is_err()
+    );
     assert!(client.snapshot().staged.is_empty());
-    assert_eq!(unpacked_folders(&private), before, "a refused archive left files");
+    assert_eq!(
+        unpacked_folders(&private),
+        before,
+        "a refused archive left files"
+    );
 
     // Giving up a shown archive also lets go of what was unpacked.
     let folder = package_on_disk(parent.path(), "given-up");
     let archive = archive_of(&folder, parent.path());
     let held = unpacked_folders(&private);
-    client.command(Command::StageInstall { source: source_dir(&archive) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&archive),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == id("given-up"))).await;
-    assert!(unpacked_folders(&private) > held, "nothing was unpacked, so this proves nothing");
-    client.command(Command::CancelInstall { plugin: id("given-up") }).await.unwrap();
-    assert_eq!(unpacked_folders(&private), held, "giving up kept the unpacked files");
+    assert!(
+        unpacked_folders(&private) > held,
+        "nothing was unpacked, so this proves nothing"
+    );
+    client
+        .command(Command::CancelInstall {
+            plugin: id("given-up"),
+        })
+        .await
+        .unwrap();
+    assert_eq!(
+        unpacked_folders(&private),
+        held,
+        "giving up kept the unpacked files"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn an_archive_that_decodes_to_far_more_than_it_weighs_is_refused_by_the_owner_and_stages_nothing() {
+async fn an_archive_that_decodes_to_far_more_than_it_weighs_is_refused_by_the_owner_and_stages_nothing()
+ {
     use std::io::Write;
     let root = tempfile::tempdir().unwrap();
     let data = tempfile::tempdir().unwrap();
@@ -3693,14 +4298,34 @@ async fn an_archive_that_decodes_to_far_more_than_it_weighs_is_refused_by_the_ow
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
     encoder.write_all(&raw).unwrap();
     let bomb = encoder.finish().unwrap();
-    assert!((bomb.len() as u64) * 100 < peersus_app::archive::MAX_STREAM, "the bomb is not small, so this proves nothing");
+    assert!(
+        (bomb.len() as u64) * 100 < peersus_app::archive::MAX_STREAM,
+        "the bomb is not small, so this proves nothing"
+    );
     let path = parent.path().join("bomb.tar.gz");
     std::fs::write(&path, &bomb).unwrap();
 
-    assert!(client.command(Command::StageInstall { source: source_dir(&path) }).await.is_err());
+    assert!(
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&path)
+            })
+            .await
+            .is_err()
+    );
     assert!(client.snapshot().staged.is_empty());
-    assert_eq!(unpacked_folders(&private), before, "a refused bomb left an unpacked folder");
-    assert!(!data.path().join("plugins").exists() || std::fs::read_dir(data.path().join("plugins")).unwrap().count() == 0);
+    assert_eq!(
+        unpacked_folders(&private),
+        before,
+        "a refused bomb left an unpacked folder"
+    );
+    assert!(
+        !data.path().join("plugins").exists()
+            || std::fs::read_dir(data.path().join("plugins"))
+                .unwrap()
+                .count()
+                == 0
+    );
 }
 
 /// The processes whose executable is exactly `path`, as `(pid, comm)`: how a process list names them.
@@ -3708,8 +4333,12 @@ fn processes_running(path: &std::path::Path) -> Vec<(u32, String)> {
     let wanted = std::fs::canonicalize(path).unwrap();
     let mut found = Vec::new();
     for entry in std::fs::read_dir("/proc").unwrap().filter_map(Result::ok) {
-        let Ok(pid) = entry.file_name().to_string_lossy().parse::<u32>() else { continue };
-        let Ok(exe) = std::fs::read_link(entry.path().join("exe")) else { continue };
+        let Ok(pid) = entry.file_name().to_string_lossy().parse::<u32>() else {
+            continue;
+        };
+        let Ok(exe) = std::fs::read_link(entry.path().join("exe")) else {
+            continue;
+        };
         if exe == wanted {
             let comm = std::fs::read_to_string(entry.path().join("comm")).unwrap_or_default();
             found.push((pid, comm.trim().to_owned()));
@@ -3732,19 +4361,46 @@ async fn a_package_that_names_its_program_runs_as_a_process_the_system_lists_by_
     std::fs::create_dir_all(&dir).unwrap();
     let mut manifest = spec("named").manifest;
     manifest.program = Some("peersus-named".into());
-    std::fs::write(dir.join("plugin.json"), serde_json::to_vec(&manifest).unwrap()).unwrap();
+    std::fs::write(
+        dir.join("plugin.json"),
+        serde_json::to_vec(&manifest).unwrap(),
+    )
+    .unwrap();
     std::fs::copy(plugin_binary(), dir.join("peersus-named")).unwrap();
-    std::fs::set_permissions(dir.join("peersus-named"), std::fs::Permissions::from_mode(0o700)).unwrap();
+    std::fs::set_permissions(
+        dir.join("peersus-named"),
+        std::fs::Permissions::from_mode(0o700),
+    )
+    .unwrap();
 
-    client.command(Command::StageInstall { source: source_dir(&dir) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&dir),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == id("named"))).await;
-    client.command(Command::ConfirmInstall { plugin: id("named") }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("named") && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: id("named"),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("named") && p.status == Running)
+    })
+    .await;
 
     let installed = data.path().join("plugins").join("named");
     assert!(installed.join("peersus-named").is_file() && !installed.join("plugin").exists());
     let running = processes_running(&installed.join("peersus-named"));
-    assert_eq!(running.len(), 1, "the plugin is not running as exactly one process: {running:?}");
+    assert_eq!(
+        running.len(),
+        1,
+        "the plugin is not running as exactly one process: {running:?}"
+    );
     // The name a process list shows is the name of the file, so it is the plugin's own.
     assert_eq!(running[0].1, "peersus-named");
 }
@@ -3761,35 +4417,91 @@ async fn a_plugin_switched_off_stays_off_and_listed_after_the_application_restar
     // First run: install it, see it run, switch it off, shut the application down.
     {
         let (client, task) = start_with_packages(root.path(), "first", data.path()).await;
-        client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+        client
+            .command(Command::StageInstall {
+                source: source_dir(&source),
+            })
+            .await
+            .unwrap();
         until(&client, |s| s.staged.iter().any(|p| p.id == napper)).await;
-        client.command(Command::ConfirmInstall { plugin: napper.clone() }).await.unwrap();
-        until(&client, |s| s.plugins.iter().any(|p| p.id == napper && p.status == Running)).await;
-        client.command(Command::DisablePlugin { plugin: napper.clone() }).await.unwrap();
-        until(&client, |s| s.plugins.iter().any(|p| p.id == napper && p.status != Running)).await;
+        client
+            .command(Command::ConfirmInstall {
+                plugin: napper.clone(),
+            })
+            .await
+            .unwrap();
+        until(&client, |s| {
+            s.plugins
+                .iter()
+                .any(|p| p.id == napper && p.status == Running)
+        })
+        .await;
+        client
+            .command(Command::DisablePlugin {
+                plugin: napper.clone(),
+            })
+            .await
+            .unwrap();
+        until(&client, |s| {
+            s.plugins
+                .iter()
+                .any(|p| p.id == napper && p.status != Running)
+        })
+        .await;
         client.command(Command::Shutdown {}).await.unwrap();
         task.await.unwrap();
     }
 
     // Second run over the SAME directory, loaded the way the real application loads it.
     let found = peersus_app::plugin_manager::Manager::new(data.path()).load();
-    assert!(found.disabled.contains(&napper), "the choice was lost over a restart");
+    assert!(
+        found.disabled.contains(&napper),
+        "the choice was lost over a restart"
+    );
     let (client, _task) = start_loaded(root.path(), "second", data.path(), found).await;
     // It is listed, and it is NOT running: switched off survives the restart.
     let after = until(&client, |s| s.plugins.iter().any(|p| p.id == napper)).await;
     assert_ne!(
-        after.plugins.iter().find(|p| p.id == napper).unwrap().status,
+        after
+            .plugins
+            .iter()
+            .find(|p| p.id == napper)
+            .unwrap()
+            .status,
         Running,
         "a plugin switched off came back to life at the restart"
     );
     tokio::time::sleep(Duration::from_millis(1200)).await;
     let later = client.snapshot();
-    assert_ne!(later.plugins.iter().find(|p| p.id == napper).unwrap().status, Running);
+    assert_ne!(
+        later
+            .plugins
+            .iter()
+            .find(|p| p.id == napper)
+            .unwrap()
+            .status,
+        Running
+    );
 
     // Switching it on starts it, and the choice is forgotten, so the next start runs it too.
-    client.command(Command::EnablePlugin { plugin: napper.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == napper && p.status == Running)).await;
-    assert!(peersus_app::plugin_manager::Manager::new(data.path()).load().disabled.is_empty());
+    client
+        .command(Command::EnablePlugin {
+            plugin: napper.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == napper && p.status == Running)
+    })
+    .await;
+    assert!(
+        peersus_app::plugin_manager::Manager::new(data.path())
+            .load()
+            .disabled
+            .is_empty()
+    );
 }
 
 /// Like `start_with_packages`, but with what `Manager::load` found: what is installed and which of
@@ -3804,11 +4516,17 @@ async fn start_loaded(
     std::fs::create_dir_all(&path).unwrap();
     let mut store = SettingsStore::open(path.join("preferences.json")).unwrap();
     let settings = Settings {
-        network: NetworkSettings { bind: Some("127.0.0.1".parse().unwrap()), allow_relay: false },
+        network: NetworkSettings {
+            bind: Some("127.0.0.1".parse().unwrap()),
+            allow_relay: false,
+            ..NetworkSettings::default()
+        },
         ..Settings::default()
     };
     store.replace(settings.clone()).unwrap();
-    let endpoint = transport::bind(SecretKey::generate(), &settings.network).await.unwrap();
+    let endpoint = transport::bind(SecretKey::generate(), &settings.network)
+        .await
+        .unwrap();
     let network = NetworkHost::new(
         endpoint,
         settings.device_name,
@@ -3817,8 +4535,14 @@ async fn start_loaded(
     );
     let directory = sockets();
     let standalone = peersus_net::grants::StandaloneGrants::open(path.join("grants.json")).unwrap();
-    let (runtime, client) =
-        Runtime::new(network, standalone, store, found.registry, directory.path().to_path_buf()).unwrap();
+    let (runtime, client) = Runtime::new(
+        network,
+        standalone,
+        store,
+        found.registry,
+        directory.path().to_path_buf(),
+    )
+    .unwrap();
     let runtime = runtime
         .with_packages(peersus_app::plugin_manager::Manager::new(data))
         .with_disabled(found.disabled);
@@ -3839,24 +4563,72 @@ async fn a_plugin_switched_off_then_removed_and_installed_again_is_new_and_runs(
     let reborn = id("reborn");
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
 
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == reborn)).await;
-    client.command(Command::ConfirmInstall { plugin: reborn.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == reborn && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: reborn.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == reborn && p.status == Running)
+    })
+    .await;
 
     // Switched off, then removed for good.
-    client.command(Command::DisablePlugin { plugin: reborn.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == reborn && p.status != Running)).await;
-    client.command(Command::RemovePackage { plugin: reborn.clone() }).await.unwrap();
+    client
+        .command(Command::DisablePlugin {
+            plugin: reborn.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == reborn && p.status != Running)
+    })
+    .await;
+    client
+        .command(Command::RemovePackage {
+            plugin: reborn.clone(),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.plugins.iter().all(|p| p.id != reborn)).await;
 
     // A package with the same name is a NEW plugin: it runs, and the record says it is not off.
-    client.command(Command::StageInstall { source: source_dir(&source) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&source),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == reborn)).await;
-    client.command(Command::ConfirmInstall { plugin: reborn.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == reborn && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: reborn.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == reborn && p.status == Running)
+    })
+    .await;
     assert!(
-        peersus_app::plugin_manager::Manager::new(data.path()).load().disabled.is_empty(),
+        peersus_app::plugin_manager::Manager::new(data.path())
+            .load()
+            .disabled
+            .is_empty(),
         "the new plugin inherited being switched off"
     );
 }
@@ -3871,10 +4643,25 @@ async fn replacing_an_installed_plugin_runs_the_new_package_with_nothing_allowed
     let swapme = id("swapme");
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
 
-    client.command(Command::StageInstall { source: source_dir(&first) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&first),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == swapme)).await;
-    client.command(Command::ConfirmInstall { plugin: swapme.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == swapme && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: swapme.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == swapme && p.status == Running)
+    })
+    .await;
     // Something is allowed to the first one, which a replacement must not carry over.
     client
         .command(Command::SetGrants {
@@ -3894,18 +4681,43 @@ async fn replacing_an_installed_plugin_runs_the_new_package_with_nothing_allowed
     {
         use std::os::unix::fs::PermissionsExt;
         std::fs::write(second.join("plugin"), &program).unwrap();
-        std::fs::set_permissions(second.join("plugin"), std::fs::Permissions::from_mode(0o700)).unwrap();
+        std::fs::set_permissions(
+            second.join("plugin"),
+            std::fs::Permissions::from_mode(0o700),
+        )
+        .unwrap();
     }
-    client.command(Command::StageInstall { source: source_dir(&second) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&second),
+        })
+        .await
+        .unwrap();
     let shown = until(&client, |s| s.staged.iter().any(|p| p.id == swapme)).await;
-    assert!(shown.plugins.iter().any(|p| p.id == swapme), "the first one went before it was confirmed");
+    assert!(
+        shown.plugins.iter().any(|p| p.id == swapme),
+        "the first one went before it was confirmed"
+    );
 
-    client.command(Command::ConfirmInstall { plugin: swapme.clone() }).await.unwrap();
-    let after = until(&client, |s| s.plugins.iter().any(|p| p.id == swapme && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: swapme.clone(),
+        })
+        .await
+        .unwrap();
+    let after = until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == swapme && p.status == Running)
+    })
+    .await;
     let now = std::fs::read(data.path().join("plugins").join("swapme").join("plugin")).unwrap();
     assert_ne!(now, before, "the old program is still what is installed");
     assert_eq!(now, program, "what runs is not what was shown");
-    assert!(after.grants.get(&swapme).is_none_or(|g| g.is_empty()), "the replacement inherited rights");
+    assert!(
+        after.grants.get(&swapme).is_none_or(|g| g.is_empty()),
+        "the replacement inherited rights"
+    );
     assert!(after.staged.is_empty());
 }
 
@@ -3918,19 +4730,49 @@ async fn a_replacement_that_cannot_be_installed_leaves_the_old_plugin_as_it_was(
     let first = package_on_disk(parent.path(), "keepme");
     let keepme = id("keepme");
     let (client, _task) = start_with_packages(root.path(), "owner", data.path()).await;
-    client.command(Command::StageInstall { source: source_dir(&first) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&first),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == keepme)).await;
-    client.command(Command::ConfirmInstall { plugin: keepme.clone() }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == keepme && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: keepme.clone(),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == keepme && p.status == Running)
+    })
+    .await;
     let before = std::fs::read(data.path().join("plugins").join("keepme").join("plugin")).unwrap();
 
     // A second, unrelated plugin is installed, offering `clash.service`.
     let other_parent = tempfile::tempdir().unwrap();
     let other = package_on_disk(other_parent.path(), "clash");
-    client.command(Command::StageInstall { source: source_dir(&other) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&other),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == id("clash"))).await;
-    client.command(Command::ConfirmInstall { plugin: id("clash") }).await.unwrap();
-    until(&client, |s| s.plugins.iter().any(|p| p.id == id("clash") && p.status == Running)).await;
+    client
+        .command(Command::ConfirmInstall {
+            plugin: id("clash"),
+        })
+        .await
+        .unwrap();
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == id("clash") && p.status == Running)
+    })
+    .await;
 
     // A replacement for `keepme` that is perfectly readable, and is shown, but that offers the very
     // service `clash` offers. It is accepted at the look and refused only when it is put in, which
@@ -3939,10 +4781,20 @@ async fn a_replacement_that_cannot_be_installed_leaves_the_old_plugin_as_it_was(
     let second = package_on_disk(second_parent.path(), "keepme");
     let manifest = serde_json::to_string(&spec("clash").manifest).unwrap();
     std::fs::write(second.join("plugin.json"), manifest).unwrap();
-    client.command(Command::StageInstall { source: source_dir(&second) }).await.unwrap();
+    client
+        .command(Command::StageInstall {
+            source: source_dir(&second),
+        })
+        .await
+        .unwrap();
     until(&client, |s| s.staged.iter().any(|p| p.id == keepme)).await;
     assert!(
-        client.command(Command::ConfirmInstall { plugin: keepme.clone() }).await.is_err(),
+        client
+            .command(Command::ConfirmInstall {
+                plugin: keepme.clone()
+            })
+            .await
+            .is_err(),
         "a replacement that clashes with another plugin was installed"
     );
 
@@ -3952,5 +4804,10 @@ async fn a_replacement_that_cannot_be_installed_leaves_the_old_plugin_as_it_was(
         before,
         "a failed replacement changed what is installed"
     );
-    until(&client, |s| s.plugins.iter().any(|p| p.id == keepme && p.status == Running)).await;
+    until(&client, |s| {
+        s.plugins
+            .iter()
+            .any(|p| p.id == keepme && p.status == Running)
+    })
+    .await;
 }

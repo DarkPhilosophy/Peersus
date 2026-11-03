@@ -22,7 +22,11 @@ pub const HELPER_DEADLINE: Duration = Duration::from_secs(90);
 
 /// Something that can fetch one named file from the store, at most `limit` bytes.
 pub trait StoreFetcher: Send + Sync + 'static {
-    fn fetch(&self, name: String, limit: usize) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>>;
+    fn fetch(
+        &self,
+        name: String,
+        limit: usize,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>>;
 }
 
 /// The production fetcher: the `peersus-store-fetch` helper process.
@@ -37,16 +41,25 @@ impl HelperFetcher {
         if !executable.is_absolute() || !scratch.is_absolute() {
             return Err(std::io::Error::other("store helper paths must be absolute"));
         }
-        let directory = executable.parent().ok_or_else(|| std::io::Error::other("application directory unavailable"))?;
+        let directory = executable
+            .parent()
+            .ok_or_else(|| std::io::Error::other("application directory unavailable"))?;
         Ok(Self {
-            helper: directory.join(format!("peersus-store-fetch{}", std::env::consts::EXE_SUFFIX)),
+            helper: directory.join(format!(
+                "peersus-store-fetch{}",
+                std::env::consts::EXE_SUFFIX
+            )),
             scratch: scratch.to_owned(),
         })
     }
 }
 
 impl StoreFetcher for HelperFetcher {
-    fn fetch(&self, name: String, limit: usize) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>> {
+    fn fetch(
+        &self,
+        name: String,
+        limit: usize,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>> {
         let (helper, scratch) = (self.helper.clone(), self.scratch.clone());
         Box::pin(async move { run_helper(&helper, &scratch, &name, limit).await })
     }
@@ -54,12 +67,24 @@ impl StoreFetcher for HelperFetcher {
 
 const FAILED: Refusal = Refusal("The extension store could not be reached");
 
-async fn run_helper(helper: &Path, scratch: &Path, name: &str, limit: usize) -> Result<Vec<u8>, Refusal> {
+async fn run_helper(
+    helper: &Path,
+    scratch: &Path,
+    name: &str,
+    limit: usize,
+) -> Result<Vec<u8>, Refusal> {
     // A private directory of its own, so the helper's `create_new` file can never collide with or
     // overwrite anything, and everything is removed when this returns.
-    let holder = tempfile::Builder::new().prefix(".peersus-store").tempdir_in(scratch).map_err(|_| FAILED)?;
+    let holder = tempfile::Builder::new()
+        .prefix(".peersus-store")
+        .tempdir_in(scratch)
+        .map_err(|_| FAILED)?;
     #[cfg(unix)]
-    std::fs::set_permissions(holder.path(), std::os::unix::fs::PermissionsExt::from_mode(0o700)).map_err(|_| FAILED)?;
+    std::fs::set_permissions(
+        holder.path(),
+        std::os::unix::fs::PermissionsExt::from_mode(0o700),
+    )
+    .map_err(|_| FAILED)?;
     let output = holder.path().join("download");
     let mut child = tokio::process::Command::new(helper)
         .arg(name)
@@ -107,7 +132,10 @@ fn read_bounded(path: &Path, limit: usize) -> Result<Vec<u8>, Refusal> {
 #[cfg(any(test, feature = "test-plugin"))]
 pub mod fake {
     use super::*;
-    use std::{collections::BTreeMap, sync::{Arc, Mutex}};
+    use std::{
+        collections::BTreeMap,
+        sync::{Arc, Mutex},
+    };
 
     #[derive(Clone, Default)]
     pub struct MapFetcher(pub Arc<Mutex<BTreeMap<String, Vec<u8>>>>);
@@ -119,7 +147,11 @@ pub mod fake {
     }
 
     impl StoreFetcher for MapFetcher {
-        fn fetch(&self, name: String, limit: usize) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>> {
+        fn fetch(
+            &self,
+            name: String,
+            limit: usize,
+        ) -> Pin<Box<dyn Future<Output = Result<Vec<u8>, Refusal>> + Send>> {
             let found = self.0.lock().unwrap().get(&name).cloned();
             Box::pin(async move {
                 match found {
@@ -158,17 +190,42 @@ mod tests {
         // $3 is the output path the owner chose; the helper's own `create_new` is what protects it.
         let helper = script(dir.path(), r#"printf hello > "$3""#);
         assert_eq!(run(&helper, dir.path(), 16), Ok(b"hello".to_vec()));
-        let leftovers: Vec<_> = std::fs::read_dir(dir.path()).unwrap().filter_map(Result::ok).map(|e| e.file_name()).collect();
-        assert_eq!(leftovers, ["peersus-store-fetch"], "the private folder was left behind: {leftovers:?}");
+        let leftovers: Vec<_> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|e| e.file_name())
+            .collect();
+        assert_eq!(
+            leftovers,
+            ["peersus-store-fetch"],
+            "the private folder was left behind: {leftovers:?}"
+        );
     }
 
     #[test]
     fn a_helper_that_fails_or_writes_too_much_or_nothing_is_refused() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(run(&script(dir.path(), "exit 1"), dir.path(), 16).is_err(), "failure status");
-        assert!(run(&script(dir.path(), r#"head -c 100 /dev/zero > "$3""#), dir.path(), 16).is_err(), "over the limit");
-        assert!(run(&script(dir.path(), "exit 0"), dir.path(), 16).is_err(), "success but no file");
-        assert!(run(&dir.path().join("missing"), dir.path(), 16).is_err(), "no helper installed");
+        assert!(
+            run(&script(dir.path(), "exit 1"), dir.path(), 16).is_err(),
+            "failure status"
+        );
+        assert!(
+            run(
+                &script(dir.path(), r#"head -c 100 /dev/zero > "$3""#),
+                dir.path(),
+                16
+            )
+            .is_err(),
+            "over the limit"
+        );
+        assert!(
+            run(&script(dir.path(), "exit 0"), dir.path(), 16).is_err(),
+            "success but no file"
+        );
+        assert!(
+            run(&dir.path().join("missing"), dir.path(), 16).is_err(),
+            "no helper installed"
+        );
     }
 
     #[test]
@@ -177,20 +234,43 @@ mod tests {
         // `CARGO_MANIFEST_DIR` is in the environment of every test cargo runs, and no shell makes one up (unlike
         // PATH, which a shell given none sets to a default). A plain child must see it, so the proof cannot pass
         // vacuously; the helper, started with the environment cleared, must not.
-        assert!(std::env::var_os("CARGO_MANIFEST_DIR").is_some(), "this proof needs a variable that is set here");
+        assert!(
+            std::env::var_os("CARGO_MANIFEST_DIR").is_some(),
+            "this proof needs a variable that is set here"
+        );
         let body = r#"if [ -z "${CARGO_MANIFEST_DIR+x}" ]; then printf clean > "$3"; else printf leaked > "$3"; fi"#;
         let helper = script(dir.path(), body);
-        let control = std::process::Command::new(&helper).arg("n").arg("0").arg(dir.path().join("control")).status().unwrap();
+        let control = std::process::Command::new(&helper)
+            .arg("n")
+            .arg("0")
+            .arg(dir.path().join("control"))
+            .status()
+            .unwrap();
         assert!(control.success());
-        assert_eq!(std::fs::read(dir.path().join("control")).unwrap(), b"leaked", "the control must see the variable");
-        assert_eq!(run(&helper, dir.path(), 16), Ok(b"clean".to_vec()), "the helper saw the owner's environment");
+        assert_eq!(
+            std::fs::read(dir.path().join("control")).unwrap(),
+            b"leaked",
+            "the control must see the variable"
+        );
+        assert_eq!(
+            run(&helper, dir.path(), 16),
+            Ok(b"clean".to_vec()),
+            "the helper saw the owner's environment"
+        );
     }
 
     #[test]
     fn paths_must_be_absolute() {
         assert!(HelperFetcher::beside(Path::new("relative/peersus"), Path::new("/tmp")).is_err());
-        assert!(HelperFetcher::beside(Path::new("/usr/bin/peersus"), Path::new("relative")).is_err());
-        let fetcher = HelperFetcher::beside(Path::new("/opt/peersus/bin/peersus"), Path::new("/tmp")).unwrap();
-        assert_eq!(fetcher.helper, Path::new("/opt/peersus/bin/peersus-store-fetch"));
+        assert!(
+            HelperFetcher::beside(Path::new("/usr/bin/peersus"), Path::new("relative")).is_err()
+        );
+        let fetcher =
+            HelperFetcher::beside(Path::new("/opt/peersus/bin/peersus"), Path::new("/tmp"))
+                .unwrap();
+        assert_eq!(
+            fetcher.helper,
+            Path::new("/opt/peersus/bin/peersus-store-fetch")
+        );
     }
 }
