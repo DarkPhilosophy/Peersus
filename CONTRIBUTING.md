@@ -1,1 +1,1 @@
-/home/alexa/Projects/Peersus/.github/CONTRIBUTING.md
+.github/CONTRIBUTING.md

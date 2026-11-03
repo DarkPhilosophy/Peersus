@@ -1,1 +1,1 @@
-/home/alexa/Projects/Peersus/.github/SECURITY.md
+.github/SECURITY.md

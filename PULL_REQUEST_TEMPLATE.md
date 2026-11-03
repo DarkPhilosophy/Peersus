@@ -1,1 +1,1 @@
-/home/alexa/Projects/Peersus/.github/PULL_REQUEST_TEMPLATE.md
+.github/PULL_REQUEST_TEMPLATE.md
