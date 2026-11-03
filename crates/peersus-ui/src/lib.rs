@@ -6302,27 +6302,27 @@ impl Component for PluginManager {
                         .alignment(BorderAlignment::Inner),
                 )
                 .child(heading)
-                .child(rect().height(Size::px(22.)).child(mono(
-                    if author.is_empty() && version.is_empty() {
-                        String::new()
-                    } else {
+                .maybe(!author.is_empty() || !version.is_empty(), |card| {
+                    card.child(rect().height(Size::px(22.)).child(mono(
                         i18n::format(
                             i18n::language(),
                             "by {author} · version {version}",
                             &[("author", author), ("version", version)],
-                        )
-                    },
-                    palette.muted,
-                    11.,
-                )))
-                .child(
-                    rect().height(Size::px(54.)).overflow(Overflow::Clip).child(
-                        label()
-                            .text(description.to_owned())
-                            .color(palette.muted)
-                            .font_size(13.),
-                    ),
-                );
+                        ),
+                        palette.muted,
+                        11.,
+                    )))
+                })
+                .maybe(!description.is_empty(), |card| {
+                    card.child(
+                        rect().height(Size::px(54.)).overflow(Overflow::Clip).child(
+                            label()
+                                .text(description.to_owned())
+                                .color(palette.muted)
+                                .font_size(13.),
+                        ),
+                    )
+                });
             let Some(info) = entry.installed else {
                 let (link, plugin) = (self.link.clone(), entry.id.clone());
                 card = card.child(
@@ -6486,24 +6486,26 @@ impl Component for PluginManager {
             }
             card = card.child(
                 rect()
-                    .maybe(!confirming, |footer| footer.height(Size::px(92.)))
+                    .maybe(!confirming && entry.listing.is_some(), |footer| {
+                        footer.height(Size::px(92.))
+                    })
                     .spacing(8.)
                     .child(mono(i18n::tr(word), palette.of_tone(tone), 11.))
                     .child(buttons),
             );
+            if actions.can_restart {
+                let (link, plugin) = (self.link.clone(), id.clone());
+                card = card.child(
+                    Button::new()
+                        .on_press(move |_| {
+                            link.send(Command::RestartPlugin {
+                                plugin: plugin.clone(),
+                            });
+                        })
+                        .child(i18n::tr("Restart")),
+                );
+            }
             if expanded {
-                if actions.can_restart {
-                    let (link, plugin) = (self.link.clone(), id.clone());
-                    card = card.child(
-                        Button::new()
-                            .on_press(move |_| {
-                                link.send(Command::RestartPlugin {
-                                    plugin: plugin.clone(),
-                                });
-                            })
-                            .child(i18n::tr("Restart")),
-                    );
-                }
                 if let Some(note) = store_row.as_ref().and_then(|row| row.action.note()) {
                     card = card.child(
                         label()
@@ -6544,14 +6546,14 @@ impl Component for PluginManager {
                             ),
                     );
                 }
-                card = card.child(plugin_controls::Controls {
-                    link: self.link.clone(),
-                    view: self.view.clone(),
-                    plugin: info.clone(),
-                    pictures: self.pictures.clone(),
-                    palette,
-                });
             }
+            card = card.child(plugin_controls::Controls {
+                link: self.link.clone(),
+                view: self.view.clone(),
+                plugin: info.clone(),
+                pictures: self.pictures.clone(),
+                palette,
+            });
             cards.push(settings_navigation::anchor(
                 settings_search::Target::Plugin(id.clone()),
                 card,
