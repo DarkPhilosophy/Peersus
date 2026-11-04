@@ -1,0 +1,31 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Upload",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Upload an explicitly selected file after destination approval."
+  },
+  "execution": {"kind": "process"},
+  "platforms": ["linux", "macos"],
+  "program": "peersus-upload",
+  "files": ["peersus-upload-credential"],
+  "capabilities": {},
+  "imports": [],
+  "exports": [{
+    "service": "upload.file", "version": 1,
+    "description": "Host-only explicit file choice and plaintext cloud-upload consent; no peer receive endpoint. Linux requires zenity and a desktop file portal.",
+    "consumers": ["host"],
+    "methods": {"choose": {"description": "Choose one file, disclose public-link visibility and request explicit transient upload approval. No persisted file access grant."}},
+    "events": {}
+  }],
+  "contributions": {
+    "actions": [{
+      "id": "upload", "label": "Upload file…",
+      "target": {"service": "upload.file", "method": "choose"},
+      "needs_device": false, "destructive": false, "timeout_ms": 600000
+    }],
+    "settings": []
+  }
+}
