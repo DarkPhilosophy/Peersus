@@ -72,7 +72,7 @@ wl-clipboard-rs = { version = "=0.9.5", default-features = false }
 # Also already resolved through arboard. Named here for XFixes, the event that says the X11
 # selection changed: how a copy is noticed on GNOME, which offers no data-control. Pure Rust, no
 # libxcb, so the plugin stays free of unsafe code.
-x11rb = { version = "=0.13.2", default-features = false, features = ["xfixes"] }
+x11rb = { version = "=0.14.0", default-features = false, features = ["xfixes"] }
 # Only to build, in tests, a small PNG whose embedded colour profile expands to far more than
 # it weighs.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
