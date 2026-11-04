@@ -107,6 +107,57 @@ class ValidatorAndEmbed(unittest.TestCase):
                     self.assertNotEqual(run("python3", VALIDATE, bad).returncode, 0, f"{what} was accepted")
 
 
+class WasmMetadata(unittest.TestCase):
+    def test_module_metadata_is_accepted_and_manifest_tampering_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            package = directory / "upload"
+            package.mkdir()
+            manifest = {
+                "manifest_version": 1, "program": "upload.wasm",
+                "execution": {"kind": "wasm", "abi": 1},
+                "package": {"name": "Upload", "version": "1.0.0",
+                            "author": "Contributors", "link": "https://example.org/upload"},
+            }
+            manifest_path = package / "plugin.json"
+            manifest_path.write_text(json.dumps(manifest))
+            # A valid empty module is enough: the validator must never execute it.
+            module = directory / "module.wasm"
+            module.write_bytes(b"\0asm\x01\0\0\0")
+            result = subprocess.run(
+                ["python3", str(EMBED), "wasm", str(manifest_path), str(module)],
+                capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            (package / "upload.wasm").write_bytes(result.stdout)
+            self.assertEqual(run("python3", VALIDATE, package).returncode, 0)
+            repeated = run("python3", EMBED, "wasm", manifest_path, package / "upload.wasm")
+            self.assertNotEqual(repeated.returncode, 0, "duplicate metadata must be refused")
+            manifest["package"]["version"] = "1.0.1"
+            manifest_path.write_text(json.dumps(manifest))
+            self.assertNotEqual(run("python3", VALIDATE, package).returncode, 0)
+
+    def test_invalid_modules_are_refused_before_emitting_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            manifest = directory / "plugin.json"
+            manifest.write_text(json.dumps({
+                "manifest_version": 1, "program": "bad.wasm",
+                "execution": {"kind": "wasm", "abi": 1},
+                "package": {"name": "Upload", "version": "1.0.0",
+                            "author": "Contributors", "link": "https://example.org/upload"},
+            }))
+            module = directory / "bad.wasm"
+            for content in (b"not wasm", b"\0asm\x01\0\0\0\0\x80", b"\0asm\x01\0\0\0\0\x05x"):
+                with self.subTest(content=content):
+                    module.write_bytes(content)
+                    result = run("python3", EMBED, "wasm", manifest, module)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(result.stdout, "")
+                    checked = run("python3", VALIDATE, directory)
+                    self.assertNotEqual(checked.returncode, 0)
+                    self.assertTrue(checked.stderr.startswith("refused:"), checked.stderr)
+
 class SiteCatalog(unittest.TestCase):
     def stage(self, catalog=None):
         out = Path(tempfile.mkdtemp()) / "out"

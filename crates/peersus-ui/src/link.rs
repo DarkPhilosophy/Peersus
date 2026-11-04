@@ -531,10 +531,11 @@ async fn hand_over(
     for (destination, set) in destinations.iter().zip(sets) {
         let set = match set {
             Ok(set) => set,
-            Err(reason) => {
-                // Said, not only counted: a person told that a file could not be offered would otherwise have no way to learn why.
-                eprintln!(
-                    "peersus: the files could not be held again for another device: {reason}"
+            Err(_) => {
+                tracing::warn!(
+                    files = owned.files.len(),
+                    code = "held-reopen-failed",
+                    "Files could not be reopened for another destination"
                 );
                 refused = refused.saturating_add(owned.files.len() as u32);
                 continue;
@@ -1369,58 +1370,6 @@ fn control_socket() -> Result<PathBuf, Offline> {
     peersus_app::instance::data_directory()
         .map(|directory| directory.join("control.sock"))
         .ok_or(Offline::NoDirectory)
-}
-
-/// The largest the circle's log may grow before it starts again, in bytes: a few hundred lines of a hold, never a file that fills a phone.
-const CIRCLE_LOG_LIMIT: u64 = 64 * 1024;
-
-/// The directory the circle's log is written in, said once at the start by a platform that knows it (Android gives the application's own
-/// directory to its entry, and nothing else in the program can find it). Where it is not said, the desktop's data directory is used.
-static CIRCLE_LOG_DIRECTORY: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
-
-/// Says where the circle's log is written. Only the first call counts: it is said at the start, and never changes while the program runs.
-pub fn set_circle_log_directory(directory: PathBuf) {
-    let _ = CIRCLE_LOG_DIRECTORY.set(directory);
-}
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-fn default_circle_log_directory() -> Option<PathBuf> {
-    peersus_app::instance::data_directory()
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-fn default_circle_log_directory() -> Option<PathBuf> {
-    None
-}
-
-/// One line of what the held circle did (a touch went down, strayed, was held long enough, was lifted, or sent), appended to `circle.log` in the
-/// data directory. For finding out on a phone what the toolkit delivers to the circle, since the standard error of an Android program goes
-/// nowhere a person can read. Never anything of a file, a device or a code: only the kind of event and where on the circle it was. Nothing is
-/// done when there is no directory or the file cannot be written: it is a diagnostic, and it never stops a touch.
-pub fn circle_log(line: &str) {
-    use std::io::Write;
-    let Some(directory) = CIRCLE_LOG_DIRECTORY
-        .get()
-        .cloned()
-        .or_else(default_circle_log_directory)
-    else {
-        return;
-    };
-    let path = directory.join("circle.log");
-    if std::fs::metadata(&path).is_ok_and(|meta| meta.len() > CIRCLE_LOG_LIMIT) {
-        let _ = std::fs::remove_file(&path);
-    }
-    let Ok(mut file) = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-    else {
-        return;
-    };
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0.0, |elapsed| elapsed.as_secs_f64());
-    let _ = writeln!(file, "{seconds:.3} {line}");
 }
 
 /// Where the owner program is: in the directory this program is in, under its own name, and

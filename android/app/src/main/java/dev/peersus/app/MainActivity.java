@@ -19,6 +19,19 @@ import java.util.List;
 // a NativeActivity does not do on its own, so that the soft keyboard has somewhere to type. It is the same
 // strategy as the upstream toolkit's own host. No application logic is written in Java.
 public class MainActivity extends NativeActivity {
+    private final ExtensionFiles extensionFiles = new ExtensionFiles(this);
+    private final ExtensionAuthorization extensionAuthorization = new ExtensionAuthorization(this);
+
+    public void authorizeExtensionUpload(long request, String caller, String origin, String filename, long bytes) {
+        extensionAuthorization.request(request, caller, origin, filename, bytes);
+    }
+    public void cancelExtensionAuthorization(long request) { extensionAuthorization.cancel(request); }
+    public void presentExtensionResult(String caller, String link) { extensionAuthorization.present(caller, link); }
+
+    /** Called by the bounded extension host; results return by owned descriptor. */
+    public void chooseExtensionFile(long request) { extensionFiles.choose(request); }
+    public void cancelExtensionFile(long request) { extensionFiles.cancel(request); }
+
     static {
         // The base class loads this library for its own entry point, which does not bind the native methods of this
         // subclass: the runtime looks for them through the class that declares them. Loaded here too, it is the same
@@ -440,6 +453,7 @@ public class MainActivity extends NativeActivity {
     @Override
     protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
+        if (request == ExtensionFiles.REQUEST) { extensionFiles.result(result, data); return; }
         if (request == PICK_PLUGIN) { selectedPlugin(result, data); return; }
         if (request == PICK_SAVED_FOLDER) {
             Uri tree = result == RESULT_OK && data != null ? data.getData() : null;
@@ -740,6 +754,8 @@ public class MainActivity extends NativeActivity {
     }
 
     @Override protected void onDestroy() {
+        extensionFiles.destroy();
+        extensionAuthorization.destroy();
         ClipboardAccess.detach(this);
         super.onDestroy();
     }

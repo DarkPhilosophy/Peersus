@@ -1,4 +1,5 @@
 /target/
+/crates/peersus-upload/wasm/target/
 /.flatpak-builder/
 /.backup/
 /.shots/

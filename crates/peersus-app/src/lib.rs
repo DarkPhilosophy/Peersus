@@ -23,6 +23,8 @@ pub mod ipc;
 #[cfg(unix)]
 pub mod lifetime;
 mod parked;
+mod platform_calls;
+pub mod platform_services;
 #[cfg(unix)]
 pub mod plugin_approval;
 #[cfg(unix)]

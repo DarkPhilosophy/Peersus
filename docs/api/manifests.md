@@ -24,6 +24,10 @@ Unknown fields are rejected by the typed manifest contract. Capability, export a
 
 An export's consumer list and the user's grants are separate checks. An export with no consumers is private. Declaring an import or a capability never grants it. A platform declaration describes compatibility, not access to OS resources.
 
+## Contextual actions
+
+An action may declare `"input":"selected_file"`; omission retains the existing no-input behavior. Such actions must not also set `needs_device`. On Android, generic Send controls expose them only for exactly one staged file and pass a host-issued context in the invocation's `args.context`. The extension redeems it through `peersus.files.selected`; it receives neither a filesystem path nor a raw descriptor. Selected-file actions do not appear among global Settings actions. Separate no-input actions can expose configuration there.
+
 ## Execution
 
 The `execution.kind` values use **snake_case**, unlike the kebab-case service-message variants:

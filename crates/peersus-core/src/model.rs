@@ -468,6 +468,14 @@ pub enum Command {
         peer: Option<PeerId>,
         context: u64,
     },
+    /// Trusted Send composition only; never accepted from serialized IPC or a guest.
+    #[serde(skip)]
+    InvokeSelectedAction {
+        plugin: PluginId,
+        action: String,
+        path: Option<PathBuf>,
+        held: Option<(u64, String)>,
+    },
     /// Withdraw precisely one pending user action; already published external effects cannot be undone.
     CancelAction {
         plugin: PluginId,
@@ -1520,6 +1528,23 @@ mod tests {
 #[cfg(test)]
 mod context_boundary_tests {
     use super::*;
+    #[test]
+    fn selected_file_authority_cannot_arrive_from_external_ipc() {
+        let command = Command::InvokeSelectedAction {
+            plugin: PluginId::new("example").unwrap(),
+            action: "upload".into(),
+            path: None,
+            held: Some((1, "synthetic.txt".into())),
+        };
+        assert!(serde_json::to_value(command).is_err());
+        assert!(
+            serde_json::from_value::<Command>(serde_json::json!({
+                "command":"invoke-selected-action","plugin":"example","action":"upload",
+                "path":null,"held":[1,"synthetic.txt"]
+            }))
+            .is_err()
+        );
+    }
 
     #[test]
     fn selected_input_context_is_internal_only_not_an_external_command() {

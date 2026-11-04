@@ -250,8 +250,14 @@ pub extern "system" fn Java_dev_peersus_app_NotificationActions_offerAnswered<'l
         if transfer.is_empty() {
             return;
         }
-        // The kind only, never the id: so that a press that did nothing can be told from one that never arrived.
-        eprintln!("peersus: a button of the notification was pressed: {kind}");
+        // Only recognized action names, never the transfer id or arbitrary JNI text.
+        let action = match kind.as_str() {
+            "cancel" => "cancel",
+            "accept" => "accept",
+            "view" => "view",
+            _ => "unknown",
+        };
+        tracing::debug!(action, "Notification action received");
         match kind.as_str() {
             "cancel" => push_offer_action(OfferAction::Cancel(transfer)),
             "accept" => push_offer_action(OfferAction::Accept(transfer)),
@@ -390,7 +396,10 @@ pub extern "system" fn Java_dev_peersus_app_TransferService_startOwner(
     }));
     if !matches!(result, Ok(Ok(()))) {
         let _ = env.exception_clear();
-        eprintln!("peersus: background connectivity could not initialize");
+        tracing::error!(
+            code = "background-owner-start-failed",
+            "Android background initialization failed"
+        );
     }
 }
 
@@ -1016,4 +1025,87 @@ pub extern "system" fn Java_dev_peersus_app_MainActivity_pluginChosen(
             }
         }));
     }));
+}
+
+/// Show consent for the exact host-validated extension, origin and selected snapshot.
+pub fn request_extension_authorization(
+    request: i64,
+    caller: &str,
+    origin: &str,
+    filename: &str,
+    bytes: i64,
+) -> Result<(), &'static str> {
+    let known = ACTIVITY
+        .lock()
+        .map_err(|_| "The activity is unavailable")?
+        .clone()
+        .ok_or("The activity is unavailable")?;
+    let (vm, activity) = known.as_ref();
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|_| "The activity is unavailable")?;
+    let caller = JObject::from(env.new_string(caller).map_err(|_| {
+        let _ = env.exception_clear();
+        "Consent is unavailable"
+    })?);
+    let origin = JObject::from(env.new_string(origin).map_err(|_| {
+        let _ = env.exception_clear();
+        "Consent is unavailable"
+    })?);
+    let filename = JObject::from(env.new_string(filename).map_err(|_| {
+        let _ = env.exception_clear();
+        "Consent is unavailable"
+    })?);
+    env.call_method(
+        activity.as_obj(),
+        "authorizeExtensionUpload",
+        "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V",
+        &[
+            jni::objects::JValue::Long(request),
+            jni::objects::JValue::Object(&caller),
+            jni::objects::JValue::Object(&origin),
+            jni::objects::JValue::Object(&filename),
+            jni::objects::JValue::Long(bytes),
+        ],
+    )
+    .map_err(|_| {
+        let _ = env.exception_clear();
+        "Consent is unavailable"
+    })?;
+    Ok(())
+}
+
+/// Present a caller-scoped, host-validated HTTPS result without touching the clipboard.
+pub fn present_extension_result(caller: &str, link: &str) -> Result<(), &'static str> {
+    let known = ACTIVITY
+        .lock()
+        .map_err(|_| "The activity is unavailable")?
+        .clone()
+        .ok_or("The activity is unavailable")?;
+    let (vm, activity) = known.as_ref();
+    let mut env = vm
+        .attach_current_thread()
+        .map_err(|_| "The activity is unavailable")?;
+    let caller = JObject::from(env.new_string(caller).map_err(|_| {
+        let _ = env.exception_clear();
+        "The result could not be displayed"
+    })?);
+    let link = JObject::from(env.new_string(link).map_err(|_| {
+        let _ = env.exception_clear();
+        "The result could not be displayed"
+    })?);
+    env.call_method(
+        activity.as_obj(),
+        "presentExtensionResult",
+        "(Ljava/lang/String;Ljava/lang/String;)V",
+        &[
+            jni::objects::JValue::Object(&caller),
+            jni::objects::JValue::Object(&link),
+        ],
+    )
+    .map_err(|_| {
+        let _ = env.exception_clear();
+        "The result could not be displayed"
+    })?;
+    Ok(())
 }

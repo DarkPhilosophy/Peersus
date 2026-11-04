@@ -31,6 +31,24 @@ impl Board {
         }
     }
 
+    /// A trusted UI action was refused before a provider call could be admitted.
+    /// Keep an already-running call intact when a repeated press is refused.
+    pub fn rejected(&mut self, key: Key) {
+        if self
+            .entries
+            .iter()
+            .any(|(known, state)| known == &key && *state == ActionState::Running)
+        {
+            return;
+        }
+        self.set(
+            key,
+            ActionState::Failed {
+                reason: peersus_core::model::ActionFailure::Unavailable,
+            },
+        );
+    }
+
     /// Forget every action of `plugin`, as when its process is restarted: whatever it was
     /// doing is gone, and "running" would no longer be true of any of it.
     pub fn forget_plugin(&mut self, plugin: &peersus_core::plugins::PluginId) {
@@ -111,6 +129,28 @@ mod tests {
             .into_iter()
             .map(|s| (format!("{}/{}", s.plugin.as_str(), s.action), s.state))
             .collect()
+    }
+
+    #[test]
+    fn a_pre_admission_refusal_is_visible_without_overwriting_a_running_call() {
+        let mut board = Board::default();
+        let action = key("a", "upload", None);
+        board.rejected(action.clone());
+        assert_eq!(
+            states(&board),
+            [(
+                "a/upload".to_owned(),
+                ActionState::Failed {
+                    reason: ActionFailure::Unavailable
+                }
+            )]
+        );
+        board.running(action.clone());
+        board.rejected(action);
+        assert_eq!(
+            states(&board),
+            [("a/upload".to_owned(), ActionState::Running)]
+        );
     }
 
     #[test]

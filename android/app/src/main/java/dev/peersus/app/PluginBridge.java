@@ -32,8 +32,10 @@ public final class PluginBridge {
     private long pendingChoice, pendingContext, choiceEpoch, offerUntil, shareEpoch;
 
     private PluginBridge(Context context) { this.context = context.getApplicationContext(); }
+    private static native void initializeTls(Context context);
 
     static void initialize(Context context) {
+        initializeTls(context.getApplicationContext());
         ClipboardAccess.initialize(context);
         if (instance == null) { instance = new PluginBridge(context); nativeAttach(instance); }
     }

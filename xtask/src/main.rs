@@ -31,7 +31,11 @@ fn output_directory(profile: &str) -> std::path::PathBuf {
     directory.join(profile)
 }
 
-fn android_native(flavor: &str, extensions: bool) -> Result<(), String> {
+fn android_native(flavor: &str, extensions: bool, development: bool) -> Result<(), String> {
+    run(
+        "python3",
+        &["scripts/package-upload-wasm.py", "--build-only"],
+    )?;
     let destination = format!("target/android/jniLibs/{flavor}");
     let mut args = vec![
         "ndk",
@@ -51,8 +55,16 @@ fn android_native(flavor: &str, extensions: bool) -> Result<(), String> {
         "-p",
         "peersus-plugin-android",
     ];
-    if extensions {
-        args.extend(["--features", "peersus-ui-android/native-extensions"]);
+    let features = match (extensions, development) {
+        (true, true) => {
+            Some("peersus-ui-android/native-extensions,peersus-ui-android/development-diagnostics")
+        }
+        (true, false) => Some("peersus-ui-android/native-extensions"),
+        (false, true) => Some("peersus-ui-android/development-diagnostics"),
+        (false, false) => None,
+    };
+    if let Some(features) = features {
+        args.extend(["--features", features]);
     }
     cargo(&args)?;
     if extensions {
@@ -86,13 +98,25 @@ fn task(name: &str) -> Result<(), String> {
             "-D",
             "warnings",
         ]),
-        "test" => cargo(&[
-            "test",
-            "--locked",
-            "--workspace",
-            "--exclude",
-            "peersus-ui-android",
-        ]),
+        "test" => {
+            cargo(&[
+                "test",
+                "--locked",
+                "--workspace",
+                "--exclude",
+                "peersus-ui-android",
+            ])?;
+            // Keep test-only identity and plugin fixtures out of product builds,
+            // but never silently omit their process/store integration coverage.
+            cargo(&[
+                "test",
+                "--locked",
+                "-p",
+                "peersus-app",
+                "--features",
+                "test-plugin,test-identity",
+            ])
+        }
         "audit" => cargo(&["audit", "--deny", "warnings"]),
         "metadata" => {
             run("python3", &["scripts/test-gen-docs.py"])?;
@@ -106,7 +130,15 @@ fn task(name: &str) -> Result<(), String> {
             run("python3", &["scripts/test-extension-tools.py"])
         }
         "gate" => {
-            for gate in ["fmt", "metadata", "check", "clippy", "test", "audit"] {
+            for gate in [
+                "fmt",
+                "metadata",
+                "check",
+                "clippy",
+                "test",
+                "audit",
+                "upload-wasm",
+            ] {
                 task(gate)?;
             }
             Ok(())
@@ -183,7 +215,8 @@ fn task(name: &str) -> Result<(), String> {
             )
         }
         "flatpak" => run("python3", &["scripts/package-metadata.py", "flatpak"]),
-        "android-dev-native" => android_native("community", true),
+        "upload-wasm" => run("python3", &["scripts/package-upload-wasm.py"]),
+        "android-dev-native" => android_native("community", true, true),
         "android-dev-apk" => {
             run(
                 "sh",
@@ -211,7 +244,7 @@ fn task(name: &str) -> Result<(), String> {
         }
         "android" => {
             for (flavor, features) in [("play", false), ("community", true)] {
-                android_native(flavor, features)?;
+                android_native(flavor, features, false)?;
             }
             // Separate invocations passed after the combined task failed in buildReleasePreBundle.
             run(
@@ -249,7 +282,7 @@ fn task(name: &str) -> Result<(), String> {
         }
         "help" | "--help" | "-h" => {
             println!(
-                "cargo xtask [TASK ...]\nTasks: gate fmt metadata check clippy test audit build dev native-host native-host-dev flatpak android android-dev android-dev-native android-dev-apk help\nGate is local/CI identical; build checks compilation, not desktop/device operation.\nAndroid release creates UNSIGNED APKs/AAB; android-dev packages the community DEBUG APK using Gradle's existing local debug signer. No task installs or uninstalls an application.\nFlatpak exports a LOCAL unsigned repository and bundle; never uploads.\n\ncargo xtask catalog-keygen --out PATH\n  Maintainer-only. Makes the catalog signing seed (0600, never printed) and prints the PUBLIC key.\ncargo xtask catalog-sign --archive A --report R --out DIR [--previous C]\n  Maintainer-only (protected CI). Signs the extension catalog; the key is read only from CATALOG_SIGNING_KEY."
+                "cargo xtask [TASK ...]\nTasks: gate fmt metadata check clippy test audit build dev native-host native-host-dev flatpak android android-dev android-dev-native android-dev-apk upload-wasm help\nGate is local/CI identical; build checks compilation, not desktop/device operation.\nAndroid release creates UNSIGNED APKs/AAB; android-dev packages the community DEBUG APK using Gradle's existing local debug signer. No task installs or uninstalls an application.\nupload-wasm builds a manually approved Android development extension archive; never installs, signs or uploads.\nFlatpak exports a LOCAL unsigned repository and bundle; never uploads.\n\ncargo xtask catalog-keygen --out PATH\n  Maintainer-only. Makes the catalog signing seed (0600, never printed) and prints the PUBLIC key.\ncargo xtask catalog-sign --archive A --report R --out DIR [--previous C]\n  Maintainer-only (protected CI). Signs the extension catalog; the key is read only from CATALOG_SIGNING_KEY."
             );
             Ok(())
         }

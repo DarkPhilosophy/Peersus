@@ -366,9 +366,27 @@ fn only_a_plugin_that_was_installed_and_is_unchanged_is_started() {
     std::fs::set_permissions(by_hand.join("plugin"), PermissionsExt::from_mode(0o755)).unwrap();
 
     let owner = Owner::start(data.path());
-    let out = run(data.path(), &["plugins"]);
-    assert!(out.status.success(), "{}", text(&out.stderr));
-    let listed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    // The control socket is ready before every asynchronous supervisor has
+    // reported its first event. Wait for the installed plugin's startup state,
+    // not an arbitrary delay or the socket's existence alone.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let listed: serde_json::Value = loop {
+        let out = run(data.path(), &["plugins"]);
+        assert!(out.status.success(), "{}", text(&out.stderr));
+        let listed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+        let started = listed.as_array().unwrap().iter().any(|plugin| {
+            plugin["id"] == "quiet"
+                && matches!(plugin["status"].as_str(), Some("starting" | "running"))
+        });
+        if started {
+            break listed;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "installed plugin did not start: {listed}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    };
     // A plugin that is blocked is never missing from the list (it can be approved or removed from the window), so
     // what this proves is WHICH ones may run: by what each says of its standing, and that a blocked one has no process.
     let state = |id: &str| {

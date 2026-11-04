@@ -23,6 +23,7 @@ import struct
 import sys
 import tarfile
 from pathlib import Path
+from extension_format import wasm_custom_sections
 
 MAX_FILES = 512
 MAX_TOTAL = 128 * 1024 * 1024
@@ -65,31 +66,10 @@ def read_members(path: Path) -> dict[str, bytes]:
 
 
 def wasm_custom(data: bytes, wanted: str):
-    if data[:8] != b"\0asm\x01\0\0\0":
-        return None
-    at, found = 8, []
-    while at < len(data):
-        section_id = data[at]; at += 1
-        size = shift = 0
-        while True:
-            byte = data[at]; at += 1
-            size |= (byte & 0x7F) << shift
-            shift += 7
-            if not byte & 0x80:
-                break
-        body = data[at:at + size]
-        at += size
-        if section_id == 0:
-            length = shift2 = i = 0
-            while True:
-                b = body[i]; i += 1
-                length |= (b & 0x7F) << shift2
-                shift2 += 7
-                if not b & 0x80:
-                    break
-            if body[i:i + length].decode("utf-8", "replace") == wanted:
-                found.append(body[i + length:])
-    return found
+    try:
+        return wasm_custom_sections(data, wanted)
+    except ValueError:
+        fail("invalid WebAssembly container")
 
 
 def elf_section(data: bytes, wanted: str):

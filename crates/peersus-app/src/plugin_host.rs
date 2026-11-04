@@ -513,6 +513,7 @@ mod tests {
             id: "go".into(),
             label: "Go".into(),
             short_label: None,
+            input: peersus_plugin_api::contributions::ActionInput::None,
             target: Source {
                 service: "svc".into(),
                 method: "go".into(),

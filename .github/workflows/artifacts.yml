@@ -45,7 +45,7 @@ jobs:
         if: inputs.package == 'android'
         run: |
           sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018'
-          rustup target add aarch64-linux-android x86_64-linux-android
+          rustup target add aarch64-linux-android x86_64-linux-android wasm32-unknown-unknown
           cargo install cargo-ndk --version 4.1.2 --locked
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
           echo "ANDROID_NDK=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"

@@ -326,6 +326,7 @@ mod tests {
             id: "run".into(),
             label: "Run".into(),
             short_label: None,
+            input: crate::contributions::ActionInput::None,
             target: Source {
                 service: service.into(),
                 method: method.into(),

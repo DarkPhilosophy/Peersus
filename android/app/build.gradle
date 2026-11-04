@@ -68,6 +68,13 @@ android {
 
 // Optional elevated clipboard access is absent from the Play artifact.
 dependencies {
+    // Must match the Rust-side JNI support component; mismatches fail before packaging.
+    def verifierLock = providers.fileContents(layout.projectDirectory.file('../../Cargo.lock')).asText.get()
+    def verifierMatch = verifierLock =~ /name = "rustls-platform-verifier-android"\r?\nversion = "([^"]+)"/
+    if (!verifierMatch.find() || verifierMatch.group(1) != '0.2.0') {
+        throw new GradleException('Update the pinned Android verifier artifact to match Cargo.lock')
+    }
+    implementation 'org.rustls:rustls-platform-verifier:0.2.0'
     communityImplementation 'dev.rikka.shizuku:api:13.1.5'
     communityImplementation 'dev.rikka.shizuku:provider:13.1.5'
 }

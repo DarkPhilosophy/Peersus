@@ -1,8 +1,8 @@
 [workspace]
 resolver = "3"
-members = ["crates/peersus-plugin-api", "crates/peersus-plugin-host", "crates/peersus-plugin-runtime", "crates/peersus-plugin-android", "crates/peersus-core", "crates/peersus-net", "crates/peersus-app", "crates/peersus-clipboard", "crates/peersus-upload", "crates/peersus-store-fetch", "crates/peersus-ui", "crates/peersus-ui-android", "xtask"]
+members = ["crates/peersus-plugin-api", "crates/peersus-plugin-host", "crates/peersus-plugin-runtime", "crates/peersus-plugin-android", "crates/peersus-core", "crates/peersus-net", "crates/peersus-app", "crates/peersus-clipboard", "crates/peersus-upload", "crates/peersus-store-fetch", "crates/peersus-ui", "crates/peersus-ui-android", "crates/peersus-diagnostics", "xtask"]
 default-members = ["crates/peersus-app"]
-exclude = ["vendor/winit"]
+exclude = ["vendor/winit", "vendor/netwatch", "vendor/sctk-adwaita", "vendor/freya-core", "vendor/freya-components", "vendor/pulp", "vendor/rav1e", "vendor/mundy", "vendor/atspi", "vendor/atspi-common", "vendor/atspi-proxies", "vendor/accesskit_atspi_common", "vendor/accesskit_unix", "vendor/zbus-lockstep", "vendor/zbus-lockstep-macros", "vendor/keyring"]
 
 [workspace.package]
 version = "0.1.0"
@@ -18,6 +18,7 @@ peersus-plugin-host = { path = "crates/peersus-plugin-host" }
 peersus-plugin-runtime = { path = "crates/peersus-plugin-runtime" }
 peersus-net = { path = "crates/peersus-net" }
 peersus-ui = { path = "crates/peersus-ui" }
+peersus-diagnostics = { path = "crates/peersus-diagnostics" }
 peersus-clipboard = { path = "crates/peersus-clipboard", default-features = false }
 # The Android entry's parts. `winit` is the version freya-android is built against, with its default features
 # as the trial that ran on a device had them (the raw window handle one is what the renderer makes its surface
@@ -110,6 +111,30 @@ rqrr = { version = "=0.11.0", default-features = false }
 # differs from the published crate (see vendor/winit, with its own LICENSE); drop this when winit forwards `onDestroy` itself.
 [patch.crates-io]
 winit = { path = "vendor/winit" }
+# Backport the maintained netlink dependency set without changing the transport's
+# netwatch 0.19 API. See vendor/netwatch/PATCHES.md for provenance and removal.
+netwatch = { path = "vendor/netwatch" }
+# Retain the compatible Wayland toolkit while backporting the maintained title
+# font renderer. See vendor/sctk-adwaita/PATCHES.md.
+sctk-adwaita = { path = "vendor/sctk-adwaita" }
+# Preserve consumer APIs while replacing the unmaintained token-pasting macro.
+# Each local package records its upstream revision and minimal manifest change.
+freya-core = { path = "vendor/freya-core" }
+freya-components = { path = "vendor/freya-components" }
+pulp = { path = "vendor/pulp" }
+rav1e = { path = "vendor/rav1e" }
+# Preserve portal preference support while migrating its Linux wire format.
+mundy = { path = "vendor/mundy" }
+# Keep accessibility and XML signature validation while adopting maintained wire types.
+atspi = { path = "vendor/atspi" }
+atspi-common = { path = "vendor/atspi-common" }
+atspi-proxies = { path = "vendor/atspi-proxies" }
+accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
+accesskit_unix = { path = "vendor/accesskit_unix" }
+zbus-lockstep = { path = "vendor/zbus-lockstep" }
+zbus-lockstep-macros = { path = "vendor/zbus-lockstep-macros" }
+# Preserve existing native credential lookup semantics; omit the unused async backend.
+keyring = { path = "vendor/keyring" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

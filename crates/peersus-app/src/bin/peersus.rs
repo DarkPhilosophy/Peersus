@@ -382,9 +382,17 @@ fn run() -> Result<(), String> {
     Ok(())
 }
 
-fn main() {
+fn main() -> std::process::ExitCode {
+    let _diagnostics = match peersus_diagnostics::init("owner") {
+        Ok(guard) => Some(guard),
+        Err(reason) => {
+            eprintln!("{reason}");
+            None
+        }
+    };
     if let Err(error) = run() {
         eprintln!("{error}");
-        std::process::exit(1);
+        return std::process::ExitCode::FAILURE;
     }
+    std::process::ExitCode::SUCCESS
 }

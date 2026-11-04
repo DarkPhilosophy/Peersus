@@ -22,10 +22,15 @@
 #![cfg(target_os = "android")]
 
 mod bridge;
+mod bundled_upload;
 mod camera_bridge;
+mod extension_authorization;
+mod extension_files;
+mod extension_services;
 mod notifications;
 mod plugins;
 mod store;
+mod tls_init;
 
 use freya::winit::platform::android::{EventLoopBuilderExtAndroid, activity::AndroidApp};
 use freya::{prelude::*, winit::event_loop::EventLoop};
@@ -68,6 +73,9 @@ struct Owner {
 static OWNER: Mutex<Option<Arc<Owner>>> = Mutex::new(None);
 
 fn owner_at(directory: &Path) -> Result<Arc<Owner>, String> {
+    if let Err(reason) = peersus_diagnostics::init("android") {
+        eprintln!("Diagnostic initialization failed: {reason}");
+    }
     let mut slot = OWNER
         .lock()
         .map_err(|_| "The application owner could not be accessed".to_owned())?;
@@ -118,8 +126,11 @@ fn start_owner(
     let access = if settings.current().network.has_custom_relay() {
         match peersus_net::token_file::load(directory) {
             Ok(access) => access,
-            Err(reason) => {
-                eprintln!("peersus: {reason}");
+            Err(_) => {
+                tracing::warn!(
+                    code = "relay-access-unavailable",
+                    "Personal relay access could not be loaded"
+                );
                 None
             }
         }
@@ -134,9 +145,23 @@ fn start_owner(
             .map_err(|_| "Remembered devices could not be read".to_owned())?;
         let mut standalone = StandaloneGrants::open(directory.join("grants.json"))
             .map_err(|_| "Plugin permissions could not be read".to_owned())?;
-        let found = plugins::registry(directory)?;
+        let mut found = plugins::registry(directory)?;
         peersus_app::plugin_manager::forget_removed(&found, &mut devices, &mut standalone)
             .map_err(|_| "Removed plugin permissions could not be forgotten".to_owned())?;
+        // Prune grants for absent old packages BEFORE installing a new first-party
+        // package under that identity, so a fresh install cannot inherit stale grants.
+        match bundled_upload::install_once(
+            &plugins::packages(directory),
+            directory,
+            include_bytes!(concat!(env!("OUT_DIR"), "/upload-android.tar.gz")),
+        ) {
+            Ok(true) => found = plugins::registry(directory)?,
+            Ok(false) => {}
+            Err(problem) => found.problems.push(peersus_app::discovery::Problem {
+                plugin: "upload".to_owned(),
+                reason: problem.0,
+            }),
+        }
         let network = NetworkHost::new(
             endpoint,
             settings.current().device_name.clone(),
@@ -171,6 +196,9 @@ fn start_owner(
                     .with_held(held)
                     .with_launcher(clipboard, Arc::new(plugins::AndroidLauncher))
                     .with_modules(Arc::new(plugins::AndroidModules))
+                    .with_platform_services(Arc::new(extension_services::AndroidServices::new(
+                        directory.to_path_buf(),
+                    )))
                     .with_token_store(Arc::new(FileTokens(directory.to_path_buf())))
                     .with_packages(plugins::packages(directory))
                     .with_store(
@@ -274,10 +302,10 @@ async fn protect_transfers(client: peersus_app::runtime::Client, staging: PathBu
         );
         if !dropped.is_empty() {
             // Said, so that an Accept that did nothing can be told from one that was never seen: its offer was not waiting in what the owner holds.
-            eprintln!(
-                "peersus: {} accept(s) dropped, their offer is not waiting ({} offer(s) are)",
-                dropped.len(),
-                waiting.len()
+            tracing::debug!(
+                dropped = dropped.len(),
+                waiting = waiting.len(),
+                "Stale transfer accepts discarded"
             );
         }
         // A file that arrived whole is put in the folder chosen for it by the platform, with the window closed as with it open. The same rule as the
@@ -290,9 +318,10 @@ async fn protect_transfers(client: peersus_app::runtime::Client, staging: PathBu
                     folders.tree_for(id)
                 })
             {
-                if let Err(reason) = bridge::deliver(&handoff) {
-                    eprintln!(
-                        "peersus: a received file could not be handed to the folder: {reason}"
+                if bridge::deliver(&handoff).is_err() {
+                    tracing::warn!(
+                        operation = "deliver-file",
+                        "Android platform operation failed"
                     );
                     folders.delivered(handoff.transfer.clone(), false);
                 }
@@ -339,9 +368,12 @@ async fn protect_transfers(client: peersus_app::runtime::Client, staging: PathBu
         }) {
             // An Accept that needs a window (no folder is kept, or saving on their own is off): the window is asked for, and it takes the press
             // and asks where the file goes. The press stays where it is until the window has it.
-            eprintln!("peersus: an accept needs the window: asking for it");
-            if let Err(reason) = bridge::bring_window_forward() {
-                eprintln!("peersus: the window could not be brought forward: {reason}");
+            tracing::debug!("Transfer acceptance requests the window");
+            if bridge::bring_window_forward().is_err() {
+                tracing::warn!(
+                    operation = "bring-window-forward",
+                    "Android platform operation failed"
+                );
             }
         }
         tokio::select! {
@@ -359,7 +391,7 @@ async fn protect_transfers(client: peersus_app::runtime::Client, staging: PathBu
             () = bridge::asleep_changed().notified() => {
                 let asleep = bridge::asleep_now();
                 let told = client.command(peersus_core::model::Command::SetAsleep { asleep }).await;
-                eprintln!("peersus: the screen {} and the owner {} it", if asleep { "went off" } else { "is on" }, if told.is_ok() { "took" } else { "refused" });
+                tracing::debug!(asleep, accepted = told.is_ok(), "Screen state reported to owner");
             }
             () = bridge::background_timeout().notified() => {
                 // Do not block the service's mandatory stopSelf callback on network work.
@@ -383,29 +415,35 @@ async fn protect_transfers(client: peersus_app::runtime::Client, staging: PathBu
 #[allow(unsafe_code)]
 #[unsafe(no_mangle)]
 pub fn android_main(app: AndroidApp) {
-    // Diagnostics for `adb logcat`: what goes wrong at start is otherwise invisible on a phone.
-    let say = |text: String| eprintln!("peersus: {text}");
+    if let Err(reason) = peersus_diagnostics::init("android") {
+        eprintln!("Diagnostic initialization failed: {reason}");
+    }
 
     let Some(directory) = app.internal_data_path() else {
-        say("the application has no data directory of its own".to_owned());
+        tracing::error!(
+            code = "data-directory-unavailable",
+            "Android UI initialization failed"
+        );
         return;
     };
-    // Where the circle of the Send page writes its diagnostic log: the interface cannot find the directory of an Android application by itself.
-    peersus_ui::link::set_circle_log_directory(directory.clone());
     let owner = match owner_at(&directory) {
         Ok(owner) => owner,
-        Err(reason) => {
-            say(reason);
+        Err(_) => {
+            tracing::error!(
+                code = "owner-start-failed",
+                "Android UI initialization failed"
+            );
             return;
         }
     };
     let picked = bridge::shared(owner.held.clone());
     // So that the picker can be opened later from any thread: the activity, and the virtual machine it lives in.
     // SAFETY: both pointers are the ones this very `AndroidApp` was started with, and live as long as the process.
-    if let Err(reason) =
-        unsafe { bridge::remember_activity(app.vm_as_ptr(), app.activity_as_ptr()) }
-    {
-        say(format!("the picker will not be available: {reason}"));
+    if unsafe { bridge::remember_activity(app.vm_as_ptr(), app.activity_as_ptr()) }.is_err() {
+        tracing::warn!(
+            operation = "remember-activity",
+            "Android platform operation failed"
+        );
     }
     let socket = owner.socket.clone();
     // The interface is told where the owner listens. It does not look for it, and nothing about the
@@ -414,8 +452,11 @@ pub fn android_main(app: AndroidApp) {
     builder.with_android_app(app.clone());
     let event_loop = match builder.build() {
         Ok(event_loop) => event_loop,
-        Err(error) => {
-            say(format!("the event loop could not be made: {error}"));
+        Err(_) => {
+            tracing::error!(
+                code = "event-loop-unavailable",
+                "Android UI initialization failed"
+            );
             return;
         }
     };
@@ -441,8 +482,11 @@ pub fn android_main(app: AndroidApp) {
     // as an open file, kept by number in the registry the owner takes from, and sent from where it is.
     let file_picker = peersus_ui::link::FilePicker {
         open: std::sync::Arc::new(|several| {
-            if let Err(reason) = bridge::open_picker(several) {
-                eprintln!("peersus: the picker could not be opened: {reason}");
+            if bridge::open_picker(several).is_err() {
+                tracing::warn!(
+                    operation = "open-file-picker",
+                    "Android platform operation failed"
+                );
             }
         }),
         picked,
@@ -450,8 +494,11 @@ pub fn android_main(app: AndroidApp) {
     // The platform's camera, for reading the code of another device. It gives frames, which the interface reads.
     let camera = peersus_ui::link::CameraControl {
         open: std::sync::Arc::new(|scanner| {
-            if let Err(reason) = camera_bridge::open_camera(scanner) {
-                eprintln!("peersus: the camera could not be opened: {reason}");
+            if camera_bridge::open_camera(scanner).is_err() {
+                tracing::warn!(
+                    operation = "open-camera",
+                    "Android platform operation failed"
+                );
             }
         }),
         close: std::sync::Arc::new(camera_bridge::close_camera),
@@ -465,27 +512,37 @@ pub fn android_main(app: AndroidApp) {
         staging,
         picked: bridge::folders(),
         choose: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::open_folder_picker() {
-                eprintln!("peersus: the folder picker could not be opened: {reason}");
+            if bridge::open_folder_picker().is_err() {
+                tracing::warn!(
+                    operation = "open-folder-picker",
+                    "Android platform operation failed"
+                );
             }
         }),
         deliver: std::sync::Arc::new(|handoff| {
-            if let Err(reason) = bridge::deliver(handoff) {
-                eprintln!("peersus: a received file could not be handed to the folder: {reason}");
+            if bridge::deliver(handoff).is_err() {
+                tracing::warn!(
+                    operation = "deliver-file",
+                    "Android platform operation failed"
+                );
                 bridge::folders().delivered(handoff.transfer.clone(), false);
             }
         }),
         saved: std::sync::Arc::new(bridge::saved_folder),
         choose_saved: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::open_saved_folder_picker() {
-                eprintln!(
-                    "peersus: the folder picker for incoming files could not be opened: {reason}"
+            if bridge::open_saved_folder_picker().is_err() {
+                tracing::warn!(
+                    operation = "open-saved-folder-picker",
+                    "Android platform operation failed"
                 );
             }
         }),
         forget_saved: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::forget_saved_folder() {
-                eprintln!("peersus: the saved folder could not be let go of: {reason}");
+            if bridge::forget_saved_folder().is_err() {
+                tracing::warn!(
+                    operation = "forget-saved-folder",
+                    "Android platform operation failed"
+                );
             }
         }),
     };
@@ -522,9 +579,10 @@ pub fn android_main(app: AndroidApp) {
     let notifications = peersus_ui::link::NotificationsControl {
         allowed: std::sync::Arc::new(bridge::notifications_allowed),
         open: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::open_notifications() {
-                eprintln!(
-                    "peersus: the settings of the notifications could not be opened: {reason}"
+            if bridge::open_notifications().is_err() {
+                tracing::warn!(
+                    operation = "open-notification-settings",
+                    "Android platform operation failed"
                 );
             }
         }),
@@ -534,16 +592,22 @@ pub fn android_main(app: AndroidApp) {
     let camera_choice = peersus_ui::link::CameraChoice {
         list: std::sync::Arc::new(bridge::back_cameras),
         choose: std::sync::Arc::new(|id| {
-            if let Err(reason) = bridge::choose_camera(id) {
-                eprintln!("peersus: the camera could not be chosen: {reason}");
+            if bridge::choose_camera(id).is_err() {
+                tracing::warn!(
+                    operation = "choose-camera",
+                    "Android platform operation failed"
+                );
             }
         }),
     };
     // The colours the interface is drawn with, which the notification of an offer is drawn with as well, so that it follows the theme.
     let appearance = peersus_ui::link::Appearance {
         set: std::sync::Arc::new(|colours| {
-            if let Err(reason) = bridge::offer_appearance(colours) {
-                eprintln!("peersus: the colours could not be given to the notification: {reason}");
+            if bridge::offer_appearance(colours).is_err() {
+                tracing::warn!(
+                    operation = "set-notification-appearance",
+                    "Android platform operation failed"
+                );
             }
         }),
     };
@@ -558,9 +622,10 @@ pub fn android_main(app: AndroidApp) {
     let overlay = peersus_ui::link::OverlayControl {
         allowed: std::sync::Arc::new(bridge::overlay_allowed),
         open: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::open_overlay_permission() {
-                eprintln!(
-                    "peersus: the screen of the permission to draw over other applications could not be opened: {reason}"
+            if bridge::open_overlay_permission().is_err() {
+                tracing::warn!(
+                    operation = "open-overlay-settings",
+                    "Android platform operation failed"
                 );
             }
         }),
@@ -569,9 +634,10 @@ pub fn android_main(app: AndroidApp) {
     let battery = peersus_ui::link::BatteryControl {
         unrestricted: std::sync::Arc::new(bridge::battery_unrestricted),
         open: std::sync::Arc::new(|| {
-            if let Err(reason) = bridge::open_battery_settings() {
-                eprintln!(
-                    "peersus: the screen of the battery optimisation could not be opened: {reason}"
+            if bridge::open_battery_settings().is_err() {
+                tracing::warn!(
+                    operation = "open-battery-settings",
+                    "Android platform operation failed"
                 );
             }
         }),
@@ -610,6 +676,9 @@ pub fn android_main(app: AndroidApp) {
                     .with_event_loop(event_loop),
             );
         }
-        Err(reason) => say(reason.to_owned()),
+        Err(_) => tracing::error!(
+            code = "ui-config-unavailable",
+            "Android UI initialization failed"
+        ),
     }
 }

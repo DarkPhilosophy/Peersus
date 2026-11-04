@@ -380,3 +380,176 @@ async fn module_lifecycle(native: bool) {
         );
     }
 }
+
+/// Runs the compiled production guest through the real authenticated worker/hub ABI.
+/// Picker, consent and provider replies are synthetic: this never performs an upload.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "requires PEERSUS_UPLOAD_WASM pointing to the cross-built upload guest"]
+async fn real_upload_guest_uses_host_services_and_returns_the_verified_link() {
+    let module =
+        PathBuf::from(std::env::var_os("PEERSUS_UPLOAD_WASM").expect("cross-built guest path"));
+    let package =
+        peersus_plugin_api::package::split(include_bytes!("../../peersus-upload/wasm/plugin.json"))
+            .unwrap();
+    let manifest: Manifest = serde_json::from_slice(&package.manifest).unwrap();
+    manifest.validate().unwrap();
+    let host_manifest: Manifest = serde_json::from_value(json!({
+        "manifest_version":1, "capabilities":{},
+        "imports":[{"provider":"upload","service":"upload.file","version":1,"methods":["choose","configure"],"events":[]}],
+        "exports":[
+            {"service":"peersus.files","version":1,"description":"Synthetic selection","consumers":["upload"],"methods":{"selected":{"description":"Redeem selection"},"release":{"description":"Release"}},"events":{}},
+            {"service":"peersus.http","version":1,"description":"Synthetic HTTPS","consumers":["upload"],"methods":{"configure":{"description":"Configure"},"authorize":{"description":"Consent"},"request":{"description":"Request"},"release":{"description":"Release"}},"events":{}}
+        ]
+    })).unwrap();
+    let hub = Hub::default();
+    let generation = hub
+        .register_host("host", host_manifest, Default::default())
+        .unwrap();
+    let host = hub.connect("host", generation).unwrap();
+    host.set_host_method_timeouts(
+        [
+            (
+                ("peersus.http".into(), 1, "configure".into()),
+                Duration::from_secs(600),
+            ),
+            (
+                ("peersus.files".into(), 1, "selected".into()),
+                Duration::from_secs(600),
+            ),
+            (
+                ("peersus.files".into(), 1, "release".into()),
+                Duration::from_secs(600),
+            ),
+            (
+                ("peersus.http".into(), 1, "authorize".into()),
+                Duration::from_secs(600),
+            ),
+            (
+                ("peersus.http".into(), 1, "request".into()),
+                Duration::from_secs(600),
+            ),
+            (
+                ("peersus.http".into(), 1, "release".into()),
+                Duration::from_secs(600),
+            ),
+        ]
+        .into(),
+    )
+    .unwrap();
+    let directory = tempfile::Builder::new()
+        .prefix("upload-guest-")
+        .tempdir_in("/tmp")
+        .unwrap();
+    let (service, _) = start_module(
+        &hub,
+        "upload",
+        directory.path(),
+        manifest,
+        module,
+        PathBuf::from(env!("CARGO_BIN_EXE_peersus-wasm-host")),
+        None,
+    );
+    connected(&service).await;
+    host.submit(Operation::Call {
+        id: 1,
+        provider: "upload".into(),
+        service: "upload.file".into(),
+        version: 1,
+        method: "choose".into(),
+        args: json!({"context":42}),
+        timeout_ms: 20000,
+    })
+    .unwrap();
+    let mut calls = Vec::new();
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            match host.receive().await.unwrap() {
+                Delivery::Call { ticket, caller, service, method, args, .. } => {
+                    assert_eq!(caller, "upload");
+                    let value = match (service.as_str(), method.as_str()) {
+                        ("peersus.files", "selected") => {
+                            assert_eq!(args["context"], 42);
+                            json!({"file":"selected","name":"fixture.txt","bytes":7})
+                        }
+                        ("peersus.http", "authorize") => {
+                            assert_eq!(args, json!({"file":"selected","origin":"https://poo.wang"}));
+                            json!({"authorization":"approved"})
+                        }
+                        ("peersus.http", "request") => {
+                            assert_eq!(args["authorization"], "approved");
+                            assert_eq!(args["multipart"]["field"], "files");
+                            assert_eq!(args["multipart"]["length"], 7);
+                            assert_eq!(args["present_link"], "/files/0/url");
+                            json!({"status":200,"json":{"success":true,"files":[{"id":"fixture","url":"https://poo.wang/f/fixture"}]}})
+                        }
+                        ("peersus.http", "release") => {
+                            assert_eq!(args["authorization"], "approved");
+                            json!({"released":true})
+                        }
+                        ("peersus.files", "release") => {
+                            assert_eq!(args["file"], "selected");
+                            json!({"released":true})
+                        }
+                        _ => panic!("unexpected guest operation"),
+                    };
+                    calls.push((service, method));
+                    host.submit(Operation::Reply { ticket, result:Outcome::ok(value) }).unwrap();
+                }
+                Delivery::Result { id:1, result } => {
+                    assert_eq!(result, Outcome::ok(json!({"status":"uploaded","url":"https://poo.wang/f/fixture"})));
+                    break;
+                }
+                _ => panic!("unexpected broker delivery"),
+            }
+        }
+    }).await.expect("real upload guest did not finish");
+    assert_eq!(
+        calls
+            .iter()
+            .map(|(_, method)| method.as_str())
+            .collect::<Vec<_>>(),
+        ["selected", "authorize", "request", "release", "release"]
+    );
+    host.submit(Operation::Call {
+        id: 2,
+        provider: "upload".into(),
+        service: "upload.file".into(),
+        version: 1,
+        method: "configure".into(),
+        args: json!({}),
+        timeout_ms: 20000,
+    })
+    .unwrap();
+    tokio::time::timeout(Duration::from_secs(20), async {
+        match host.receive().await.unwrap() {
+            Delivery::Call {
+                ticket,
+                service,
+                method,
+                ..
+            } => {
+                assert_eq!(
+                    (service.as_str(), method.as_str()),
+                    ("peersus.http", "configure")
+                );
+                host.submit(Operation::Reply {
+                    ticket,
+                    result: Outcome::error("cancelled", "Cancelled"),
+                })
+                .unwrap();
+            }
+            _ => panic!("configuration selected a file or performed an unexpected operation"),
+        }
+        match host.receive().await.unwrap() {
+            Delivery::Result { id: 2, result } => {
+                assert_eq!(result, Outcome::error("cancelled", "Upload cancelled"));
+            }
+            _ => panic!("configuration cancellation was not returned to the caller"),
+        }
+    })
+    .await
+    .expect("configuration cancellation did not finish");
+    tokio::time::timeout(Duration::from_secs(10), service.shutdown())
+        .await
+        .expect("upload worker did not stop");
+}

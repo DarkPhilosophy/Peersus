@@ -1111,6 +1111,7 @@ fn only_the_host_can_use_an_explicitly_declared_long_action_budget() {
         id: "choose".into(),
         label: "Choose a file".into(),
         short_label: None,
+        input: crate::contributions::ActionInput::None,
         target: Source {
             service: "svc".into(),
             method: "act".into(),

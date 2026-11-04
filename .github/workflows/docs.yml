@@ -13,6 +13,8 @@ on:
       - .github/workflows/**
       - README.md
       - CHANGELOG.md
+      - .github/README.md
+      - .github/CHANGELOG.md
   pull_request:
     paths:
       - Cargo.toml
@@ -25,6 +27,8 @@ on:
       - .github/workflows/**
       - README.md
       - CHANGELOG.md
+      - .github/README.md
+      - .github/CHANGELOG.md
   workflow_dispatch:
 
 # Generation is local to the runner. No signing secret, owner impersonation,
@@ -55,7 +59,7 @@ jobs:
           retention-days: 14
       - name: Check committed documentation matches its sources
         run: |
-          if ! git diff --quiet -- README.md CHANGELOG.md; then
+          if ! git diff --quiet -- README.md CHANGELOG.md .github/README.md .github/CHANGELOG.md; then
             echo 'Generated documentation is stale. Run python3 scripts/gen-docs.py and include its changes.'
             exit 1
           fi

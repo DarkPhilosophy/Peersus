@@ -897,7 +897,7 @@ fn digest(root: &Path, files: &[PathBuf]) -> Result<String, Refusal> {
 }
 
 /// The digest of what is installed at `path`, or `None` if nothing usable is there.
-fn destination_digest(path: &Path) -> Option<String> {
+pub fn destination_digest(path: &Path) -> Option<String> {
     let metadata = fs::symlink_metadata(path).ok()?;
     if !metadata.is_dir() {
         return None;
@@ -908,7 +908,7 @@ fn destination_digest(path: &Path) -> Option<String> {
 /// The digest of the package in `source`, a directory the person chose, as it is NOW. The same
 /// measure as the one the record of installations keeps, so that "what was shown" and "what is
 /// installed" are compared with one rule and cannot drift apart.
-pub(crate) fn package_digest(source: &Path) -> Result<String, Refusal> {
+pub fn package_digest(source: &Path) -> Result<String, Refusal> {
     digest(source, &package_files(source, Purpose::Install)?)
 }
 

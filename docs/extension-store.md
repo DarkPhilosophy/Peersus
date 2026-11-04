@@ -23,6 +23,12 @@ author ──PR──▶ extension branch ──CI check──▶ maintainer app
    `extension-approval` environment, which holds the signing key and requires the maintainer's approval. The
    maintainer gives the commit and the SHA-256 they reviewed; the job refuses if the file at that commit hashes to
    anything else. All code it runs comes from the default branch; the submission is data.
+   Merely naming that environment in YAML does **not** configure required reviewers.
+   Configure and verify its approval protection in GitHub before treating a dispatched job as approval-gated.
+   GitHub currently limits required reviewers on Free, Pro and Team plans to public repositories
+   ([availability](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments#required-reviewers)).
+   Do not assume a private repository has this gate, change repository visibility implicitly,
+   or install signing credentials before verifying the intended approval controls.
 4. **Publish.** The signed `catalog.json` + `catalog.sig` and the approved archives are served as static files
    (GitHub Pages). Publishing them is a separate, deliberate step that is **not automated here**.
 5. **Install.** In the app, *Settings → Extensions*: search the unified list, then choose Install. Catalog entries carry a green 🛒 Store badge and keep their list position whether installed or removed. The app downloads through a
@@ -72,6 +78,41 @@ Creating a remote branch, pushing a submission, opening a PR, configuring a sign
 
 **The id is the folder name**, never a field of the package. The host assigns it; the catalog pins it; a mismatch is refused.
 
+### Manual download versus Store identity
+
+The stable IDs for the first-party extensions are `clipboard` and `upload`. Keep
+that top-level archive directory unchanged across manual downloads, catalog
+submission and updates. `package.name` is display metadata, not a UUID or a
+second registration key.
+
+The unified list joins an installed package and a catalog listing by this ID,
+so installing `clipboard` manually does not create a second Store card for
+`clipboard`. Installing identical package contents again is a no-op; different
+contents under an occupied ID are refused by normal install rather than silently
+replacing it. Store updates use the explicit replacement path and reset grants.
+Renaming the archive's root to a different valid ID changes its identity.
+
+This join is **not provenance verification**. The current Installed/Update decision
+compares the declared installed version with the catalog version. A manual package
+with the same ID/version is not thereby proven to be the signed catalog's bytes.
+The archive digest and metadata checks run when installing from the signed Store;
+the green Store badge describes the listing, not certification of arbitrary
+manually installed files. Never infer automatic approval from a shared display name.
+
+### First-party package eligibility
+
+The upload WASM packaging gate now embeds `package` metadata into the module's
+`peersus.meta` custom section and validates the finished archive with the same
+data-only submission validator before replacing its output. Its mandatory worker
+test executes that metadata-bearing module with synthetic host services; it does
+not access a real credential or upload to a provider.
+
+Clipboard remains a legacy process extension and is not eligible for Store
+submission in that form. It needs a real module adapter, platform packaging and
+runtime verification; adding metadata alone or relaxing the isolation gate is
+not sufficient. The isolated Echo demo is not a functional test of either
+clipboard or upload.
+
 ### The embedded record
 
 Text in a manifest is easy to edit, so the same author and link must also be compiled **into the program**, where the
@@ -97,6 +138,9 @@ python3 scripts/embed-metadata.py header plugin.json > metadata.h
 
 The host requires the record to equal the manifest's `package` block, and both to equal the signed catalog entry.
 Check a package locally exactly as CI does: `python3 scripts/validate-extension.py extensions/<name>.tar.gz`.
+For a compiled WebAssembly module, use
+`python3 scripts/embed-metadata.py wasm plugin.json module.wasm > packaged.wasm`.
+The tool refuses an existing metadata section instead of appending a duplicate.
 
 ## What each layer proves
 
@@ -147,6 +191,19 @@ and refuses every store command** — there is no fallback that trusts an unsign
    branch: after each approval, **commit the produced `catalog.json` and the archives to `catalog/` on the default
    branch** (`catalog.sig` is not committed: it is regenerated). Without that file every approval would start a catalog of
    one entry at sequence 1, which the application refuses as a rollback. This step is yours; nothing automates it.
+
+### Website data and offline operation
+
+The browser fetches the staged, same-origin `store/catalog.json` (or explicitly
+marked `store-test/catalog.json` in development). It does not query the GitHub API.
+When served by GitHub Pages those bytes come from the last deployed site snapshot;
+approving an extension does not independently update a deployed preview.
+
+A local HTTP server can serve the complete staged folder, including its catalog,
+without internet access. Opening HTML directly through `file://` renders the static
+page but does not reliably permit the catalog fetch; the tested browser shows the
+catalog-unavailable message. There is no service worker or guaranteed cold-start
+offline cache. A remote page cannot obtain newer catalog data while disconnected.
 
 ## Limits, stated plainly
 

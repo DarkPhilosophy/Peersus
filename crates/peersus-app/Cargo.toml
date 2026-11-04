@@ -39,6 +39,8 @@ peersus-core.workspace = true
 peersus-net.workspace = true
 peersus-plugin-api.workspace = true
 peersus-plugin-host.workspace = true
+peersus-diagnostics.workspace = true
+tracing.workspace = true
 clap.workspace = true
 iroh.workspace = true
 tokio.workspace = true
@@ -62,10 +64,10 @@ keyring.workspace = true
 zeroize.workspace = true
 fs2.workspace = true
 
-# The system bus, to hear that this computer is going to sleep (logind) and to tell the paired devices. The same crate and features the
-# window already uses for the theme, so nothing new is resolved. Linux only: Android has its own signal and is not `linux` here.
+# The system bus provides logind sleep notifications. Share the theme watcher's
+# zbus major version; Android uses its own platform signal.
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
+zbus = { version = "6.2.1", default-features = false, features = ["tokio", "proxy", "service"] }
 futures-lite = "2.6.1"
 
 [target.'cfg(unix)'.dependencies]

@@ -3104,6 +3104,20 @@ impl PermissionRows {
                     )
                     .to_owned();
                 }
+                peersus_app::platform_services::FILES_CAPABILITY => {
+                    return crate::i18n::translate(
+                        language,
+                        peersus_app::platform_services::FILES_DESCRIPTION,
+                    )
+                    .to_owned();
+                }
+                peersus_app::platform_services::HTTP_CAPABILITY => {
+                    return crate::i18n::translate(
+                        language,
+                        peersus_app::platform_services::HTTP_DESCRIPTION,
+                    )
+                    .to_owned();
+                }
                 _ => {}
             }
         } else if permission.owner == plugin.id.as_str()
@@ -5477,7 +5491,7 @@ mod tests {
         use peersus_core::model::{Grantable, PluginInfo, PluginStatus, Standing};
         use peersus_core::plugins::{Grants, PluginId};
         use peersus_plugin_api::permission::Permission;
-        let info = PluginInfo {
+        let mut info = PluginInfo {
             id: PluginId::new("sender").unwrap(),
             manifest: Default::default(),
             standing: Standing::Ready,
@@ -5499,6 +5513,40 @@ mod tests {
             rows[0].description,
             peersus_app::runtime::PLUGINS_RESTART_DESCRIPTION
         );
+        // An imported host permission must never borrow a same-named description
+        // from the extension asking for it, including in translated search results.
+        for (capability, description) in [
+            (
+                peersus_app::platform_services::FILES_CAPABILITY,
+                peersus_app::platform_services::FILES_DESCRIPTION,
+            ),
+            (
+                peersus_app::platform_services::HTTP_CAPABILITY,
+                peersus_app::platform_services::HTTP_DESCRIPTION,
+            ),
+        ] {
+            info.manifest.capabilities.insert(
+                capability.to_owned(),
+                "Extension-supplied description, not the host's consent wording".to_owned(),
+            );
+            let permission = Permission::new("host", capability).unwrap();
+            for language in [
+                crate::i18n::Language::English,
+                crate::i18n::Language::Romanian,
+            ] {
+                let rows = PermissionRows::of_in(
+                    language,
+                    &info,
+                    std::slice::from_ref(&permission),
+                    &Grants::default(),
+                );
+                assert_eq!(
+                    rows[0].description,
+                    crate::i18n::translate(language, description),
+                    "host-owned consent wording was missing or replaced by extension text",
+                );
+            }
+        }
         // A permission nobody described is still shown, and says so, rather than nothing at all.
         let mystery = Permission::new("sender", "unknown.use").unwrap();
         let rows = PermissionRows::of(&info, std::slice::from_ref(&mystery), &Grants::default());

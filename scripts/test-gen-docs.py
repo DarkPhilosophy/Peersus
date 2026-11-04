@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -75,6 +76,21 @@ class Generation(unittest.TestCase):
             self.assertIn("The changed behavior.", (self.root / name).read_text())
         self.assertEqual(self.run_generator("--check").returncode, 0)
         self.assertEqual(self.run_generator().stdout, "")
+
+    def test_generated_links_resolve_from_the_actual_readme_location(self):
+        target = self.root / ".github/README.md"
+        (self.root / "README.md").rename(target)
+        (self.root / "README.md").symlink_to(".github/README.md")
+        result = self.run_generator()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        links = re.findall(r"\]\(([^)]+)\)", target.read_text())
+        resolved = {(target.parent / link).resolve() for link in links}
+        self.assertEqual(resolved, {
+            (self.root / "crates/example/plugin.json").resolve(),
+            (self.root / ".github/workflows/test.yml").resolve(),
+        })
+        for path in resolved:
+            self.assertTrue(path.is_file(), f"Generated link does not resolve: {path.name}")
 
     def test_a_bad_second_output_does_not_partially_write_the_first(self):
         original = (self.root / "README.md").read_bytes()

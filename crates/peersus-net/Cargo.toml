@@ -25,6 +25,7 @@ tempfile.workspace = true
 rand.workspace = true
 hex.workspace = true
 rustix.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 iroh-relay = { version = "1.4.1", default-features = false, features = ["server", "test-utils"] }

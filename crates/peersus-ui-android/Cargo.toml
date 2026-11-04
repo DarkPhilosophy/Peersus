@@ -15,6 +15,7 @@ crate-type = ["rlib", "cdylib"]
 
 [features]
 native-extensions = ["peersus-app/android-native-extensions"]
+development-diagnostics = ["peersus-diagnostics/android-debug"]
 
 # Everything here is for Android. On any other target the crate is empty, so that `cargo build --workspace`
 # on a desktop neither needs the Android toolchain nor pulls its libraries.
@@ -26,7 +27,9 @@ peersus-net = { workspace = true }
 peersus-plugin-api = { workspace = true }
 peersus-plugin-host = { workspace = true }
 peersus-clipboard = { workspace = true }
+peersus-diagnostics = { workspace = true }
 serde_json = { workspace = true }
+serde = { workspace = true }
 freya = { workspace = true }
 freya-android = { workspace = true }
 iroh = { workspace = true }
@@ -37,9 +40,26 @@ winit = { workspace = true, features = ["android-native-activity"] }
 tracing = { workspace = true }
 jni = { workspace = true }
 tempfile = { workspace = true }
+zeroize = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+rustls-platform-verifier = "=0.7.1"
+jni-verifier = { package = "jni", version = "=0.22.4" }
 
 [dev-dependencies]
 peersus-core = { workspace = true }
+peersus-app = { workspace = true }
+peersus-plugin-api = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+zeroize = { workspace = true }
+rand = { workspace = true }
+tempfile = { workspace = true }
+peersus-net = { workspace = true }
+flate2 = { workspace = true }
+tar = { workspace = true }
 
 # Android platform crates permit only audited JNI/descriptor ownership boundaries.
 # `deny` remains the default; the platform modules explicitly document their FFI allowance.

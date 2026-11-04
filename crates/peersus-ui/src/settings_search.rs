@@ -297,7 +297,10 @@ pub fn entries(view: &View, language: Language, features: Features) -> Vec<Entry
                 .contributions
                 .actions
                 .iter()
-                .filter(|action| action.needs_device == peer.is_some())
+                .filter(|action| {
+                    action.needs_device == peer.is_some()
+                        && action.input == peersus_plugin_api::contributions::ActionInput::None
+                })
             {
                 entries.push(Entry {
                     title: tr(&action.label),
@@ -428,6 +431,7 @@ mod tests {
             id: "publish".into(),
             label: "Publish document".into(),
             short_label: None,
+            input: peersus_plugin_api::contributions::ActionInput::None,
             target: Source {
                 service: "documents".into(),
                 method: "publish".into(),

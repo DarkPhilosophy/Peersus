@@ -61,6 +61,22 @@ pub struct Source {
     pub method: String,
 }
 
+/// The trusted frontend input required by an action, independent of its renderer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActionInput {
+    /// Ordinary global or device action, offered in settings or device controls.
+    #[default]
+    None,
+    /// One file already staged on Send. Never opens a second picker.
+    SelectedFile,
+}
+impl ActionInput {
+    fn is_none(&self) -> bool {
+        *self == Self::None
+    }
+}
+
 /// A user-invocable command backed by one exported method.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -70,6 +86,9 @@ pub struct Action {
     /// Optional concise wording for constrained inline controls; `label` remains the full name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub short_label: Option<String>,
+    /// Selected-file actions belong on Send rather than in global settings.
+    #[serde(default, skip_serializing_if = "ActionInput::is_none")]
+    pub input: ActionInput,
     pub target: Source,
     /// Must equal the capability the exporter requires for that method.
     #[serde(default)]
@@ -202,6 +221,7 @@ impl Contributions {
                     .as_deref()
                     .is_none_or(|label| name::text(label, MAX_LABEL))
                 && a.capability.as_deref().is_none_or(name::valid)
+                && !(a.input == ActionInput::SelectedFile && a.needs_device)
                 && a.timeout_ms > 0
                 && a.timeout_ms <= MAX_ACTION_TIMEOUT_MS
                 && seen.insert(("action", a.id.as_str())))?;
@@ -246,6 +266,7 @@ mod tests {
                 id: "share".into(),
                 label: "Share now".into(),
                 short_label: None,
+                input: ActionInput::None,
                 target: Source {
                     service: "clipboard".into(),
                     method: "capture".into(),
@@ -264,6 +285,22 @@ mod tests {
         let json = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Contributions>(&json).unwrap(), c);
         assert!(json.contains(r#""scope":"device""#));
+    }
+
+    #[test]
+    fn selected_file_actions_require_send_input_not_a_device() {
+        let mut action: Action = serde_json::from_str(
+            r#"{"id":"upload","label":"Upload","input":"selected_file","target":{"service":"file","method":"upload"}}"#
+        ).unwrap();
+        let contributions = |action| Contributions {
+            actions: vec![action],
+            ..Default::default()
+        };
+        contributions(action.clone()).validate().unwrap();
+        let encoded = serde_json::to_vec(&action).unwrap();
+        assert_eq!(serde_json::from_slice::<Action>(&encoded).unwrap(), action);
+        action.needs_device = true;
+        assert!(contributions(action).validate().is_err());
     }
 
     #[test]

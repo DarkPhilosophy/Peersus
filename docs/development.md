@@ -10,7 +10,7 @@ The toolchain is pinned in `rust-toolchain.toml`; `Cargo.toml` declares the mini
 | `cargo xtask metadata` | AppStream/desktop metadata and Python tooling tests |
 | `cargo xtask check` | Desktop workspace and all-target compilation |
 | `cargo xtask clippy` | Desktop workspace/all-target linting, warnings denied |
-| `cargo xtask test` | Desktop workspace unit, integration and documentation tests |
+| `cargo xtask test` | Desktop workspace unit/documentation tests, followed by application integration tests with `test-plugin,test-identity` enabled |
 | `cargo xtask audit` | Dependency advisory audit, warnings denied |
 | `cargo xtask gate` | The above gates in that order, stopping on failure |
 | `cargo xtask build` | Release desktop programs, bundled extension programs and native host |
@@ -18,6 +18,7 @@ The toolchain is pinned in `rust-toolchain.toml`; `Cargo.toml` declares the mini
 | `cargo xtask dev` | Development-profile desktop programs, bundled extensions and native host |
 | `cargo xtask android-dev` | Community native libraries and host-signed debuggable APK; no deployment |
 | `cargo xtask android` | Android release libraries, both flavors, unsigned packages and inspection |
+| `cargo xtask upload-wasm` | Format, lint and test the upload guest, build WASM, exercise the real isolated worker with synthetic host replies, and create a manual development archive; no upload or installation |
 | `cargo xtask flatpak` | Local unsigned Flatpak bundle/repository from source |
 
 
@@ -41,6 +42,11 @@ The root helpers reuse these tasks rather than maintaining another build impleme
 All helpers support `--help` and install no prerequisites. Only the explicit `dev.sh deploy` command installs APKs; it never uninstalls, clears data or repairs a signer mismatch by replacing the application identity. Development packaging uses Gradle's existing local debug signer; release packaging remains unsigned. None of these commands commits, pushes, publishes a release or deploys the website. The store launcher stops only its own processes when its window closes or it receives an interrupt; it leaves its disposable data under `target/store-demo/`. See [the demo scope and extension submission flow](extension-store.md#a-local-store-ux-demonstration).
 
 The metadata gate needs `appstreamcli` and `desktop-file-validate`. The audit gate needs `cargo-audit` (the CI workflow pins its version). Linux rendering builds need the compiler and graphics prerequisites listed by `scripts/install-linux-deps.sh`. Never assume a missing validator means the metadata passed.
+
+The test gate enables application integration features only in its second Cargo invocation.
+This exercises plugin processes, Store fixtures and an owner with an in-memory identity;
+it does not enable test identity in ordinary development or release builds. A bare
+`cargo test --workspace` omits some of this coverage and is not equivalent to the test gate.
 
 ## Output directories
 
@@ -67,6 +73,25 @@ Install Java 17, SDK 36, build-tools 36.0.0, NDK 27.2.12479018, `cargo-ndk` 4.1.
 
 `cargo xtask android` builds the Play and community libraries into `target/android/jniLibs/{play,community}/`, enables `native-extensions` only for community, builds community native hosts, invokes Gradle for both unsigned release APKs/AABs, and inspects native artifacts. It does not retrieve signing keys. Never publish unsigned development packages as installable releases.
 
+`android-dev-native` enables the `development-diagnostics` Cargo feature explicitly,
+so optimized development libraries emit reviewed owner/platform debug events and
+gesture traces to native Logcat. `android` release preparation does not enable it.
+This distinction follows the build command, not a runtime permission or the APK's
+debuggable flag. Neither mode writes gesture diagnostic files or opens a listener.
+
+### Sandboxed upload extension
+
+The standalone guest in `crates/peersus-upload/wasm` uses the existing Android WASM runtime. Its host services provide explicit file selection, caller-scoped immutable file snapshots, origin-bound upload consent and opaque credential/session handles. Neither credential values nor native file paths are returned to the guest. HTTP redirects and automatic retries are disabled. Cancellation and permission withdrawal release outstanding host work.
+
+`cargo xtask gate` also runs `upload-wasm`, including the removable-package initialization regressions; the declared toolchain includes `wasm32-unknown-unknown`. Android native build tasks first build the real WASM package with `scripts/package-upload-wasm.py --build-only`, then embed the complete archive in each application ABI. Build-only packaging is not the quality gate: the default `upload-wasm` task still runs formatting, strict lint, protocol tests, both dependency audits and the real worker exchange.
+
+At the first owner startup with this payload, the application installs a missing upload package through the ordinary package manager, with its normal approval/digest and all host permissions initially denied. Stale grants for absent packages are pruned before initialization. The package remains removable: a completed-initialization marker prevents a later deliberate removal from being undone on launch. Existing user-installed packages, their data and their disabled state are never overwritten. Installed extension updates remain explicit package-manager operations rather than silently replacing user-managed code with an APK payload.
+
+Deploying the same APK therefore carries the same initial extension package to every selected device; it does not grant permissions, upload a file or authorize tests on every device. Device-specific test restrictions remain in force. The archive is also available for manual development installation; it is not a signed store submission. Automated worker tests use synthetic file, consent and provider responses, not real credentials or a live upload. Device picker/consent behavior and live-upload verification remain separate acceptance checks.
+
+Android HTTPS uses the unmodified upstream `rustls-platform-verifier` 0.7.1 and its official Android support artifact 0.2.0 (MIT OR Apache-2.0). The Maven source is pinned to upstream revision `1aa691352a5e0c215210dfc9a3c2f2078639dc91`; Gradle checks the support version against the workspace lockfile. JNI initialization precedes native application startup, and release shrinking retains the verifier bridge. This is trust-store integration, not a certificate-validation bypass.
+
+
 Test with disposable application data or keep existing data in place. An uninstall is not a safe default for an upgrade. Use an emulator or a device that is explicitly available for testing; device availability does not authorize reading its private files.
 
 ## Behavioral verification
@@ -74,6 +99,31 @@ Test with disposable application data or keep existing data in place. An uninsta
 A change to relay selection needs a first-configuration test with no saved custom URL, not just a parser test. An Android layout change needs a narrow viewport, long translated labels, scrolling, keyboard visibility and touch-target inspection. A plugin action needs permission-denied, disconnected, running, cancel and failure states. A packaging change needs a staged executable and helper lookup, not only compilation.
 
 Record the exact command, revision/worktree state, toolchain and result for meaningful claims. Compilation and unit tests do not prove a desktop window rendered or an Android application launched. A historical successful device run does not validate a later build.
+
+## GitHub dependency and security automation
+
+- `.github/dependabot.yml` proposes weekly updates for the Cargo workspace, pinned GitHub Actions and the Android Gradle project. Minor/patch version updates are grouped per ecosystem; major updates remain separate. Updates are not merged automatically and must pass the normal checks. Cargo includes indirect dependencies; no private registry credentials are configured.
+- The full quality gate audits dependencies on pushes and pull requests. `Dependency advisory audit` also runs daily and on manual dispatch, so a newly published advisory can fail the audit without a source change. It uses the same `cargo xtask audit` policy: warnings remain errors. It does not build the application or upload a dependency snapshot.
+- These configuration files become active only after publication to the repository's default branch. Local YAML/schema validation is not a successful hosted workflow run. Scheduled jobs use Actions runner time.
+- Dependency graph, Dependabot alerts, security updates and Dependabot runner selection are repository settings, not enabled by `dependabot.yml`. Use GitHub-hosted runners unless a real private-network requirement justifies registered self-hosted runners. Selecting a labeled runner without a matching runner prevents those jobs from running.
+- Automatic dependency submission is separate from Dependabot update PRs. Gradle's resolved transitive graph can use automatic submission on GitHub-hosted runners; Cargo does not use GitHub's automatic-submission workflow. Do not register a runner merely to silence an unused-label warning.
+- CodeQL/code-scanning and secret-scanning availability depends on repository ownership, visibility and the licensed products. Do not enable a paid product, grant new workflow write permissions, or claim coverage merely because its settings page exists. Verify actual analysis runs before calling it active. Never expose secret-scanning alert payloads in logs.
+
+Reference: [Dependabot options](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference), [automatic dependency submission](https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/submit-dependencies-automatically), [CodeQL](https://docs.github.com/en/code-security/concepts/code-scanning/codeql/codeql-code-scanning).
+
+### Local dependency compatibility patches
+
+The dependency gate is not currently claimed green. Each local patch retains its published source's license files and records the upstream revision, exact change and removal condition in `vendor/<package>/PATCHES.md`:
+
+- `netwatch`: keep its transport-facing API while backporting the maintained netlink set and the cross-target `netdev` requirement. Network transport regression tests pass; that is not an end-to-end connectivity claim.
+- `sctk-adwaita`: backport the upstream `skrifa` title renderer without changing the existing Wayland toolkit API. All eleven renderer/font-preference tests pass; native rendering and platform builds still need verification.
+- `freya-core`, `freya-components`, `pulp`, `rav1e`: retain upstream implementation and image-format support; use the maintained `pastey` package under the existing dependency alias. The desktop UI consumer compiles with these patches. Platform behavior verification remains pending.
+- `zbus` 6: migrate the application's direct Linux sleep and desktop-theme watchers to the maintained integrated wire-format API. Isolated private-bus sleep and initial/live theme tests pass. The root lockfile's strict dependency audit now passes locally; this is not hosted CI or a complete platform-runtime result.
+- `mundy`: preserve portal appearance and accessibility preferences while migrating the Linux dependency and nested-variant match to zbus 6. Non-Linux implementation and upstream licensing are unchanged. See [patch provenance](../vendor/mundy/PATCHES.md); seven unit tests, including nested-variant wire decoding, pass. Actual desktop portal preference behavior remains unverified.
+- Accessibility ports: retain `atspi`, `atspi-common`, `atspi-proxies`, `accesskit_atspi_common` and `accesskit_unix`, migrating wire imports and runtime features without disabling assistive-technology integration. Keep `zbus-lockstep` and its macros, using maintained `zbus_xml` 6 for XML signal-signature validation. All eight port manifests declare the required Rust 1.89 minimum. The desktop UI compiles; 1,141 common protocol/event tests, 23 XML validator tests and the proxy/adapter/cache suites pass. A private-bus registration regression verifies the Embed handshake, duplicate-registration semantics, cache installation and an actual cross-connection method call. Full screen-reader/platform behavior remains unverified. Each vendor directory records upstream revision, licenses and removal conditions.
+- `keyring` 3.6.3: the application retains the existing Apple/Windows native and synchronous encrypted Secret Service backends. A [local feature-surface patch](../vendor/keyring/PATCHES.md) removes the unused asynchronous backend and its optional legacy serialization dependencies. Credential APIs, native implementations, lookup precedence and the legacy default-collection fallback are retained. This internal copy intentionally does not offer upstream async features; the application's configured features are preserved. A supported workspace lockfile refresh alone did not remove these optional dependencies. The regenerated root lockfile passes `cargo xtask audit` (`cargo audit --deny warnings`) locally with no vulnerabilities or warnings. Targeted regressions pass: two mock identity tests, five relay-token tests, sixteen upload tests, ten About/license tests and four locale/catalog tests. The permission-gated native credential test remains ignored; complete platform-runtime and hosted CI verification are not claimed.
+
+These patches remove dependency chains rather than adding audit exceptions. The strict root-lockfile audit passes locally without suppressions. Application About, README and prototype security notes stay synchronized with the patch inventory and verification limits. A local passing audit is not hosted CI, an independent security assessment, or proof of complete runtime compatibility.
 
 ## Website
 

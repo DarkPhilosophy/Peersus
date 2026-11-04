@@ -64,6 +64,8 @@ struct Subscription {
 struct Registered {
     generation: u64,
     manifest: Manifest,
+    /// Trusted host-only overrides, never populated from an extension manifest.
+    method_timeouts: BTreeMap<(String, u32, String), Duration>,
 }
 
 /// Shared handle to the single hub state.
@@ -209,6 +211,7 @@ impl Hub {
             Registered {
                 generation,
                 manifest,
+                method_timeouts: BTreeMap::new(),
             },
         );
         Ok(generation)
@@ -352,12 +355,49 @@ impl Channel {
         if let Some(grants) = state.permissions.get_mut(HOST) {
             grants.retain(|grant| Hub::may_import(&manifest, &grant.owner));
         }
-        state
-            .owners
-            .get_mut(HOST)
-            .ok_or(Error::UnknownProvider)?
-            .manifest = manifest;
+        let registered = state.owners.get_mut(HOST).ok_or(Error::UnknownProvider)?;
+        registered
+            .method_timeouts
+            .retain(|(service, version, method), _| {
+                manifest.exports.iter().any(|export| {
+                    &export.service == service
+                        && export.version == *version
+                        && export.methods.contains_key(method)
+                })
+            });
+        registered.manifest = manifest;
         state.drop_unpermitted_subscriptions();
+        Ok(())
+    }
+
+    /// Configure bounded deadlines for interactive host methods. Only the live
+    /// authenticated host channel can call this; no guest wire operation exposes it.
+    /// Capability, consumer, queue and cancellation checks remain unchanged.
+    pub fn set_host_method_timeouts(
+        &self,
+        timeouts: BTreeMap<(String, u32, String), Duration>,
+    ) -> Result<()> {
+        if self.identity.owner != HOST {
+            return Err(Error::Denied);
+        }
+        let mut state = lock(&self.hub);
+        if !state.live(&self.identity) || !state.endpoints.contains_key(&self.identity) {
+            return Err(Error::Cancelled);
+        }
+        let registered = state.owners.get_mut(HOST).ok_or(Error::UnknownProvider)?;
+        for ((service, version, method), timeout) in &timeouts {
+            if timeout.is_zero() || *timeout > Duration::from_secs(600) {
+                return Err(Error::Timeout);
+            }
+            if !registered.manifest.exports.iter().any(|export| {
+                &export.service == service
+                    && export.version == *version
+                    && export.methods.contains_key(method)
+            }) {
+                return Err(Error::UnknownMethod);
+            }
+        }
+        registered.method_timeouts = timeouts;
         Ok(())
     }
 
@@ -607,7 +647,16 @@ impl State {
                                         && timeout_ms <= action.timeout_ms
                                 })
                         });
-                if id == 0 || timeout.is_zero() || (timeout > MAX_TIMEOUT && !declared_action) {
+                let host_method = provider == HOST
+                    && self.owners.get(HOST).is_some_and(|host| {
+                        host.method_timeouts
+                            .get(&(service.clone(), version, method.clone()))
+                            .is_some_and(|maximum| timeout <= *maximum)
+                    });
+                if id == 0
+                    || timeout.is_zero()
+                    || (timeout > MAX_TIMEOUT && !declared_action && !host_method)
+                {
                     return Err(Error::Timeout);
                 }
                 if self.pending.len() >= MAX_PENDING

@@ -39,7 +39,7 @@ pub async fn follow(client: crate::runtime::Client) {
 
 /// A delay lock on sleep: while it is held, the login manager waits before it suspends. Dropping the descriptor lets go of it.
 #[cfg(target_os = "linux")]
-async fn hold_back(manager: &zbus::Proxy<'_>) -> zbus::Result<zbus::zvariant::OwnedFd> {
+async fn hold_back(manager: &zbus::Proxy<'_>) -> zbus::Result<zbus::OwnedFd> {
     manager
         .call(
             "Inhibit",
@@ -137,13 +137,7 @@ mod tests {
 
     #[zbus::interface(name = "org.freedesktop.login1.Manager")]
     impl Manager {
-        fn inhibit(
-            &self,
-            what: String,
-            who: String,
-            why: String,
-            mode: String,
-        ) -> zbus::zvariant::OwnedFd {
+        fn inhibit(&self, what: String, who: String, why: String, mode: String) -> zbus::OwnedFd {
             self.asked.lock().unwrap().push((what, who, why, mode));
             *self.locks.lock().unwrap() += 1;
             std::os::fd::OwnedFd::from(std::fs::File::open("/dev/null").unwrap()).into()
@@ -185,9 +179,7 @@ mod tests {
             rand::random::<u32>()
         );
         let service = zbus::connection::Builder::session()
-            .unwrap()
             .name(name.as_str())
-            .unwrap()
             .serve_at(
                 "/org/freedesktop/login1",
                 Manager {
@@ -196,7 +188,6 @@ mod tests {
                     lid: lid.clone(),
                 },
             )
-            .unwrap()
             .build()
             .await
             .unwrap();

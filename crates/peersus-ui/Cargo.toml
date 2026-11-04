@@ -22,6 +22,8 @@ peersus-app = { workspace = true }
 peersus-core = { workspace = true }
 peersus-net = { workspace = true }
 peersus-plugin-api = { workspace = true }
+peersus-diagnostics = { workspace = true }
+tracing = { workspace = true }
 tokio = { workspace = true }
 freya = { workspace = true }
 # Only to switch on `embed-freetype`; see the root manifest. Not used by this crate's code.
@@ -44,7 +46,7 @@ rfd = { workspace = true }
 arboard = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-zbus = { version = "5.19.0", default-features = false, features = ["tokio"] }
+zbus = { version = "6.2.1", default-features = false, features = ["tokio", "proxy", "service"] }
 futures-lite = "2.6.1"
 
 [lints]

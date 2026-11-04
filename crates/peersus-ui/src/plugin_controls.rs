@@ -115,6 +115,126 @@ impl Component for ActionButton {
     }
 }
 
+/// Optional destinations supplied by extensions for the file already listed on Send.
+#[derive(PartialEq)]
+pub struct SelectedControls {
+    pub link: Link,
+    pub view: View,
+    pub path: Option<std::path::PathBuf>,
+    pub held: Option<(u64, String)>,
+    pub palette: Palette,
+}
+impl Component for SelectedControls {
+    fn render(&self) -> impl IntoElement {
+        let mut confirming: State<Option<(PluginId, String)>> = use_state(|| None);
+        let mut controls = rect().width(Size::fill()).spacing(6.);
+        // Serialized IPC intentionally cannot carry trusted selection contexts.
+        for plugin in self
+            .view
+            .plugins
+            .iter()
+            .filter(|_| cfg!(target_os = "android"))
+        {
+            for action in plugin
+                .manifest
+                .contributions
+                .actions
+                .iter()
+                .filter(|action| {
+                    action.input == peersus_plugin_api::contributions::ActionInput::SelectedFile
+                })
+            {
+                let running = self.view.actions.iter().any(|status| {
+                    status.plugin == plugin.id
+                        && status.action == action.id
+                        && status.peer.is_none()
+                        && status.state == ActionState::Running
+                });
+                let enabled = (self.path.is_some() != self.held.is_some())
+                    && action_ready(&self.view, plugin, action, None)
+                    && !running;
+                let (link, id, action_id, path, held) = (
+                    self.link.clone(),
+                    plugin.id.clone(),
+                    action.id.clone(),
+                    self.path.clone(),
+                    self.held.clone(),
+                );
+                let destructive = action.destructive;
+                let caption =
+                    if confirming.read().as_ref() == Some(&(id.clone(), action_id.clone())) {
+                        i18n::format(
+                            i18n::language(),
+                            "Confirm {label}",
+                            &[("label", &action.label)],
+                        )
+                    } else {
+                        i18n::tr(&action.label).to_owned()
+                    };
+                controls = controls.child(
+                    Button::new()
+                        .width(Size::fill())
+                        .enabled(enabled)
+                        .child(caption)
+                        .on_press(move |_| {
+                            let key = (id.clone(), action_id.clone());
+                            if destructive && confirming.peek().as_ref() != Some(&key) {
+                                confirming.set(Some(key));
+                                return;
+                            }
+                            confirming.set(None);
+                            link.send(Command::InvokeSelectedAction {
+                                plugin: id.clone(),
+                                action: action_id.clone(),
+                                path: path.clone(),
+                                held: held.clone(),
+                            })
+                        }),
+                );
+                if !enabled && !running {
+                    let hint = if self.path.is_some() == self.held.is_some() {
+                        "Choose exactly one file for this action."
+                    } else {
+                        "Start the plugin, select an online device when required, and allow its permissions."
+                    };
+                    controls = controls.child(
+                        label()
+                            .text(i18n::tr(hint))
+                            .color(self.palette.muted)
+                            .font_size(12.),
+                    );
+                }
+                if running {
+                    let (link, id, action_id) =
+                        (self.link.clone(), plugin.id.clone(), action.id.clone());
+                    controls = controls.child(Button::new().child(i18n::tr("Cancel")).on_press(
+                        move |_| {
+                            link.send(Command::CancelAction {
+                                plugin: id.clone(),
+                                action: action_id.clone(),
+                                peer: None,
+                            })
+                        },
+                    ));
+                }
+                if let Some(status) = self.view.actions.iter().find(|status| {
+                    status.plugin == plugin.id
+                        && status.action == action.id
+                        && status.peer.is_none()
+                }) {
+                    controls = controls.child(
+                        label()
+                            .text(i18n::tr(action_words(Some(status.state))))
+                            .color(self.palette.text)
+                            .font_size(13.),
+                    );
+                }
+            }
+        }
+        controls
+    }
+}
+
 #[derive(PartialEq)]
 struct SettingControl {
     link: Link,
@@ -323,7 +443,10 @@ impl Component for Controls {
             .contributions
             .actions
             .iter()
-            .filter(|action| !action.needs_device)
+            .filter(|action| {
+                !action.needs_device
+                    && action.input == peersus_plugin_api::contributions::ActionInput::None
+            })
         {
             body = body.child(crate::settings_navigation::anchor(
                 crate::settings_search::Target::Action {

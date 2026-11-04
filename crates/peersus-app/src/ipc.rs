@@ -354,7 +354,7 @@ pub async fn attach(path: std::path::PathBuf) -> io::Result<(Client, tokio::task
                             // woke up) is not the owner being gone. Said, so that what ends the bridge is never a
                             // guess: the window shows "stopped" only after the owner has really not answered.
                             failures += 1;
-                            eprintln!("peersus: the owner did not answer ({failures} in a row): {:?}", error.kind());
+                            tracing::warn!(failures, kind = ?error.kind(), "Owner snapshot request failed");
                             if gives_up(failures) {
                                 break;
                             }

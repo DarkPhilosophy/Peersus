@@ -1330,7 +1330,7 @@ impl Component for App {
                         && form.settings_places_come_from_the_top()
                         && !menu_open()
                     {
-                        link::circle_log("two fingers: Settings opens");
+                        tracing::trace!(target: "peersus_ui::gesture", event = "two-fingers", "Settings opened");
                         menu_open.set(true);
                     }
                 }
@@ -2238,7 +2238,7 @@ impl Component for Portal {
                     }
                     let alive = next.is_down();
                     holding.set_if_modified(HoldingCircle(false));
-                    link::circle_log(&format!("down at {in_box:?}, alive={alive}, does={does:?}"));
+                    tracing::trace!(target: "peersus_ui::gesture", ?in_box, alive, ?does, "Circle pointer down");
                     circle.set(next);
                     fill.set_if_modified(0.);
                     // The page under the circle takes a finger that moves for the start of a scroll (the toolkit starts after 2 px, less than a held
@@ -2256,17 +2256,17 @@ impl Component for Portal {
                             // However this ends (the finger lifted, the touch strayed, or the circle went away mid-hold and the task is dropped), the page
                             // is let go: the flag lives at the application, and one left raised would stop every page from scrolling.
                             let _release = ReleaseHold(holding);
-                            link::circle_log("the clock listens");
+                            tracing::trace!(target: "peersus_ui::gesture", "Circle clock listening");
                             while receiver.changed().await.is_ok() {
                                 // A clock belongs to the touch it was started for. Once that is no longer the current touch (it was lifted, and another
                                 // may already have begun on the same state), this clock has nothing to do: it must not fill, empty or send for it.
                                 if !touch_number.peek().is_current(claimed) {
-                                    link::circle_log("the clock of an earlier touch ends");
+                                    tracing::trace!(target: "peersus_ui::gesture", reason = "stale-touch", "Circle clock stopped");
                                     break;
                                 }
                                 let mut next = *circle.peek();
                                 if !next.is_down() {
-                                    link::circle_log("the touch is no longer down, the clock ends");
+                                    tracing::trace!(target: "peersus_ui::gesture", reason = "touch-ended", "Circle clock stopped");
                                     break;
                                 }
                                 let now = *receiver.borrow_and_update();
@@ -2278,10 +2278,10 @@ impl Component for Portal {
                                 let was_holding = holding.peek().0;
                                 holding.set_if_modified(HoldingCircle(next.is_holding(now)));
                                 if !was_holding && next.is_holding(now) {
-                                    link::circle_log("held long enough, the page stops following the finger");
+                                    tracing::trace!(target: "peersus_ui::gesture", "Circle hold threshold reached");
                                 }
                                 if act != view::CircleAct::Nothing {
-                                    link::circle_log(&format!("the clock says {act:?}"));
+                                    tracing::trace!(target: "peersus_ui::gesture", ?act, "Circle clock action");
                                     tick_act.call(act);
                                 }
                             }
@@ -2299,7 +2299,7 @@ impl Component for Portal {
                     // A touch that strayed is over: the circle empties and the listening task sees it and ends.
                     if !next.is_down() {
                         if circle.peek().is_down() {
-                            link::circle_log(&format!("the finger strayed, so it is a swipe and the hold ends (at {window:?})"));
+                            tracing::trace!(target: "peersus_ui::gesture", ?window, "Circle swipe ended hold");
                         }
                         fill.set_if_modified(0.);
                         holding.set_if_modified(HoldingCircle(false));
@@ -2311,7 +2311,7 @@ impl Component for Portal {
                     let (in_box, window) = point(&e);
                     let mut next = *circle.peek();
                     let act = next.up(in_box, window, monotonic_ms(), does);
-                    link::circle_log(&format!("lifted at {in_box:?}, does={does:?}, act={act:?}"));
+                    tracing::trace!(target: "peersus_ui::gesture", ?in_box, ?does, ?act, "Circle pointer lifted");
                     circle.set(next);
                     // The touch is over: its number moves on, so that its clock, if it is still running, finds it is no longer the current one.
                     let after = touch_number.peek().next();
@@ -2346,7 +2346,7 @@ impl Component for Portal {
                     touch_number.set(after);
                     fill.set_if_modified(0.);
                     holding.set_if_modified(HoldingCircle(false));
-                    link::circle_log("lifted away from the circle: the touch ends and sends nothing");
+                    tracing::trace!(target: "peersus_ui::gesture", "Circle touch lifted outside");
                 })
                 .on_touch_cancel(move |_| {
                     let mut next = *circle.peek();
@@ -2356,7 +2356,7 @@ impl Component for Portal {
                     touch_number.set(after);
                     fill.set_if_modified(0.);
                     holding.set_if_modified(HoldingCircle(false));
-                    link::circle_log("the system cancelled the touch");
+                    tracing::trace!(target: "peersus_ui::gesture", "Circle touch cancelled");
                 });
         }
         rect()
@@ -3563,6 +3563,25 @@ impl Component for SendPage {
                 ..transfers(&self.link, &self.view, palette)
             }
         };
+        // Extension destinations use the existing selection without taking it from
+        // the peer/QR flow. Admission failures and cancellation leave it available.
+        let selected_path = {
+            let paths = staged_paths.read();
+            (paths.len() == 1 && staged_names.read().is_empty()).then(|| paths[0].clone())
+        };
+        let selected_held = held_files
+            .borrow()
+            .as_ref()
+            .and_then(|files| files.files())
+            .filter(|files| files.len() == 1 && staged_paths.read().is_empty())
+            .and_then(|files| files.into_iter().next());
+        let extension_destinations = plugin_controls::SelectedControls {
+            link: self.link.clone(),
+            view: self.view.clone(),
+            path: selected_path,
+            held: selected_held,
+            palette,
+        };
         let mut page = rect()
             .width(Size::fill())
             .spacing(self.form.page_section_gap());
@@ -3583,6 +3602,7 @@ impl Component for SendPage {
             // What is going on or has gone is the circle's own business, so it comes right under it, before the devices: where a transfer
             // can be followed and stopped without scrolling past a list of devices.
             page = page.child(files_list);
+            page = page.child(extension_destinations);
             // The devices whose pairing was finished, under that: to send to one of them is a tap, and they are the only ones here. A
             // device only seen in the history is not, until it has been paired.
             page = page
@@ -3609,6 +3629,7 @@ impl Component for SendPage {
             }
             page = page
                 .child(files_list)
+                .child(extension_destinations)
                 .child(section("02 / OR PICK A SAVED DEVICE", palette))
                 .child(devices);
         }

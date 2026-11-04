@@ -32,6 +32,30 @@ async fn confirm(text: &str, button: &str) -> bool {
         .await;
     response == MessageDialogResult::Custom(button.into())
 }
+fn credential_setup_command(executable: &std::path::Path, flatpak: Option<&str>) -> Option<String> {
+    if !executable.is_absolute() {
+        return None;
+    }
+    let helper = executable.parent()?.join("peersus-upload-credential");
+    let helper = helper.to_str()?;
+    if helper.chars().any(char::is_control) {
+        return None;
+    }
+    let quoted = format!("'{}'", helper.replace('\'', "'\\''"));
+    match flatpak {
+        Some(id)
+            if !id.is_empty()
+                && id
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"._-".contains(&byte)) =>
+        {
+            Some(format!("flatpak run --command={quoted} '{id}' provision"))
+        }
+        Some(_) => None,
+        None => Some(format!("{quoted} provision")),
+    }
+}
+
 async fn flow() -> &'static str {
     #[cfg(target_os = "linux")]
     if !std::process::Command::new("zenity")
@@ -74,7 +98,14 @@ async fn flow() -> &'static str {
     .ok()
     .flatten();
     let Some(credential) = credential else {
-        message("No usable upload credential is available. In a terminal run peersus-upload-credential provision, then explicitly approve storage and enter a non-owner machine token at its hidden prompt. Do not use an owner token. Nothing was uploaded.").await;
+        let command = std::env::current_exe().ok().and_then(|executable| {
+            credential_setup_command(&executable, std::env::var("FLATPAK_ID").ok().as_deref())
+        });
+        let setup = command.map_or_else(
+            || "Run the companion credential helper shipped beside this extension, with the provision argument.".to_owned(),
+            |command| format!("Keep this dialog open and run the following command in a terminal:\n\n{command}"),
+        );
+        message(&format!("No usable upload credential is available.\n\n{setup}\n\nExplicitly approve storage and enter a non-owner machine token at its hidden prompt. Never put a token in the command or use an owner token. Nothing was uploaded.")).await;
         return "credential-required";
     };
     let uploader = match Uploader::production() {
@@ -256,6 +287,49 @@ mod runner_tests {
     };
     use tokio::sync::mpsc;
     use tokio::time::{Duration, timeout};
+
+    #[test]
+    fn credential_setup_uses_the_installed_companion_not_path_lookup() {
+        assert_eq!(
+            credential_setup_command(
+                std::path::Path::new("/opt/test plugins/upload/peersus-upload"),
+                None,
+            ),
+            Some("'/opt/test plugins/upload/peersus-upload-credential' provision".into()),
+        );
+        assert_eq!(
+            credential_setup_command(
+                std::path::Path::new("/opt/owner's plugins/peersus-upload"),
+                None,
+            ),
+            Some("'/opt/owner'\\''s plugins/peersus-upload-credential' provision".into()),
+        );
+    }
+
+    #[test]
+    fn flatpak_setup_runs_the_companion_inside_its_sandbox() {
+        assert_eq!(
+            credential_setup_command(
+                std::path::Path::new("/app/share/peersus/plugins/upload/peersus-upload"),
+                Some("dev.example.Application"),
+            ),
+            Some("flatpak run --command='/app/share/peersus/plugins/upload/peersus-upload-credential' 'dev.example.Application' provision".into()),
+        );
+    }
+
+    #[test]
+    fn credential_setup_refuses_ambiguous_or_control_character_paths() {
+        for executable in ["peersus-upload", "/tmp/bad\npath/peersus-upload"] {
+            assert!(credential_setup_command(std::path::Path::new(executable), None).is_none());
+        }
+        assert!(
+            credential_setup_command(
+                std::path::Path::new("/app/peersus-upload"),
+                Some("invalid\napplication"),
+            )
+            .is_none()
+        );
+    }
 
     struct DropNotice(u64, mpsc::UnboundedSender<u64>);
     impl Drop for DropNotice {

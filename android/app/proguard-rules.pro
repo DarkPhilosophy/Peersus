@@ -6,3 +6,5 @@
 -keepclasseswithmembernames,includedescriptorclasses class * {
     native <methods>;
 }
+# Android certificate verification is called only through Rust JNI.
+-keep,includedescriptorclasses class org.rustls.platformverifier.** { *; }

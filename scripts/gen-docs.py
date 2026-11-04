@@ -7,6 +7,7 @@ and docs/changes.json. No network, Git history, tokens, timestamps or publicatio
 import argparse
 import html
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -68,6 +69,11 @@ def changes(root):
 
 
 def outputs(root):
+    readme_directory = (root / "README.md").resolve().parent
+
+    def readme_link(path):
+        return Path(os.path.relpath(path, readme_directory)).as_posix()
+
     workspace = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))["workspace"]
     toolchain = tomllib.loads((root / "rust-toolchain.toml").read_text(encoding="utf-8"))["toolchain"]["channel"]
     package = workspace["package"]
@@ -75,7 +81,7 @@ def outputs(root):
               f"Rust toolchain: **{markdown(toolchain)}**; declared MSRV: **{markdown(package['rust-version'])}**. "
               f"License: **{markdown(package['license'])}**.")
     plugins = ["| Bundled extension | Declared platforms | Exported services |", "| --- | --- | --- |"]
-    for member in sorted(workspace["members"]):
+    for member in sorted([*workspace["members"], "crates/peersus-upload/wasm"]):
         for suffix, parse in (("json", json.loads), ("toml", tomllib.loads)):
             path = root / member / f"plugin.{suffix}"
             if not path.is_file():
@@ -83,13 +89,14 @@ def outputs(root):
             manifest = parse(path.read_text(encoding="utf-8"))
             platforms = ", ".join(markdown(platform) for platform in manifest.get("platforms", [])) or "Not declared"
             services = ", ".join(f"`{markdown(service['service'])}` v{service['version']}" for service in manifest.get("exports", [])) or "None"
-            plugins.append(f"| [{markdown(Path(member).name)}]({member}/plugin.{suffix}) | {platforms} | {services} |")
+            label = f"{Path(member).parent.name} (WASM)" if Path(member).name == "wasm" else Path(member).name
+            plugins.append(f"| [{markdown(label)}]({readme_link(path)}) | {platforms} | {services} |")
     workflows = ["These are workflow definitions, **not live passing-status claims**.", ""]
     for path in sorted((root / ".github/workflows").glob("*.yml")):
         match = re.search(r"^name:\s*(.+)$", path.read_text(encoding="utf-8"), re.M)
         if not match:
             raise ValueError(f"Missing workflow name: {path.name}")
-        workflows.append(f"- [{markdown(match[1].strip().strip(chr(39) + chr(34)))}](.github/workflows/{path.name})")
+        workflows.append(f"- [{markdown(match[1].strip().strip(chr(39) + chr(34)))}]({readme_link(path)})")
     history, latest = changes(root)
     readme = (root / "README.md").read_text(encoding="utf-8")
     for name, body in {"STATUS": status, "PLUGINS": "\n".join(plugins), "CI": "\n".join(workflows), "LATEST": latest}.items():

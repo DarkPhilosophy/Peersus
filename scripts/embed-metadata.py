@@ -3,6 +3,7 @@
 
     embed-metadata.py header plugin.json   -> C header defining PEERSUS_METADATA_BYTES
     embed-metadata.py bin    plugin.json   -> the raw record (magic, u32 LE length, JSON)
+    embed-metadata.py wasm   plugin.json module.wasm -> module with peersus.meta custom section
 
 The record is the SAME `package` block the manifest carries, so the manifest stays the single source
 and the binary cannot drift from it. Reads one file, writes stdout, executes nothing from the plugin.
@@ -11,6 +12,7 @@ import json
 import struct
 import sys
 from pathlib import Path
+from extension_format import uleb, wasm_custom_sections
 
 MAGIC = b"PSUSMETA"
 MAX_RECORD = 16 * 1024
@@ -35,10 +37,30 @@ def record(manifest_path: Path) -> bytes:
     return MAGIC + struct.pack("<I", len(body)) + body
 
 
+def embed_wasm(program: bytes, data: bytes) -> bytes:
+    try:
+        existing = wasm_custom_sections(program, "peersus.meta")
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
+    if existing is None:
+        raise SystemExit("expected a WebAssembly 1 module")
+    if existing:
+        raise SystemExit("module already contains peersus.meta")
+    name = b"peersus.meta"
+    body = uleb(len(name)) + name + data
+    return program + b"\0" + uleb(len(body)) + body
+
+
 def main() -> None:
-    if len(sys.argv) != 3 or sys.argv[1] not in ("header", "bin"):
+    if not (
+        (len(sys.argv) == 3 and sys.argv[1] in ("header", "bin"))
+        or (len(sys.argv) == 4 and sys.argv[1] == "wasm")
+    ):
         raise SystemExit(__doc__)
     data = record(Path(sys.argv[2]))
+    if sys.argv[1] == "wasm":
+        sys.stdout.buffer.write(embed_wasm(Path(sys.argv[3]).read_bytes(), data))
+        return
     if sys.argv[1] == "bin":
         sys.stdout.buffer.write(data)
         return

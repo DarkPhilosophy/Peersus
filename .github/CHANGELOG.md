@@ -20,6 +20,15 @@ Generated sections come from `docs/changes.json`. Edit that source and run `pyth
 
 ### Development
 
+- Share reviewed first-party tracing configuration across the owner and UI, using bounded off-thread desktop output and native Android Logcat, safe invalid-filter fallback and structured gesture events without synchronous diagnostic files.
+- Backport maintained netlink and title-font dependencies without disabling network monitoring or native window decorations; retain upstream licenses and patch provenance.
+- Replace unmaintained token-pasting dependencies through minimal Freya, pulp and rav1e compatibility manifests while retaining image-format support.
+- Migrate Linux sleep, theme, portal preferences and accessibility wire consumers to zbus 6 while retaining protocol/signature checks and original licenses; full platform runtime verification remains pending.
+- Remove the unused asynchronous keyring backend's legacy wire dependencies without replacing the application's native credential stores or lookup behavior; the regenerated root lockfile passes the strict local audit without suppressions, while hosted CI and platform runtime verification remain pending.
+- Keep application About, prototype security notes and dependency documentation synchronized with local security patches and their actual verification limits.
+- Implement the Android upload WASM guest and explicit caller-scoped file, consent and HTTPS host services, with opaque credentials, cancellation and a manual development package; device and live-upload acceptance remain pending.
+- Gate the upload guest's formatting, strict lint, protocol tests, WASM compilation and real isolated-worker exchange with synthetic host replies; retain platform-verifier licenses and pinned Android artifact provenance.
+- Include the licensed upload WASM package in Android builds and initialize it through the normal removable-package installer, preserving existing packages, disabled state and later removal without automatically granting file or network access.
 - Add explicit development desktop and Android builds plus signature-checked, data-preserving deployment to selected devices without implicit installation or uninstall.
 - Add root build, strict-check, isolated store-demo and loopback-only website-preview shell helpers using the existing build tasks.
 - Stage clearly labelled public store fixtures under store-test/ without populating or changing production trust.

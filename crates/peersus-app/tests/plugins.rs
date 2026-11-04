@@ -97,6 +97,7 @@ fn spec(name: &str) -> PluginSpec {
                         id: "share".into(),
                         label: "Share".into(),
                         short_label: None,
+                        input: peersus_plugin_api::contributions::ActionInput::None,
                         target: Source {
                             service: service.clone(),
                             method: "share".into(),
@@ -110,6 +111,7 @@ fn spec(name: &str) -> PluginSpec {
                         id: "status".into(),
                         label: "Status".into(),
                         short_label: None,
+                        input: peersus_plugin_api::contributions::ActionInput::None,
                         target: Source {
                             service,
                             method: "status".into(),
@@ -2835,6 +2837,7 @@ fn sharing_registry(log: &std::path::Path, payload: &std::path::Path) -> Registr
                         id: "share".into(),
                         label: "Share".into(),
                         short_label: None,
+                        input: peersus_plugin_api::contributions::ActionInput::None,
                         target: Source {
                             service: "clip.service".into(),
                             method: "share".into(),

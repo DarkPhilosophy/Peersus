@@ -37,7 +37,7 @@ async fn follow_on(
     sender: &watch::Sender<Option<bool>>,
 ) -> zbus::Result<()> {
     use futures_lite::StreamExt;
-    use zbus::zvariant::OwnedValue;
+    use zbus::OwnedVariant;
     let proxy = zbus::Proxy::new(
         connection,
         destination,
@@ -53,7 +53,7 @@ async fn follow_on(
         )
         .await?;
     let mut owners = proxy.receive_owner_changed().await?;
-    let value: OwnedValue = proxy
+    let value: OwnedVariant = proxy
         .call("ReadOne", &("org.freedesktop.appearance", "color-scheme"))
         .await?;
     sender.send_replace(preference(u32::try_from(value).ok()));
@@ -61,7 +61,7 @@ async fn follow_on(
         tokio::select! {
             signal = signals.next() => {
                 let Some(signal) = signal else { return Ok(()); };
-                let (namespace, key, value): (String, String, OwnedValue) = signal.body().deserialize()?;
+                let (namespace, key, value): (String, String, OwnedVariant) = signal.body().deserialize()?;
                 if namespace == "org.freedesktop.appearance" && key == "color-scheme" {
                     sender.send_replace(preference(u32::try_from(value).ok()));
                 }
@@ -103,7 +103,7 @@ mod tests {
                 &self,
                 namespace: &str,
                 key: &str,
-            ) -> zbus::fdo::Result<zbus::zvariant::OwnedValue> {
+            ) -> zbus::fdo::Result<zbus::OwnedVariant> {
                 if namespace != "org.freedesktop.appearance" || key != "color-scheme" {
                     return Err(zbus::fdo::Error::Failed("Unknown test preference".into()));
                 }
@@ -112,11 +112,8 @@ mod tests {
         }
         let name = format!("ro.peersus.ThemeTest.p{}", std::process::id());
         let service = zbus::connection::Builder::session()
-            .unwrap()
             .name(name.as_str())
-            .unwrap()
             .serve_at("/org/freedesktop/portal/desktop", SettingsFixture)
-            .unwrap()
             .build()
             .await
             .unwrap();
@@ -138,7 +135,7 @@ mod tests {
                     &(
                         "org.freedesktop.appearance",
                         "color-scheme",
-                        zbus::zvariant::OwnedValue::from(value),
+                        zbus::OwnedVariant::from(value),
                     ),
                 )
                 .await

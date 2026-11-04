@@ -68,7 +68,7 @@ pub const SECTIONS: &[Section] = &[
         credits: &[
             credit(
                 "Freya",
-                "The windows, layout and components of this application.",
+                "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained.",
                 "MIT",
                 "https://github.com/marc2332/freya",
             ),
@@ -77,6 +77,36 @@ pub const SECTIONS: &[Section] = &[
                 "The file and folder choosers of the operating system.",
                 "MIT",
                 "https://github.com/PolyMeilex/rfd",
+            ),
+            credit(
+                "zbus",
+                "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation.",
+                "MIT",
+                "https://github.com/z-galaxy/zbus",
+            ),
+            credit(
+                "mundy",
+                "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending.",
+                "Apache-2.0",
+                "https://github.com/tautropfli/mundy",
+            ),
+            credit(
+                "atspi",
+                "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending.",
+                "Apache-2.0 OR MIT",
+                "https://github.com/odilia-app/atspi",
+            ),
+            credit(
+                "accesskit",
+                "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration.",
+                "MIT OR Apache-2.0",
+                "https://github.com/AccessKit/accesskit",
+            ),
+            credit(
+                "zbus-lockstep",
+                "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs.",
+                "MIT",
+                "https://github.com/luukvanderduim/zbus-lockstep",
             ),
             credit(
                 "qrcodegen",
@@ -107,6 +137,36 @@ pub const SECTIONS: &[Section] = &[
                 "BSD-3-Clause",
                 "https://github.com/RazrFalcon/tiny-skia",
             ),
+            credit(
+                "sctk-adwaita",
+                "Wayland window decorations. The local 0.10.1 compatibility patch backports the maintained skrifa title renderer; upstream attribution and licenses are retained.",
+                "MIT",
+                "https://github.com/PolyMeilex/sctk-adwaita",
+            ),
+            credit(
+                "skrifa",
+                "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain.",
+                "MIT OR Apache-2.0",
+                "https://github.com/googlefonts/fontations",
+            ),
+            credit(
+                "pastey",
+                "Maintained token-pasting macros used by local compatibility patches in Freya, pulp and rav1e. Only dependency manifests change; upstream source and licenses are retained.",
+                "MIT OR Apache-2.0",
+                "https://github.com/as1100k/pastey",
+            ),
+            credit(
+                "pulp",
+                "SIMD support in the image decoding chain, with a local pastey dependency migration.",
+                "MIT",
+                "https://github.com/sarah-quinones/pulp",
+            ),
+            credit(
+                "rav1e",
+                "AV1 encoding in the image dependency chain, with a local pastey dependency migration.",
+                "BSD-2-Clause",
+                "https://github.com/xiph/rav1e",
+            ),
         ],
     },
     Section {
@@ -117,6 +177,12 @@ pub const SECTIONS: &[Section] = &[
                 "Encrypted connections between your devices.",
                 "MIT OR Apache-2.0",
                 "https://github.com/n0-computer/iroh",
+            ),
+            credit(
+                "netwatch",
+                "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed.",
+                "MIT OR Apache-2.0",
+                "https://github.com/n0-computer/net-tools",
             ),
             credit(
                 "rustls",
@@ -141,6 +207,18 @@ pub const SECTIONS: &[Section] = &[
                 "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS.",
                 "MIT OR Apache-2.0",
                 "https://github.com/seanmonstar/reqwest",
+            ),
+            credit(
+                "rustls-platform-verifier",
+                "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision.",
+                "MIT OR Apache-2.0",
+                "https://github.com/rustls/rustls-platform-verifier",
+            ),
+            credit(
+                "rustls-platform-verifier-android",
+                "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision.",
+                "MIT OR Apache-2.0",
+                "https://github.com/rustls/rustls-platform-verifier",
             ),
         ],
     },
@@ -167,7 +245,7 @@ pub const SECTIONS: &[Section] = &[
             ),
             credit(
                 "keyring",
-                "Keeps this device's identity in the system keyring.",
+                "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch.",
                 "MIT OR Apache-2.0",
                 "https://github.com/hwchen/keyring-rs",
             ),

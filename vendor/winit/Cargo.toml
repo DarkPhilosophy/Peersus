@@ -107,7 +107,7 @@ wayland = [
 ]
 wayland-csd-adwaita = [
     "sctk-adwaita",
-    "sctk-adwaita/ab_glyph",
+    "sctk-adwaita/skrifa",
 ]
 wayland-csd-adwaita-crossfont = [
     "sctk-adwaita",

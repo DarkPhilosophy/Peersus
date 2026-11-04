@@ -920,7 +920,7 @@ impl NetworkHost {
                     if self.admissions >= 8 {
                         // Refused with no word to anyone. If this counter ever stays high (a connection that is counted in and never out), every
                         // new invitation is refused from then on, so each refusal says so in the owner's log, with how many are counted.
-                        eprintln!("peersus: refusing a new connection, {} are still counted as being admitted", self.admissions);
+                        tracing::warn!(admissions = self.admissions, "Connection admission limit reached");
                         incoming.refuse();
                         continue;
                     }

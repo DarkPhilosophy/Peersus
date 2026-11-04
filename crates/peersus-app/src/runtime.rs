@@ -207,6 +207,9 @@ pub struct Runtime {
     modules: Option<Arc<dyn peersus_plugin_host::module::ModuleFactory>>,
     /// Where the personal relay's access token is kept between runs, when this platform has such a place.
     token_store: Option<Arc<dyn TokenStore>>,
+    /// Platform UI and I/O are awaited in separately owned, cancellable tasks.
+    platform_services: Option<Arc<dyn crate::platform_services::PlatformServices>>,
+    platform_calls: crate::platform_calls::PlatformCalls,
     /// Ids of calls the application makes through the hub. Never reused, never zero.
     next_call: u64,
     /// Calls to plugins that have not ended yet, to refuse a repeat and to withdraw them.
@@ -397,7 +400,20 @@ pub(crate) fn host_manifest(plugins: &Registry) -> peersus_plugin_api::manifest:
             crate::status_service::STATUS_WATCH_CAPABILITY,
             crate::status_service::STATUS_WATCH_DESCRIPTION,
         ),
-    ] {
+    ]
+    .into_iter()
+    .chain([
+        (
+            crate::platform_services::FILES_SERVICE,
+            crate::platform_services::FILES_CAPABILITY,
+            crate::platform_services::FILES_DESCRIPTION,
+        ),
+        (
+            crate::platform_services::HTTP_SERVICE,
+            crate::platform_services::HTTP_CAPABILITY,
+            crate::platform_services::HTTP_DESCRIPTION,
+        ),
+    ]) {
         if manifest.exports.iter().any(|e| e.service == service) {
             manifest
                 .capabilities
@@ -634,6 +650,42 @@ pub(crate) fn host_exports(plugins: &Registry) -> Vec<peersus_plugin_api::manife
             )]),
         });
     }
+    for (service, description) in [
+        (
+            crate::platform_services::FILES_SERVICE,
+            crate::platform_services::FILES_DESCRIPTION,
+        ),
+        (
+            crate::platform_services::HTTP_SERVICE,
+            crate::platform_services::HTTP_DESCRIPTION,
+        ),
+    ] {
+        let consumers = consumers_of(plugins, service);
+        if consumers.is_empty() {
+            continue;
+        }
+        let methods = crate::platform_services::METHODS
+            .iter()
+            .filter(|(offered, _, _, _)| *offered == service)
+            .map(|(_, method, capability, description)| {
+                (
+                    (*method).to_owned(),
+                    Member {
+                        capability: Some((*capability).to_owned()),
+                        description: (*description).to_owned(),
+                    },
+                )
+            })
+            .collect();
+        exports.push(Export {
+            service: service.to_owned(),
+            version: 1,
+            description: description.to_owned(),
+            consumers,
+            methods,
+            events: BTreeMap::new(),
+        });
+    }
     exports
 }
 
@@ -755,6 +807,12 @@ fn guarding_what_it_imports(spec: &PluginSpec) -> BTreeSet<Permission> {
     ]
     .into_iter()
     .filter(|(service, method, _)| calls(service, method))
+    .chain(
+        crate::platform_services::METHODS
+            .iter()
+            .filter(|(service, method, _, _)| calls(service, method))
+            .map(|(service, method, capability, _)| (*service, *method, *capability)),
+    )
     .map(|(_, _, capability)| capability);
     let by_event = [
         (
@@ -795,6 +853,8 @@ fn needs_no_device(permission: &Permission) -> bool {
         crate::status_service::STATUS_DEFINE_CAPABILITY,
         crate::status_service::STATUS_SET_CAPABILITY,
         crate::status_service::STATUS_WATCH_CAPABILITY,
+        crate::platform_services::FILES_CAPABILITY,
+        crate::platform_services::HTTP_CAPABILITY,
     ]
     .into_iter()
     .filter_map(|capability| Permission::new(HOST, capability))
@@ -1201,28 +1261,6 @@ pub(crate) fn action_failure_sentence(
     }
 }
 
-/// The code a plugin gave for a failed call, cleaned to be written in the owner's PRIVATE log and nowhere else: only
-/// letters, digits, `-`, `_` and `.`, at most 40 characters, anything else dropped. It is the plugin's own text, so it is
-/// never put where a person is shown it (the screen has `action_failure_sentence`); in the log it is what lets a failure
-/// that the fixed sentence cannot tell apart be found. `None` for a call that did not end in an error.
-pub(crate) fn code_for_the_log(result: &peersus_plugin_api::message::Outcome) -> Option<String> {
-    match result {
-        peersus_plugin_api::message::Outcome::Error { code, .. } => {
-            let clean: String = code
-                .chars()
-                .filter(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
-                .take(40)
-                .collect();
-            Some(if clean.is_empty() {
-                "(none)".to_owned()
-            } else {
-                clean
-            })
-        }
-        _ => None,
-    }
-}
-
 /// Whether a data right made by `caller` may collect a stream the application parked.
 ///
 /// Only the application's own calls may: it is the application that set the stream aside
@@ -1318,12 +1356,16 @@ impl Runtime {
         // keeps it current, so that nothing in the transfer code holds a time of its own.
         network.set_offer_wait(settings.current().offer_timeout_seconds);
         let hub = Hub::default();
+        let offered_host = host_manifest(&plugins);
+        let platform_timeouts = crate::platform_services::method_timeouts(&offered_host);
         let generation = hub
-            .register_host(HOST, host_manifest(&plugins), BTreeSet::new())
+            .register_host(HOST, offered_host, BTreeSet::new())
             .map_err(|_| std::io::Error::other("The application could not join the plugin hub"))?;
         let host = hub
             .connect(HOST, generation)
             .map_err(|_| std::io::Error::other("The application could not join the plugin hub"))?;
+        host.set_host_method_timeouts(platform_timeouts)
+            .map_err(|_| std::io::Error::other("Platform deadlines could not be applied"))?;
         let (snapshots, state) = watch::channel(Arc::new(Snapshot {
             settings: settings.current().clone(),
             peers: network.peers(),
@@ -1386,6 +1428,8 @@ impl Runtime {
                 disabled: std::collections::BTreeSet::new(),
                 held_back: Vec::new(),
                 token_store: None,
+                platform_services: None,
+                platform_calls: crate::platform_calls::PlatformCalls::default(),
                 staged: HashMap::new(),
                 held: peersus_net::held::Held::default(),
                 installed_packages: std::collections::BTreeMap::new(),
@@ -1406,6 +1450,16 @@ impl Runtime {
     #[must_use]
     pub fn with_token_store(mut self, store: Arc<dyn TokenStore>) -> Self {
         self.token_store = Some(store);
+        self
+    }
+
+    /// Attach trusted platform facilities. Extensions cannot choose an implementation.
+    #[must_use]
+    pub fn with_platform_services(
+        mut self,
+        services: Arc<dyn crate::platform_services::PlatformServices>,
+    ) -> Self {
+        self.platform_services = Some(services);
         self
     }
 
@@ -1575,6 +1629,14 @@ impl Runtime {
         }
         let changed = !transitions.is_empty();
         for (id, status) in transitions {
+            if matches!(
+                status,
+                peersus_core::model::PluginStatus::Restarting
+                    | peersus_core::model::PluginStatus::Failed
+                    | peersus_core::model::PluginStatus::Stopped
+            ) {
+                self.revoke_platform_calls(&id);
+            }
             // Whoever asked for `peersus.plugins` is told. A subscriber that cannot keep up
             // misses this one rather than stalling the application: the hub refuses the whole
             // delivery then, and `list` is always there to ask what is true now.
@@ -1591,6 +1653,11 @@ impl Runtime {
     }
 
     async fn stop_plugins(&mut self) {
+        let plugins: Vec<_> = self.plugins.iter().map(|spec| spec.id.clone()).collect();
+        for plugin in plugins {
+            self.revoke_platform_calls(&plugin);
+        }
+        while self.platform_calls.next().await.is_some() {}
         for (_, running) in self.running.drain() {
             running.service.shutdown().await;
         }
@@ -1672,6 +1739,14 @@ impl Runtime {
                         self.begin_transfer(accepted);
                         #[cfg(not(unix))]
                         let _ = accepted;
+                    }
+                }
+                Some(finished) = self.platform_calls.next(), if !self.platform_calls.is_empty() => {
+                    if let Some(result) = finished.result {
+                        let _ = self.host.submit(peersus_plugin_api::message::Operation::Reply {
+                            ticket: finished.ticket,
+                            result,
+                        });
                     }
                 }
                 Some(finished) = self.transfers.join_next(), if !self.transfers.is_empty() => {
@@ -1793,6 +1868,7 @@ impl Runtime {
     /// is still running) and the plugin is started again from scratch: changing its settings
     /// is a deliberate act and a fresh start is what the user would expect.
     fn restart_plugin(&mut self, plugin: &PluginId) {
+        self.revoke_platform_calls(plugin);
         // Whatever was outstanding went with the old process. Forget it, or the same actions
         // could never be started again.
         self.in_flight.take_for_plugin(plugin);
@@ -1833,6 +1909,7 @@ impl Runtime {
     /// Everything a plugin's old process was doing is withdrawn, as when it is restarted, and the
     /// process itself is stopped and not started again.
     async fn stop_plugin(&mut self, plugin: &PluginId) {
+        self.revoke_platform_calls(plugin);
         self.in_flight.take_for_plugin(plugin);
         self.board.forget_plugin(plugin);
         // What the plugin said of this device goes with it: nothing keeps it true any more, and another device must not go on showing it.
@@ -2826,6 +2903,56 @@ impl Runtime {
                 }
                 self.invoke(plugin, &action, peer, Some(context))?;
             }
+            Command::InvokeSelectedAction {
+                plugin,
+                action,
+                path,
+                held,
+            } => {
+                let key = Key {
+                    plugin: plugin.clone(),
+                    action: action.clone(),
+                    device: None,
+                };
+                let result = (|| {
+                    let services = self
+                        .platform_services
+                        .clone()
+                        .ok_or("Selected input is unavailable")?;
+                    let index = self.plugins.find(&plugin).ok_or("Unknown plugin")?;
+                    let declaration = self
+                        .plugins
+                        .action(index, &action)
+                        .ok_or("Unknown action")?;
+                    if declaration.input
+                        != peersus_plugin_api::contributions::ActionInput::SelectedFile
+                    {
+                        return Err("This action does not accept selected input");
+                    }
+                    let input = match (path, held) {
+                        (Some(path), None) => crate::platform_services::SelectedInput::Path(path),
+                        (None, Some((number, name))) => {
+                            crate::platform_services::SelectedInput::Held {
+                                registry: self.held.clone(),
+                                number,
+                                name,
+                            }
+                        }
+                        _ => return Err("Choose exactly one file for this action"),
+                    };
+                    let context = services.select(&plugin, input)?;
+                    if let Err(error) = self.invoke(plugin.clone(), &action, None, Some(context)) {
+                        services.discard_selection(&plugin, context);
+                        return Err(error);
+                    }
+                    Ok(())
+                })();
+                if let Err(error) = result {
+                    tracing::warn!(reason = error, "Selected action refused before admission");
+                    self.board.rejected(key);
+                    return Err(error);
+                }
+            }
             Command::CancelAction {
                 plugin,
                 action,
@@ -2987,6 +3114,10 @@ impl Runtime {
         // no device has no such work: what it guards is checked at the hub on every call.
         if let Some(peer) = &peer {
             self.withdraw_device_work(Some(&id), peer);
+        } else {
+            // Saved standalone grants can authorize transient file/HTTP handles.
+            // A permission change invalidates those handles before another call.
+            self.revoke_platform_calls(&id);
         }
         Ok(())
     }
@@ -2996,9 +3127,12 @@ impl Runtime {
     /// and again at start-up to restore the picture after a restart.
     fn sync_host_grants(&mut self) {
         let granted = host_grants(&self.plugins, &self.network.peers());
+        let offered_host = host_manifest(&self.plugins);
+        let platform_timeouts = crate::platform_services::method_timeouts(&offered_host);
         if self
             .host
-            .update_host_manifest(host_manifest(&self.plugins))
+            .update_host_manifest(offered_host)
+            .and_then(|()| self.host.set_host_method_timeouts(platform_timeouts))
             .and_then(|()| self.hub.set_permissions(HOST, granted))
             .is_err()
         {
@@ -3099,6 +3233,11 @@ impl Runtime {
             .action(index, action)
             .ok_or("Unknown action")?
             .clone();
+        if (action.input == peersus_plugin_api::contributions::ActionInput::SelectedFile)
+            != context.is_some()
+        {
+            return Err("This action requires its declared selected input");
+        }
         let device = match (action.needs_device, peer) {
             (true, Some(peer)) => {
                 let peer = self.peer(&peer).ok_or("Device is not paired")?;
@@ -3208,27 +3347,16 @@ impl Runtime {
                     self.board.finished(key, action_state(&result));
                 }
                 if let Some(sentence) = action_failure_sentence(&result) {
-                    // The code only in the private log, with the time, the plugin and action it was for, and nothing the plugin wrote
-                    // besides the cleaned code: it is the one thing that tells apart failures the sentence below cannot, and it is not
-                    // put in what a person is shown. The ids are the application's own (a plugin's id is checked, an action's is its own).
-                    if let Some(code) = code_for_the_log(&result) {
-                        let (plugin, action) = finished
-                            .as_ref()
-                            .map_or(("-".to_owned(), "-".to_owned()), |key| {
-                                (String::from(key.plugin.clone()), key.action.clone())
-                            });
-                        eprintln!(
-                            "peersus: {} plugin {plugin} action {action} ended in an error (code {code})",
-                            std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .map_or(0, |since| since.as_secs())
-                        );
+                    if let Some(key) = &finished {
+                        // Opt-in context is manifest identity, not the plugin's error text.
+                        tracing::debug!(call = id, plugin = ?key.plugin, action = %key.action, reason = sentence, "Plugin action failed");
                     }
                     self.error(sentence);
                 }
             }
             // Only ever delivered to the provider of a call, never to its caller.
-            Delivery::Cancelled { .. } | Delivery::Event { .. } => {}
+            Delivery::Cancelled { ticket } => self.platform_calls.cancel(ticket),
+            Delivery::Event { .. } => {}
             Delivery::Call {
                 ticket,
                 caller,
@@ -3237,6 +3365,39 @@ impl Runtime {
                 args,
                 ..
             } => {
+                if let Some((_, _, capability, _)) = crate::platform_services::METHODS
+                    .iter()
+                    .find(|(offered, name, _, _)| *offered == service && *name == method)
+                {
+                    let result = match (PluginId::new(&caller), self.platform_services.clone()) {
+                        (Ok(caller), Some(platform))
+                            if self.standalone.all().get(&caller).is_some_and(|grants| {
+                                Permission::new(HOST, *capability)
+                                    .is_some_and(|permission| grants.allows(&permission))
+                            }) =>
+                        {
+                            self.platform_calls.start(ticket, caller.clone(), move || {
+                                platform.dispatch(crate::platform_services::Call {
+                                    caller,
+                                    service,
+                                    method,
+                                    args,
+                                })
+                            })
+                        }
+                        _ => Err("This platform does not offer the requested facility"),
+                    };
+                    if let Err(reason) = result {
+                        let _ = self.host.submit(Operation::Reply {
+                            ticket,
+                            result: peersus_plugin_api::message::Outcome::error(
+                                "unavailable",
+                                reason,
+                            ),
+                        });
+                    }
+                    return;
+                }
                 let (result, restart) = self.answer_plugin_call(&caller, &service, &method, &args);
                 let _ = self.host.submit(Operation::Reply { ticket, result });
                 // After the answer, never before: see `answer_plugin_call`.
@@ -3369,6 +3530,13 @@ impl Runtime {
         }
     }
 
+    fn revoke_platform_calls(&mut self, plugin: &PluginId) {
+        self.platform_calls.revoke(plugin);
+        if let Some(platform) = &self.platform_services {
+            platform.revoke(plugin);
+        }
+    }
+
     /// Tell every paired device what this one now says of itself besides being awake: the statuses that are on. Called after anything that
     /// can change them, and only then. A refusal changes nothing, so it is never told.
     fn say_statuses(&mut self) {
@@ -3445,15 +3613,9 @@ impl Runtime {
         Err(SEND_REFUSED)
     }
 
-    fn error(&mut self, reason: &str) {
-        // A trace of every error in the owner's log, with the time: the snapshot keeps only the last few and only once each, and a failed
-        // pairing used to leave nothing at all to read. The reasons are fixed sentences that name no code, address or device.
-        eprintln!(
-            "peersus: {} {reason}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |since| since.as_secs())
-        );
+    fn error(&mut self, reason: &'static str) {
+        // Only fixed application-owned sentences enter diagnostics, never plugin text.
+        tracing::warn!(reason, "Owner operation failed");
         if self.errors.last().is_some_and(|last| last == reason) {
             return;
         }
@@ -3692,6 +3854,7 @@ mod tests {
             id: "go".into(),
             label: "Go".into(),
             short_label: None,
+            input: peersus_plugin_api::contributions::ActionInput::None,
             target: Source {
                 service: "svc".into(),
                 method: "go".into(),
@@ -3783,6 +3946,7 @@ mod tests {
             id: "two".into(),
             label: "Two".into(),
             short_label: None,
+            input: peersus_plugin_api::contributions::ActionInput::None,
             target: Source {
                 service: "svc".into(),
                 method: "two".into(),
@@ -5853,21 +6017,6 @@ mod tests {
             action_failure_sentence(&Outcome::ok(serde_json::json!({}))),
             None
         );
-        assert_eq!(code_for_the_log(&Outcome::ok(serde_json::json!({}))), None);
-    }
-
-    #[test]
-    fn the_code_written_to_the_private_log_is_only_safe_characters_and_short() {
-        use peersus_plugin_api::message::Outcome;
-        let logged = |code: &str| code_for_the_log(&Outcome::error(code, "m")).unwrap();
-        assert_eq!(logged("unknown-method"), "unknown-method");
-        assert_eq!(logged("too_large.v2"), "too_large.v2");
-        // Paths, spaces, line breaks and control characters are dropped, so a line of the log can never be forged or filled.
-        assert_eq!(logged("/home/alex/x\nfake line"), "homealexxfakeline");
-        assert_eq!(logged("\u{1b}[31mred"), "31mred");
-        assert_eq!(logged(""), "(none)");
-        assert_eq!(logged("///"), "(none)");
-        assert_eq!(logged(&"a".repeat(500)).len(), 40);
     }
 
     /// A device `key` that `plugin` was granted `send` for, online or not.
@@ -6358,6 +6507,75 @@ mod tests {
             authorize_service_send(&spec, &revoked, &spec.manifest.exports[0].service, 1).is_err()
         );
         assert!(authorize_service_send(&spec, &revoked, "an.unrelated.service", 1).is_ok());
+    }
+    #[test]
+    fn platform_facilities_require_explicit_grants_for_each_new_call() {
+        use crate::platform_services;
+        use peersus_plugin_api::message::Outcome;
+        for &(service, method, capability, _) in platform_services::METHODS {
+            let spec = plugin_importing("upload", HOST, service, 1, &[method]);
+            let grant = permission(HOST, capability);
+            assert!(grantable_without_a_device(&spec).contains(&grant));
+            assert!(!grantable_for_a_device(&spec).contains(&grant));
+            let mut registry = Registry::default();
+            registry.register(spec.clone()).unwrap();
+            registry
+                .register(plugin_wanting_peers("unrelated", &["list"]))
+                .unwrap();
+            let manifest = host_manifest(&registry);
+            let export = manifest
+                .exports
+                .iter()
+                .find(|export| export.service == service)
+                .unwrap();
+            assert_eq!(export.consumers, ["upload".to_owned()].into());
+            let platform_timeouts = platform_services::method_timeouts(&manifest);
+            let hub = Hub::default();
+            let generation = hub.register_host(HOST, manifest, BTreeSet::new()).unwrap();
+            let host = hub.connect(HOST, generation).unwrap();
+            host.set_host_method_timeouts(platform_timeouts).unwrap();
+            let generation = hub
+                .register("upload", spec.manifest, BTreeSet::new())
+                .unwrap();
+            let guest = hub.connect("upload", generation).unwrap();
+            let call = |id| Operation::Call {
+                id,
+                provider: HOST.to_owned(),
+                service: service.to_owned(),
+                version: 1,
+                method: method.to_owned(),
+                args: serde_json::json!({}),
+                timeout_ms: 600_000,
+            };
+            assert_eq!(
+                guest.submit(call(1)),
+                Err(peersus_plugin_api::error::Error::Denied)
+            );
+            assert!(host.try_recv().unwrap().is_none());
+            hub.set_permissions("upload", [grant].into()).unwrap();
+            guest.submit(call(2)).unwrap();
+            let Some(Delivery::Call { ticket, caller, .. }) = host.try_recv().unwrap() else {
+                panic!("granted call did not reach the host");
+            };
+            assert_eq!(caller, "upload");
+            hub.set_permissions("upload", BTreeSet::new()).unwrap();
+            assert_eq!(
+                guest.submit(call(3)),
+                Err(peersus_plugin_api::error::Error::Denied)
+            );
+            // The broker preserves accepted-call commitments. Sensitive platform work
+            // is cancelled by the owner's PlatformCalls, not by changing that contract.
+            assert!(host.try_recv().unwrap().is_none());
+            host.submit(Operation::Reply {
+                ticket,
+                result: Outcome::ok(serde_json::json!({})),
+            })
+            .unwrap();
+            assert!(matches!(
+                guest.try_recv().unwrap(),
+                Some(Delivery::Result { id: 2, .. })
+            ));
+        }
     }
 }
 
