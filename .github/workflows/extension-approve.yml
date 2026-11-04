@@ -45,13 +45,13 @@ jobs:
           [[ "$SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "sha256 must be lowercase hex"; exit 1; }
       # TRUSTED CODE: the repository's default branch, never the submission. Every script run below,
       # and the only step that sees the signing key, executes from here.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
           path: trusted
           persist-credentials: false
       # UNTRUSTED DATA: the reviewed submission commit. Read as bytes only; nothing in it is executed.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.commit }}
           path: submission
