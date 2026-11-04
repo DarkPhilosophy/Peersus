@@ -6,8 +6,8 @@ This branch is the source-submission and review home for Peersus plugins. It is 
 
 | Plugin | Stable installation ID | Source platforms | Purpose |
 | --- | --- | --- | --- |
-| `peersus-clipboard` | `clipboard` | Android, Linux, macOS | Clipboard integration |
-| `peersus-upload` | `upload` | Android, Linux, macOS | Explicitly selected file upload |
+| `peersus-clipboard` | `clipboard` | Clipboard adapters; submitted package: Linux native process | Explicit text sharing and opt-in clipboard synchronization between permitted paired devices |
+| `peersus-upload` | `upload` | Submitted packages: Linux native process and Android WASM | Choose one file, approve an external upload destination and obtain a shareable link |
 
 There are **two plugins in total**, not three. Native and WASM implementations of upload are platform implementations inside **one plugin**, with one stable ID, one submission and one catalog listing. A platform artifact may be named `upload-android.tar.gz`, but its internal root must remain `upload/`; changing that root creates a different plugin identity and is refused.
 
@@ -20,7 +20,7 @@ For example, to propose `fly-me`:
 1. Fork this repository and create a feature branch **from `extension`**, not from `main`.
 2. Add the complete source under `extension/fly-me/`. Include a README, a license, the plugin manifest, dependency lockfiles, tests, `ownership.json` and `submission.toml`.
 3. Make one PR **targeting `extension`**, changing only `extension/fly-me/**`. Do not change the workflows, another plugin or the application as part of that PR.
-4. Explain the functionality, supported platforms, requested capabilities, third-party services, data disclosure and how to test it. Do not include credentials, personal files or private service configuration.
+4. Complete the [extension PR template](.github/PULL_REQUEST_TEMPLATE.md): lead with what the plugin does and a concrete usage example, then explain platforms, permissions, data disclosure, configuration and actual test results. Include a plugin-local README. Do not include credentials, personal files or private service configuration.
 5. Inspect the source-build and package-validation checks. Fix failures on the same feature branch. A new revision invalidates approval of the previous revision.
 6. Respond to maintainer triage and review. A passing build is necessary, **not approval**. The maintainer decides whether the behavior, permissions, dependencies and maintenance plan are acceptable.
 7. After the exact revision and its built package digests have passed review, the maintainer admits that revision to the official signed catalog. Merely opening a PR, obtaining a label or passing CI does not publish a plugin.
