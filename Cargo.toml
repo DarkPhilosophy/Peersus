@@ -28,7 +28,7 @@ winit = "0.30.13"
 freya-android = "=0.5.0-rc.13"
 tracing = "0.1.41"
 # The one way Rust reaches Java on Android (the document picker): the version the activity crate documents.
-jni = "0.21.1"
+jni = "0.22.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # Reads a plugin manifest written as `plugin.toml`. Parsing only: nothing here writes TOML. The
