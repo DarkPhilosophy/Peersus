@@ -565,6 +565,9 @@ mod epoch_regressions {
                 frame::read(&mut data, 1024).await.unwrap();
             let mut body = Vec::new();
             data.read_to_end(&mut body).await.unwrap();
+            frame::write(&mut data, &(body.len() as u64), 1024)
+                .await
+                .unwrap();
             assert_eq!(
                 wire::decode(std::io::Cursor::new(body)).unwrap(),
                 wire::Item::Text("fresh copy".into())

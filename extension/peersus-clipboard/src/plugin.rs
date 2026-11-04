@@ -209,9 +209,9 @@ where
             .min(std::time::Duration::from_secs(2)),
         None => std::time::Duration::from_secs(8),
     };
-    // Only the data phase is timed out here: it never consumes control-frame bytes, so
-    // a stalled destination can be skipped without killing the plugin session.
-    tokio::time::timeout(remaining, async {
+    // Freshness bounds claiming and writing the captured text, not waiting for a
+    // transfer already admitted by the host to finish over a slower peer path.
+    let mut data = tokio::time::timeout(remaining, async {
         let mut data = connect().await.map_err(|_| answer::FAILED)?;
         let hello = DataHello {
             token: control.token.to_owned(),
@@ -226,10 +226,23 @@ where
         }
         data.write_all(&bytes).await.map_err(|_| answer::FAILED)?;
         data.shutdown().await.map_err(|_| answer::FAILED)?;
-        Ok(())
+        Ok::<_, &'static str>(data)
     })
     .await
+    .map_err(|_| answer::FAILED)??;
+    // A host that fails or reaches its pump idle limit closes this socket. Keep a
+    // separate ceiling as well, without applying the capture's two-second budget.
+    let delivered: u64 = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        frame::read(&mut data, HELLO_LIMIT),
+    )
+    .await
     .map_err(|_| answer::FAILED)?
+    .map_err(|_| answer::FAILED)?;
+    if delivered != bytes.len() as u64 {
+        return Err(answer::FAILED);
+    }
+    Ok(())
 }
 
 /// Collect the text a device sent over a data connection answering call `ticket`, and place
@@ -606,6 +619,9 @@ mod tests {
             assert_eq!(hello.ticket, 0);
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
+            frame::write(&mut far, &(body.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
             wire::decode(Cursor::new(body)).unwrap()
         };
         let (sent, item) = tokio::join!(share, application);
@@ -613,6 +629,39 @@ mod tests {
         assert_eq!(item, Item::Text("héllo 🙂".into()));
     }
 
+    #[tokio::test]
+    async fn local_write_without_host_delivery_confirmation_is_not_success() {
+        for acknowledgement in [None, Some(0u64)] {
+            let (mut app, mut plugin) = duplex(64 * 1024);
+            let (mut far, near) = data_pair();
+            let mut waiting = VecDeque::new();
+            let mut clipboard = Fake::with("not yet delivered");
+            let sending = share(
+                &mut clipboard,
+                Control {
+                    stream: &mut plugin,
+                    token: "secret",
+                    waiting: &mut waiting,
+                },
+                "a-device",
+                || async { Ok(near) },
+            );
+            let application = async {
+                let _ = read_operation(&mut app).await;
+                deliver(&mut app, &sent_ok(77)).await;
+                let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
+                let mut body = Vec::new();
+                far.read_to_end(&mut body).await.unwrap();
+                assert!(!body.is_empty());
+                if let Some(bytes) = acknowledgement {
+                    let _ = frame::write(&mut far, &bytes, HELLO_LIMIT).await;
+                }
+                far.shutdown().await.unwrap();
+            };
+            let (result, ()) = tokio::join!(sending, application);
+            assert_eq!(result, Err(answer::FAILED));
+        }
+    }
     #[tokio::test]
     async fn share_with_nothing_on_the_clipboard_asks_the_application_for_nothing() {
         let (mut app, mut plugin) = duplex(64 * 1024);
@@ -721,6 +770,9 @@ mod tests {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
+            frame::write(&mut far, &(body.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
         };
         let (result, ()) = tokio::join!(share, application);
         assert_eq!(result, Ok(()));
@@ -760,6 +812,9 @@ mod tests {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
+            frame::write(&mut far, &(body.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
         };
         let (result, ()) = tokio::join!(share, application);
         assert_eq!(result, Ok(()));
@@ -1246,6 +1301,38 @@ mod tests {
         assert!(!kept);
     }
 
+    #[tokio::test(start_paused = true)]
+    async fn claimed_fresh_text_can_wait_for_delivery_beyond_its_capture_deadline() {
+        let (mut app, mut stream) = duplex(64 * 1024);
+        let (near, mut far) = duplex(64 * 1024);
+        let mut clipboard = Fake::with("fresh text");
+        let mut waiting = VecDeque::new();
+        let host = async {
+            read_operation(&mut app).await;
+            deliver(&mut app, &sent_ok(12)).await;
+            let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
+            let mut body = Vec::new();
+            far.read_to_end(&mut body).await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            frame::write(&mut far, &(body.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
+        };
+        let send = share_until(
+            &mut clipboard,
+            Control {
+                stream: &mut stream,
+                token: "test",
+                waiting: &mut waiting,
+            },
+            "device",
+            || async { Ok(near) },
+            Some(std::time::Instant::now() + std::time::Duration::from_secs(2)),
+        );
+        let (result, ()) = tokio::join!(send, host);
+        assert_eq!(result, Ok(()));
+    }
+
     #[tokio::test]
     async fn expired_automatic_text_is_not_connected_or_written_after_the_claim() {
         let (mut app, mut stream) = duplex(64 * 1024);
@@ -1332,6 +1419,9 @@ mod tests {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut data = Vec::new();
             far.read_to_end(&mut data).await.unwrap();
+            frame::write(&mut far, &(data.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
             assert_eq!(
                 wire::decode(&mut Cursor::new(data)).unwrap(),
                 Item::Text("explicit text".into())
@@ -1432,6 +1522,9 @@ mod tests {
             let _: DataHello = frame::read(&mut far, HELLO_LIMIT).await.unwrap();
             let mut body = Vec::new();
             far.read_to_end(&mut body).await.unwrap();
+            frame::write(&mut far, &(body.len() as u64), HELLO_LIMIT)
+                .await
+                .unwrap();
             assert_eq!(
                 wire::decode(Cursor::new(body)).unwrap(),
                 Item::Text("exact selected text".into())
