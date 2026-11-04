@@ -231,8 +231,9 @@ fn declared_manifest_has_no_secrets_and_is_valid() {
     assert_eq!(manifest["platforms"], serde_json::json!(["linux", "macos"]));
     #[cfg(feature = "desktop")]
     {
+        let split = peersus_plugin_api::package::split(include_bytes!("../plugin.json")).unwrap();
         let parsed: peersus_plugin_api::manifest::Manifest =
-            serde_json::from_value(manifest).unwrap();
+            serde_json::from_slice(&split.manifest).unwrap();
         parsed.validate().unwrap();
     }
 }
