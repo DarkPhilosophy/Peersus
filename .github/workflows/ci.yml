@@ -1,0 +1,42 @@
+name: Quality gates
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    name: Linux compilation and automated tests (not desktop runtime)
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_SKIA_BUILD: '1'
+      # Keep source-built Skia and workspace test artifacts within runner disk limits.
+      # Debug assertions, overflow checks and all quality gates remain enabled.
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install declared Rust toolchain and gate tools
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal --component rustfmt --component clippy
+          rustup default "$version"
+          rustup target add wasm32-unknown-unknown
+          cargo install cargo-audit --version 0.22.2 --locked
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+      - run: sh scripts/install-linux-deps.sh
+      - run: cargo xtask gate
+  nix-environment:
+    name: Pinned Nix shell evaluation (not runtime validation)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+      - run: nix flake lock
+      - run: nix eval --raw .#devShells.x86_64-linux.default.drvPath

@@ -1,0 +1,14 @@
+schema = 1
+id = "clipboard"
+workspace_member = "crates/peersus-clipboard"
+artifacts = ["clipboard-linux.tar.gz"]
+
+build = [
+  ["cargo", "build", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "--release", "-p", "peersus-clipboard", "--bin", "peersus-clipboard", "--target-dir", "{sdk}/target"],
+]
+test = [
+  ["cargo", "test", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "-p", "peersus-clipboard", "--all-targets", "--target-dir", "{sdk}/target"],
+]
+package = [
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux"],
+]

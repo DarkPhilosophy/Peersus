@@ -1,0 +1,168 @@
+[workspace]
+resolver = "3"
+members = ["crates/peersus-plugin-api", "crates/peersus-plugin-host", "crates/peersus-plugin-runtime", "crates/peersus-plugin-android", "crates/peersus-core", "crates/peersus-net", "crates/peersus-app", "crates/peersus-clipboard", "crates/peersus-upload", "crates/peersus-store-fetch", "crates/peersus-ui", "crates/peersus-ui-android", "crates/peersus-diagnostics", "xtask"]
+default-members = ["crates/peersus-app"]
+exclude = ["vendor/winit", "vendor/netwatch", "vendor/sctk-adwaita", "vendor/freya-core", "vendor/freya-components", "vendor/pulp", "vendor/rav1e", "vendor/mundy", "vendor/atspi", "vendor/atspi-common", "vendor/atspi-proxies", "vendor/accesskit_atspi_common", "vendor/accesskit_unix", "vendor/zbus-lockstep", "vendor/zbus-lockstep-macros", "vendor/keyring"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+peersus-plugin-api = { path = "crates/peersus-plugin-api" }
+peersus-core = { path = "crates/peersus-core" }
+peersus-plugin-host = { path = "crates/peersus-plugin-host" }
+peersus-plugin-runtime = { path = "crates/peersus-plugin-runtime" }
+peersus-net = { path = "crates/peersus-net" }
+peersus-ui = { path = "crates/peersus-ui" }
+peersus-diagnostics = { path = "crates/peersus-diagnostics" }
+peersus-clipboard = { path = "crates/peersus-clipboard", default-features = false }
+# The Android entry's parts. `winit` is the version freya-android is built against, with its default features
+# as the trial that ran on a device had them (the raw window handle one is what the renderer makes its surface
+# with; x11 and wayland are for other systems and are not built for Android). The activity feature is chosen
+# where it is needed, in the Android crate, and not here, since the desktop build has no use for it.
+winit = "0.30.13"
+freya-android = "=0.5.0-rc.13"
+tracing = "0.1.41"
+# The one way Rust reaches Java on Android (the document picker): the version the activity crate documents.
+jni = "0.21.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Reads a plugin manifest written as `plugin.toml`. Parsing only: nothing here writes TOML. The
+# version is the one already in the lockfile, so the build gains no new package.
+toml = { version = "1.1", default-features = false, features = ["std", "serde", "parse"] }
+thiserror = "2"
+sha2 = "0.11"
+hmac = "0.13"
+subtle = "2"
+zeroize = { version = "1", features = ["derive"] }
+iroh = "1.4.1"
+iroh-base = "1.4.1"
+data-encoding = "2.11.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net", "signal"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+tempfile = "3"
+# Reads a plugin package given as one .tar.gz (or plain .tar) file. No `xattr`: extended
+# attributes of an archive entry are never applied to anything here. The inflater is `flate2`,
+# declared once below, pure Rust. Nothing is written with either: only read.
+tar = { version = "0.4.46", default-features = false }
+rand = "0.10"
+hex = "0.4"
+clap = { version = "4", features = ["derive"] }
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
+fs2 = "0.4"
+rustix = { version = "1", features = ["process", "fs"] }
+peersus-app = { path = "crates/peersus-app" }
+# PNG, and JPEG for the one place that reads a picture a person chose on their own disk (the profile
+# picture). Features add across the whole build, so JPEG is compiled in everywhere; what keeps a
+# plugin from reading it is that the clipboard plugin names the PNG decoder and never asks the data
+# which kind it is, so a picture another device sends is only ever read as PNG. No other format.
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
+# Text only, and without `image-data`: that feature is what makes the library decode whatever
+# picture another application puts on the clipboard, with no limit. A central entry must never
+# turn it back on. NOT BOUNDED all the same: reading text still collects whatever is offered
+# before any limit applies.
+arboard = { version = "=3.7.0", default-features = false, features = ["wayland-data-control"] }
+# The same copy arboard already resolves. Named here only for its `watch` module (a real selection-change
+# event over ext/wlr data-control), which arboard does not expose; 0.9.3 has no such module.
+wl-clipboard-rs = { version = "=0.9.5", default-features = false }
+# Also already resolved through arboard. Named here for XFixes, the event that says the X11
+# selection changed: how a copy is noticed on GNOME, which offers no data-control. Pure Rust, no
+# libxcb, so the plugin stays free of unsafe code.
+x11rb = { version = "=0.13.2", default-features = false, features = ["xfixes"] }
+# Only to build, in tests, a small PNG whose embedded colour profile expands to far more than
+# it weighs.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+# The interface toolkit: Freya, on its latest line (a release candidate), pinned exactly because
+# a pre-release moves between any two versions. Decided on evidence (Android launch, tap, soft
+# keyboard and scrolling all passed); not to be re-opened without a real difficulty.
+freya = { version = "=0.5.0-rc.13", features = ["engine", "icons-lucide"] }
+# Named only to switch on one feature of the renderer's bindings: compile FreeType from source
+# instead of looking for its development headers in the operating system. Features only add,
+# so this reaches the whole graph. The renderer itself (Skia) is built from source too: set
+# FORCE_SKIA_BUILD=1 so that no prebuilt archive from a third-party account is ever downloaded.
+freya-skia-safe = { version = "=0.104.0", features = ["embed-freetype"] }
+# The system file chooser on desktop (through the desktop portal). Used ASYNCHRONOUSLY only: the
+# blocking calls would freeze the window while the dialog is open. Default features, which is
+# what the toolkit already pulls in, so no second copy enters the build.
+rfd = "0.17"
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "multipart", "stream", "json"] }
+url = "=2.5.8"
+rpassword = "=7.5.4"
+# Read-only binary metadata: no decompression or executable loading.
+object = { version = "=0.40.0", default-features = false, features = ["read_core", "elf", "pe", "macho", "std"] }
+wasmparser = { version = "=0.263.0", default-features = false, features = ["std"] }
+# Verifies the maintainer's signature over the extension catalog. VERIFY ONLY: no `rand_core`/signing
+# feature, so this application can never produce a signature and holds no key. Already in the build
+# through the transport stack, so no second implementation of the primitive enters.
+ed25519-dalek = { version = "=3.0.0", default-features = false }
+# Draws the pairing code. Nothing but the matrix: MIT, no dependencies, `forbid(unsafe_code)`.
+qrcodegen = "=1.8.0"
+# Reads a pairing picture back, in tests only, to prove that what is drawn can be scanned.
+rqrr = { version = "=0.11.0", default-features = false }
+
+# winit 0.30.13 with two changes in its Android backend, both of which AdbBridge already carries: (1) at `MainEvent::Destroy` the event loop
+# exits, since `NativeActivity.onDestroy` waits for `android_main` to return and, with the loop kept alive, blocks Android's main thread
+# for ten seconds or more (an ANR: the window freezes, "not responding"); (2) the event loop may be built again on Android, where there is
+# one looper per NativeActivity and not one per process, so that an activity made after another was destroyed has a window. Nothing else
+# differs from the published crate (see vendor/winit, with its own LICENSE); drop this when winit forwards `onDestroy` itself.
+[patch.crates-io]
+winit = { path = "vendor/winit" }
+# Backport the maintained netlink dependency set without changing the transport's
+# netwatch 0.19 API. See vendor/netwatch/PATCHES.md for provenance and removal.
+netwatch = { path = "vendor/netwatch" }
+# Retain the compatible Wayland toolkit while backporting the maintained title
+# font renderer. See vendor/sctk-adwaita/PATCHES.md.
+sctk-adwaita = { path = "vendor/sctk-adwaita" }
+# Preserve consumer APIs while replacing the unmaintained token-pasting macro.
+# Each local package records its upstream revision and minimal manifest change.
+freya-core = { path = "vendor/freya-core" }
+freya-components = { path = "vendor/freya-components" }
+pulp = { path = "vendor/pulp" }
+rav1e = { path = "vendor/rav1e" }
+# Preserve portal preference support while migrating its Linux wire format.
+mundy = { path = "vendor/mundy" }
+# Keep accessibility and XML signature validation while adopting maintained wire types.
+atspi = { path = "vendor/atspi" }
+atspi-common = { path = "vendor/atspi-common" }
+atspi-proxies = { path = "vendor/atspi-proxies" }
+accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
+accesskit_unix = { path = "vendor/accesskit_unix" }
+zbus-lockstep = { path = "vendor/zbus-lockstep" }
+zbus-lockstep-macros = { path = "vendor/zbus-lockstep-macros" }
+# Preserve existing native credential lookup semantics; omit the unused async backend.
+keyring = { path = "vendor/keyring" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+correctness = "deny"
+
+# The picture decoder is exercised on pictures near the memory limit in tests. Unoptimised it
+# takes tens of seconds to decode one; optimised, a fraction of one. Only these libraries are
+# affected, never this project's own code, so what the tests prove is unchanged.
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
+[profile.dev.package.flate2]
+opt-level = 3
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+[profile.dev.package.crc32fast]
+opt-level = 3
+[profile.dev.package.adler2]
+opt-level = 3
+[profile.dev.package.simd-adler32]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

@@ -1,0 +1,264 @@
+PLUGIN INSTALLATION: WHY IT BLOCKS ITSELF, AND A DESIGN WITHOUT IT
+===================================================================
+
+STATUS: historical installation proposal and subsequent execution-format design notes.
+The FACTS, measured observations and undecided items below describe the earlier implementation,
+not the current API or platform support. They are retained for design context, not as build instructions.
+For the current contract, read docs/architecture.md, docs/api/manifests.md,
+docs/api/module-abi.md and docs/extension-store.md. release-readiness.md records historical test evidence;
+it is not proof that the current checkout has passed those tests.
+
+
+FACTS
+-----
+
+F1. What is stored, and where.
+    <data>/plugins/<id>/            the files of the plugin (a manifest and a program)
+    <data>/installed.json           the record: id, digest, disabled, per plugin
+    The digest is a SHA-256 over EVERY file in the plugin's directory: name, length, bytes, and the
+    "can be run" bit (plugin_manager.rs, fn digest and fn scan).
+
+F2. What starts a plugin.
+    bin/peersus.rs calls Manager::load() once, at start. load() starts only the plugins that are in
+    installed.json AND whose digest NOW equals the recorded one. Anything else is a "problem" printed
+    to stderr and the plugin is left out of the registry.
+
+F3. What the window is told.
+    The state the window draws is `plugins: Vec<PluginInfo>` (peersus-core model.rs). It holds only the
+    plugins that LOADED. Settings has no way to hear about one that is installed and refused.
+
+F4. What "install" does with a name that is already recorded.
+    Manager::install refuses unless the package is byte-identical ("A different package is already
+    installed under this name").
+
+F5. What "remove" does.
+    It deletes the files, the record, AND every permission the plugin was given, on every device
+    (forget_one). Remove is only reachable from a card, and a card exists only for a loaded plugin (F3).
+
+F6. Measured on this machine.
+    The clipboard plugin is in installed.json (not disabled), its directory is intact, discovery
+    accepts it (loaded 1, problems 0), the program file has not changed since 07:15, and plugin.json
+    was rewritten at 14:26. Manager::list() says CHANGED; Manager::load() says "It is not what was
+    installed" and loads 0. Settings says "No plugins installed."
+
+F7. What the protocol does and does not carry.
+    The host reads the manifest from a file and gives it to the hub. The plugin process says only
+    Hello{token} when it connects (peersus-clipboard/src/main.rs). Nothing in the binary declares its
+    own capabilities today.
+
+
+THE DEFECT, STATED ONCE
+-----------------------
+
+There are TWO sources of truth for "what is installed":
+    installed.json says  "clipboard is installed".
+    the loader says      "that clipboard is not the installed one" and hides it.
+A plugin can therefore be installed (by the record) and absent (to start-up, to Settings, to remove)
+at the same time. F4 closes install, F3+F5 close remove, F2 closes use. There is no way out that the
+person can take. This is a flaw of the model, not a mistake by the person and not a missing button.
+
+Rewriting plugin.json cannot be what decides this. It is text next to the program. Whatever the
+person edits next to a program must not be able to lock the program out.
+
+
+AGREED PRINCIPLES (stated by the owner, in the owner's words where possible)
+----------------------------------------------------------------------------
+
+P1. The FOLDER is the truth. <data>/plugins/<id>/ , and the id is the name of the folder. What is on
+    disk is what exists. Nothing can be "installed but invisible" or "declared but absent".
+P2. State is COMPUTED from what is found, never recorded in a file that can disagree with the disk.
+P3. Nothing fragile. If anything is changed, corrupted or deleted, WE keep control: the plugin is
+    always listed, and can always be removed, whatever condition it is in.
+P4. Losing a memory costs a question, never a block. A missing or damaged approval means "approve
+    again", not "stuck".
+P5. Plugin code never runs inside the owner or the window process, in any format.
+P6. Everything about a plugin that a person should know lives with the plugin: author, repository,
+    license (and name, version, description). They are shown on its card.
+
+
+MECHANISM
+---------
+
+M1. Install source is a package with a MANIFEST (manifest.toml or manifest.json). It is read at install
+    to show the person what the plugin is and what it asks for.
+M2. After install, anything derived from the manifest is a CACHE (manifest.cache.*). It is temporary
+    and regenerable, and it is never trusted over what the person approved. Deleting it costs nothing.
+M3. APPROVAL is a small file in the plugin's own folder, written only by the application:
+        approval.json   { program, sha256, executable, capabilities, approved_at }
+    sha256 is over the PROGRAM only (its bytes and the "can be run" bit). Nothing else in the folder
+    counts: not the manifest, not the cache, not a file added or rewritten beside it.
+M4. The registry file installed.json is REMOVED. Its three fields move:
+        id        -> the folder's name
+        digest    -> approval.json
+        disabled  -> a marker file in the plugin's folder
+    Grants stay where they are (peers.json, grants.json), keyed by plugin id, and are dropped only by an
+    explicit Remove, never by a state.
+M5. Listing = every directory under plugins/, without exception. (There is no "Missing plugin dir":
+    the approval lives in the folder, so a declaration cannot outlive its folder.)
+
+
+STATES (computed in this order, the first that applies)
+-------------------------------------------------------
+
+  BROKEN          red     no usable manifest, or no program, or the program cannot be run
+                          exits: Remove
+  NEEDS APPROVAL  yellow  no approval.json (first time, deleted, or unreadable), or the manifest asks
+                          for capabilities the approval does not contain
+                          exits: Approve (shows the capabilities), Remove
+  CHANGED         red     the program's sha256 is not the approved one. NOT RUN.
+                          exits: Trust this program again (keeps grants), Remove
+  DISABLED        grey    marker present
+                          exits: Enable, Remove
+  RUNNING/STOPPED green   everything agrees; whether the process is up
+                          exits: Disable, Restart, Remove
+
+  REMOVE exists in EVERY state. It deletes the folder, and then the grants for that id.
+  Grants are never dropped by a state, only by Remove.
+
+
+WHAT THE APPROVAL CAN AND CANNOT DO (said plainly, so nobody relies on more than it gives)
+------------------------------------------------------------------------------------------
+
+A plugin process today is started with Command::new(program): the same user, no sandbox, no separate
+UID (peersus-plugin-host supervisor.rs, Launch::spawn). A plugin can therefore rewrite its own binary
+AND approval.json. So approval.json is DETECTION of accidental or silent change (a build that overwrote
+the binary, a bad copy, an update nobody announced). It is NOT a guarantee that a hostile plugin cannot
+change itself. That guarantee needs a boundary the plugin cannot write across (a separate UID, a
+namespace, or Wasm), and this design does not provide one.
+
+How others do it, as far as it was checked: Zed runs extensions as WebAssembly inside the editor, so
+its isolation comes from the execution technology, not from a file, and its manifest is generated at
+build from extension.toml. VS Code and Cursor verify a signature at INSTALL only (Cursor says so
+itself), and a published report showed a "verified" extension modified to run commands. Verifying the
+program at every start, as here, is stronger than that; it is still not isolation.
+
+
+FORMATS
+-------
+
+F-a. Executable: supported now, in its own process (socket and token).
+F-b. Shared library (.so): only if it keeps the isolation. A library is a format, not a boundary: it must
+     be loaded by a separate helper process (a plain helper on a desktop, a service in its own process
+     on Android), never inside the owner or the window. To be proven, not assumed: a distinct PID, and a
+     plugin that dies does not take the owner with it. ABI and helper are left for later.
+
+
+COST (honestly)
+---------------
+
+C1. Reverses a rule written on purpose: "the digest covers every file" and "a plugin changed after it
+    was installed is not run, whatever was changed". About 86 tests in plugin_manager.rs and
+    discovery.rs, plus tests/plugins.rs, assume the old rule; each is rewritten to state what is now
+    true, and made to fail when the rule is broken (mutation-checked). None is deleted to get green.
+C2. installed.json disappears. There is no release, so nothing is migrated.
+C3. The window must be told about every plugin with its state (today it hears only of loaded ones).
+C4. Extra metadata (author, repository, license) is added to the manifest and shown on the card.
+
+
+NOT DECIDED / NOT KNOWN
+-----------------------
+
+N1. Whether the binary itself should declare the manifest (the owner's longer-term idea: metadata lives
+    in the binary and the cache is generated by it). It needs the host to ASK the binary, which means
+    running code before its capabilities are approved. That is a security decision, not taken here.
+N2. Whether anything else reads the manifest after install (archive.rs and runtime.rs:1399 stage a
+    package BEFORE install and stay as they are). Not every caller has been checked.
+N3. Whether the test plugin used by the suites needs a manifest on disk at start.
+N4. Android: no plugins run there at all today, so none of this is exercised on the phone.
+
+
+ORDER OF WORK
+-------------
+
+1. Listing and Remove from the folder, in any state. This alone ends today's block.
+2. approval.json and the computed states.
+3. Start-up loads from the folder; installed.json goes away; the window receives every state.
+4. The guarding tests rewritten and mutation-checked.
+5. Only then, separately: the binary declaring its own manifest (N1) and .so (F-b).
+
+
+EXECUTION FORMATS AND DISTRIBUTION: CURRENT PLAN (2026-11-02)
+------------------------------------------------------------
+
+The earlier sections describe the installation redesign, not the current implementation status.
+This section supersedes F-b and N4 for execution-format planning. It records the baseline before
+implementation; current acceptance evidence is in release-readiness.md. Desktop WASM/native helpers,
+Android's isolated WASM worker, native service slots and the Play/community package boundary are
+implemented and exercised through real owners. Both variants' unsigned release APKs/AABs have been
+built and inspected; signing, APKS delivery and publication remain separate distribution work.
+
+Distribution                 Installable extension formats
+Google Play Android          WASM only
+Desktop                      Existing native executables, shared libraries, WASM
+Android outside Google Play  Shared libraries and WASM
+
+ONE CONTRACT, DIFFERENT EXECUTORS
+- Keep the existing host-assigned identity, versioned imports/exports, capability grants, settings,
+  action contributions, authenticated Hello, bounded control frames, data tickets and lifecycle.
+- Add an explicit, versioned execution declaration. Omission continues to mean the existing native
+  executable format. Never infer executable permissions or trust from a filename extension alone.
+- A native shared library has a versioned C entry ABI, not a Rust ABI. The owner never dlopens it.
+  A separate helper loads it on desktop; a separate Android service process loads it on Android.
+- WASM uses the same interpreter crate on desktop and Android. It has no ambient filesystem,
+  network, native loading or Android API access: host imports expose bounded transport only.
+  Capability decisions stay in the existing broker, never in a second Binder permission model.
+- Limit module size, memories, tables, stack, instructions per execution turn, host I/O, queues and
+  pending requests. Do not refill an infinite guest loop's fuel indefinitely. Kill/revoke one failed
+  generation without blocking the UI or leaking its handles into a replacement generation.
+
+ANDROID HOSTS
+- WASM: one isolatedProcess service component plus bindIsolatedService with a unique instanceName
+  for each running generation. The int-flags overload is available since API 29, below minSdk 31.
+  Do not use the API-35 shared-isolated-process flag. Pass the module and connected control channel
+  as ParcelFileDescriptors; isolated UIDs cannot open the application's private paths. Additional
+  data channels are descriptor transport for the existing authenticated data-ticket protocol.
+- Native .so: one normal, non-exported service process per active extension, under the application
+  UID. Generate service slots to match the existing MAX_PLUGINS installation bound, not an unrelated
+  new limit of eight extensions. Assign and release slots by generation; never share a live slot.
+  This is crash isolation, not a security sandbox: native code retains application-UID privileges.
+- Do not use ProcessBuilder/exec children for persistent Android extensions. A packaged PIE worker
+  was verified to load an external .so, but Android's phantom-process lifecycle makes it unsuitable
+  as the persistent host. Do not disable system process limits or other platform protections.
+- Preserve the existing bundled clipboard service while installing the new external-plugin hosts.
+  Any later migration must preserve its permission checks, cancellation and Android clipboard rules.
+
+PHYSICAL ANDROID FEASIBILITY EVIDENCE (targetSdk 36, arm64)
+- dlopen of a read-only module copied into app-private files: real entry returned the expected value.
+- Two concurrent bindIsolatedService instance names: distinct PIDs and distinct isolated UIDs.
+- android_dlopen_ext with ANDROID_DLEXT_USE_LIBRARY_FD in those isolated instances: both failed with
+  Permission denied. Native modules must not silently fall back into the owner or UI process.
+- An APK-packaged, package-manager-extracted PIE worker: started and loaded that external module.
+  This proves native loading is possible; it does not prove persistent-extension lifecycle safety.
+
+PLAY BUILD BOUNDARY
+- Separate Play/community builds at compile/package time, not a UI switch or runtime setting.
+  The Play artifact must not contain the external-native loader or a native-install escape route.
+  Its own bundled native application/runtime libraries remain ordinary APK-delivered application code.
+- Validate format and reject forbidden payloads in the installer and runtime, including imported
+  archives and manually altered manifests. Do not delegate this boundary to a file-picker filter.
+- Interpreted extensions remain subject to every other Play policy. WASM is not approval and is not
+  a promise that Play Protect will never warn. Do not self-update the Play application externally.
+
+IMPLEMENTATION / ACCEPTANCE ORDER
+1. Versioned execution declarations and shared native/WASM transport contract; retain legacy native
+   executables and existing consumers. Validate format/platform/ABI before code is loaded.
+2. Desktop helpers and the bounded interpreter, then Android managed-process hosts and FD adapters.
+3. Real Android package selection, staging, approval, install and runtime registration; cancellation
+   or invalid packages change no installed extension. Never present an install button as a no-op.
+4. Isolated end-to-end tests: install, actual action/data, stop, restart; two modules in distinct
+   processes; kill or hang one without affecting owner or sibling; denied rights stay denied.
+5. Build both distribution variants and inspect their final artifacts. Exercise their real UI and
+   installed runtime, not just their source, mocked launcher or compilation result.
+
+Primary sources checked for this plan:
+https://developer.android.com/reference/android/content/Context#bindIsolatedService(android.content.Intent,int,java.lang.String,java.util.concurrent.Executor,android.content.ServiceConnection)
+https://developer.android.com/privacy-and-security/risks/dynamic-code-loading
+https://support.google.com/googleplay/android-developer/answer/16559646?hl=en
+https://raw.githubusercontent.com/aosp-mirror/platform_frameworks_base/android12-release/services/core/java/com/android/server/am/PhantomProcessList.java
+
+
+SEE ALSO
+--------
+
+The extension store (signed catalog, embedded author/link, maintainer approval, one-click install) builds on this
+installer without replacing it: docs/extension-store.md.

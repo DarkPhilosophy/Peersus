@@ -1,0 +1,35 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Upload",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Upload an explicitly selected file after destination approval."
+  },
+  "platforms": ["android"],
+  "program": "peersus_upload_wasm.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {},
+  "imports": [
+    {"provider": "host", "service": "peersus.files", "version": 1, "methods": ["selected", "release"], "events": []},
+    {"provider": "host", "service": "peersus.http", "version": 1, "methods": ["configure", "authorize", "request", "release"], "events": []}
+  ],
+  "exports": [{
+    "service": "upload.file", "version": 1,
+    "description": "Explicit file selection and cloud-upload consent; file bytes and credentials stay in the trusted Android host.",
+    "consumers": ["host"],
+    "methods": {
+      "choose": {"description": "Upload the file already selected on Send after destination approval."},
+      "configure": {"description": "Manage the encrypted API key for this destination without selecting or uploading a file."}
+    },
+    "events": {}
+  }],
+  "contributions": {
+    "actions": [
+      {"id": "upload", "label": "Upload selected file", "input": "selected_file", "target": {"service": "upload.file", "method": "choose"}, "needs_device": false, "destructive": false, "timeout_ms": 600000},
+      {"id": "configure", "label": "API key…", "target": {"service": "upload.file", "method": "configure"}, "needs_device": false, "destructive": false, "timeout_ms": 600000}
+    ],
+    "settings": []
+  }
+}

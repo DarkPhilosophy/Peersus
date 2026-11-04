@@ -1,0 +1,21 @@
+[package]
+name = "peersus-core"
+description = "Toolkit-independent Peersus domain: model, commands, settings and mutual pairing"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+peersus-plugin-api.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+sha2.workspace = true
+hmac.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
+
+[lints]
+workspace = true
