@@ -986,9 +986,10 @@ mod tests {
         // The service, its version and the two methods are written twice: here, and in the
         // manifest the application reads. If they drift apart nothing fails to compile, and
         // the plugin would send to a service nobody routes to. This is what ties them.
+        let split = peersus_plugin_api::package::split(include_bytes!("../plugin.json"))
+            .expect("plugin.json has invalid package metadata");
         let manifest: peersus_plugin_api::manifest::Manifest =
-            serde_json::from_str(include_str!("../plugin.json"))
-                .expect("plugin.json is not a manifest");
+            serde_json::from_slice(&split.manifest).expect("plugin.json is not a manifest");
         manifest
             .validate()
             .expect("the application would refuse this manifest");

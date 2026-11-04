@@ -91,8 +91,9 @@ fn install(root: &Path) {
     )
     .unwrap();
     // The file the shipped manifest names, so this follows what ships and not a name written here.
+    let split = peersus_plugin_api::package::split(include_bytes!("../plugin.json")).unwrap();
     let manifest: peersus_plugin_api::manifest::Manifest =
-        serde_json::from_str(include_str!("../plugin.json")).unwrap();
+        serde_json::from_slice(&split.manifest).unwrap();
     let program = directory.join(manifest.program_file());
     std::fs::copy(env!("CARGO_BIN_EXE_peersus-clipboard"), &program).unwrap();
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755)).unwrap();
