@@ -20,13 +20,13 @@ jobs:
     timeout-minutes: 10
     steps:
       # Data: the pull request's own tree. Read as bytes only.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: submission
           fetch-depth: 0
           persist-credentials: false
       # Code: the BASE branch, so a pull request cannot weaken the validator that judges it.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: trusted
