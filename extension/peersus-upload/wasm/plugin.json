@@ -13,7 +13,7 @@
   "capabilities": {},
   "imports": [
     {"provider": "host", "service": "peersus.files", "version": 1, "methods": ["selected", "release"], "events": []},
-    {"provider": "host", "service": "peersus.http", "version": 1, "methods": ["configure", "authorize", "request", "release"], "events": []}
+    {"provider": "host", "service": "peersus.http", "version": 1, "methods": ["configure", "authorize", "request", "present", "release"], "events": []}
   ],
   "exports": [{
     "service": "upload.file", "version": 1,

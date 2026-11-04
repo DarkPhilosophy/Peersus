@@ -113,7 +113,7 @@ impl<W: Wire> Job<'_, W> {
         )?;
         self.authorization = Some(authorization["authorization"].clone());
         let result = if size <= PART {
-            self.http(json!({"method":"POST","path":"/api/upload","bearer":true,"present_link":"/files/0/url","multipart":{"field":"files","offset":0,"length":size,"fields":{"burnMode":RETENTION,"showcase":"false"}}}))?
+            self.http(json!({"method":"POST","path":"/api/upload","bearer":true,"multipart":{"field":"files","offset":0,"length":size,"fields":{"burnMode":RETENTION,"showcase":"false"}}}))?
         } else {
             let session = self.http(json!({"method":"POST","path":"/api/upload/session","bearer":true,"json":{"name":name,"type":"","size":size,"burnMode":RETENTION,"showcase":false},"capture_secrets":["/token"]}))?;
             let part_size = session["partSize"]
@@ -140,9 +140,18 @@ impl<W: Wire> Job<'_, W> {
                 }
                 receipts.push(receipt["receipt"].clone());
             }
-            self.http(json!({"method":"POST","path":"/api/upload/session/complete","present_link":"/files/0/url","json":{"token":token,"receipts":receipts}}))?
+            self.http(json!({"method":"POST","path":"/api/upload/session/complete","json":{"token":token,"receipts":receipts}}))?
         };
-        result_link(&result)
+        let link = result_link(&result)?;
+        let presented = self.call(
+            "peersus.http",
+            "present",
+            json!({"authorization":self.authorization,"link":link}),
+        )?;
+        if presented["presented"] != true {
+            return Err("The upload result could not be displayed");
+        }
+        Ok(link)
     }
     fn release(&mut self) {
         if let Some(authorization) = self.authorization.take() {
@@ -305,6 +314,7 @@ mod tests {
                 json!({"file":"chosen","name":"small.txt","bytes":7}),
                 json!({"authorization":"approved"}),
                 json!({"status":200,"json":uploaded()}),
+                json!({"presented":true}),
                 json!({"released":true}),
                 json!({"released":true}),
             ]),
@@ -318,8 +328,13 @@ mod tests {
             json!({"field":"files","offset":0,"length":7,"fields":{"burnMode":RETENTION,"showcase":"false"}})
         );
         assert_eq!(wire.sent[2]["args"]["authorization"], "approved");
-        assert_eq!(wire.sent[3]["args"], json!({"authorization":"approved"}));
-        assert_eq!(wire.sent[4]["args"], json!({"file":"chosen"}));
+        assert_eq!(wire.sent[3]["method"], "present");
+        assert_eq!(
+            wire.sent[3]["args"],
+            json!({"authorization":"approved","link":format!("{ORIGIN}/f/example")})
+        );
+        assert_eq!(wire.sent[4]["args"], json!({"authorization":"approved"}));
+        assert_eq!(wire.sent[5]["args"], json!({"file":"chosen"}));
         assert!(wire.replies.is_empty());
     }
     #[test]
@@ -332,6 +347,7 @@ mod tests {
                 json!({"status":200,"json":{"success":true,"index":0,"receipt":{"secret":"first"}}}),
                 json!({"status":200,"json":{"success":true,"index":1,"receipt":{"secret":"last"}}}),
                 json!({"status":200,"json":uploaded()}),
+                json!({"presented":true}),
             ]),
             sent: Vec::new(),
         };
@@ -365,6 +381,38 @@ mod tests {
         };
         assert!(job(&mut wire).run(42).is_err());
         assert_eq!(wire.sent.len(), 3);
+    }
+    #[test]
+    fn rejected_upload_results_never_request_presentation() {
+        let mut invalid = vec![
+            json!({"success":false,"files":[{"id":"example","url":format!("{ORIGIN}/f/example")}]}),
+            json!({"success":true,"files":[]}),
+            json!({"success":true,"files":[{"id":"../example","url":format!("{ORIGIN}/f/example")}]}),
+            json!({"success":true,"files":[{"id":"example","url":format!("{ORIGIN}/other")}]}),
+        ];
+        let mut multiple = uploaded();
+        multiple["files"]
+            .as_array_mut()
+            .unwrap()
+            .push(uploaded()["files"][0].clone());
+        invalid.push(multiple);
+        for response in invalid {
+            let mut wire = Script {
+                replies: VecDeque::from([
+                    json!({"file":"chosen","name":"small.txt","bytes":7}),
+                    json!({"authorization":"approved"}),
+                    json!({"status":200,"json":response}),
+                ]),
+                sent: Vec::new(),
+            };
+            assert!(job(&mut wire).run(42).is_err());
+            assert!(
+                wire.sent.iter().all(|call| {
+                    call["method"] != "present" && call["args"].get("present_link").is_none()
+                }),
+                "A rejected upload asked the host to show a result"
+            );
+        }
     }
     #[test]
     fn returned_link_cannot_change_origin_path_or_identifier() {
