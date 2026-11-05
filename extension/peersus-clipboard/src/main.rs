@@ -2,24 +2,7 @@
 //! malicious local applications can therefore exhaust this plugin, never the owner process.
 #[cfg(not(target_os = "android"))]
 fn main() {
-    use arboard::Clipboard as System;
-    use peersus_clipboard::owner::{Owner, Store};
     use peersus_plugin_host::supervisor::Bootstrap;
-    struct Desktop(System);
-    impl Store for Desktop {
-        fn get(&mut self) -> Option<String> {
-            self.0.get_text().ok()
-        }
-        fn set(&mut self, text: &str) -> bool {
-            self.0.set_text(text).is_ok()
-        }
-        fn listen(
-            &mut self,
-            signals: std::sync::mpsc::SyncSender<peersus_clipboard::watch::Signal>,
-        ) -> bool {
-            peersus_clipboard::watch::start(signals)
-        }
-    }
     let (Ok(socket), Ok(token), Ok(data_socket)) = (
         std::env::var("PEERSUS_PLUGIN_SOCKET"),
         std::env::var("PEERSUS_PLUGIN_TOKEN"),
@@ -34,7 +17,7 @@ fn main() {
     else {
         return;
     };
-    let clipboard = Owner::start(|| System::new().ok().map(Desktop));
+    let clipboard = peersus_clipboard_platform::desktop::open();
     runtime.block_on(peersus_clipboard::session::run(
         clipboard,
         Bootstrap {

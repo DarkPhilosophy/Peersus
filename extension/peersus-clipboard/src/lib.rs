@@ -7,10 +7,9 @@
 //! than the text limit.
 #![forbid(unsafe_code)]
 
-pub mod owner;
+pub use peersus_clipboard_platform::{owner, watch};
 pub mod picture;
 pub mod plugin;
 #[cfg(unix)]
 pub mod session;
-pub mod watch;
 pub mod wire;

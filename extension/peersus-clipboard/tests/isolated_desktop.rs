@@ -429,6 +429,11 @@ async fn sharing_sends_what_another_application_put_on_the_real_clipboard() {
     assert_eq!(claim, 4242);
     let mut bytes = Vec::new();
     connection.stream.read_to_end(&mut bytes).await.unwrap();
+    // The host confirms the delivered byte count before the plugin may report
+    // success. Merely reading its write half to EOF is not a delivery receipt.
+    peersus_plugin_host::frame::write(&mut connection.stream, &(bytes.len() as u64), 1024)
+        .await
+        .unwrap();
     assert_eq!(
         wire::decode(Cursor::new(bytes)).unwrap(),
         Item::Text("copied by another application ✓".into())

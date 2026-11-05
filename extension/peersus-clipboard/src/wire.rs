@@ -18,7 +18,7 @@ use std::io::{self, Read};
 /// First bytes of every item, so something that is not one is refused at once.
 pub const MAGIC: [u8; 4] = *b"PCB1";
 /// Most text accepted, in bytes.
-pub const MAX_TEXT: u32 = 1024 * 1024;
+pub const MAX_TEXT: u32 = peersus_clipboard_platform::MAX_TEXT as u32;
 /// Most PNG data accepted, in bytes, before it is even looked at as a picture.
 pub const MAX_PNG: u32 = 32 * 1024 * 1024;
 /// Widest or tallest picture accepted, in pixels.

@@ -14,18 +14,15 @@ path = "src/main.rs"
 [dependencies]
 peersus-plugin-api.workspace = true
 peersus-plugin-host.workspace = true
+peersus-clipboard-platform.workspace = true
 serde_json.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "io-util", "net", "time", "macros"] }
 image.workspace = true
-[target.'cfg(not(target_os = "android"))'.dependencies]
-arboard.workspace = true
-[target.'cfg(all(unix, not(any(target_os = "macos", target_os = "android"))))'.dependencies]
-wl-clipboard-rs.workspace = true
-x11rb.workspace = true
 
 [dev-dependencies]
+arboard.workspace = true
 flate2.workspace = true
 tempfile.workspace = true
 # The full-runtime test starts the application itself (with a second paired device) and runs
