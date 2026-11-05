@@ -1,0 +1,70 @@
+version: 2
+
+# Version updates target the default branch. Security updates also require the
+# repository's Dependabot alerts/security-updates settings to be enabled.
+# No auto-merge, private registry credentials or self-hosted runner is required.
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    allow:
+      - dependency-type: all
+    groups:
+      cargo-compatible:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      actions-compatible:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      android-compatible:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+
+  # Native extension crates inherit the SDK workspace dependencies above.
+  # The standalone WASM crate and branch-owned Actions have their own proposals.
+  - package-ecosystem: cargo
+    directory: /extension/peersus-upload/wasm
+    target-branch: extension
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      upload-wasm-compatible:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: extension
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      extension-actions-compatible:
+        update-types: [minor, patch]

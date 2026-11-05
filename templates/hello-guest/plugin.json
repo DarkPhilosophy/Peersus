@@ -1,0 +1,29 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Hello",
+    "version": "0.1.0",
+    "author": "Your name",
+    "link": "https://example.com/your-extension",
+    "description": "The smallest extension that answers a call: replace this sentence with what yours does."
+  },
+  "program": "hello_guest.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {},
+  "imports": [],
+  "exports": [{
+    "service": "hello.greeting", "version": 1,
+    "description": "Says hello. It reads nothing from this device and sends nothing anywhere.",
+    "consumers": ["host"],
+    "methods": {
+      "greet": {"description": "Answer with a greeting."}
+    },
+    "events": {}
+  }],
+  "contributions": {
+    "actions": [
+      {"id": "greet", "label": "Say hello", "target": {"service": "hello.greeting", "method": "greet"}, "needs_device": false, "destructive": false, "timeout_ms": 10000}
+    ],
+    "settings": []
+  }
+}

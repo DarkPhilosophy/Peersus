@@ -1,0 +1,132 @@
+name: Extension source submission
+# Build untrusted source without secrets. Validate its output on a DIFFERENT runner.
+# Started when a maintainer adds the `run:ci` label to the PR (remove and add it again to rerun after a push).
+# Still a pull_request run bound to the PR head, as admission requires; contributors cannot add labels.
+on:
+  pull_request:
+    branches: [extension]
+    types: [labeled]
+    paths:
+      - 'extension/**'
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  # Per label, so adding some other label to the PR never cancels a running check.
+  group: extension-check-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: true
+jobs:
+  plan:
+    if: github.event.label.name == 'run:ci'
+    name: One plugin source submission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      directory: ${{ steps.plan.outputs.directory }}
+      plugin: ${{ steps.plan.outputs.id }}
+      sdk: ${{ steps.sdk.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+      - id: sdk
+        working-directory: trusted
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # Before any build: the reviewers read this exact commit and every current thread is resolved.
+      # Reviewer logins: repository variable REQUIRED_REVIEWERS, comma-separated, or the script's default.
+      - name: Reviewers finished and their threads addressed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
+        run: python3 trusted/scripts/verify-review-readiness.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD" --reviewers "$REVIEWERS"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          path: submission
+          fetch-depth: 0
+          persist-credentials: false
+      - id: plan
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: python3 trusted/scripts/plan-extension-submission.py --repo submission --base "$BASE" --head "$HEAD" --github-output "$GITHUB_OUTPUT"
+      - name: Verify plugin ownership and contributor permissions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          EXTENSION_DIRECTORY: ${{ steps.plan.outputs.directory }}
+        run: python3 trusted/scripts/verify-extension-ownership.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD"
+  build:
+    name: Build and test untrusted plugin source
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sdk }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/head
+          path: submission
+          persist-credentials: false
+      - name: Verify the source has not moved
+        working-directory: submission
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$HEAD"
+      - name: Prepare Rust SDK build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang binutils libclang-dev pkg-config cmake ninja-build libssl-dev libdbus-1-dev libx11-dev libxkbcommon-dev libwayland-dev libxcb-randr0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("trusted/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal --component clippy,rustfmt --target wasm32-unknown-unknown
+          rustup default "$version"
+          cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/extension-tools"
+          echo "$RUNNER_TEMP/extension-tools/bin" >> "$GITHUB_PATH"
+      - name: Execute build, tests and packaging without credentials
+        env:
+          SOURCE: ${{ needs.plan.outputs.directory }}
+        run: python3 trusted/scripts/check-extension-source.py --source "submission/$SOURCE" --sdk trusted --out "$RUNNER_TEMP/candidate"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: extension-candidate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/candidate/
+          if-no-files-found: error
+          retention-days: 30
+  validate:
+    name: Validate built packages on a fresh runner
+    needs: [plan, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sdk }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-candidate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: candidate
+      - name: Validate data only and bind all platform builds to one ID
+        env:
+          PLUGIN: ${{ needs.plan.outputs.plugin }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          SDK: ${{ needs.plan.outputs.sdk }}
+        run: python3 trusted/scripts/validate-extension-build.py --directory candidate --id "$PLUGIN" --commit "$HEAD" --sdk "$SDK" --out "$RUNNER_TEMP/review"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: extension-reviewed-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/review/
+          if-no-files-found: error
+          retention-days: 30

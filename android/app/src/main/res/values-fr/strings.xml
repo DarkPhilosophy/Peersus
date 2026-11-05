@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Connexion des appareils</string>
+    <string name="available_title">Disponible pour les transferts de fichiers</string>
+    <string name="available_body">Les appareils associés peuvent se connecter. Ouvrez l’application pour gérer le mode en arrière-plan.</string>
+    <string name="requests_channel">Demandes de transfert entrantes</string>
+    <string name="offer_accept">Accepter</string>
+    <string name="offer_cancel">Annuler</string>
+    <string name="offer_view">Voir les fichiers</string>
+    <string name="received_channel">Fichiers reçus</string>
+    <string name="notifications_disabled">Les notifications sont désactivées. Vous pouvez les activer dans les paramètres Android de l’application.</string>
+    <plurals name="received_title">
+        <item quantity="one">Fichier reçu</item>
+        <item quantity="other">Fichiers reçus</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Fichiers reçus : %1$d. Ouvrez l’application pour les consulter.</item>
+        <item quantity="other">Fichiers reçus : %1$d. Ouvrez l’application pour les consulter.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Transfert de fichier entrant</item>
+        <item quantity="other">Transferts de fichiers entrants</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Fichiers en attente de votre accord : %1$d. Touchez pour les examiner.</item>
+        <item quantity="other">Fichiers en attente de votre accord : %1$d. Touchez pour les examiner.</item>
+    </plurals>
+</resources>

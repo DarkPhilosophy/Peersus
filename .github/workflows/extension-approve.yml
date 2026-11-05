@@ -1,0 +1,100 @@
+name: Admit reviewed extension
+# Explicit maintainer dispatch; no contributor source is checked out or executed.
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Reviewed source submission PR number
+        required: true
+        type: string
+      run_id:
+        description: Successful Extension source submission workflow run ID
+        required: true
+        type: string
+      commit:
+        description: Exact reviewed source head commit (40 lowercase hex)
+        required: true
+        type: string
+      sha256:
+        description: Reviewed review.json SHA-256 (64 lowercase hex)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: extension-approval-${{ inputs.pr }}
+  cancel-in-progress: false
+jobs:
+  approve:
+    name: Verify human review, sign all platform builds and stage
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    environment: extension-approval
+    timeout-minutes: 15
+    steps:
+      - name: Validate dispatch inputs
+        env:
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$PR" =~ ^[1-9][0-9]*$ && "$RUN" =~ ^[1-9][0-9]*$ ]]
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ && "$SHA256" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-reviewed-${{ inputs.pr }}-${{ inputs.commit }}
+          path: reviewed
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Require exact successful CI and independent human maintainer approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: python3 trusted/scripts/verify-extension-admission.py --repository "$REPOSITORY" --run "$RUN" --pr "$PR" --commit "$COMMIT" --review reviewed/review.json --sha256 "$SHA256"
+      - name: Revalidate every exact archive as data, without rebuilding contributor source
+        env:
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c 'import json; print(json.load(open("reviewed/review.json"))["id"])')
+          sdk=$(python3 -c 'import json; print(json.load(open("reviewed/review.json"))["sdk"])')
+          mkdir "$RUNNER_TEMP/packages"
+          cp reviewed/*.tar.gz "$RUNNER_TEMP/packages/"
+          python3 trusted/scripts/validate-extension-build.py --directory "$RUNNER_TEMP/packages" \
+            --id "$id" --commit "$COMMIT" --sdk "$sdk" --out "$RUNNER_TEMP/revalidated"
+          actual=$(sha256sum "$RUNNER_TEMP/revalidated/review.json" | cut -d' ' -f1)
+          test "$actual" = "$SHA256"
+      - name: Install pinned trusted signing toolchain
+        working-directory: trusted
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - name: Sign the independently reviewed plugin version and all its platform builds
+        working-directory: trusted
+        env:
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          cargo run --locked --release -p xtask -- catalog-sign --admission \
+            --review "$RUNNER_TEMP/revalidated/review.json" --out "$RUNNER_TEMP/approved-release"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: approved-release-${{ inputs.pr }}-${{ inputs.commit }}
+          path: ${{ runner.temp }}/approved-release/
+          if-no-files-found: error
+          retention-days: 90

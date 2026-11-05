@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.DarkPhilosophy.Peersus</id>
+  <name>Peersus</name>
+  <summary>Share files and clipboard between your devices</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer id="io.github.darkphilosophy"><name>DarkPhilosophy</name></developer>
+  <url type="homepage">https://axxa.dev</url>
+  <description><p>Peersus connects your devices for file transfers and optional clipboard sharing. Plugins are separate programs and require approval before use.</p></description>
+  <launchable type="desktop-id">io.github.DarkPhilosophy.Peersus.desktop</launchable>
+  <content_rating type="oars-1.1" />
+  <releases><release version="0.1.0" date="2026-11-01" /></releases>
+</component>

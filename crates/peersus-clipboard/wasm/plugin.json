@@ -1,0 +1,55 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Clipboard",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+  },
+  "platforms": ["linux", "android"],
+  "program": "peersus_clipboard_wasm.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {
+    "clipboard.use": "Send text to, and accept text from, a paired device on this extension's behalf. Reading and replacing this device's clipboard is a separate permission of the application."
+  },
+  "imports": [
+    {"provider": "host", "service": "peersus.peers", "version": 1, "methods": ["list", "send"], "events": []},
+    {"provider": "host", "service": "peersus.config", "version": 1, "methods": ["get"], "events": []},
+    {"provider": "host", "service": "peersus.clipboard", "version": 1, "methods": ["read", "observe", "selected", "chunk", "write", "append", "commit", "reset", "release"], "events": ["changed"]}
+  ],
+  "exports": [{
+    "service": "clipboard.text",
+    "version": 1,
+    "description": "Shares clipboard text between this device and a paired device.",
+    "consumers": ["host"],
+    "methods": {
+      "share": {"capability": "clipboard.use", "description": "Sends the clipboard text to the device you chose."},
+      "send_text": {"capability": "clipboard.use", "description": "Sends text that was shared into the application to the device you chose."},
+      "receive": {"capability": "clipboard.use", "description": "Takes text a paired device sent and puts it on the clipboard, replacing what is there."}
+    },
+    "events": {}
+  }],
+  "contributions": {
+    "actions": [
+      {"id": "share", "label": "Send clipboard text", "short_label": "Send", "target": {"service": "clipboard.text", "method": "share"}, "capability": "clipboard.use", "needs_device": true, "destructive": false},
+      {"id": "send_text", "label": "Send shared text", "input": "shared_text", "target": {"service": "clipboard.text", "method": "send_text"}, "capability": "clipboard.use", "needs_device": true, "destructive": false}
+    ],
+    "settings": [
+      {
+        "id": "automatic",
+        "label": "Automatically synchronize clipboard text",
+        "help": "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded.",
+        "scope": "global",
+        "kind": {"type": "toggle", "default": false}
+      },
+      {
+        "id": "sync",
+        "label": "Automatically send clipboard text to this device",
+        "help": "Requires automatic synchronization, the clipboard permission and the send permission for this device.",
+        "scope": "device",
+        "kind": {"type": "toggle", "default": false}
+      }
+    ]
+  }
+}

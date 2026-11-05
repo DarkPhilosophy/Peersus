@@ -1,0 +1,37 @@
+[package]
+name = "peersus-clipboard"
+description = "The clipboard plugin: its own process, speaking the plugin protocol and nothing else"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "peersus-clipboard"
+path = "src/main.rs"
+
+[dependencies]
+peersus-api.workspace = true
+peersus-plugin.workspace = true
+peersus-clipboard-platform.workspace = true
+serde_json.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt", "io-util", "net", "time", "macros"] }
+image.workspace = true
+
+[dev-dependencies]
+arboard.workspace = true
+flate2.workspace = true
+tempfile.workspace = true
+# The full-runtime test starts the application itself (with a second paired device) and runs
+# this plugin under it, installed the way a user would. The application never depends on the
+# plugin: the direction is only ever from this test to the application.
+peersus-app.workspace = true
+peersus-core.workspace = true
+peersus-net.workspace = true
+iroh.workspace = true
+
+[lints]
+workspace = true

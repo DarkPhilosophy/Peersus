@@ -1,0 +1,21 @@
+[package]
+name = "peersus-plugin-android"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "JNI descriptor adapter for the separately managed Android WASM worker."
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+peersus-plugin-runtime = { workspace = true }
+jni = { workspace = true }
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+correctness = "deny"

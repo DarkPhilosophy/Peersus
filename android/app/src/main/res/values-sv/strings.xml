@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Enhetsanslutning</string>
+    <string name="available_title">Tillgänglig för filöverföringar</string>
+    <string name="available_body">Parkopplade enheter kan ansluta. Öppna appen för att hantera bakgrundsläget.</string>
+    <string name="requests_channel">Inkommande överföringsförfrågningar</string>
+    <string name="offer_accept">Acceptera</string>
+    <string name="offer_cancel">Avbryt</string>
+    <string name="offer_view">Visa filer</string>
+    <string name="received_channel">Mottagna filer</string>
+    <string name="notifications_disabled">Aviseringar är avstängda. Du kan aktivera dem i Androids appinställningar.</string>
+    <plurals name="received_title">
+        <item quantity="one">Fil mottagen</item>
+        <item quantity="other">Filer mottagna</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Mottagna filer: %1$d. Öppna appen för att visa dem.</item>
+        <item quantity="other">Mottagna filer: %1$d. Öppna appen för att visa dem.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Inkommande filöverföring</item>
+        <item quantity="other">Inkommande filöverföringar</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Filer som väntar på ditt godkännande: %1$d. Tryck för att granska.</item>
+        <item quantity="other">Filer som väntar på ditt godkännande: %1$d. Tryck för att granska.</item>
+    </plurals>
+</resources>

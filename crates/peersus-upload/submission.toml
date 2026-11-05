@@ -1,0 +1,16 @@
+schema = 1
+id = "upload"
+workspace_member = "crates/peersus-upload"
+artifacts = ["upload-linux.tar.gz", "upload-android.tar.gz"]
+
+build = [
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+]
+test = [
+  ["cargo", "test", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "-p", "peersus-upload", "--all-targets", "--target-dir", "{sdk}/target"],
+  ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
+]
+package = [
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "upload"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "upload"],
+]
