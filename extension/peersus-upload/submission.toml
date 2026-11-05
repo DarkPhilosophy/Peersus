@@ -13,5 +13,5 @@ test = [
 ]
 package = [
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux"],
-  ["python3", "{sdk}/scripts/package-upload-wasm.py", "--output", "{out}/upload-android.tar.gz", "--target-dir", "{sdk}/target"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "upload"],
 ]

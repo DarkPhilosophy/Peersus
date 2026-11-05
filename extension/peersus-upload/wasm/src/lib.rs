@@ -1,32 +1,33 @@
 //! Sandboxed provider protocol: the host owns all file bytes and credentials.
-#![cfg(any(target_arch = "wasm32", test))]
+#![cfg(any(target_family = "wasm", test))]
 use serde_json::{Value, json};
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 const LIMIT: usize = 48 * 1024;
 const PART: u64 = 3 * 1024 * 1024;
 const MAX_FILE: u64 = 250 * 1024 * 1024;
 const ORIGIN: &str = "https://poo.wang";
 const RETENTION: &str = "Burn after 24 hours";
 
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 #[link(wasm_import_module = "peersus_v1")]
 unsafe extern "C" {
+    // Pointers and lengths are `usize`: 32 bits in a wasm32 module, 64 in a wasm64 one. The module's own memory decides.
     #[link_name = "receive"]
-    fn receive_bytes(buffer: *mut u8, capacity: u32) -> i32;
+    fn receive_bytes(buffer: *mut u8, capacity: usize) -> i32;
     #[link_name = "send"]
-    fn send_bytes(buffer: *const u8, length: u32) -> i32;
+    fn send_bytes(buffer: *const u8, length: usize) -> i32;
 }
 trait Wire {
     fn receive(&mut self) -> Result<Value, &'static str>;
     fn send(&mut self, value: Value) -> Result<(), &'static str>;
 }
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 struct Host;
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 impl Wire for Host {
     fn receive(&mut self) -> Result<Value, &'static str> {
         let mut buffer = vec![0u8; LIMIT];
-        let count = unsafe { receive_bytes(buffer.as_mut_ptr(), buffer.len() as u32) };
+        let count = unsafe { receive_bytes(buffer.as_mut_ptr(), buffer.len()) };
         if count <= 0 || count as usize > LIMIT {
             return Err("The host disconnected");
         }
@@ -37,7 +38,7 @@ impl Wire for Host {
         if bytes.len() > LIMIT {
             return Err("Extension message exceeds its bound");
         }
-        if unsafe { send_bytes(bytes.as_ptr(), bytes.len() as u32) } != 0 {
+        if unsafe { send_bytes(bytes.as_ptr(), bytes.len()) } != 0 {
             return Err("The host disconnected");
         }
         Ok(())
@@ -66,7 +67,11 @@ impl<W: Wire> Job<'_, W> {
                     if message["result"]["status"] != "ok" {
                         return Err(if message["result"]["code"] == "cancelled" {
                             "Upload cancelled"
-                        } else { "The platform refused the operation" });
+                        } else if message["result"]["code"] == "denied" {
+                            "Required platform permission has not been granted"
+                        } else {
+                            "The platform refused the operation"
+                        });
                     }
                     return Ok(message["result"]["value"].clone());
                 }
@@ -187,7 +192,7 @@ fn result_link(result: &Value) -> Result<String, &'static str> {
     }
     Ok(expected)
 }
-#[cfg(target_arch = "wasm32")]
+#[cfg(target_family = "wasm")]
 #[unsafe(no_mangle)]
 pub extern "C" fn peersus_main() -> i32 {
     let mut host = Host;
@@ -213,14 +218,7 @@ pub extern "C" fn peersus_main() -> i32 {
             };
             let result = match job.call("peersus.http", "configure", json!({"origin":ORIGIN})) {
                 Ok(value) => json!({"status":"ok","value":value}),
-                Err(message) => {
-                    let code = if message == "Upload cancelled" {
-                        "cancelled"
-                    } else {
-                        "configuration-failed"
-                    };
-                    json!({"status":"error","code":code,"message":message})
-                }
+                Err(message) => failure(message, "configuration-failed"),
             };
             next = job.next;
             if !job.cancelled
@@ -256,10 +254,7 @@ pub extern "C" fn peersus_main() -> i32 {
         }
         let result = match result {
             Ok(url) => json!({"status":"ok","value":{"status":"uploaded","url":url}}),
-            Err("Upload cancelled") => {
-                json!({"status":"error","code":"cancelled","message":"Upload cancelled"})
-            }
-            Err(message) => json!({"status":"error","code":"upload-failed","message":message}),
+            Err(message) => failure(message, "upload-failed"),
         };
         if job
             .wire
@@ -269,6 +264,15 @@ pub extern "C" fn peersus_main() -> i32 {
             return 1;
         }
     }
+}
+
+fn failure(message: &'static str, fallback: &str) -> Value {
+    let code = match message {
+        "Upload cancelled" => "cancelled",
+        "Required platform permission has not been granted" => "denied",
+        _ => fallback,
+    };
+    json!({"status":"error","code":code,"message":message})
 }
 
 #[cfg(test)]
@@ -422,5 +426,42 @@ mod tests {
         result["files"][0]["url"] = json!(format!("{ORIGIN}/f/example"));
         result["files"][0]["id"] = json!("../example");
         assert!(result_link(&result).is_err());
+    }
+    #[test]
+    fn host_denial_remains_a_permission_failure_without_exposing_host_messages() {
+        struct Refused {
+            id: Value,
+            code: &'static str,
+        }
+        impl Wire for Refused {
+            fn send(&mut self, value: Value) -> Result<(), &'static str> {
+                self.id = value["id"].clone();
+                Ok(())
+            }
+            fn receive(&mut self) -> Result<Value, &'static str> {
+                Ok(json!({"type":"result","id":self.id,"result":{
+                    "status":"error","code":self.code,"message":"private host diagnostic"
+                }}))
+            }
+        }
+        for (code, expected) in [
+            ("denied", "denied"),
+            ("cancelled", "cancelled"),
+            ("unavailable", "configuration-failed"),
+        ] {
+            let mut wire = Refused { id: Value::Null, code };
+            let mut job = Job {
+                wire: &mut wire, ticket: 1, next: 0,
+                file: None, authorization: None, cancelled: false,
+            };
+            let message = job.call("peersus.http", "configure", json!({"origin":ORIGIN}))
+                .expect_err("The refused operation must not succeed");
+            let reply = failure(message, "configuration-failed");
+            assert_eq!(reply["code"], expected);
+            assert!(!reply.to_string().contains("private host diagnostic"));
+            if code == "denied" {
+                assert_eq!(failure(message, "upload-failed")["code"], "denied");
+            }
+        }
     }
 }

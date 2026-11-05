@@ -7,7 +7,7 @@
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Upload an explicitly selected file after destination approval."
   },
-  "platforms": ["android"],
+  "platforms": ["linux", "android"],
   "program": "peersus_upload_wasm.wasm",
   "execution": {"kind": "wasm", "abi": 1},
   "capabilities": {},
@@ -17,7 +17,7 @@
   ],
   "exports": [{
     "service": "upload.file", "version": 1,
-    "description": "Explicit file selection and cloud-upload consent; file bytes and credentials stay in the trusted Android host.",
+    "description": "Explicit file selection and cloud-upload consent; file bytes and credentials stay in the trusted platform host.",
     "consumers": ["host"],
     "methods": {
       "choose": {"description": "Upload the file already selected on Send after destination approval."},
