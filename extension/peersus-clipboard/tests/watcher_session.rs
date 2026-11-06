@@ -202,3 +202,88 @@ async fn a_host_without_config_keeps_explicit_calls_alive_and_never_reads_automa
     .await
     .unwrap();
 }
+
+async fn a_slow_delivery_ack_keeps_the_session_alive(automatic: bool) {
+    use std::time::Duration;
+    use tokio::io::AsyncReadExt;
+    let directory = tempfile::tempdir().unwrap();
+    let socket = directory.path().join("slow-control.sock");
+    let data_socket = directory.path().join("slow-data.sock");
+    let listener = UnixListener::bind(&socket).unwrap();
+    let data_listener = UnixListener::bind(&data_socket).unwrap();
+    let text = Arc::new(Mutex::new("baseline".to_owned()));
+    let reads = Arc::new(AtomicUsize::new(0));
+    let local = Local { text: text.clone(), reads: reads.clone() };
+    let plugin = tokio::spawn(session::run(local, Bootstrap {
+        socket, data_socket, token: "synthetic-bootstrap".into(),
+    }));
+    let (completed, completion) = tokio::sync::oneshot::channel();
+    let host = tokio::spawn(async move {
+        let (mut stream, _) = listener.accept().await.unwrap();
+        let _: Hello = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
+        if !automatic {
+            frame::write(&mut stream, &Delivery::Call {
+                ticket: 41, caller: "host".into(), service: "clipboard.text".into(),
+                version: 1, method: "share".into(), args: json!({"peer":"device-alias"}),
+            }, CONTROL_LIMIT).await.unwrap();
+        }
+        let mut sending = false;
+        let mut completed = Some(completed);
+        while let Ok(operation) = frame::read::<Operation>(&mut stream, CONTROL_LIMIT).await {
+            match operation {
+                Operation::Call { id, service, method, .. }
+                    if service == "peersus.config" && method == "get" =>
+                {
+                    if automatic && sending {
+                        let _ = completed.take().unwrap().send(true);
+                        break;
+                    }
+                    if reads.load(Ordering::SeqCst) > 0 {
+                        *text.lock().unwrap() = "fresh copy".into();
+                    }
+                    frame::write(&mut stream, &Delivery::Result { id, result: Outcome::ok(json!({
+                        "plugin":"clipboard", "settings":{"automatic":automatic},
+                        "peers":[{"device":"device-alias","online":true,"settings":{"sync":true},
+                            "permissions":[{"owner":"clipboard","name":"clipboard.use"},
+                                           {"owner":"host","name":"peers.send"}]}]
+                    })) }, CONTROL_LIMIT).await.unwrap();
+                }
+                Operation::Call { id, service, method, .. }
+                    if service == "peersus.peers" && method == "send" =>
+                {
+                    sending = true;
+                    frame::write(&mut stream, &Delivery::Result {
+                        id, result: Outcome::ok(json!({"claim":7})),
+                    }, CONTROL_LIMIT).await.unwrap();
+                }
+                Operation::Reply { ticket: 41, result } if !automatic => {
+                    let _ = completed.take().unwrap().send(matches!(result, Outcome::Ok { .. }));
+                    break;
+                }
+                _ => panic!("unexpected session operation"),
+            }
+        }
+    });
+    let (mut data, _) = tokio::time::timeout(Duration::from_secs(5), data_listener.accept())
+        .await.expect("session never began the transfer").unwrap();
+    let hello: peersus_plugin_host::data::DataHello = frame::read(&mut data, CONTROL_LIMIT).await.unwrap();
+    assert_eq!(hello.claim, Some(7));
+    let mut payload = Vec::new();
+    data.read_to_end(&mut payload).await.unwrap();
+    tokio::time::sleep(Duration::from_secs(13)).await;
+    assert!(!plugin.is_finished(), "outer session deadline preempted a valid delivery acknowledgement");
+    frame::write(&mut data, &(payload.len() as u64), CONTROL_LIMIT).await.unwrap();
+    assert!(tokio::time::timeout(Duration::from_secs(3), completion).await.unwrap().unwrap());
+    host.await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), plugin).await.unwrap().unwrap();
+}
+
+#[tokio::test]
+async fn automatic_delivery_ack_after_nine_seconds_does_not_restart_the_session() {
+    a_slow_delivery_ack_keeps_the_session_alive(true).await;
+}
+
+#[tokio::test]
+async fn explicit_delivery_ack_after_twelve_seconds_does_not_restart_the_session() {
+    a_slow_delivery_ack_keeps_the_session_alive(false).await;
+}

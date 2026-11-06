@@ -20,6 +20,9 @@ use tokio::net::UnixStream;
 
 const MAX_WAITING: usize = 32;
 const FRESH_FOR: Duration = Duration::from_secs(3);
+// Covers capture, the five-second claim, the bounded write and the separate
+// fifteen-second delivery acknowledgement. Freshness still ends before writing.
+const OPERATION_LIMIT: Duration = Duration::from_secs(40);
 
 #[derive(Default, Deserialize)]
 struct Settings {
@@ -240,7 +243,7 @@ pub async fn run<C: Clipboard>(clipboard: C, bootstrap: Bootstrap) {
         plugin::withdraw_cancelled(&mut waiting);
         if let Some(delivery) = waiting.pop_front() {
             let handled = tokio::time::timeout(
-                Duration::from_secs(12),
+                OPERATION_LIMIT,
                 plugin::handle(
                     &mut clipboard,
                     &mut stream,
@@ -309,7 +312,7 @@ pub async fn run<C: Clipboard>(clipboard: C, bootstrap: Bootstrap) {
                         break;
                     }
                     if observed_at.elapsed() > FRESH_FOR { break; }
-                    let result = tokio::time::timeout(Duration::from_secs(9), plugin::share_until(
+                    let result = tokio::time::timeout(OPERATION_LIMIT, plugin::share_until(
                         &mut snapshot,
                         Control { stream: &mut stream, token: &bootstrap.token, waiting: &mut waiting },
                         &device,

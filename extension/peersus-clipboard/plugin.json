@@ -57,7 +57,8 @@
         "target": { "service": "clipboard.text", "method": "share" },
         "capability": "clipboard.use",
         "needs_device": true,
-        "destructive": false
+        "destructive": false,
+        "timeout_ms": 40000
       }
     ],
     "settings": [
