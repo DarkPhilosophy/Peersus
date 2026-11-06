@@ -96,6 +96,21 @@ impl<W: Wire> Job<'_, W> {
         }
         Ok(response["json"].clone())
     }
+    /// Whether the key the person just saved is accepted by the provider. Only the status decides: a success is `valid`, the two answers
+    /// that mean "not this key" are `rejected`, and anything else (a busy or failing provider, a redirect, no network) is `unverified`:
+    /// a key is never called good without a real success, and never lost for a failure that says nothing about it.
+    fn check_key(&mut self) -> Result<&'static str, &'static str> {
+        let answer = match self.call("peersus.http", "check", json!({"origin":ORIGIN,"path":"/api/me"})) {
+            Ok(answer) => answer,
+            Err("Upload cancelled") => return Err("Upload cancelled"),
+            Err(_) => return Ok("unverified"),
+        };
+        Ok(match answer["status"].as_u64() {
+            Some(200..=299) => "valid",
+            Some(401 | 403) => "rejected",
+            _ => "unverified",
+        })
+    }
     fn run(&mut self, context: u64) -> Result<String, &'static str> {
         if context == 0 {
             return Err("Choose one file on Send before uploading");
@@ -216,8 +231,11 @@ pub extern "C" fn peersus_main() -> i32 {
                 authorization: None,
                 cancelled: false,
             };
-            let result = match job.call("peersus.http", "configure", json!({"origin":ORIGIN})) {
-                Ok(value) => json!({"status":"ok","value":value}),
+            let result = match job
+                .call("peersus.http", "configure", json!({"origin":ORIGIN}))
+                .and_then(|value| job.check_key().map(|key| configured(key, value)))
+            {
+                Ok(result) => result,
                 Err(message) => failure(message, "configuration-failed"),
             };
             next = job.next;
@@ -273,6 +291,17 @@ fn failure(message: &'static str, fallback: &str) -> Value {
         _ => fallback,
     };
     json!({"status":"error","code":code,"message":message})
+}
+
+/// The answer to saving a key, from the host's answer and the provider's verdict on it. A key the provider refuses is a failed action, so
+/// that the person is told at once and not left believing it works; a provider that could not say is not a failure of the key. Nothing here
+/// is the key or anything the provider sent: only the verdict, which is one of three fixed words.
+fn configured(verdict: &'static str, mut value: Value) -> Value {
+    if verdict == "rejected" {
+        return json!({"status":"error","code":"key-rejected","message":"The provider did not accept this API key"});
+    }
+    value["key"] = json!(verdict);
+    json!({"status":"ok","value":value})
 }
 
 #[cfg(test)]
@@ -463,5 +492,60 @@ mod tests {
                 assert_eq!(failure(message, "upload-failed")["code"], "denied");
             }
         }
+    }
+    #[test]
+    fn a_saved_key_is_checked_against_the_provider_and_only_the_status_decides() {
+        for (status, expected) in [
+            (200, "valid"),
+            (204, "valid"),
+            (401, "rejected"),
+            (403, "rejected"),
+            (429, "unverified"),
+            (500, "unverified"),
+            (302, "unverified"),
+        ] {
+            let mut wire = Script {
+                replies: VecDeque::from([json!({"status":status})]),
+                sent: Vec::new(),
+            };
+            let verdict = job(&mut wire).check_key().unwrap();
+            assert_eq!(verdict, expected, "status {status}");
+            // The provider's identity route lives here and nowhere in the host; no file, no authorization, no key in the call.
+            assert_eq!(wire.sent.len(), 1);
+            assert_eq!(wire.sent[0]["service"], "peersus.http");
+            assert_eq!(wire.sent[0]["method"], "check");
+            assert_eq!(
+                wire.sent[0]["args"],
+                json!({"origin":ORIGIN,"path":"/api/me"})
+            );
+        }
+    }
+    #[test]
+    fn a_key_check_that_cannot_be_asked_is_unverified_and_never_valid() {
+        struct Down;
+        impl Wire for Down {
+            fn send(&mut self, _: Value) -> Result<(), &'static str> {
+                Ok(())
+            }
+            fn receive(&mut self) -> Result<Value, &'static str> {
+                Ok(json!({"type":"result","id":1,"result":{"status":"error","code":"unavailable","message":"no network"}}))
+            }
+        }
+        let mut wire = Down;
+        let mut job = Job { wire: &mut wire, ticket: 1, next: 0, file: None, authorization: None, cancelled: false };
+        // A refusal is an answer of "could not tell", not a reason to call the key good or to lose it.
+        assert_eq!(job.check_key().unwrap(), "unverified");
+    }
+    #[test]
+    fn only_a_rejected_key_fails_the_action_and_nothing_in_the_answer_is_the_key_or_the_body() {
+        let valid = configured("valid", json!({"configured":true}));
+        assert_eq!(valid["status"], "ok");
+        assert_eq!(valid["value"], json!({"configured":true,"key":"valid"}));
+        let unverified = configured("unverified", json!({"configured":true}));
+        assert_eq!(unverified["status"], "ok");
+        assert_eq!(unverified["value"]["key"], "unverified");
+        let rejected = configured("rejected", json!({"configured":true}));
+        assert_eq!(rejected["status"], "error");
+        assert_eq!(rejected["code"], "key-rejected");
     }
 }

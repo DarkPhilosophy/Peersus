@@ -28,7 +28,7 @@
   "contributions": {
     "actions": [
       {"id": "upload", "label": "Upload selected file", "input": "selected_file", "target": {"service": "upload.file", "method": "choose"}, "needs_device": false, "destructive": false, "timeout_ms": 600000},
-      {"id": "configure", "label": "API key…", "target": {"service": "upload.file", "method": "configure"}, "needs_device": false, "destructive": false, "timeout_ms": 600000}
+      {"id": "configure", "label": "API key…", "input": "secret_text", "target": {"service": "upload.file", "method": "configure"}, "needs_device": false, "destructive": false, "timeout_ms": 600000}
     ],
     "settings": []
   }

@@ -4,11 +4,15 @@ One extension identity with two execution variants: a native desktop process and
 
 ## Platforms and prerequisites
 
-- Linux desktop: a graphical session, `zenity`, a working desktop file portal for the picker, and the platform credential-store service when saved credentials are used. The manifest declares the supported native variant; a successful Linux build does not certify macOS behavior.
-- Android WASM: the matching application's trusted file-selection, HTTPS, encrypted credential configuration and result-presentation services. The guest receives opaque file and authorization handles, not ambient filesystem access or credential bytes. It validates provider success and its canonical single-file result before requesting presentation.
+- Legacy native variant (not used by the Linux or Android WASM packages): a graphical session, `zenity`, a desktop file portal and a platform credential-store service. Building this variant on Linux does not certify macOS behavior.
+- WASM (Linux and Android): the matching application's trusted file-selection, HTTPS, encrypted credential configuration and result-presentation services. The guest receives opaque file and authorization handles, not ambient filesystem access or credential bytes. It validates provider success and its canonical single-file result before requesting presentation.
 - Network uploads require HTTPS access to the configured provider. Tests below use synthetic data and do not require an account, a credential or a real upload.
 
 The source is Apache-2.0 licensed; retain LICENSE and NOTICE in exported submissions. `submission.toml` declares build commands; CI resolves and records the trusted host SDK commit and uses its workspace lockfile. The WASM guest also has its own lockfile. Host and guest must be updated together when their service contract changes; an older host without `peersus.http.present` is not compatible with the updated WASM guest.
+
+The credential action declares `input: "secret_text"`: the host renders a masked field directly, with the same submit operation for Enter and the trailing Enter icon. The value answers a host-owned credential request and is never included in guest action arguments. Update the host and the WASM package together; older hosts cannot interpret this input declaration.
+
+After a key is saved, the guest asks the host's `peersus.http.check` to read it back against the provider's identity route and reports one of three outcomes: `valid` (a success status), `rejected` (the provider answered 401 or 403, which fails the action so the person is told at once) or `unverified` (anything else, including a host that cannot make the check). Only the status crosses back to the guest; neither the key nor the provider's response body does. A host without `peersus.http.check` reports `unverified`, never `valid`.
 
 ## Build and test
 

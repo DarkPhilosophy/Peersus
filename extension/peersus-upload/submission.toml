@@ -4,7 +4,6 @@ workspace_member = "crates/peersus-upload"
 artifacts = ["upload-linux.tar.gz", "upload-android.tar.gz"]
 
 build = [
-  ["cargo", "build", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "--release", "-p", "peersus-upload", "--bins", "--target-dir", "{sdk}/target"],
   ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
 ]
 test = [
@@ -12,6 +11,6 @@ test = [
   ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
 ]
 package = [
-  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "upload"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "upload"],
 ]
