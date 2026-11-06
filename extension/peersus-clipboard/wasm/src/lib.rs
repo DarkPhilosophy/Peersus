@@ -45,8 +45,14 @@ pub extern "C" fn peersus_main() -> i32 {
                 Err(_) => return 0,
             },
         };
+        // A call already cancelled while it waited is not started: the application no longer waits for it, and starting it
+        // could send clipboard text before the cancellation is looked at.
+        if actions::withdrawn(&delivery, &mut backlog) {
+            continue;
+        }
         if watch::wakes(&delivery) {
-            if watch::on_change(&mut host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
+            if watch::on_change(&mut host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop
+            {
                 return 1;
             }
             continue;
@@ -55,7 +61,11 @@ pub extern "C" fn peersus_main() -> i32 {
             actions::Handled::Ignored => {}
             actions::Handled::Stop => return 1,
             actions::Handled::Cancelled { waiting } => backlog.extend(waiting),
-            actions::Handled::Replied { reply, waiting, placed } => {
+            actions::Handled::Replied {
+                reply,
+                waiting,
+                placed,
+            } => {
                 // Before anything else is looked at, including the notice this very write is about to cause: that text is
                 // this device's own and must never be sent back as if somebody had just copied it.
                 if let Some(text) = placed {

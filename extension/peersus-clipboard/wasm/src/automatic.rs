@@ -21,7 +21,10 @@ pub struct Eligibility {
 
 impl Eligibility {
     pub fn of(config: &Config) -> Self {
-        Self { consented: config.consented(), reachable: config.reachable() }
+        Self {
+            consented: config.consented(),
+            reachable: config.reachable(),
+        }
     }
 }
 
@@ -48,7 +51,10 @@ pub struct Automatic {
 
 impl Automatic {
     pub fn new() -> Self {
-        Self { baseline_needed: true, ..Self::default() }
+        Self {
+            baseline_needed: true,
+            ..Self::default()
+        }
     }
 
     /// Compare the configuration with what was seen, and say what that means.
@@ -136,7 +142,10 @@ mod tests {
             .iter()
             .map(|(name, online, sync)| json!({"device":name,"online":online,"settings":{"sync":sync},"permissions":permissions}))
             .collect();
-        Config::parse(json!({"plugin":"clipboard","settings":{"automatic":automatic},"peers":peers})).unwrap()
+        Config::parse(
+            json!({"plugin":"clipboard","settings":{"automatic":automatic},"peers":peers}),
+        )
+        .unwrap()
     }
     fn eligibility(config: &Config) -> Eligibility {
         Eligibility::of(config)
@@ -160,7 +169,11 @@ mod tests {
         state.epoch(&now);
         state.baseline_done(false);
         assert!(!state.can_send());
-        assert_eq!(state.epoch(&now), Epoch::Rebaseline, "it is retried on the next look");
+        assert_eq!(
+            state.epoch(&now),
+            Epoch::Rebaseline,
+            "it is retried on the next look"
+        );
         state.baseline_done(true);
         assert_eq!(state.epoch(&now), Epoch::Same);
         assert!(state.can_send());
@@ -173,8 +186,15 @@ mod tests {
         state.epoch(&now);
         state.baseline_done(true);
         assert_eq!(state.copy(Reading::Snapshot("old".into())), None);
-        assert_eq!(state.copy(Reading::Changed("new".into())), Some("new".into()));
-        assert_eq!(state.copy(Reading::Changed("new".into())), None, "the same copy is not sent twice");
+        assert_eq!(
+            state.copy(Reading::Changed("new".into())),
+            Some("new".into())
+        );
+        assert_eq!(
+            state.copy(Reading::Changed("new".into())),
+            None,
+            "the same copy is not sent twice"
+        );
     }
 
     #[test]
@@ -190,7 +210,10 @@ mod tests {
         // A device opted in again: more consented. What is on the clipboard now must not be sent to it.
         assert_eq!(state.epoch(&both), Epoch::Rebaseline);
         state.baseline_done(true);
-        assert_eq!(state.copy(Reading::Snapshot("copied while it was opted out".into())), None);
+        assert_eq!(
+            state.copy(Reading::Snapshot("copied while it was opted out".into())),
+            None
+        );
     }
 
     #[test]
@@ -208,7 +231,10 @@ mod tests {
         // Back online: the first thing seen is the new baseline and is not sent. A different text after it IS a copy, so a
         // real copy made right after reconnecting is not lost.
         assert_eq!(state.copy(Reading::Snapshot("seen".into())), None);
-        assert_eq!(state.copy(Reading::Snapshot("copied after reconnecting".into())), Some("copied after reconnecting".into()));
+        assert_eq!(
+            state.copy(Reading::Snapshot("copied after reconnecting".into())),
+            Some("copied after reconnecting".into())
+        );
     }
 
     #[test]
@@ -223,7 +249,10 @@ mod tests {
         assert!(!state.can_send(), "off means nobody is eligible");
         assert_eq!(state.epoch(&on), Epoch::Rebaseline);
         state.baseline_done(true);
-        assert_eq!(state.copy(Reading::Snapshot("copied while it was off".into())), None);
+        assert_eq!(
+            state.copy(Reading::Snapshot("copied while it was off".into())),
+            None
+        );
     }
 
     #[test]
@@ -234,9 +263,16 @@ mod tests {
         state.baseline_done(true);
         assert!(state.still_valid(&both), "nothing changed: carry on");
         let revoked = eligibility(&config(true, &[("a", true, true), ("b", true, false)]));
-        assert!(!state.still_valid(&revoked), "b was revoked while a was being sent to: stop");
+        assert!(
+            !state.still_valid(&revoked),
+            "b was revoked while a was being sent to: stop"
+        );
         assert!(state.baseline_needed || state.destinations().len() == 2 || true);
-        assert_eq!(state.destinations(), ["a"], "what is sent next is judged against the new state");
+        assert_eq!(
+            state.destinations(),
+            ["a"],
+            "what is sent next is judged against the new state"
+        );
     }
 
     #[test]
@@ -247,8 +283,15 @@ mod tests {
         state.baseline_done(true);
         state.copy(Reading::Snapshot("before".into()));
         assert_eq!(state.copy(Reading::Unavailable), None);
-        assert_eq!(state.copy(Reading::Snapshot("after the gap".into())), None, "a gap makes the next one a baseline");
-        assert_eq!(state.copy(Reading::Snapshot("a real copy".into())), Some("a real copy".into()));
+        assert_eq!(
+            state.copy(Reading::Snapshot("after the gap".into())),
+            None,
+            "a gap makes the next one a baseline"
+        );
+        assert_eq!(
+            state.copy(Reading::Snapshot("a real copy".into())),
+            Some("a real copy".into())
+        );
     }
 
     #[test]

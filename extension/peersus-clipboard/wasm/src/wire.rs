@@ -53,11 +53,13 @@ pub struct Header {
 pub fn header(bytes: &[u8]) -> Result<Header, Error> {
     if bytes.len() < HEADER {
         // Fewer bytes than a header: either not an item at all or one that ended too soon.
-        return Err(if MAGIC.starts_with(&bytes[..bytes.len().min(MAGIC.len())]) {
-            Error::Truncated
-        } else {
-            Error::NotAnItem
-        });
+        return Err(
+            if MAGIC.starts_with(&bytes[..bytes.len().min(MAGIC.len())]) {
+                Error::Truncated
+            } else {
+                Error::NotAnItem
+            },
+        );
     }
     if bytes[..4] != MAGIC {
         return Err(Error::NotAnItem);
@@ -122,10 +124,17 @@ mod tests {
             (KIND_TEXT, u32::MAX, Error::TooLarge),
             (KIND_PNG, u32::MAX, Error::TooLarge),
         ] {
-            assert_eq!(decode(&head(kind, length)), Err(expected), "kind {kind}, length {length}");
+            assert_eq!(
+                decode(&head(kind, length)),
+                Err(expected),
+                "kind {kind}, length {length}"
+            );
         }
         // A promised body that never comes is truncated, however large the promise.
-        assert_eq!(decode(&head(KIND_TEXT, MAX_TEXT as u32)), Err(Error::Truncated));
+        assert_eq!(
+            decode(&head(KIND_TEXT, MAX_TEXT as u32)),
+            Err(Error::Truncated)
+        );
         let mut short = head(KIND_TEXT, 10);
         short.extend_from_slice(b"abc");
         assert_eq!(decode(&short), Err(Error::Truncated));
@@ -155,7 +164,10 @@ mod tests {
         let mut bytes = head(KIND_TEXT, 3);
         bytes.extend_from_slice(b"abcTRAILING");
         assert_eq!(decode(&bytes).unwrap(), "abc");
-        assert!(!whole(&bytes), "an item with something after it is not whole");
+        assert!(
+            !whole(&bytes),
+            "an item with something after it is not whole"
+        );
         assert!(whole(&encode("abc").unwrap()));
     }
 

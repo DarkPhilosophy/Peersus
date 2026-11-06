@@ -42,7 +42,10 @@ mod tests {
             ("host", "peersus.clipboard", 1, "removed"),
             ("clipboard", "peersus.clipboard", 1, "changed"),
         ] {
-            assert!(!is_change(&event(provider, service, version, name)), "{provider} {service} {version} {name}");
+            assert!(
+                !is_change(&event(provider, service, version, name)),
+                "{provider} {service} {version} {name}"
+            );
         }
     }
 
@@ -64,6 +67,9 @@ mod tests {
             "type":"event","provider":request["provider"],"service":request["service"],
             "version":request["version"],"event":request["event"],"data":{}
         });
-        assert!(is_change(&as_delivery), "what is asked for is what is recognised");
+        assert!(
+            is_change(&as_delivery),
+            "what is asked for is what is recognised"
+        );
     }
 }

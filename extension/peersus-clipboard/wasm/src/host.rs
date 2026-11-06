@@ -25,7 +25,11 @@ pub trait Data {
 }
 
 /// Write all of `bytes`, however the host splits it: a stream operation need not take the requested length.
-pub fn write_all<D: Data>(data: &mut D, handle: Handle, mut bytes: &[u8]) -> Result<(), &'static str> {
+pub fn write_all<D: Data>(
+    data: &mut D,
+    handle: Handle,
+    mut bytes: &[u8],
+) -> Result<(), &'static str> {
     while !bytes.is_empty() {
         let written = data.write(handle, bytes)?;
         if written == 0 || written > bytes.len() {
@@ -37,7 +41,11 @@ pub fn write_all<D: Data>(data: &mut D, handle: Handle, mut bytes: &[u8]) -> Res
 }
 
 /// Read until the peer closes, taking at most `limit` bytes and one more, so that something longer is SEEN to be longer.
-pub fn read_limited<D: Data>(data: &mut D, handle: Handle, limit: usize) -> Result<Vec<u8>, &'static str> {
+pub fn read_limited<D: Data>(
+    data: &mut D,
+    handle: Handle,
+    limit: usize,
+) -> Result<Vec<u8>, &'static str> {
     let mut out = Vec::new();
     let mut buffer = [0u8; 8192];
     while out.len() <= limit {
@@ -68,7 +76,11 @@ pub fn read_ack<D: Data>(data: &mut D, handle: Handle) -> Result<u64, &'static s
     serde_json::from_slice::<u64>(&body).map_err(|_| "The delivery acknowledgement is not valid")
 }
 
-fn read_exact<D: Data>(data: &mut D, handle: Handle, mut into: &mut [u8]) -> Result<(), &'static str> {
+fn read_exact<D: Data>(
+    data: &mut D,
+    handle: Handle,
+    mut into: &mut [u8],
+) -> Result<(), &'static str> {
     while !into.is_empty() {
         let count = data.read(handle, into)?;
         if count == 0 || count > into.len() {
@@ -132,7 +144,11 @@ impl Wire for Host {
 impl Data for Host {
     fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
         let handle = unsafe { import::data_open(i32::from(claim), number) };
-        if handle < 0 { Err("The data connection could not be opened") } else { Ok(handle) }
+        if handle < 0 {
+            Err("The data connection could not be opened")
+        } else {
+            Ok(handle)
+        }
     }
     fn read(&mut self, handle: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
         let count = unsafe { import::data_read(handle, into.as_mut_ptr(), into.len()) };
@@ -143,7 +159,11 @@ impl Data for Host {
         usize::try_from(count).map_err(|_| "The data connection failed")
     }
     fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str> {
-        if unsafe { import::data_shutdown(handle) } < 0 { Err("The data connection failed") } else { Ok(()) }
+        if unsafe { import::data_shutdown(handle) } < 0 {
+            Err("The data connection failed")
+        } else {
+            Ok(())
+        }
     }
     fn close(&mut self, handle: Handle) {
         let _ = unsafe { import::data_close(handle) };
@@ -179,8 +199,16 @@ pub(crate) mod scripted {
             if let Some(delivery) = self.deliveries.pop_front() {
                 return Ok(delivery);
             }
-            let result = self.results.pop_front().ok_or("Unexpected extra operation")?;
-            let id = self.sent.last().and_then(|call| call.get("id")).cloned().unwrap_or(Value::Null);
+            let result = self
+                .results
+                .pop_front()
+                .ok_or("Unexpected extra operation")?;
+            let id = self
+                .sent
+                .last()
+                .and_then(|call| call.get("id"))
+                .cloned()
+                .unwrap_or(Value::Null);
             Ok(serde_json::json!({"type":"result","id":id,"result":result}))
         }
     }
@@ -191,7 +219,9 @@ pub(crate) mod scripted {
             Ok(7)
         }
         fn read(&mut self, _: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
-            let Some(front) = self.incoming.front_mut() else { return Ok(0) };
+            let Some(front) = self.incoming.front_mut() else {
+                return Ok(0);
+            };
             let count = front.len().min(into.len());
             into[..count].copy_from_slice(&front[..count]);
             front.drain(..count);
@@ -201,7 +231,11 @@ pub(crate) mod scripted {
             Ok(count)
         }
         fn write(&mut self, _: Handle, from: &[u8]) -> Result<usize, &'static str> {
-            let count = if self.write_chunk == 0 { from.len() } else { from.len().min(self.write_chunk) };
+            let count = if self.write_chunk == 0 {
+                from.len()
+            } else {
+                from.len().min(self.write_chunk)
+            };
             self.written.extend_from_slice(&from[..count]);
             Ok(count)
         }
@@ -230,7 +264,10 @@ mod tests {
 
     #[test]
     fn a_write_split_by_the_host_is_still_written_whole() {
-        let mut host = Script { write_chunk: 3, ..Script::default() };
+        let mut host = Script {
+            write_chunk: 3,
+            ..Script::default()
+        };
         write_all(&mut host, 7, b"abcdefghij").unwrap();
         assert_eq!(host.written, b"abcdefghij");
     }
@@ -257,14 +294,19 @@ mod tests {
         let mut none = Script::default();
         assert!(read_ack(&mut none, 7).is_err());
         let mut oversize = Script::default();
-        oversize.incoming.push_back((ACK_LIMIT as u32 + 1).to_be_bytes().to_vec());
+        oversize
+            .incoming
+            .push_back((ACK_LIMIT as u32 + 1).to_be_bytes().to_vec());
         assert!(read_ack(&mut oversize, 7).is_err());
         let mut text = Script::default();
         let body = br#""12""#;
         let mut framed = (body.len() as u32).to_be_bytes().to_vec();
         framed.extend_from_slice(body);
         text.incoming.push_back(framed);
-        assert!(read_ack(&mut text, 7).is_err(), "a count in text is not a count");
+        assert!(
+            read_ack(&mut text, 7).is_err(),
+            "a count in text is not a count"
+        );
         let mut zero = Script::default();
         zero.incoming.push_back(vec![0, 0, 0, 0]);
         assert!(read_ack(&mut zero, 7).is_err());

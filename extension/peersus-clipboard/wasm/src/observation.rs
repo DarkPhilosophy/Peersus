@@ -67,7 +67,10 @@ mod tests {
         state.received("remote");
         assert_eq!(state.changed(Some("remote".into())), None);
         assert_eq!(state.changed(Some("remote".into())), None);
-        assert_eq!(state.changed(Some("new local".into())), Some("new local".into()));
+        assert_eq!(
+            state.changed(Some("new local".into())),
+            Some("new local".into())
+        );
     }
 
     #[test]
@@ -84,7 +87,10 @@ mod tests {
         let mut state = Observation::default();
         state.received("remote sensitive");
         assert_eq!(state.changed(None), None);
-        assert_eq!(state.fresh("genuinely copied now".into()), Some("genuinely copied now".into()));
+        assert_eq!(
+            state.fresh("genuinely copied now".into()),
+            Some("genuinely copied now".into())
+        );
         assert_eq!(state.fresh("genuinely copied now".into()), None);
     }
 

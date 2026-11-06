@@ -134,13 +134,18 @@ mod tests {
         let changed = json!({"type":"event","service":"peersus.clipboard","event":"changed"});
         host.deliveries.extend([receive.clone(), changed.clone()]);
         host.results.extend([config(false, &[]), reset_ok()]);
-        let mut backlog = std::collections::VecDeque::from([json!({"type":"cancelled","ticket":12})]);
+        let mut backlog =
+            std::collections::VecDeque::from([json!({"type":"cancelled","ticket":12})]);
         let mut state = Automatic::new();
         let mut next = 0;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut backlog), Pass::Done);
-        assert_eq!(backlog.into_iter().collect::<Vec<_>>(), [
-            json!({"type":"cancelled","ticket":12}), receive, changed,
-        ]);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert_eq!(
+            backlog.into_iter().collect::<Vec<_>>(),
+            [json!({"type":"cancelled","ticket":12}), receive, changed,]
+        );
     }
 
     #[test]
@@ -148,9 +153,13 @@ mod tests {
         let mut host = Script::default();
         let receive = json!({"type":"call","ticket":78,"method":"receive","args":{}});
         host.deliveries.push_back(receive.clone());
-        host.results.extend([config(false, &[]), reset_ok(), config(false, &[])]);
+        host.results
+            .extend([config(false, &[]), reset_ok(), config(false, &[])]);
         let mut backlog = std::collections::VecDeque::new();
-        assert_eq!(start(&mut host, &mut Automatic::new(), &mut 0, &mut backlog), Pass::Done);
+        assert_eq!(
+            start(&mut host, &mut Automatic::new(), &mut 0, &mut backlog),
+            Pass::Done
+        );
         assert_eq!(backlog.into_iter().collect::<Vec<_>>(), [receive]);
     }
 
@@ -181,7 +190,11 @@ mod tests {
         host.sent
             .iter()
             .map(|call| {
-                format!("{}.{}", call["service"].as_str().unwrap_or(""), call["method"].as_str().unwrap_or(""))
+                format!(
+                    "{}.{}",
+                    call["service"].as_str().unwrap_or(""),
+                    call["method"].as_str().unwrap_or("")
+                )
             })
             .collect()
     }
@@ -192,7 +205,10 @@ mod tests {
         let mut host = Script::default();
         host.results.extend([config(true, devices), reset_ok()]);
         let mut next = 0;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert!(!state.baseline_needed, "the baseline succeeded");
         host.sent.clear();
         (state, host)
@@ -202,15 +218,26 @@ mod tests {
     fn the_first_notice_takes_a_baseline_then_reads_to_observe_and_sends_nothing() {
         let mut state = Automatic::new();
         let mut host = Script::default();
-        host.results.extend([config(true, &[("phone", true, true)]), reset_ok()]);
+        host.results
+            .extend([config(true, &[("phone", true, true)]), reset_ok()]);
         let mut next = 0;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert_eq!(
             methods(&host),
-            ["peersus.config.get", "peersus.clipboard.reset", "peersus.clipboard.observe"],
+            [
+                "peersus.config.get",
+                "peersus.clipboard.reset",
+                "peersus.clipboard.observe"
+            ],
             "the baseline is followed by a read, which is what turns the platform's observing back on"
         );
-        assert!(host.opened.is_empty() && host.written.is_empty(), "nothing was sent");
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "nothing was sent"
+        );
     }
 
     /// The platform tells of a change only while somebody observes, and a reset ends that observing. So a guest that waited
@@ -224,12 +251,27 @@ mod tests {
         host.results.extend([config(true, &devices), reset_ok()]);
         host.results.extend(captured("already there", false));
         let mut next = 0;
-        assert_eq!(start(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            start(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         let called = methods(&host);
-        let reset = called.iter().position(|m| m == "peersus.clipboard.reset").expect("a baseline was taken");
-        let observe = called.iter().position(|m| m == "peersus.clipboard.observe").expect("observation was left on");
-        assert!(reset < observe, "observing comes after the reset, which would otherwise end it: {called:?}");
-        assert!(host.opened.is_empty() && host.written.is_empty(), "what was already there is not sent");
+        let reset = called
+            .iter()
+            .position(|m| m == "peersus.clipboard.reset")
+            .expect("a baseline was taken");
+        let observe = called
+            .iter()
+            .position(|m| m == "peersus.clipboard.observe")
+            .expect("observation was left on");
+        assert!(
+            reset < observe,
+            "observing comes after the reset, which would otherwise end it: {called:?}"
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "what was already there is not sent"
+        );
     }
 
     /// Without anybody to send to there is nothing to read, and startup must not fail or send anything.
@@ -237,10 +279,17 @@ mod tests {
     fn startup_with_nobody_eligible_observes_nothing() {
         let mut state = Automatic::new();
         let mut host = Script::default();
-        host.results.extend([config(true, &[("phone", true, false)]), reset_ok()]);
+        host.results
+            .extend([config(true, &[("phone", true, false)]), reset_ok()]);
         let mut next = 0;
-        assert_eq!(start(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(!methods(&host).contains(&"peersus.clipboard.observe".to_string()), "nobody to send to: never read");
+        assert_eq!(
+            start(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            !methods(&host).contains(&"peersus.clipboard.observe".to_string()),
+            "nobody to send to: never read"
+        );
         assert!(host.opened.is_empty() && host.written.is_empty());
     }
 
@@ -254,12 +303,24 @@ mod tests {
         host.results.extend([config(true, &both), reset_ok()]);
         host.results.extend(captured("what was there", false));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         let called = methods(&host);
-        let reset = called.iter().position(|m| m == "peersus.clipboard.reset").expect("a new baseline was taken");
-        let observe = called.iter().position(|m| m == "peersus.clipboard.observe").expect("observation was turned on again");
+        let reset = called
+            .iter()
+            .position(|m| m == "peersus.clipboard.reset")
+            .expect("a new baseline was taken");
+        let observe = called
+            .iter()
+            .position(|m| m == "peersus.clipboard.observe")
+            .expect("observation was turned on again");
         assert!(reset < observe, "{called:?}");
-        assert!(host.opened.is_empty() && host.written.is_empty(), "the new baseline is never sent");
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "the new baseline is never sent"
+        );
     }
 
     /// The application publishes no event when a device comes online, so a guest that stopped observing while every
@@ -268,12 +329,22 @@ mod tests {
     fn a_consented_device_that_is_offline_keeps_the_platform_observing_and_nothing_is_sent() {
         let mut state = Automatic::new();
         let mut host = Script::default();
-        host.results.extend([config(true, &[("phone", false, true)]), reset_ok()]);
+        host.results
+            .extend([config(true, &[("phone", false, true)]), reset_ok()]);
         host.results.extend(captured("already there", false));
         let mut next = 0;
-        assert_eq!(start(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(methods(&host).contains(&"peersus.clipboard.observe".to_string()), "still observing");
-        assert!(host.opened.is_empty() && host.written.is_empty(), "nobody is reachable, so nothing is sent");
+        assert_eq!(
+            start(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            methods(&host).contains(&"peersus.clipboard.observe".to_string()),
+            "still observing"
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "nobody is reachable, so nothing is sent"
+        );
     }
 
     /// The first copy after the only device comes back is the one that wakes the guest. It must not be dropped: the
@@ -283,13 +354,18 @@ mod tests {
         let (mut state, mut host) = armed(&[("phone", false, true)]);
         let item = wire::encode("first after return").unwrap();
         // Reachability changed while the consenting set did not: a forget, read in the same pass.
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.extend(captured("first after return", true));
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.push_back(claim());
         host.incoming.push_back(ack(item.len() as u64));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert_eq!(host.written, item, "the copy that woke the guest was sent");
     }
 
@@ -297,24 +373,36 @@ mod tests {
     #[test]
     fn what_was_on_the_clipboard_before_the_device_came_back_is_not_sent() {
         let (mut state, mut host) = armed(&[("phone", false, true)]);
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.extend(captured("was already there", false));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(host.opened.is_empty() && host.written.is_empty(), "an old clipboard is never sent as if it were new");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "an old clipboard is never sent as if it were new"
+        );
     }
 
     #[test]
     fn a_new_copy_after_the_baseline_is_sent_to_each_eligible_device_with_a_verified_delivery() {
         let (mut state, mut host) = armed(&[("phone", true, true)]);
         let item = wire::encode("hello").unwrap();
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.extend(captured("hello", true));
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.push_back(claim());
         host.incoming.push_back(ack(item.len() as u64));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert_eq!(host.written, item);
         assert_eq!(host.opened, [(true, 9)]);
         assert!(methods(&host).contains(&"peersus.peers.send".to_string()));
@@ -324,44 +412,76 @@ mod tests {
     #[test]
     fn a_snapshot_that_is_not_a_proven_new_copy_is_not_sent() {
         let (mut state, mut host) = armed(&[("phone", true, true)]);
-        host.results.push_back(config(true, &[("phone", true, true)]));
-        host.results.extend(captured("whatever was already there", false));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .extend(captured("whatever was already there", false));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(host.opened.is_empty() && host.written.is_empty(), "an old clipboard is never sent as if it were new");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "an old clipboard is never sent as if it were new"
+        );
     }
 
     #[test]
     fn an_unreadable_clipboard_sends_nothing_and_breaks_continuity() {
         let (mut state, mut host) = armed(&[("phone", true, true)]);
-        host.results.push_back(config(true, &[("phone", true, true)]));
-        host.results.push_back(json!({"status":"ok","value":{"available":false}}));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(json!({"status":"ok","value":{"available":false}}));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert!(host.opened.is_empty());
         // What follows is a baseline: the chain was broken, so a snapshot is not a copy.
-        assert_eq!(state.copy(crate::automatic::Reading::Snapshot("after the gap".into())), None);
+        assert_eq!(
+            state.copy(crate::automatic::Reading::Snapshot("after the gap".into())),
+            None
+        );
     }
 
     #[test]
     fn consent_withdrawn_before_a_destination_stops_that_destination_and_the_rest() {
         let (mut state, mut host) = armed(&[("a", true, true), ("b", true, true)]);
-        host.results.push_back(config(true, &[("a", true, true), ("b", true, true)]));
+        host.results
+            .push_back(config(true, &[("a", true, true), ("b", true, true)]));
         host.results.extend(captured("copied", true));
         // Before the first destination, "b" has been revoked: everything that was decided is no longer valid.
-        host.results.push_back(config(true, &[("a", true, true), ("b", true, false)]));
+        host.results
+            .push_back(config(true, &[("a", true, true), ("b", true, false)]));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(host.opened.is_empty() && host.written.is_empty(), "nothing is sent once consent changed");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "nothing is sent once consent changed"
+        );
     }
 
     #[test]
     fn nobody_eligible_means_the_clipboard_is_never_read() {
         let (mut state, mut host) = armed(&[("phone", true, false)]);
-        host.results.push_back(config(true, &[("phone", true, false)]));
+        host.results
+            .push_back(config(true, &[("phone", true, false)]));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert_eq!(methods(&host), ["peersus.config.get"], "with nobody to send to, nothing reads the clipboard");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert_eq!(
+            methods(&host),
+            ["peersus.config.get"],
+            "with nobody to send to, nothing reads the clipboard"
+        );
     }
 
     #[test]
@@ -370,31 +490,54 @@ mod tests {
         // The device received this text from another and put it on the clipboard: the loop reports it as received.
         state.received("from the other device");
         // Its own write now raises the change notice, and the platform proves the text as a copy made just now.
-        host.results.push_back(config(true, &[("phone", true, true)]));
+        host.results
+            .push_back(config(true, &[("phone", true, true)]));
         host.results.extend(captured("from the other device", true));
         let mut next = 100;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(host.opened.is_empty() && host.written.is_empty(), "the text came from a device and goes nowhere");
-        assert!(!methods(&host).contains(&"peersus.peers.send".to_string()), "no destination was even asked for");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            host.opened.is_empty() && host.written.is_empty(),
+            "the text came from a device and goes nowhere"
+        );
+        assert!(
+            !methods(&host).contains(&"peersus.peers.send".to_string()),
+            "no destination was even asked for"
+        );
     }
 
     #[test]
     fn a_failed_baseline_keeps_observation_blocked() {
         let mut state = Automatic::new();
         let mut host = Script::default();
-        host.results.extend([config(true, &[("phone", true, true)]), json!({"status":"ok","value":{"reset":false}})]);
+        host.results.extend([
+            config(true, &[("phone", true, true)]),
+            json!({"status":"ok","value":{"reset":false}}),
+        ]);
         let mut next = 0;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
-        assert!(!state.can_send(), "an unconfirmed baseline blocks observation rather than risking an old copy");
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(
+            !state.can_send(),
+            "an unconfirmed baseline blocks observation rather than risking an old copy"
+        );
     }
 
     #[test]
     fn an_unreadable_configuration_leaves_automatic_sending_off() {
         let mut state = Automatic::new();
         let mut host = Script::default();
-        host.results.push_back(json!({"status":"error","code":"not-found","message":"x"}));
+        host.results
+            .push_back(json!({"status":"error","code":"not-found","message":"x"}));
         let mut next = 0;
-        assert_eq!(on_change(&mut host, &mut state, &mut next, &mut Default::default()), Pass::Done);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
         assert_eq!(methods(&host), ["peersus.config.get"]);
         assert!(!state.can_send());
     }

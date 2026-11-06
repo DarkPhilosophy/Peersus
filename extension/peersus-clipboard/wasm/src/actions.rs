@@ -46,7 +46,14 @@ pub struct Session<'a, H: Wire + Data> {
 
 impl<'a, H: Wire + Data> Session<'a, H> {
     pub fn new(host: &'a mut H, ticket: u64, next: u64) -> Self {
-        Self { host, ticket, next, waiting: Vec::new(), cancelled: false, placed: None }
+        Self {
+            host,
+            ticket,
+            next,
+            waiting: Vec::new(),
+            cancelled: false,
+            placed: None,
+        }
     }
 
     pub fn next(&self) -> u64 {
@@ -54,7 +61,13 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     }
 
     /// Ask the application for something and wait for exactly that answer.
-    fn call(&mut self, provider: &str, service: &str, method: &str, args: Value) -> Result<Value, &'static str> {
+    fn call(
+        &mut self,
+        provider: &str,
+        service: &str,
+        method: &str,
+        args: Value,
+    ) -> Result<Value, &'static str> {
         self.next = self.next.checked_add(1).ok_or(answer::FAILED)?;
         let id = self.next;
         self.host.send(json!({
@@ -100,7 +113,9 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         let mut text = String::with_capacity(bytes);
         while text.len() < bytes {
             let piece = self.call(
-                "host", CLIPBOARD, "chunk",
+                "host",
+                CLIPBOARD,
+                "chunk",
                 json!({"clip":clip,"offset":text.len()}),
             )?;
             let part = piece["text"].as_str().ok_or(answer::FAILED)?;
@@ -119,7 +134,9 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     /// The text to send: the clipboard's, or the text shared into the application, never a fallback from one to the other.
     fn text(&mut self, context: Option<u64>) -> Result<String, &'static str> {
         let captured = match context {
-            Some(context) => self.call("host", CLIPBOARD, "selected", json!({"context":context}))?,
+            Some(context) => {
+                self.call("host", CLIPBOARD, "selected", json!({"context":context}))?
+            }
             None => self.call("host", CLIPBOARD, "read", json!({}))?,
         };
         if captured["available"] != true {
@@ -135,7 +152,9 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     fn deliver(&mut self, text: &str, device: &str) -> Result<(), &'static str> {
         let bytes = wire::encode(text).map_err(|_| answer::NOTHING)?;
         let sent = self.call(
-            "host", PEERS, "send",
+            "host",
+            PEERS,
+            "send",
             json!({"device":device,"service":SERVICE,"version":VERSION}),
         )?;
         let claim = sent["claim"].as_u64().ok_or(answer::FAILED)?;
@@ -145,7 +164,11 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             self.host.shutdown(handle).map_err(|_| answer::FAILED)?;
             // Writing and half-closing is not delivery: only the application's byte count is.
             let delivered = read_ack(self.host, handle).map_err(|_| answer::FAILED)?;
-            if delivered == bytes.len() as u64 { Ok(()) } else { Err(answer::FAILED) }
+            if delivered == bytes.len() as u64 {
+                Ok(())
+            } else {
+                Err(answer::FAILED)
+            }
         })();
         self.host.close(handle);
         result
@@ -169,12 +192,17 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         let text = self.take(&captured);
         let _ = self.call("host", CLIPBOARD, "release", json!({}));
         let text = text.ok()?;
-        Some(if changed { Reading::Changed(text) } else { Reading::Snapshot(text) })
+        Some(if changed {
+            Reading::Changed(text)
+        } else {
+            Reading::Snapshot(text)
+        })
     }
 
     /// Forget earlier copies, so that only later ones are reported.
     pub fn reset(&mut self) -> bool {
-        self.call("host", CLIPBOARD, "reset", json!({})).is_ok_and(|value| value["reset"] == true)
+        self.call("host", CLIPBOARD, "reset", json!({}))
+            .is_ok_and(|value| value["reset"] == true)
     }
 
     /// Send an already captured text to one device, with the same verified delivery as an explicit share.
@@ -186,7 +214,12 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     pub fn send(&mut self, args: &Value, from_context: bool) -> Result<(), &'static str> {
         let device = args["peer"].as_str().ok_or(answer::REFUSED)?.to_owned();
         let context = if from_context {
-            Some(args["context"].as_u64().filter(|context| *context > 0).ok_or(answer::NOTHING)?)
+            Some(
+                args["context"]
+                    .as_u64()
+                    .filter(|context| *context > 0)
+                    .ok_or(answer::NOTHING)?,
+            )
         } else {
             None
         };
@@ -196,7 +229,10 @@ impl<'a, H: Wire + Data> Session<'a, H> {
 
     /// `receive`: collect what a device sent, check it is exactly one text, and only then place it.
     pub fn receive(&mut self) -> Result<(), &'static str> {
-        let handle = self.host.open(false, self.ticket).map_err(|_| answer::NOT_ACCEPTED)?;
+        let handle = self
+            .host
+            .open(false, self.ticket)
+            .map_err(|_| answer::NOT_ACCEPTED)?;
         let bytes = read_limited(self.host, handle, MOST_READ).map_err(|_| answer::NOT_ACCEPTED);
         self.host.close(handle);
         let bytes = bytes?;
@@ -210,22 +246,36 @@ impl<'a, H: Wire + Data> Session<'a, H> {
 
     /// Replace the clipboard with `text`, in bounded pieces, committing only a complete sequence.
     fn place(&mut self, text: &str) -> Result<(), &'static str> {
-        let begun = self.call("host", CLIPBOARD, "write", json!({"bytes":text.len()})).map_err(|_| answer::NOT_PLACED)?;
+        let begun = self
+            .call("host", CLIPBOARD, "write", json!({"bytes":text.len()}))
+            .map_err(|_| answer::NOT_PLACED)?;
         let put = begun["put"].as_str().ok_or(answer::NOT_PLACED)?.to_owned();
         let mut offset = 0;
+        let mut sent = Ok(());
         while offset < text.len() {
             let mut end = (offset + 8 * 1024).min(text.len());
             while !text.is_char_boundary(end) {
                 end -= 1;
             }
-            self.call(
-                "host", CLIPBOARD, "append",
-                json!({"put":put,"offset":offset,"text":&text[offset..end]}),
-            )
-            .map_err(|_| answer::NOT_PLACED)?;
+            if self
+                .call(
+                    "host",
+                    CLIPBOARD,
+                    "append",
+                    json!({"put":put,"offset":offset,"text":&text[offset..end]}),
+                )
+                .is_err()
+            {
+                sent = Err(answer::NOT_PLACED);
+                break;
+            }
             offset = end;
         }
-        let done = self.call("host", CLIPBOARD, "commit", json!({"put":put})).map_err(|_| answer::NOT_PLACED);
+        let done = sent.and_then(|()| {
+            self.call("host", CLIPBOARD, "commit", json!({"put":put}))
+                .map(drop)
+                .map_err(|_| answer::NOT_PLACED)
+        });
         // Whatever happened, nothing of an unfinished replacement is left with the application.
         let _ = self.call("host", CLIPBOARD, "release", json!({}));
         // Only a text that really reached the clipboard is remembered as received: it must not be sent back as a copy.
@@ -240,8 +290,31 @@ impl<'a, H: Wire + Data> Session<'a, H> {
 pub fn outcome(result: Result<(), &'static str>) -> Value {
     match result {
         Ok(()) => json!({"status":"ok","value":true}),
-        Err(reason) if reason == answer::CANCELLED => json!({"status":"error","code":"cancelled","message":reason}),
+        Err(reason) if reason == answer::CANCELLED => {
+            json!({"status":"error","code":"cancelled","message":reason})
+        }
         Err(reason) => json!({"status":"error","code":"failed","message":reason}),
+    }
+}
+
+/// Whether `delivery` is a call whose cancellation already waits in `backlog`; if so the cancellation is taken out too, and
+/// the call must not be started.
+pub fn withdrawn(delivery: &Value, backlog: &mut std::collections::VecDeque<Value>) -> bool {
+    let Some(ticket) = delivery["ticket"]
+        .as_u64()
+        .filter(|_| delivery["type"] == "call")
+    else {
+        return false;
+    };
+    match backlog
+        .iter()
+        .position(|later| later["type"] == "cancelled" && later["ticket"].as_u64() == Some(ticket))
+    {
+        Some(at) => {
+            backlog.remove(at);
+            true
+        }
+        None => false,
     }
 }
 
@@ -261,22 +334,35 @@ pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) ->
         _ => Err(answer::UNKNOWN),
     };
     *next = session.next();
-    let (cancelled, waiting, placed) =
-        (session.cancelled, std::mem::take(&mut session.waiting), session.placed.take());
+    let (cancelled, waiting, placed) = (
+        session.cancelled,
+        std::mem::take(&mut session.waiting),
+        session.placed.take(),
+    );
     if cancelled {
         // A cancelled call is answered by nobody: the application no longer waits for it.
         return Handled::Cancelled { waiting };
     }
     let reply = json!({"op":"reply","ticket":ticket,"result":outcome(result)});
-    Handled::Replied { reply, waiting, placed }
+    Handled::Replied {
+        reply,
+        waiting,
+        placed,
+    }
 }
 
 pub enum Handled {
     Ignored,
     Stop,
-    Cancelled { waiting: Vec<Value> },
+    Cancelled {
+        waiting: Vec<Value>,
+    },
     /// `placed` is the text this call put on the clipboard, if it did, so the caller can mark it as received.
-    Replied { reply: Value, waiting: Vec<Value>, placed: Option<String> },
+    Replied {
+        reply: Value,
+        waiting: Vec<Value>,
+        placed: Option<String>,
+    },
 }
 
 #[cfg(test)]
@@ -301,20 +387,36 @@ mod tests {
         let item = wire::encode("hello").unwrap();
         let mut host = Script::default();
         host.results.extend(captured("hello"));
-        host.results.push_back(json!({"status":"ok","value":{"claim":99}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"claim":99}}));
         host.incoming.push_back(ack(item.len() as u64));
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Replied { reply, .. } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("a finished call is replied to");
         };
         assert_eq!(reply["result"]["status"], "ok");
         assert_eq!(host.written, item);
-        assert_eq!(host.opened, [(true, 99)], "the data connection names the claim, never an identity");
+        assert_eq!(
+            host.opened,
+            [(true, 99)],
+            "the data connection names the claim, never an identity"
+        );
         assert_eq!(host.shutdowns, 1);
         assert_eq!(host.closed, 1);
-        let methods: Vec<_> = host.sent.iter().map(|c| c["method"].as_str().unwrap()).collect();
+        let methods: Vec<_> = host
+            .sent
+            .iter()
+            .map(|c| c["method"].as_str().unwrap())
+            .collect();
         assert_eq!(methods, ["read", "chunk", "release", "send"]);
-        assert_eq!(host.sent[3]["args"], json!({"device":"phone","service":"clipboard.text","version":1}));
+        assert_eq!(
+            host.sent[3]["args"],
+            json!({"device":"phone","service":"clipboard.text","version":1})
+        );
     }
 
     #[test]
@@ -322,10 +424,15 @@ mod tests {
         for incoming in [vec![ack(1)], vec![]] {
             let mut host = Script::default();
             host.results.extend(captured("hello"));
-            host.results.push_back(json!({"status":"ok","value":{"claim":99}}));
+            host.results
+                .push_back(json!({"status":"ok","value":{"claim":99}}));
             host.incoming.extend(incoming);
             let mut next = 0;
-            let Handled::Replied { reply, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+            let Handled::Replied { reply, .. } = handle(
+                &mut host,
+                &call("share", json!({"peer":"phone"})),
+                &mut next,
+            ) else {
                 panic!("replied");
             };
             assert_eq!(reply["result"]["status"], "error");
@@ -337,9 +444,14 @@ mod tests {
     #[test]
     fn nothing_readable_sends_nothing_and_opens_no_connection() {
         let mut host = Script::default();
-        host.results.push_back(json!({"status":"ok","value":{"available":false}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"available":false}}));
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Replied { reply, .. } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::NOTHING);
@@ -349,10 +461,17 @@ mod tests {
     #[test]
     fn text_over_the_limit_is_refused_before_any_device_is_asked() {
         let mut host = Script::default();
-        host.results.push_back(json!({"status":"ok","value":{"available":true,"clip":"c","bytes":MAX_TEXT + 1}}));
-        host.results.push_back(json!({"status":"ok","value":{"released":true}}));
+        host.results.push_back(
+            json!({"status":"ok","value":{"available":true,"clip":"c","bytes":MAX_TEXT + 1}}),
+        );
+        host.results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Replied { reply, .. } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::NOTHING);
@@ -364,11 +483,14 @@ mod tests {
         let item = wire::encode("shared").unwrap();
         let mut host = Script::default();
         host.results.extend(captured("shared"));
-        host.results.push_back(json!({"status":"ok","value":{"claim":3}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"claim":3}}));
         host.incoming.push_back(ack(item.len() as u64));
         let mut next = 0;
         let delivery = call("send_text", json!({"peer":"phone","context":42}));
-        let Handled::Replied { reply, .. } = handle(&mut host, &delivery, &mut next) else { panic!("replied") };
+        let Handled::Replied { reply, .. } = handle(&mut host, &delivery, &mut next) else {
+            panic!("replied")
+        };
         assert_eq!(reply["result"]["status"], "ok");
         assert_eq!(host.sent[0]["method"], "selected");
         assert_eq!(host.sent[0]["args"], json!({"context":42}));
@@ -379,14 +501,57 @@ mod tests {
     fn a_cancelled_call_is_not_answered_and_cancels_the_pending_request() {
         let mut host = Script::default();
         host.deliveries.push_back(call("receive", json!({})));
-        host.deliveries.push_back(json!({"type":"cancelled","ticket":5}));
+        host.deliveries
+            .push_back(json!({"type":"cancelled","ticket":5}));
         let mut next = 0;
-        let Handled::Cancelled { waiting } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Cancelled { waiting } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("a cancelled call is not answered");
         };
-        assert_eq!(waiting.len(), 1, "a call received before the cancellation is not lost with it");
+        assert_eq!(
+            waiting.len(),
+            1,
+            "a call received before the cancellation is not lost with it"
+        );
         assert!(host.sent.iter().any(|call| call["op"] == "cancel"));
         assert!(host.sent.iter().all(|call| call["op"] != "reply"));
+    }
+
+    #[test]
+    fn a_call_cancelled_while_it_waited_is_dropped_with_its_cancellation_and_others_are_kept() {
+        let mut backlog: std::collections::VecDeque<Value> = [
+            json!({"type":"call","ticket":9,"method":"receive"}),
+            json!({"type":"cancelled","ticket":5}),
+            json!({"type":"cancelled","ticket":9}),
+        ]
+        .into();
+        assert!(withdrawn(
+            &call("share", json!({"peer":"phone"})),
+            &mut backlog
+        ));
+        assert_eq!(
+            backlog.len(),
+            2,
+            "only the matching cancellation is taken out"
+        );
+        assert!(
+            backlog
+                .iter()
+                .all(|d| !(d["type"] == "cancelled" && d["ticket"] == 5))
+        );
+        // A call with no waiting cancellation, and anything that is not a call, is started as usual.
+        assert!(!withdrawn(
+            &json!({"type":"call","ticket":7,"method":"receive"}),
+            &mut backlog
+        ));
+        assert!(!withdrawn(
+            &json!({"type":"event","ticket":9}),
+            &mut backlog
+        ));
+        assert_eq!(backlog.len(), 2, "nothing else was taken out");
     }
 
     #[test]
@@ -394,7 +559,9 @@ mod tests {
         for args in [json!({"peer":"phone"}), json!({"peer":"phone","context":0})] {
             let mut host = Script::default();
             let mut next = 0;
-            let Handled::Replied { reply, .. } = handle(&mut host, &call("send_text", args), &mut next) else {
+            let Handled::Replied { reply, .. } =
+                handle(&mut host, &call("send_text", args), &mut next)
+            else {
                 panic!("replied");
             };
             assert_eq!(reply["result"]["message"], answer::NOTHING);
@@ -408,24 +575,46 @@ mod tests {
         let mut host = Script::default();
         host.incoming.push_back(wire::encode(&text).unwrap());
         for _ in 0..4 {
-            host.results.push_back(json!({"status":"ok","value":{"put":"put-1","next":0}}));
+            host.results
+                .push_back(json!({"status":"ok","value":{"put":"put-1","next":0}}));
         }
-        host.results.extend(std::iter::repeat_n(json!({"status":"ok","value":{"next":0}}), 8));
+        host.results.extend(std::iter::repeat_n(
+            json!({"status":"ok","value":{"next":0}}),
+            8,
+        ));
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("receive", json!({})), &mut next) else {
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("receive", json!({})), &mut next)
+        else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["status"], "ok");
-        assert_eq!(host.opened, [(false, 5)], "the ticket of the call being answered");
+        assert_eq!(
+            host.opened,
+            [(false, 5)],
+            "the ticket of the call being answered"
+        );
         let mut rebuilt = String::new();
         for call in host.sent.iter().filter(|call| call["method"] == "append") {
-            assert_eq!(call["args"]["offset"].as_u64().unwrap() as usize, rebuilt.len());
+            assert_eq!(
+                call["args"]["offset"].as_u64().unwrap() as usize,
+                rebuilt.len()
+            );
             rebuilt.push_str(call["args"]["text"].as_str().unwrap());
         }
         assert_eq!(rebuilt, text);
-        assert_eq!(host.sent.iter().filter(|call| call["method"] == "commit").count(), 1);
+        assert_eq!(
+            host.sent
+                .iter()
+                .filter(|call| call["method"] == "commit")
+                .count(),
+            1
+        );
         assert_eq!(host.sent.first().unwrap()["method"], "write");
-        assert_eq!(host.sent.first().unwrap()["args"], json!({"bytes":text.len()}));
+        assert_eq!(
+            host.sent.first().unwrap()["args"],
+            json!({"bytes":text.len()})
+        );
     }
 
     #[test]
@@ -438,7 +627,9 @@ mod tests {
             let mut host = Script::default();
             host.incoming.push_back(bytes);
             let mut next = 0;
-            let Handled::Replied { reply, .. } = handle(&mut host, &call("receive", json!({})), &mut next) else {
+            let Handled::Replied { reply, .. } =
+                handle(&mut host, &call("receive", json!({})), &mut next)
+            else {
                 panic!("replied");
             };
             assert_eq!(reply["result"]["message"], answer::NOT_ACCEPTED);
@@ -450,12 +641,18 @@ mod tests {
     fn a_refused_write_is_reported_and_leaves_nothing_behind() {
         let mut host = Script::default();
         host.incoming.push_back(wire::encode("abc").unwrap());
-        host.results.push_back(json!({"status":"ok","value":{"put":"put-1"}}));
-        host.results.push_back(json!({"status":"ok","value":{"next":3}}));
-        host.results.push_back(json!({"status":"error","code":"platform-refused","message":"x"}));
-        host.results.push_back(json!({"status":"ok","value":{"released":true}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"put":"put-1"}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"next":3}}));
+        host.results
+            .push_back(json!({"status":"error","code":"platform-refused","message":"x"}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("receive", json!({})), &mut next) else {
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("receive", json!({})), &mut next)
+        else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::NOT_PLACED);
@@ -466,9 +663,14 @@ mod tests {
     fn another_call_that_arrives_while_waiting_is_kept_and_not_lost() {
         let mut host = Script::default();
         host.deliveries.push_back(call("receive", json!({})));
-        host.results.push_back(json!({"status":"ok","value":{"available":false}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"available":false}}));
         let mut next = 0;
-        let Handled::Replied { waiting, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Replied { waiting, .. } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("replied");
         };
         assert_eq!(waiting.len(), 1);
@@ -479,18 +681,25 @@ mod tests {
     fn an_unknown_method_gets_the_fixed_words_and_a_non_call_is_ignored() {
         let mut host = Script::default();
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("nothing", json!({})), &mut next) else {
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("nothing", json!({})), &mut next)
+        else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::UNKNOWN);
-        assert!(matches!(handle(&mut host, &json!({"type":"event"}), &mut next), Handled::Ignored));
+        assert!(matches!(
+            handle(&mut host, &json!({"type":"event"}), &mut next),
+            Handled::Ignored
+        ));
     }
 
     #[test]
     fn a_missing_device_is_refused_without_reading_anything() {
         let mut host = Script::default();
         let mut next = 0;
-        let Handled::Replied { reply, .. } = handle(&mut host, &call("share", json!({})), &mut next) else {
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("share", json!({})), &mut next)
+        else {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::REFUSED);
@@ -502,38 +711,69 @@ mod tests {
         let mut host = Script::default();
         let notice = json!({"type":"event","provider":"host","service":"peersus.clipboard","version":1,"event":"changed","data":{}});
         host.deliveries.push_back(notice.clone());
-        host.results.push_back(json!({"status":"ok","value":{"available":false}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"available":false}}));
         let mut next = 0;
-        let Handled::Replied { waiting, .. } = handle(&mut host, &call("share", json!({"peer":"phone"})), &mut next) else {
+        let Handled::Replied { waiting, .. } = handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+        ) else {
             panic!("replied");
         };
-        assert_eq!(waiting, [notice], "the notice is handed back to the loop, in order, untouched");
+        assert_eq!(
+            waiting,
+            [notice],
+            "the notice is handed back to the loop, in order, untouched"
+        );
     }
 
     #[test]
     fn a_received_text_is_reported_as_placed_and_a_failed_one_is_not() {
         let mut host = Script::default();
-        host.incoming.push_back(wire::encode("from a device").unwrap());
-        host.results.push_back(json!({"status":"ok","value":{"put":"put-1"}}));
-        host.results.push_back(json!({"status":"ok","value":{"next":13}}));
-        host.results.push_back(json!({"status":"ok","value":{"written":true}}));
-        host.results.push_back(json!({"status":"ok","value":{"released":true}}));
+        host.incoming
+            .push_back(wire::encode("from a device").unwrap());
+        host.results
+            .push_back(json!({"status":"ok","value":{"put":"put-1"}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"next":13}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"written":true}}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
         let mut next = 0;
-        let Handled::Replied { placed, .. } = handle(&mut host, &call("receive", json!({})), &mut next) else {
+        let Handled::Replied { placed, .. } =
+            handle(&mut host, &call("receive", json!({})), &mut next)
+        else {
             panic!("replied");
         };
         assert_eq!(placed.as_deref(), Some("from a device"));
 
         let mut refusing = Script::default();
-        refusing.incoming.push_back(wire::encode("from a device").unwrap());
-        refusing.results.push_back(json!({"status":"ok","value":{"put":"put-1"}}));
-        refusing.results.push_back(json!({"status":"ok","value":{"next":13}}));
-        refusing.results.push_back(json!({"status":"error","code":"platform-refused","message":"x"}));
-        refusing.results.push_back(json!({"status":"ok","value":{"released":true}}));
+        refusing
+            .incoming
+            .push_back(wire::encode("from a device").unwrap());
+        refusing
+            .results
+            .push_back(json!({"status":"ok","value":{"put":"put-1"}}));
+        refusing
+            .results
+            .push_back(json!({"status":"ok","value":{"next":13}}));
+        refusing
+            .results
+            .push_back(json!({"status":"error","code":"platform-refused","message":"x"}));
+        refusing
+            .results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
         let mut next = 0;
-        let Handled::Replied { placed, .. } = handle(&mut refusing, &call("receive", json!({})), &mut next) else {
+        let Handled::Replied { placed, .. } =
+            handle(&mut refusing, &call("receive", json!({})), &mut next)
+        else {
             panic!("replied");
         };
-        assert_eq!(placed, None, "a text that never reached the clipboard is not remembered as received");
+        assert_eq!(
+            placed, None,
+            "a text that never reached the clipboard is not remembered as received"
+        );
     }
 }

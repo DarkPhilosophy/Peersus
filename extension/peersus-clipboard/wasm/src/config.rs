@@ -55,14 +55,18 @@ const MAX_PERMISSIONS: usize = 64;
 fn valid_name(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 128
-        && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
 }
 
 impl Device {
     /// Both grants, for exactly their owners: the application's send permission and this extension's own.
     fn allowed(&self, plugin: &str) -> bool {
         let holds = |owner: &str, name: &str| {
-            self.permissions.iter().any(|permission| permission.owner == owner && permission.name == name)
+            self.permissions
+                .iter()
+                .any(|permission| permission.owner == owner && permission.name == name)
         };
         !plugin.is_empty() && holds(plugin, "clipboard.use") && holds("host", "peers.send")
     }
@@ -77,10 +81,9 @@ impl Config {
             && config.peers.iter().all(|peer| {
                 valid_name(&peer.device)
                     && peer.permissions.len() <= MAX_PERMISSIONS
-                    && peer
-                        .permissions
-                        .iter()
-                        .all(|permission| valid_name(&permission.owner) && valid_name(&permission.name))
+                    && peer.permissions.iter().all(|permission| {
+                        valid_name(&permission.owner) && valid_name(&permission.name)
+                    })
             });
         valid.then_some(config)
     }
@@ -139,18 +142,32 @@ mod tests {
 
     #[test]
     fn automatic_and_each_destination_require_independent_opt_in() {
-        let none = Config::parse(json!({"settings":{},"peers":[{"device":"one","online":true,"settings":{}}]})).unwrap();
+        let none = Config::parse(
+            json!({"settings":{},"peers":[{"device":"one","online":true,"settings":{}}]}),
+        )
+        .unwrap();
         assert!(!none.automatic());
-        assert!(none.consented().is_empty(), "nothing is switched on by default");
-        assert!(config(true, false, true, both()).consented().is_empty(), "the device itself is not opted in");
-        assert!(config(false, true, true, both()).consented().is_empty(), "automatic sending is off");
+        assert!(
+            none.consented().is_empty(),
+            "nothing is switched on by default"
+        );
+        assert!(
+            config(true, false, true, both()).consented().is_empty(),
+            "the device itself is not opted in"
+        );
+        assert!(
+            config(false, true, true, both()).consented().is_empty(),
+            "automatic sending is off"
+        );
         assert_eq!(config(true, true, true, both()).consented(), ["phone"]);
     }
 
     #[test]
     fn a_wrong_type_is_refused_not_guessed() {
         assert!(Config::parse(json!({"settings":{"automatic":"yes"},"peers":[]})).is_none());
-        assert!(Config::parse(json!({"settings":{},"peers":[{"device":"d","online":"yes"}]})).is_none());
+        assert!(
+            Config::parse(json!({"settings":{},"peers":[{"device":"d","online":"yes"}]})).is_none()
+        );
     }
 
     #[test]
@@ -169,7 +186,8 @@ mod tests {
     #[test]
     fn automatic_requires_both_grants_of_exact_owners() {
         // Another extension's permission with the same name is a different permission.
-        let other = json!([{"owner":"host","name":"peers.send"},{"owner":"other","name":"clipboard.use"}]);
+        let other =
+            json!([{"owner":"host","name":"peers.send"},{"owner":"other","name":"clipboard.use"}]);
         assert!(config(true, true, true, other).consented().is_empty());
         // Only one of the two.
         let only_send = json!([{"owner":"host","name":"peers.send"}]);
@@ -203,20 +221,31 @@ mod tests {
     #[test]
     fn an_empty_permission_owner_refuses_the_whole_reply_and_never_grants_by_default() {
         // An empty owner is outside the identifier grammar, so the reply is refused rather than partly believed.
-        assert!(Config::parse(json!({
-            "plugin":"clipboard","settings":{"automatic":true},
-            "peers":[{"device":"phone","online":true,"settings":{"sync":true},"permissions":[
-                {"owner":"","name":"clipboard.use"},{"owner":"host","name":"peers.send"}]}]
-        }))
-        .is_none());
+        assert!(
+            Config::parse(json!({
+                "plugin":"clipboard","settings":{"automatic":true},
+                "peers":[{"device":"phone","online":true,"settings":{"sync":true},"permissions":[
+                    {"owner":"","name":"clipboard.use"},{"owner":"host","name":"peers.send"}]}]
+            }))
+            .is_none()
+        );
     }
 
     #[test]
     fn oversized_replies_are_refused_whole() {
-        let many: Vec<_> = (0..257).map(|n| json!({"device":format!("d{n}"),"online":true})).collect();
+        let many: Vec<_> = (0..257)
+            .map(|n| json!({"device":format!("d{n}"),"online":true}))
+            .collect();
         assert!(Config::parse(json!({"peers":many})).is_none());
-        let permissions: Vec<_> = (0..65).map(|n| json!({"owner":"host","name":format!("p{n}")})).collect();
-        assert!(Config::parse(json!({"peers":[{"device":"d","online":true,"permissions":permissions}]})).is_none());
+        let permissions: Vec<_> = (0..65)
+            .map(|n| json!({"owner":"host","name":format!("p{n}")}))
+            .collect();
+        assert!(
+            Config::parse(
+                json!({"peers":[{"device":"d","online":true,"permissions":permissions}]})
+            )
+            .is_none()
+        );
         assert!(Config::parse(json!({"peers":[{"device":"","online":true}]})).is_none());
     }
 
@@ -263,7 +292,10 @@ mod tests {
                     {"device":device,"online":true,"settings":{"sync":true},"permissions":[{"owner":owner,"name":name}]}
                 ]
             });
-            assert!(Config::parse(reply).is_none(), "{device:?} {owner:?} {name:?} {plugin:?}");
+            assert!(
+                Config::parse(reply).is_none(),
+                "{device:?} {owner:?} {name:?} {plugin:?}"
+            );
         }
     }
 }
