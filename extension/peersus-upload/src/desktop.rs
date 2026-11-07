@@ -1,7 +1,7 @@
 //! Native Linux/macOS adapter. Results and secrets never cross the hub.
 use crate::{Credential, SelectedFile, Uploader};
-use peersus_plugin_api::message::{Delivery, Operation, Outcome};
-use peersus_plugin_host::{
+use peersus_api::message::{Delivery, Operation, Outcome};
+use peersus_plugin::{
     frame::{self, CONTROL_LIMIT},
     link::Hello,
     supervisor::Bootstrap,

@@ -15,7 +15,7 @@ fn main() {
         return;
     };
     runtime.block_on(peersus_upload::desktop::run(
-        peersus_plugin_host::supervisor::Bootstrap {
+        peersus_plugin::supervisor::Bootstrap {
             socket: socket.into(),
             token,
             data_socket: data_socket.into(),

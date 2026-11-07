@@ -8,7 +8,7 @@ publish.workspace = true
 
 [features]
 default = ["desktop"]
-desktop = ["dep:rfd", "dep:keyring", "dep:arboard", "dep:peersus-plugin-api", "dep:peersus-plugin-host", "dep:rpassword"]
+desktop = ["dep:rfd", "dep:keyring", "dep:arboard", "dep:peersus-api", "dep:peersus-plugin", "dep:rpassword"]
 
 [dependencies]
 reqwest = { workspace = true, features = ["multipart", "stream", "json"] }
@@ -25,8 +25,8 @@ rfd = { workspace = true, optional = true }
 keyring = { workspace = true, optional = true }
 arboard = { workspace = true, optional = true }
 rpassword = { workspace = true, optional = true }
-peersus-plugin-api = { workspace = true, optional = true }
-peersus-plugin-host = { workspace = true, optional = true }
+peersus-api = { workspace = true, optional = true }
+peersus-plugin = { workspace = true, optional = true }
 
 [[bin]]
 name = "peersus-upload"
