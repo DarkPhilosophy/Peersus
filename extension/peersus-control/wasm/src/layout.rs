@@ -84,7 +84,8 @@ impl Ui {
     }
     fn verdict(&self)->(bool,String) {
         let all=self.monitors();
-        for (n,a) in all.iter().enumerate() {for b in &all[n+1..] {
+        // Only devices may not overlap each other: a device's own screens may (mirrored outputs share one place).
+        for (n,a) in all.iter().enumerate() {for b in all[n+1..].iter().filter(|b|b.device!=a.device) {
             if a.right().min(b.right())-a.x.max(b.x)>2 && a.bottom().min(b.bottom())-a.y.max(b.y)>2 {
                 return (false,format!("{} and {} overlap: move one of them.",self.items[a.device].name,self.items[b.device].name))
             }
@@ -509,6 +510,19 @@ mod tests {
         assert!(!ui.verdict().0);
         ui.items[1].at=Some([300,0]);
         assert!(ui.verdict().0);
+    }
+
+    #[test]
+    fn mirrored_screens_of_one_device_do_not_block_placing_another() {
+        let mut ui=Ui::default();
+        ui.load(json!({"devices":[
+            {"device":"this-device","name":"Local","displays":[
+                {"x":-100,"y":-50,"width":100,"height":100},{"x":-100,"y":-50,"width":100,"height":100}],"at":[0,0],"local":true},
+            {"device":"scoped","name":"Remote","displays":[{"x":0,"y":0,"width":100,"height":100}],"at":[100,0],"local":false}
+        ],"placements":[{"device":"scoped","x":100,"y":0}]})).unwrap();
+        assert!(ui.verdict().0, "a device's mirrored outputs share one place");
+        ui.items[1].at=Some([50,0]);
+        assert!(!ui.verdict().0, "two devices still may not overlap");
     }
 
     #[test]

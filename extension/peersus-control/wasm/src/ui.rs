@@ -59,11 +59,17 @@ impl Ui {
         let changed = self.devices != *peers;
         self.devices = peers.clone();
         self.refreshed = at;
+        let present = self.chosen.as_deref().is_some_and(|chosen| self.devices.iter().any(|p| p["device"].as_str() == Some(chosen)));
+        if self.chosen.is_some() && !present {
+            // Removed or unpaired: nothing to wait for, so its gesture ends and an online device may take its place.
+            let _ = self.end(state, host);
+            self.chosen = None;
+        }
         if self.chosen.is_none() {
             self.chosen = self.devices.iter().find(|p| p["online"] == true)
                 .and_then(|p| p["device"].as_str()).map(str::to_owned);
         } else if !self.devices.iter().any(|p| p["device"].as_str() == self.chosen.as_deref() && p["online"] == true) {
-            // A disappearing destination ends its gesture; it never redirects it to another device.
+            // A destination still paired but gone offline ends its gesture; it never redirects it to another device.
             let _ = self.end(state, host);
         }
         Ok(changed)
@@ -428,7 +434,7 @@ mod tests {
         ui.event(state, host, &json!({"t":"pointer","id":id,"phase":phase,"x":x,"y":y,"at":at})).unwrap()
     }
     fn ready() -> (Ui, State, Script) {
-        let mut host = Script::default();
+        let mut host = Script { acks: true, ..Script::default() };
         host.results.push_back(json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}));
         let mut ui = Ui::default();
         let mut state = State::default();
@@ -460,7 +466,6 @@ mod tests {
         ui.event(&mut state,&mut host,&json!({"t":"tick","at":3000})).unwrap();
         assert!(ui.pad.is_some(), "a drag held still is a gesture in progress");
         host.results.push_back(json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}));
-        host.incoming.push_back(ack(1));
         ui.event(&mut state,&mut host,&json!({"t":"tick","at":600 + STUCK_MS})).unwrap();
         assert!(state.outgoing.is_none());
         assert!(ui.pad.is_none());
@@ -679,6 +684,21 @@ mod tests {
         assert_eq!(host.shutdowns,1);
         assert_eq!(ui.event(&mut state,&mut host,&json!({"t":"submit","id":"keyboard","text":"a"})),Err(remote::answer::REFUSED));
         assert_eq!(host.opened.len(),1);
+    }
+
+    #[test]
+    fn a_removed_destination_is_replaced_by_an_online_device() {
+        let (mut ui, mut state, mut host) = ready();
+        event(&mut ui,&mut state,&mut host,"left","down",0,0,10);
+        host.incoming.push_back(ack(host.written.len() as u64));
+        host.results.push_back(json!({"status":"ok","value":[
+            {"device":"another","name":"Other","online":true}
+        ]}));
+        ui.event(&mut state,&mut host,&json!({"t":"tick","id":"idle","at":2010})).unwrap();
+        assert_eq!(ui.chosen.as_deref(),Some("another"));
+        assert!(ui.locked.is_empty());
+        assert!(state.outgoing.is_none());
+        assert!(ui.tree().to_string().contains("\"pad\""), "the remote page is offered again");
     }
 
     #[test]

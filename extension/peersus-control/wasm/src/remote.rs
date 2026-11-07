@@ -64,6 +64,8 @@ pub struct Outgoing {
     pub device: String,
     pub handle: Handle,
     pub batches: u32,
+    /// Every byte written on this connection, end marker included: what its acknowledgement must count.
+    pub sent: u64,
 }
 
 /// What this guest keeps between calls.
@@ -78,18 +80,37 @@ pub struct State {
     incoming: BTreeMap<Handle, Incoming>,
     pub ui: crate::ui::Ui,
     pub layout: crate::layout::Ui,
+    /// The layout-page option as last placed, and when (page time) it was last read: the application
+    /// keeps the guest running when the option changes, so the guest looks again while its pages are used.
+    layout_page: Option<bool>,
+    pages_checked: u64,
 }
 
 impl State {
     /// Only the guest interprets this option; the host receives ordinary additional placements.
     pub(crate) fn configure_pages<H: Wire>(&mut self, host: &mut H) -> Result<(), &'static str> {
         let config = self.call(host, CONFIG, "get", json!({}))?;
-        let pages = if config["settings"]["layout-page"].as_bool().unwrap_or(false) {
+        let wanted = config["settings"]["layout-page"].as_bool().unwrap_or(false);
+        if self.layout_page == Some(wanted) {
+            return Ok(());
+        }
+        let pages = if wanted {
             json!([{"id":"layout-page", "page":"layout", "placement":"primary"}])
         } else {
             json!([])
         };
-        self.call(host, PAGES, "set", json!({"pages":pages})).map(|_| ())
+        self.call(host, PAGES, "set", json!({"pages":pages}))?;
+        self.layout_page = Some(wanted);
+        Ok(())
+    }
+
+    /// At most every two seconds of page time, place the layout page again if its option changed.
+    fn follow_pages<H: Wire>(&mut self, host: &mut H, at: u64) {
+        if at.saturating_sub(self.pages_checked) < 2000 && self.pages_checked != 0 {
+            return;
+        }
+        self.pages_checked = at.max(1);
+        let _ = self.configure_pages(host);
     }
 
     /// Ask the application for something and wait for exactly that answer, keeping anything else
@@ -136,13 +157,15 @@ impl State {
         )?;
         let claim = sent["claim"].as_u64().ok_or(answer::REFUSED)?;
         let handle = host.open(true, claim).map_err(|_| answer::REFUSED)?;
-        Ok(Outgoing { device: device.to_owned(), handle, batches: 0 })
+        Ok(Outgoing { device: device.to_owned(), handle, batches: 0, sent: 0 })
     }
 
     fn close<H: Data>(host: &mut H, outgoing: Outgoing) -> Result<(), &'static str> {
+        // Delivered means every byte written: a shorter count is input lost on the way, never a success.
         let done = host.shutdown(outgoing.handle)
-            .and_then(|()| read_ack(host, outgoing.handle).map(|_| ()))
-            .map_err(|_| answer::STOPPED);
+            .and_then(|()| read_ack(host, outgoing.handle))
+            .map_err(|_| answer::STOPPED)
+            .and_then(|count| if count == outgoing.sent { Ok(()) } else { Err(answer::STOPPED) });
         host.close(outgoing.handle);
         done
     }
@@ -169,7 +192,7 @@ impl State {
     }
 
     fn pause<H: Wire + Data>(&mut self, host: &mut H, marker: &str) -> Result<(), &'static str> {
-        let Some(outgoing) = self.outgoing.take() else { return Ok(()) };
+        let Some(mut outgoing) = self.outgoing.take() else { return Ok(()) };
         self.retained = Some(outgoing.device.clone());
         let mut line = marker.as_bytes().to_vec();
         line.push(b'\n');
@@ -177,6 +200,7 @@ impl State {
             host.close(outgoing.handle);
             return Err(answer::STOPPED);
         }
+        outgoing.sent += line.len() as u64;
         Self::close(host, outgoing)
     }
 
@@ -226,8 +250,9 @@ impl State {
                 host.close(handle);
                 return Err(answer::STOPPED);
             }
+            outgoing.sent += lines.len() as u64;
             outgoing.batches += 1;
-            if outgoing.batches >= ROTATE_AFTER {
+            if outgoing.batches >= ROTATE_AFTER && !end {
                 // Said before the end, so the other side keeps a held drag held across the rotation.
                 return self.rotate(host);
             }
@@ -440,6 +465,9 @@ pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value)
         };
     }
     if delivery["method"] == "view" || delivery["method"] == "layout" {
+        if let Some(at) = delivery["args"]["event"]["at"].as_u64() {
+            state.follow_pages(host, at);
+        }
         let result = if delivery["method"] == "layout" {
             let mut ui = std::mem::take(&mut state.layout);
             let result = ui.event(state, host, &delivery["args"]["event"], delivery["args"]["page"].as_str());
@@ -509,16 +537,38 @@ mod tests {
     }
 
     #[test]
-    fn leaving_after_rest_releases_the_previous_device_without_new_motion() {
+    fn a_changed_layout_option_is_placed_while_running_and_an_unchanged_one_is_not_set_again() {
         let mut host = Script::default();
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"settings":{"layout-page":false}})));
+        host.results.push_back(ok(json!({})));
+        state.configure_pages(&mut host).unwrap();
+        // Within two seconds nothing is asked; then the option, turned on meanwhile, is placed.
+        state.follow_pages(&mut host, 1000);
+        state.follow_pages(&mut host, 1500);
+        assert_eq!(host.sent.len(), 3, "one look at the start of page time, none within the next two seconds");
+        host.results.push_back(ok(json!({"settings":{"layout-page":true}})));
+        host.results.push_back(ok(json!({})));
+        state.follow_pages(&mut host, 3100);
+        assert_eq!(host.sent.last().unwrap()["method"], "set");
+        assert_eq!(host.sent.last().unwrap()["args"]["pages"][0]["placement"], "primary");
+        // Unchanged: read, never set again.
+        host.results.push_back(ok(json!({"settings":{"layout-page":true}})));
+        let before = host.sent.len();
+        state.follow_pages(&mut host, 5200);
+        assert_eq!(host.sent.len(), before + 1);
+        assert_eq!(host.sent.last().unwrap()["method"], "get");
+    }
+
+    #[test]
+    fn leaving_after_rest_releases_the_previous_device_without_new_motion() {
+        let mut host = Script { acks: true, ..Script::default() };
         let mut state = State::default();
         host.results.push_back(ok(json!({"claim":1})));
         state.input(&mut host, &json!({"peer":"pc","events":[{"t":"move","dx":8,"dy":0}]})).unwrap();
-        host.incoming.push_back(ack(1));
         state.rest(&mut host).unwrap();
         let before = host.written.clone();
         host.results.push_back(ok(json!({"claim":2})));
-        host.incoming.push_back(ack(2));
         state.finish(&mut host).unwrap();
         assert_eq!(host.opened, vec![(true,1),(true,2)], "leaving must reach the rested target");
         assert_eq!(host.written, before, "release must not synthesize motion or clicks");
@@ -529,14 +579,12 @@ mod tests {
 
     #[test]
     fn ending_immediately_after_rotation_releases_the_retained_pointer() {
-        let mut host = Script::default();
+        let mut host = Script { acks: true, ..Script::default() };
         let mut state = State::default();
         host.results.push_back(ok(json!({"claim":1})));
         state.input(&mut host, &json!({"peer":"pc","events":[{"t":"move","dx":8,"dy":0}]})).unwrap();
-        host.incoming.push_back(ack(1));
         state.rotate(&mut host).unwrap();
         host.results.push_back(ok(json!({"claim":2})));
-        host.incoming.push_back(ack(2));
         state.finish(&mut host).unwrap();
         assert_eq!(host.opened,vec![(true,1),(true,2)]);
         assert_eq!((host.shutdowns,host.closed),(2,2));
@@ -545,7 +593,7 @@ mod tests {
 
     #[test]
     fn batches_go_down_one_connection_as_lines_and_the_end_closes_it_after_the_acknowledgement() {
-        let mut host = Script::default();
+        let mut host = Script { acks: true, ..Script::default() };
         let mut state = State::default();
         host.results.push_back(ok(json!({"claim": 42})));
         let first = json!([{"t":"move","dx":3,"dy":-1}]);
@@ -555,7 +603,6 @@ mod tests {
         assert_eq!(host.sent[0]["method"], "send");
         assert_eq!(host.sent[0]["args"]["service"], SERVICE);
         // The second batch reuses the open connection: no new `send`.
-        host.incoming.push_back(ack(64));
         let second = json!([{"t":"button","button":"left","down":true},{"t":"button","button":"left","down":false}]);
         handle(&mut host, &mut state, &input_call(2, second, true)).unwrap();
         assert_eq!(host.opened.len(), 1);
@@ -572,13 +619,10 @@ mod tests {
 
     #[test]
     fn a_connection_is_rotated_before_it_outlives_the_other_side_s_call() {
-        let mut host = Script::default();
+        let mut host = Script { acks: true, ..Script::default() };
         let mut state = State::default();
         host.results.push_back(ok(json!({"claim": 1})));
         for i in 0..ROTATE_AFTER {
-            if i + 1 == ROTATE_AFTER {
-                host.incoming.push_back(ack(1));
-            }
             let reply = handle(
                 &mut host,
                 &mut state,
@@ -595,6 +639,37 @@ mod tests {
             Some(CONTINUES),
             "a rotation says the gesture goes on, so a held drag survives it"
         );
+    }
+
+    #[test]
+    fn an_end_on_the_batch_that_would_rotate_releases_instead_of_continuing() {
+        let mut host = Script { acks: true, ..Script::default() };
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"claim": 1})));
+        for i in 0..ROTATE_AFTER {
+            let last = i + 1 == ROTATE_AFTER;
+            handle(&mut host, &mut state,
+                &input_call(u64::from(i) + 1, json!([{"t":"move","dx":1,"dy":0}]), last)).unwrap();
+        }
+        let written = String::from_utf8(host.written.clone()).unwrap();
+        assert_ne!(written.lines().last(), Some(CONTINUES), "the gesture ended: nothing may stay held");
+        assert!(state.outgoing.is_none() && state.retained.is_none());
+        assert_eq!((host.shutdowns, host.closed), (1, 1));
+    }
+
+    #[test]
+    fn a_short_acknowledgement_is_not_a_delivery() {
+        let mut host = Script::default();
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"claim": 1})));
+        state.input(&mut host, &json!({"peer":"pc","events":[{"t":"move","dx":8,"dy":0}]})).unwrap();
+        host.incoming.push_back(ack(0));
+        assert_eq!(state.finish(&mut host), Err(answer::STOPPED));
+        host.results.push_back(ok(json!({"claim": 2})));
+        state.input(&mut host, &json!({"peer":"pc","events":[{"t":"move","dx":8,"dy":0}]})).unwrap();
+        let sent = host.written.len() as u64 / 2;
+        host.incoming.push_back(ack(sent));
+        assert_eq!(state.finish(&mut host), Ok(()), "every byte of its own stream acknowledged");
     }
 
     #[test]

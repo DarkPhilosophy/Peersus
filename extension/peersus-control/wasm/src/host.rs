@@ -177,6 +177,9 @@ pub(crate) mod scripted {
         pub closed: usize,
         /// The most bytes a write accepts at once: real streams split writes.
         pub write_chunk: usize,
+        /// Acknowledge each stream with exactly the bytes written on it, as a well-behaved host does.
+        pub acks: bool,
+        pub stream_start: usize,
     }
 
     impl Wire for Script {
@@ -205,6 +208,7 @@ pub(crate) mod scripted {
     impl Data for Script {
         fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
             self.opened.push((claim, number));
+            self.stream_start = self.written.len();
             Ok(7)
         }
         fn read(&mut self, _: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
@@ -230,6 +234,9 @@ pub(crate) mod scripted {
         }
         fn shutdown(&mut self, _: Handle) -> Result<(), &'static str> {
             self.shutdowns += 1;
+            if self.acks {
+                self.incoming.push_front(ack((self.written.len() - self.stream_start) as u64));
+            }
             Ok(())
         }
         fn close(&mut self, _: Handle) {
