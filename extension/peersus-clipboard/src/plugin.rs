@@ -12,8 +12,8 @@
 //! * `receive`: the application announces text a device sent. It is collected over the data
 //!   connection, checked, and only then placed on the clipboard.
 use crate::wire::{self, Item};
-use peersus_plugin_api::message::{Delivery, Operation, Outcome};
-use peersus_plugin_host::{
+use peersus_api::message::{Delivery, Operation, Outcome};
+use peersus_plugin::{
     data::DataHello,
     frame::{self, CONTROL_LIMIT},
 };
@@ -986,9 +986,9 @@ mod tests {
         // The service, its version and the two methods are written twice: here, and in the
         // manifest the application reads. If they drift apart nothing fails to compile, and
         // the plugin would send to a service nobody routes to. This is what ties them.
-        let split = peersus_plugin_api::package::split(include_bytes!("../plugin.json"))
+        let split = peersus_api::package::split(include_bytes!("../plugin.json"))
             .expect("plugin.json has invalid package metadata");
-        let manifest: peersus_plugin_api::manifest::Manifest =
+        let manifest: peersus_api::manifest::Manifest =
             serde_json::from_slice(&split.manifest).expect("plugin.json is not a manifest");
         manifest
             .validate()

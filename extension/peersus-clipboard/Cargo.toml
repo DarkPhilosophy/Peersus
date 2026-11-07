@@ -12,8 +12,8 @@ name = "peersus-clipboard"
 path = "src/main.rs"
 
 [dependencies]
-peersus-plugin-api.workspace = true
-peersus-plugin-host.workspace = true
+peersus-api.workspace = true
+peersus-plugin.workspace = true
 peersus-clipboard-platform.workspace = true
 serde_json.workspace = true
 serde.workspace = true

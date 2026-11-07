@@ -2,7 +2,7 @@
 //! malicious local applications can therefore exhaust this plugin, never the owner process.
 #[cfg(not(target_os = "android"))]
 fn main() {
-    use peersus_plugin_host::supervisor::Bootstrap;
+    use peersus_plugin::supervisor::Bootstrap;
     let (Ok(socket), Ok(token), Ok(data_socket)) = (
         std::env::var("PEERSUS_PLUGIN_SOCKET"),
         std::env::var("PEERSUS_PLUGIN_TOKEN"),

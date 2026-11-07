@@ -1,8 +1,8 @@
 //! Runs the real automatic session against authenticated local socket protocol, not a UI.
 #![cfg(unix)]
 use peersus_clipboard::{plugin::Clipboard, session};
-use peersus_plugin_api::message::{Delivery, Operation, Outcome};
-use peersus_plugin_host::{
+use peersus_api::message::{Delivery, Operation, Outcome};
+use peersus_plugin::{
     frame::{self, CONTROL_LIMIT},
     link::Hello,
     supervisor::Bootstrap,
@@ -266,7 +266,7 @@ async fn a_slow_delivery_ack_keeps_the_session_alive(automatic: bool) {
     });
     let (mut data, _) = tokio::time::timeout(Duration::from_secs(5), data_listener.accept())
         .await.expect("session never began the transfer").unwrap();
-    let hello: peersus_plugin_host::data::DataHello = frame::read(&mut data, CONTROL_LIMIT).await.unwrap();
+    let hello: peersus_plugin::data::DataHello = frame::read(&mut data, CONTROL_LIMIT).await.unwrap();
     assert_eq!(hello.claim, Some(7));
     let mut payload = Vec::new();
     data.read_to_end(&mut payload).await.unwrap();

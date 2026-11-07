@@ -4,8 +4,8 @@ use crate::{
     plugin::{self, Clipboard, Control},
     wire,
 };
-use peersus_plugin_api::message::{Delivery, Operation, Outcome};
-use peersus_plugin_host::{
+use peersus_api::message::{Delivery, Operation, Outcome};
+use peersus_plugin::{
     frame::{self, CONTROL_LIMIT},
     link::Hello,
     supervisor::Bootstrap,
@@ -40,7 +40,7 @@ struct Device {
     online: bool,
     settings: DeviceSettings,
     #[serde(default)]
-    permissions: Vec<peersus_plugin_api::permission::Permission>,
+    permissions: Vec<peersus_api::permission::Permission>,
 }
 impl Device {
     fn allowed(&self, caller: &str) -> bool {
@@ -181,7 +181,7 @@ async fn configuration(
                 let config: Config = serde_json::from_value(value).ok()?;
                 if config.peers.len() > 256
                     || config.peers.iter().any(|peer| {
-                        !peersus_plugin_api::name::valid(&peer.device)
+                        !peersus_api::name::valid(&peer.device)
                             || peer.permissions.len() > 64
                             || peer
                                 .permissions
@@ -418,7 +418,7 @@ mod grant_tests {
         })).unwrap();
         assert!(!device.allowed("clipboard"));
         device.permissions.push(
-            peersus_plugin_api::permission::Permission::new("clipboard", "clipboard.use").unwrap(),
+            peersus_api::permission::Permission::new("clipboard", "clipboard.use").unwrap(),
         );
         assert!(device.allowed("clipboard"));
         device
@@ -564,7 +564,7 @@ mod epoch_regressions {
             .await
             .unwrap();
             let (mut data, _) = data_listener.accept().await.unwrap();
-            let _: peersus_plugin_host::data::DataHello =
+            let _: peersus_plugin::data::DataHello =
                 frame::read(&mut data, 1024).await.unwrap();
             let mut body = Vec::new();
             data.read_to_end(&mut body).await.unwrap();

@@ -21,13 +21,13 @@
 #![cfg(target_os = "linux")]
 
 use peersus_clipboard::wire::{self, Item};
-use peersus_plugin_api::{
-    hub::{Channel, Hub},
+use peersus_plugin::hub::{Channel, Hub};
+use peersus_api::{
     manifest::{Export, Import, Manifest},
     message::{Delivery, Operation, Outcome},
     permission::Permission,
 };
-use peersus_plugin_host::{Accepted, Event, Plugin, Service, data::Right, supervisor::Policy};
+use peersus_plugin::{Accepted, Event, Plugin, Service, data::Right, supervisor::Policy};
 use serde_json::json;
 use std::{
     collections::BTreeSet,
@@ -86,8 +86,8 @@ fn capabilities(values: &[&str]) -> std::collections::BTreeMap<String, String> {
 }
 
 /// A member that needs `capability` (or nothing) and says what it does.
-fn member(capability: Option<&str>) -> peersus_plugin_api::manifest::Member {
-    peersus_plugin_api::manifest::Member {
+fn member(capability: Option<&str>) -> peersus_api::manifest::Member {
+    peersus_api::manifest::Member {
         capability: capability.map(str::to_owned),
         description: "Does what its name says.".to_owned(),
     }
@@ -431,7 +431,7 @@ async fn sharing_sends_what_another_application_put_on_the_real_clipboard() {
     connection.stream.read_to_end(&mut bytes).await.unwrap();
     // The host confirms the delivered byte count before the plugin may report
     // success. Merely reading its write half to EOF is not a delivery receipt.
-    peersus_plugin_host::frame::write(&mut connection.stream, &(bytes.len() as u64), 1024)
+    peersus_plugin::frame::write(&mut connection.stream, &(bytes.len() as u64), 1024)
         .await
         .unwrap();
     assert_eq!(

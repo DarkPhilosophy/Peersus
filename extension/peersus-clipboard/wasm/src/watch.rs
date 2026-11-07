@@ -11,7 +11,7 @@ use crate::host::{Data, Wire};
 use serde_json::Value;
 
 /// Ticket zero: the hub raises its counter BEFORE it uses it (`self.ticket = self.ticket.checked_add(1)`, then
-/// `let ticket = self.ticket`, in `peersus-plugin-api/src/hub.rs`), so the first ticket it ever issues is one and zero is
+/// `let ticket = self.ticket`, in `peersus-plugin/src/hub.rs`), so the first ticket it ever issues is one and zero is
 /// never a live call. This is not an answer to a call, so a `cancelled` notice for some call must never be taken as
 /// cancelling it. The guest cannot read the hub's code, so what it relies on is stated here for whoever changes the hub.
 const NOT_A_CALL: u64 = 0;
