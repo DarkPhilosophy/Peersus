@@ -1,7 +1,7 @@
 //! Sandboxed provider protocol: the host owns all file bytes and credentials.
-#![cfg(any(target_family = "wasm", test))]
+#![cfg(any(target_family = "wasm", feature = "native", test))]
 use serde_json::{Value, json};
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 const LIMIT: usize = 48 * 1024;
 const PART: u64 = 3 * 1024 * 1024;
 const MAX_FILE: u64 = 250 * 1024 * 1024;
@@ -17,13 +17,17 @@ unsafe extern "C" {
     #[link_name = "send"]
     fn send_bytes(buffer: *const u8, length: usize) -> i32;
 }
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+use native::{receive as receive_bytes, send as send_bytes};
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native;
 trait Wire {
     fn receive(&mut self) -> Result<Value, &'static str>;
     fn send(&mut self, value: Value) -> Result<(), &'static str>;
 }
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 struct Host;
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 impl Wire for Host {
     fn receive(&mut self) -> Result<Value, &'static str> {
         let mut buffer = vec![0u8; LIMIT];
@@ -207,9 +211,30 @@ fn result_link(result: &Value) -> Result<String, &'static str> {
     }
     Ok(expected)
 }
+/// The entry the interpreter calls.
 #[cfg(target_family = "wasm")]
 #[unsafe(no_mangle)]
 pub extern "C" fn peersus_main() -> i32 {
+    run()
+}
+
+/// The entry the native host calls, with its table of the same functions the interpreter offers.
+///
+/// # Safety
+/// `host` is the native host's table, valid for the whole call.
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32 {
+    if !native::enter(host) {
+        return 1;
+    }
+    let result = run();
+    native::leave();
+    result
+}
+
+#[cfg(any(target_family = "wasm", feature = "native"))]
+fn run() -> i32 {
     let mut host = Host;
     let mut next = 0;
     loop {
