@@ -1,0 +1,5 @@
+# Read from the default branch. Extension submissions target `extension`, which CodeRabbit skips unless listed.
+reviews:
+  auto_review:
+    base_branches:
+      - "^extension$"
