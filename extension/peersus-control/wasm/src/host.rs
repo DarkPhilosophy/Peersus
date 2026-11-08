@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 /// Largest control message in either direction: the broker admits 48 KiB serialized.
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 pub const LIMIT: usize = 48 * 1024;
 /// A data handle is a small number the host issued; a negative one is an error.
 pub type Handle = i32;
@@ -96,11 +96,14 @@ mod import {
     }
 }
 
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+use crate::native as import;
+
 /// The real host. Only meaningful inside the interpreter.
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 pub struct Host;
 
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 impl Wire for Host {
     fn receive(&mut self) -> Result<Value, &'static str> {
         let mut buffer = vec![0u8; LIMIT];
@@ -122,7 +125,7 @@ impl Wire for Host {
     }
 }
 
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 impl Data for Host {
     fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
         let handle = unsafe { import::data_open(i32::from(claim), number) };

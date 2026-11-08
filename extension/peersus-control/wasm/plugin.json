@@ -7,7 +7,7 @@
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Use your phone as a touchpad and keyboard for a paired computer."
   },
-  "platforms": ["linux", "android"],
+  "platforms": ["linux", "android", "macos"],
   "program": "peersus_control_wasm.wasm",
   "execution": {"kind": "wasm", "abi": 1},
   "capabilities": {
