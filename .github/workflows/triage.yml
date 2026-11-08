@@ -3,11 +3,10 @@ on:
   pull_request_target:
     branches: [main, extension]
     types: [opened, reopened, synchronize, ready_for_review, edited]
-  # A reviewer finishing or a thread being resolved can make a PR ready for the maintainer.
+  # A reviewer finishing can make a PR ready for the maintainer. (Resolving a thread has no workflow event;
+  # the next review, push or CI completion rechecks it.)
   pull_request_review:
     types: [submitted]
-  pull_request_review_thread:
-    types: [resolved, unresolved]
   workflow_run:
     workflows: [Quality gates, Extension source submission, Generated documentation, Dependency advisory audit]
     types: [completed]
