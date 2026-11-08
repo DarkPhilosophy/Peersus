@@ -3,6 +3,11 @@ on:
   pull_request_target:
     branches: [main, extension]
     types: [opened, reopened, synchronize, ready_for_review, edited]
+  # A reviewer finishing or a thread being resolved can make a PR ready for the maintainer.
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_thread:
+    types: [resolved, unresolved]
   workflow_run:
     workflows: [Quality gates, Extension source submission, Generated documentation, Dependency advisory audit]
     types: [completed]
@@ -31,4 +36,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REQUIRED_REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
         run: python3 scripts/triage-pull-request.py
