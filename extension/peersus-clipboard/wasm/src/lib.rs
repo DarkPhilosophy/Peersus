@@ -2,24 +2,47 @@
 //!
 //! The guest reads and replaces the clipboard only through the application's `peersus.clipboard` service and
 //! moves bytes only through the data connections the application issues. It names no path, socket or clipboard API.
-#![cfg(any(target_family = "wasm", test))]
+#![cfg(any(target_family = "wasm", feature = "native", test))]
 
 mod actions;
 mod automatic;
 mod config;
 mod events;
 mod host;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native;
 mod observation;
 mod watch;
 mod wire;
 
-#[cfg(target_family = "wasm")]
+#[cfg(any(target_family = "wasm", feature = "native"))]
 use serde_json::Value;
 
 /// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a broken protocol.
+/// The entry the interpreter calls.
 #[cfg(target_family = "wasm")]
 #[unsafe(no_mangle)]
 pub extern "C" fn peersus_main() -> i32 {
+    run()
+}
+
+/// The entry the native host calls, with its table of the same functions the interpreter offers.
+///
+/// # Safety
+/// `host` is the native host's table, valid for the whole call.
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32 {
+    if !native::enter(host) {
+        return 1;
+    }
+    let result = run();
+    native::leave();
+    result
+}
+
+#[cfg(any(target_family = "wasm", feature = "native"))]
+fn run() -> i32 {
     use host::{Host, Wire};
     let mut host = Host;
     let mut next = 0u64;

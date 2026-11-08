@@ -1,17 +1,20 @@
 schema = 1
 id = "clipboard"
 workspace_member = "crates/peersus-clipboard"
-artifacts = ["clipboard-linux.tar.gz", "clipboard-android.tar.gz"]
+artifacts = ["clipboard-linux.tar.gz", "clipboard-android.tar.gz", "clipboard-macos.tar.gz", "clipboard-linux-native_library.tar.gz", "clipboard-linux-process.tar.gz"]
 
 build = [
-  ["cargo", "build", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "--release", "-p", "peersus-clipboard", "--bin", "peersus-clipboard", "--target-dir", "{sdk}/target"],
   ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--features", "native", "--target-dir", "{sdk}/target"],
+  ["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-fstack-protector-strong", "-fPIE", "-pie", "-DPEERSUS_LINKED_MODULE", "{sdk}/crates/peersus-plugin-runtime/native/host.c", "{sdk}/target/release/libpeersus_clipboard_wasm.a", "-Wl,-z,relro,-z,now", "-lpthread", "-ldl", "-lm", "-o", "{sdk}/target/release/peersus-clipboard-process"],
 ]
 test = [
-  ["cargo", "test", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "-p", "peersus-clipboard", "--all-targets", "--target-dir", "{sdk}/target"],
   ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
 ]
 package = [
-  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "clipboard"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "clipboard"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "clipboard"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "clipboard"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "clipboard", "--native-library", "libpeersus_clipboard_wasm.so"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "clipboard", "--process", "peersus-clipboard-process"],
 ]

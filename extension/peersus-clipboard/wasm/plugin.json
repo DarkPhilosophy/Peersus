@@ -7,7 +7,7 @@
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Clipboard text sharing with explicit permissions and optional automatic synchronization."
   },
-  "platforms": ["linux", "android"],
+  "platforms": ["linux", "android", "macos"],
   "program": "peersus_clipboard_wasm.wasm",
   "execution": {"kind": "wasm", "abi": 1},
   "capabilities": {
