@@ -34,6 +34,16 @@ jobs:
       - id: sdk
         working-directory: trusted
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # Before any build: the reviewers read this exact commit and every current thread is resolved.
+      # Reviewer logins: repository variable REQUIRED_REVIEWERS, comma-separated, or this default.
+      - name: Reviewers finished and their threads addressed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          REVIEWERS: ${{ vars.REQUIRED_REVIEWERS || 'coderabbitai[bot],devin-ai-integration[bot],greptile-apps[bot]' }}
+        run: python3 trusted/scripts/verify-review-readiness.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD" --reviewers "$REVIEWERS"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
