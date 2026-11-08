@@ -73,6 +73,13 @@
         "help": "Each device that controls this computer gets a pointer of its own, apart from this computer's mouse. Needs a desktop that draws a pointer per tablet tool, such as GNOME; elsewhere the shared pointer moves.",
         "scope": "global",
         "kind": {"type": "toggle", "default": true}
+      },
+      {
+        "id": "name-tag",
+        "label": "Show who controls each pointer",
+        "help": "Draw the controlling device's name beside its independent pointer. The name is the one you gave that device on this computer.",
+        "scope": "global",
+        "kind": {"type": "toggle", "default": true}
       }
     ]
   }

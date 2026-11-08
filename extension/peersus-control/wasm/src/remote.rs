@@ -275,16 +275,20 @@ impl State {
             .ok_or(answer::NOT_UNDERSTOOD)?
             .to_owned();
         // On unless the person turned it off; a reply that cannot be read keeps the default.
-        let own = self
-            .call(host, CONFIG, "get", json!({}))
-            .ok()
-            .and_then(|config| config["settings"]["independent"].as_bool())
-            .unwrap_or(true);
+        let config = self.call(host, CONFIG, "get", json!({})).ok();
+        let setting = |id: &str| {
+            config
+                .as_ref()
+                .and_then(|config| config["settings"][id].as_bool())
+                .unwrap_or(true)
+        };
+        let own = setting("independent");
+        let named = own && setting("name-tag");
         let handle = host
             .open(false, ticket)
             .map_err(|_| answer::NOT_UNDERSTOOD)?;
         self.incoming.insert(handle, Incoming {
-            ticket, target: Target { owner, own }, pending: Vec::new(), ended: Ended::Closed,
+            ticket, target: Target { owner, own, named }, pending: Vec::new(), ended: Ended::Closed,
         });
         Ok(())
     }
@@ -404,6 +408,10 @@ impl State {
         if target.own {
             args["pointer"] = json!("own");
         }
+        // Only asks: the application decides the name, from the device it knows by `owner`, and draws it.
+        if target.named {
+            args["show_name"] = json!(true);
+        }
         self.call(host, INPUT, "inject", args)
             .map(|_| ())
             .map_err(|reason| {
@@ -420,6 +428,8 @@ impl State {
 struct Target {
     owner: String,
     own: bool,
+    /// Whether its pointer carries the controlling device's name.
+    named: bool,
 }
 
 struct Incoming {
@@ -789,6 +799,8 @@ mod tests {
         assert_eq!(calls[1]["args"]["events"][0]["t"], "move");
         assert_eq!(calls[1]["args"]["owner"], "rog");
         assert_eq!(calls[1]["args"]["pointer"], "own", "a pointer of its own");
+        assert_eq!(calls[1]["args"]["show_name"], true, "its name is asked for by default");
+        assert!(calls[1]["args"].get("label").is_none(), "the extension never writes the name itself");
         assert_eq!(calls[2]["args"]["events"][0]["button"], "left");
         assert_eq!(calls[3]["method"], "release", "nothing is left held down");
         assert_eq!(
@@ -817,7 +829,30 @@ mod tests {
         .unwrap();
         let inject = host.sent.iter().find(|m| m["method"] == "inject").unwrap();
         assert!(inject["args"].get("pointer").is_none());
+        assert!(inject["args"].get("show_name").is_none(), "the shared pointer carries no name");
         assert_eq!(inject["args"]["owner"], "rog");
+    }
+
+    #[test]
+    fn the_name_tag_can_be_turned_off() {
+        let mut host = Script::default();
+        let mut state = State::default();
+        host.incoming
+            .push_back(b"{\"t\":\"move\",\"dx\":1,\"dy\":2}\n".to_vec());
+        host.results.push_back(ok(
+            json!({"plugin":"control","settings":{"independent":true,"name-tag":false},"peers":[]}),
+        ));
+        host.results.push_back(ok(json!({"applied":1})));
+        host.results.push_back(ok(json!({"released":true})));
+        handle(
+            &mut host,
+            &mut state,
+            &json!({"type":"call","ticket":1,"method":"receive","args":{"peer":"rog"}}),
+        )
+        .unwrap();
+        let inject = host.sent.iter().find(|m| m["method"] == "inject").unwrap();
+        assert_eq!(inject["args"]["pointer"], "own");
+        assert!(inject["args"].get("show_name").is_none());
     }
 
     #[test]
