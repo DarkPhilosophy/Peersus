@@ -1,4 +1,4 @@
-plugins { id 'com.android.application' version '9.5.0' apply false }
+plugins { id 'com.android.application' version '9.5.1' apply false }
 
 // Keep generated Android files alongside Cargo output, never in the source tree.
 layout.buildDirectory.set(file('../target/android/gradle/root'))
