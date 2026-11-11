@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "package": {
     "name": "Test",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "author": "Peersus contributors",
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "A page of its own drawn from plain elements: tries every element, every event and the limits."
