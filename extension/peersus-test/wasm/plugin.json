@@ -1,0 +1,37 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Test",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "A page of its own drawn from plain elements: tries every element, every event and the limits."
+  },
+  "platforms": ["linux", "android", "macos", "windows"],
+  "program": "peersus_test_wasm.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {},
+  "imports": [],
+  "exports": [{
+    "service": "test.page",
+    "version": 1,
+    "description": "What the Test page shows, and what a person does on it.",
+    "consumers": ["host"],
+    "methods": {
+      "event": {"description": "Answers what a person did on the Test page with the page as it is after it."}
+    },
+    "events": {}
+  }],
+  "contributions": {
+    "pages": [
+      {
+        "id": "test",
+        "label": "Test",
+        "placement": "primary",
+        "icon": "plugins",
+        "surface": "elements",
+        "source": {"service": "test.page", "method": "event"}
+      }
+    ]
+  }
+}

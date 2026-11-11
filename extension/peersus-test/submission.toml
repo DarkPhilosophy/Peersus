@@ -1,0 +1,16 @@
+schema = 1
+id = "test"
+artifacts = ["test-linux.tar.gz", "test-android.tar.gz", "test-macos.tar.gz", "test-windows.tar.gz"]
+
+build = [
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+]
+test = [
+  ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
+]
+package = [
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "test"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "test"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "test"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "windows", "--id", "test"],
+]
