@@ -111,7 +111,12 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = std::io::Result<D>>,
 {
-    let text = clipboard.text().await.ok_or(answer::NOTHING)?;
+    // An empty clipboard is nothing to share, exactly as the WebAssembly guest refuses a zero-byte capture.
+    let text = clipboard
+        .text()
+        .await
+        .filter(|text| !text.is_empty())
+        .ok_or(answer::NOTHING)?;
     // Encoding is what enforces the size limit, before anything is asked of the application.
     let bytes = wire::encode(&Item::Text(text)).map_err(|_| answer::NOTHING)?;
     let call = Operation::Call {
@@ -1320,6 +1325,34 @@ mod tests {
         );
         let (result, ()) = tokio::join!(send, host);
         assert_eq!(result, Err(answer::NOTHING));
+    }
+
+    #[tokio::test]
+    async fn an_empty_clipboard_is_refused_before_the_application_is_asked() {
+        let (mut app, mut stream) = duplex(64 * 1024);
+        let mut clipboard = Fake::with("");
+        let mut waiting = VecDeque::new();
+        let result = share_until(
+            &mut clipboard,
+            Control {
+                stream: &mut stream,
+                token: "test",
+                waiting: &mut waiting,
+            },
+            "device",
+            || async {
+                panic!("nothing to send must never connect");
+                #[allow(unreachable_code)]
+                Ok::<_, std::io::Error>(data_pair().0)
+            },
+            None,
+        )
+        .await;
+        assert_eq!(result, Err(answer::NOTHING));
+        drop(stream);
+        let mut asked = Vec::new();
+        app.read_to_end(&mut asked).await.unwrap();
+        assert!(asked.is_empty(), "no send call reached the application");
     }
 
     #[tokio::test]

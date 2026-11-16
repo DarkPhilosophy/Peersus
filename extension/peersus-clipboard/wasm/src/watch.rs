@@ -3,8 +3,9 @@
 //! This is only the wiring: every decision (who may be sent to, what counts as a new copy, when to start over) is taken
 //! by `Automatic`, which is tested without a host. The loop here asks it, does what it says, and goes back to waiting.
 //!
-//! There is no clock, so nothing is polled. The application's change notice wakes this, and a notice that arrives while
-//! an earlier one is being handled is kept by the session and handled next, never dropped.
+//! There is no clock, so nothing is polled while the platform observes. The application's change notice wakes this, and
+//! a notice that arrives while an earlier one is being handled is kept by the session and handled next, never dropped.
+//! Only a failed baseline, which stops the platform observing, is retried after a bounded wait (`Retry`).
 use crate::actions::Session;
 use crate::automatic::{Automatic, Eligibility, Epoch};
 use crate::host::{Data, Wire};
@@ -121,12 +122,60 @@ pub fn wakes(delivery: &Value) -> bool {
     crate::events::is_change(delivery)
 }
 
+/// The first wait before a failed baseline is tried again, and the longest: the most a host readiness wait accepts.
+const RETRY_FIRST_MS: i32 = 1_000;
+const RETRY_LAST_MS: i32 = 30_000;
+
+/// How long the loop may wait for a delivery before trying a failed baseline again.
+///
+/// A failed reset leaves the platform not observing, so no change notice can come to retry it, and only a configuration
+/// change would otherwise wake the guest. While a baseline is owed the wait is bounded and doubles, up to the longest
+/// wait the host allows; once one succeeds the guest waits for notices again, without a clock.
+pub struct Retry {
+    delay_ms: i32,
+}
+
+impl Retry {
+    pub fn new() -> Self {
+        Self {
+            delay_ms: RETRY_FIRST_MS,
+        }
+    }
+
+    /// `None`: wait for the next delivery however long it takes. `Some(ms)`: wait at most that long, then retry.
+    pub fn wait(&mut self, state: &Automatic) -> Option<i32> {
+        if !state.baseline_needed {
+            self.delay_ms = RETRY_FIRST_MS;
+            return None;
+        }
+        let wait = self.delay_ms;
+        self.delay_ms = self.delay_ms.saturating_mul(2).min(RETRY_LAST_MS);
+        Some(wait)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::host::scripted::{Script, ack};
     use crate::wire;
     use serde_json::json;
+
+    #[test]
+    fn a_failed_baseline_is_retried_after_a_growing_bounded_wait_and_a_good_one_waits_for_notices() {
+        let mut state = Automatic::new();
+        let mut retry = Retry::new();
+        // Startup could not take a baseline (both resets failed): no notice can come, so the wait is bounded.
+        let waits: Vec<_> = (0..7).map(|_| retry.wait(&state)).collect();
+        assert_eq!(
+            waits,
+            [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000].map(Some)
+        );
+        state.baseline_done(true);
+        assert_eq!(retry.wait(&state), None, "observing again: wait for notices");
+        state.baseline_done(false);
+        assert_eq!(retry.wait(&state), Some(1_000), "a new failure starts short again");
+    }
 
     #[test]
     fn automatic_pass_preserves_concurrent_receive_calls_and_change_notices_in_order() {

@@ -58,12 +58,18 @@ impl Automatic {
     }
 
     /// Compare the configuration with what was seen, and say what that means.
+    ///
+    /// A consent change leaves a baseline owed until `baseline_done` records a successful one, wherever it was noticed.
+    /// Noticed between two destinations (`still_valid`), nothing takes that baseline at once, and without the debt the
+    /// next notice would compare equal and read a copy the platform still holds from before the change as fresh, sending
+    /// it to a device that was opted in after it was made.
     pub fn epoch(&mut self, now: &Eligibility) -> Epoch {
         let first = !self.started;
         self.started = true;
         if self.baseline_needed || first || now.consented != self.seen.consented {
             self.seen = now.clone();
             self.observation = Observation::default();
+            self.baseline_needed = true;
             return Epoch::Rebaseline;
         }
         if now.reachable != self.seen.reachable {
@@ -279,6 +285,14 @@ mod tests {
             ["a"],
             "what is sent next is judged against the new state"
         );
+        // Nothing took a baseline after that change, so the next look takes one: a copy the platform held from before
+        // the change must not reach a device opted in after it.
+        assert!(!state.can_observe());
+        let opted_in = eligibility(&config(true, &[("a", true, true), ("b", true, true)]));
+        assert!(!state.still_valid(&opted_in));
+        assert_eq!(state.epoch(&opted_in), Epoch::Rebaseline);
+        state.baseline_done(true);
+        assert_eq!(state.epoch(&opted_in), Epoch::Same);
     }
 
     #[test]

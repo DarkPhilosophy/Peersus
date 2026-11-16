@@ -43,7 +43,7 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 fn run() -> i32 {
-    use host::{Host, Wire};
+    use host::{Data, Host, Wire};
     let mut host = Host;
     let mut next = 0u64;
     let mut state = automatic::Automatic::new();
@@ -59,14 +59,32 @@ fn run() -> i32 {
     if watch::start(&mut host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
         return 1;
     }
+    let mut retry = watch::Retry::new();
     loop {
         // Anything that arrived while an earlier delivery was handled comes first, in the order it came.
         let delivery = match backlog.pop_front() {
             Some(delivery) => delivery,
-            None => match host.receive() {
-                Ok(delivery) => delivery,
-                Err(_) => return 0,
-            },
+            None => {
+                // A baseline that failed is retried after a bounded wait, because no notice can come to retry it.
+                if let Some(wait) = retry.wait(&state) {
+                    match host.poll(&[], wait) {
+                        Ok(Some(_)) => {}
+                        Ok(None) => {
+                            if watch::on_change(&mut host, &mut state, &mut next, &mut backlog)
+                                == watch::Pass::Stop
+                            {
+                                return 1;
+                            }
+                            continue;
+                        }
+                        Err(_) => return 1,
+                    }
+                }
+                match host.receive() {
+                    Ok(delivery) => delivery,
+                    Err(_) => return 0,
+                }
+            }
         };
         // A call already cancelled while it waited is not started: the application no longer waits for it, and starting it
         // could send clipboard text before the cancellation is looked at.
