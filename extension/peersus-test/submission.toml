@@ -1,9 +1,11 @@
 schema = 1
 id = "test"
-artifacts = ["test-linux.tar.gz", "test-android.tar.gz", "test-macos.tar.gz", "test-windows.tar.gz"]
+artifacts = ["test-linux.tar.gz", "test-android.tar.gz", "test-macos.tar.gz", "test-windows.tar.gz", "test-linux-native_library.tar.gz", "test-linux-process.tar.gz"]
 
 build = [
   ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--features", "native", "--target-dir", "{sdk}/target"],
+  ["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-fstack-protector-strong", "-fPIE", "-pie", "-DPEERSUS_LINKED_MODULE", "{sdk}/crates/peersus-plugin-runtime/native/host.c", "{sdk}/target/release/libpeersus_test_wasm.a", "-Wl,-z,relro,-z,now", "-lpthread", "-ldl", "-lm", "-o", "{sdk}/target/release/peersus-test-process"],
 ]
 test = [
   ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
@@ -13,4 +15,6 @@ package = [
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "test"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "test"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "windows", "--id", "test"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "test", "--native-library", "libpeersus_test_wasm.so"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "test", "--process", "peersus-test-process"],
 ]
