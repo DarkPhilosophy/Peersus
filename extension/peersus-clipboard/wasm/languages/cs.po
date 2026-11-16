@@ -16,8 +16,8 @@ msgstr "Automaticky synchronizovat text ze schránky"
 msgid "Automatically send clipboard text to this device"
 msgstr "Automaticky odesílat text ze schránky do tohoto zařízení"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Vyžaduje automatickou synchronizaci, oprávnění ke schránce a oprávnění k odesílání pro toto zařízení."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Vyžaduje automatickou synchronizaci a pro toto zařízení oprávnění je vidět, oprávnění ke schránce a oprávnění k odesílání."
 
 msgid "Send"
 msgstr "Odeslat"

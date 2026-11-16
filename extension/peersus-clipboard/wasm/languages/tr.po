@@ -16,8 +16,8 @@ msgstr "Pano metnini otomatik eşitle"
 msgid "Automatically send clipboard text to this device"
 msgstr "Pano metnini bu cihaza otomatik gönder"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Bu cihaz için otomatik eşitleme, pano izni ve gönderme izni gerekir."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Bu cihaz için otomatik eşitleme ile cihazı görme izni, pano izni ve gönderme izni gerekir."
 
 msgid "Send"
 msgstr "Gönder"

@@ -16,8 +16,8 @@ msgstr "Sincronizează automat textul din clipboard"
 msgid "Automatically send clipboard text to this device"
 msgstr "Trimite automat textul din clipboard către acest dispozitiv"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Necesită sincronizare automată și permisiunile clipboard și trimitere pentru acest dispozitiv."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Necesită sincronizare automată și, pentru acest dispozitiv, permisiunile de a-l vedea, clipboard și trimitere."
 
 msgid "Send"
 msgstr "Trimite"

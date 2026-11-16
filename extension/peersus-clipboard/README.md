@@ -1,14 +1,16 @@
 # Clipboard extension
 
-Explicit text sharing and permission-gated clipboard synchronization, shipped as a WASM guest (official) for Linux, Android and macOS, plus an optional Linux native process (not recommended). Peer access is brokered by the application; the extension cannot choose an arbitrary network destination. Outbound success requires the application's matching delivered-byte acknowledgement, not merely a successful local socket write. This confirms transport delivery, not that a remote user has read the text.
+Explicit text sharing and permission-gated clipboard synchronization between paired devices, shipped as a WASM guest (official) for Linux, Android and macOS; the same source also builds a native library and a process (not recommended). Peer access is brokered by the application; the extension cannot choose an arbitrary network destination. Outbound success requires the application's matching delivered-byte acknowledgement, not merely a successful local socket write. This confirms transport delivery, not that a remote user has read the text.
 
 ## Platforms and dependencies
 
-- Linux: a working X11 or Wayland clipboard session. X11 and Wayland use their platform adapters; compositor support affects background observation.
-- macOS: the native pasteboard adapter. An X server does not isolate this adapter from the real pasteboard.
-- Android: the application provides its platform adapter; this native process package is not an Android installer.
+The extension never touches the system clipboard itself. It asks the application (`peersus.clipboard`), which reads and replaces this device's clipboard only while the person allows it, a permission of the application separate from this extension's `clipboard.use`. The paired devices it may reach come from `peersus.peers`, its settings from `peersus.config`.
 
-Build requirements are the workspace's pinned Rust toolchain and SDK dependencies. This plugin is licensed under Apache-2.0; keep the exported LICENSE and NOTICE files. `submission.toml` declares the build recipe; CI resolves and records the trusted host SDK commit before executing it, using the SDK's lockfile. The source archive does not contain a standalone workspace or pin an SDK revision itself.
+- Linux: the application's clipboard owner needs a working X11 or Wayland session; compositor support affects background observation.
+- macOS: the application's pasteboard adapter. An X server does not isolate it from the real pasteboard.
+- Android: the application's own adapter (foreground reading, the share sheet, and the optional privileged helper of the community build).
+
+Build requirements are a stable Rust toolchain with the `wasm32-unknown-unknown` target; the guest has its own lockfile (`wasm/Cargo.lock`) and depends on no application crate. This plugin is licensed under Apache-2.0; keep the exported LICENSE and NOTICE files. `submission.toml` declares the build recipe; CI resolves and records the trusted host SDK commit before executing it.
 
 ## Execution format
 
@@ -20,27 +22,29 @@ macOS support is limited: the same WASM package runs, but host services implemen
 
 ## Build and test
 
-From the application workspace root:
+In `wasm/`:
 
 ```sh
-cargo build -p peersus-clipboard
-cargo test -p peersus-clipboard --all-targets
+cargo build --release --target wasm32-unknown-unknown --locked
+cargo test --locked
 ```
 
-Unit tests exercise framing, bounds, cancellation, permission changes and delivery confirmation without changing the desktop clipboard. Linux full-runtime clipboard tests need **Xvfb**, **xvfb-run**, **xauth** and **xclip**. Their ordinary invocation returns without exercising the real clipboard unless the isolation flag is set. Run them explicitly in a private X server:
+The guest's unit tests drive its protocol with scripted host answers: framing, bounds, cancellation, permission changes, automatic synchronization and delivery confirmation, without a clipboard.
+
+The application carries the end-to-end test of this guest: two real owners on private virtual X displays pair and keep their clipboards in step through it, both ways (`crates/peersus-app/tests/desktop_clipboard_wasm.rs`). It needs **Xvfb** and **xclip**, the guest built into `target/clip-wasm-rel/` (`cargo build --release --target wasm32-unknown-unknown --target-dir ../../../target/clip-wasm-rel` here) and is opt-in:
 
 ```sh
-PEERSUS_ISOLATED_CLIPBOARD=1 xvfb-run -a env -u WAYLAND_DISPLAY \
-  cargo test -p peersus-clipboard --test runtime_end_to_end -- --test-threads=1
+PEERSUS_DESKTOP_WASM_TEST=1 PEERSUS_CLIPBOARD_MANIFEST=$PWD/plugins/peersus-clipboard/wasm/plugin.json \
+  cargo test -p peersus-app --features test-plugin,test-identity --test desktop_clipboard_wasm -- --test-threads=1
 ```
 
-Never set the isolation flag against a personal desktop session. The runtime tests install the actual extension into temporary application state, pair a synthetic local peer and check permitted and refused network transfers. Do not interpret a skipped/non-isolated run as desktop clipboard verification.
+The owners use the test build's identity (no system keyring), as the application's gate builds its tests; the package is installed as a person installs one from a folder, its licence, notice and the outside-store warning accepted by digest. It never touches the display or data of the person running it; a run without the flag returns at once and is not a clipboard verification.
 
 ## Submission
 
-The exported source lives in its own extension directory with `plugin.json`, `submission.toml`, `ownership.json`, Cargo files, this README and license notices. Follow the extension branch's root guide for its standalone CI command and permitted source changes. Match the host SDK to the outbound acknowledgement contract. Passing build and artifact validation do not grant catalog admission: each update still requires the independent maintainer review and verified ownership checks.
+The exported source lives in its own extension directory with `submission.toml`, `ownership.json`, the `wasm/` guest (manifest, sources, lockfile and translations), this README and license notices. Follow the extension branch's root guide for its standalone CI command and permitted source changes. Match the host SDK to the outbound acknowledgement contract. Passing build and artifact validation do not grant catalog admission: each update still requires the independent maintainer review and verified ownership checks.
 
 ## License and third-party notices
 
-This extension is licensed under Apache-2.0 (`LICENSE`, `NOTICE`). The WASM guest is built from these libraries: serde, serde_derive, serde_core, serde_json, itoa, memchr, zmij (MIT OR Apache-2.0, MIT, or Unlicense OR MIT), with build-time proc-macro2, quote, syn and unicode-ident ((MIT OR Apache-2.0) AND Unicode-3.0). Linux native process (not recommended): additionally serde, serde_json, thiserror, tokio and image, and through the clipboard platform adapter arboard, wl-clipboard-rs and x11rb (MIT and/or Apache-2.0).
+This extension is licensed under Apache-2.0 (`LICENSE`, `NOTICE`). The guest is built from these libraries: serde, serde_derive, serde_core, serde_json, itoa, memchr, zmij (MIT OR Apache-2.0, MIT, or Unlicense OR MIT), with build-time proc-macro2, quote, syn and unicode-ident ((MIT OR Apache-2.0) AND Unicode-3.0). The native library and the process are the same guest; the process also links the SDK's native host (`crates/peersus-plugin-runtime/native/host.c`, Apache-2.0).
 Every packaged archive carries `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.txt` and the license texts of its exact resolved dependency set under `licenses/`, generated by the packager from the lockfile; keep them when redistributing.

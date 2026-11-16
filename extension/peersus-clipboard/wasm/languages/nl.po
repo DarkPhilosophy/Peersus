@@ -16,8 +16,8 @@ msgstr "Tekst van het klembord automatisch synchroniseren"
 msgid "Automatically send clipboard text to this device"
 msgstr "Tekst van het klembord automatisch naar dit apparaat versturen"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Vereist automatische synchronisatie, de klembordmachtiging en de verzendmachtiging voor dit apparaat."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Vereist automatische synchronisatie en, voor dit apparaat, de machtiging om het te zien, de klembordmachtiging en de verzendmachtiging."
 
 msgid "Send"
 msgstr "Versturen"

@@ -16,8 +16,8 @@ msgstr "Text der Zwischenablage automatisch abgleichen"
 msgid "Automatically send clipboard text to this device"
 msgstr "Text der Zwischenablage automatisch an dieses Gerät senden"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Erfordert den automatischen Abgleich, die Berechtigung für die Zwischenablage und die Sendeberechtigung für dieses Gerät."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Erfordert den automatischen Abgleich und für dieses Gerät die Berechtigung, es zu sehen, die Berechtigung für die Zwischenablage und die Sendeberechtigung."
 
 msgid "Send"
 msgstr "Senden"

@@ -16,8 +16,8 @@ msgstr "Sincronizar automáticamente el texto del portapapeles"
 msgid "Automatically send clipboard text to this device"
 msgstr "Enviar automáticamente el texto del portapapeles a este dispositivo"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Requiere la sincronización automática, el permiso del portapapeles y el permiso de envío para este dispositivo."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Requiere la sincronización automática y, para este dispositivo, el permiso para verlo, el permiso del portapapeles y el permiso de envío."
 
 msgid "Send"
 msgstr "Enviar"

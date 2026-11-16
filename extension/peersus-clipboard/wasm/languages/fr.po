@@ -16,8 +16,8 @@ msgstr "Synchroniser automatiquement le texte du presse-papiers"
 msgid "Automatically send clipboard text to this device"
 msgstr "Envoyer automatiquement le texte du presse-papiers à cet appareil"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Nécessite la synchronisation automatique, l'autorisation du presse-papiers et l'autorisation d'envoi pour cet appareil."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Nécessite la synchronisation automatique et, pour cet appareil, l'autorisation de le voir, l'autorisation du presse-papiers et l'autorisation d'envoi."
 
 msgid "Send"
 msgstr "Envoyer"

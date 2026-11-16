@@ -16,8 +16,8 @@ msgstr "Synkronisera text i urklipp automatiskt"
 msgid "Automatically send clipboard text to this device"
 msgstr "Skicka text från urklipp automatiskt till den här enheten"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Kräver automatisk synkronisering, behörighet till urklipp och behörighet att skicka för den här enheten."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Kräver automatisk synkronisering och, för den här enheten, behörighet att se den, behörighet till urklipp och behörighet att skicka."
 
 msgid "Send"
 msgstr "Skicka"

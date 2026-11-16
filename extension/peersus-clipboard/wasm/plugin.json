@@ -127,7 +127,7 @@
       {
         "id": "sync",
         "label": "Automatically send clipboard text to this device",
-        "help": "Requires automatic synchronization, the clipboard permission and the send permission for this device.",
+        "help": "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission.",
         "scope": "device",
         "kind": {
           "type": "toggle",

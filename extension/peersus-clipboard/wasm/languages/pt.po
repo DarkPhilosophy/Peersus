@@ -16,8 +16,8 @@ msgstr "Sincronizar automaticamente o texto da área de transferência"
 msgid "Automatically send clipboard text to this device"
 msgstr "Enviar automaticamente o texto da área de transferência para este dispositivo"
 
-msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
-msgstr "Requer a sincronização automática, a permissão da área de transferência e a permissão de envio para este dispositivo."
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Requer a sincronização automática e, para este dispositivo, a permissão para o ver, a permissão da área de transferência e a permissão de envio."
 
 msgid "Send"
 msgstr "Enviar"
