@@ -19,9 +19,16 @@ pub struct HostV1 {
     data_write: unsafe extern "C" fn(*mut c_void, i32, *const u8, u32) -> i32,
     data_close: unsafe extern "C" fn(*mut c_void, i32) -> i32,
     data_shutdown: unsafe extern "C" fn(*mut c_void, i32) -> i32,
-    /// Optional: present only when `struct_size` covers it.
-    poll: unsafe extern "C" fn(*mut c_void, *const i32, u32, i32) -> i32,
+    // `poll` follows as an optional append-only member. It is not declared here: a host may pass a
+    // table that ends before it, and a reference to this struct must never cover memory the host did
+    // not supply. It is read through [`poll_member`] only when `struct_size` covers it.
 }
+
+/// `PeersusHostV1::poll`, the optional member right after the fixed ones.
+type PollFn = unsafe extern "C" fn(*mut c_void, *const i32, u32, i32) -> i32;
+
+/// The fixed members end where `poll` starts: every member is pointer-aligned after the two `u32`s.
+const POLL_OFFSET: usize = std::mem::size_of::<HostV1>();
 
 const ABI_VERSION: u32 = 1;
 
@@ -37,7 +44,7 @@ pub fn enter(host: *const HostV1) -> bool {
     // SAFETY: the native host passes a pointer to its table, valid for the whole call of `peersus_plugin_main`; only the
     // two leading fixed fields are read before the size is known.
     let (version, size) = unsafe { ((*host).abi_version, (*host).struct_size) };
-    if version != ABI_VERSION || (size as usize) < std::mem::offset_of!(HostV1, poll) {
+    if version != ABI_VERSION || (size as usize) < std::mem::size_of::<HostV1>() {
         return false;
     }
     HOST.with(|cell| cell.set(host));
@@ -63,12 +70,16 @@ fn width(length: usize) -> u32 {
 
 pub unsafe fn receive(buffer: *mut u8, capacity: usize) -> i32 {
     // SAFETY: the caller's buffer is valid for `capacity` bytes, as the wasm import requires too.
-    table().map_or(-1, |h| unsafe { (h.receive)(h.context, buffer, width(capacity)) })
+    table().map_or(-1, |h| unsafe {
+        (h.receive)(h.context, buffer, width(capacity))
+    })
 }
 
 pub unsafe fn send(buffer: *const u8, length: usize) -> i32 {
     // SAFETY: the caller's buffer is valid for `length` bytes.
-    table().map_or(-1, |h| unsafe { (h.send)(h.context, buffer, width(length)) })
+    table().map_or(-1, |h| unsafe {
+        (h.send)(h.context, buffer, width(length))
+    })
 }
 
 pub unsafe fn data_open(kind: i32, number: u64) -> i32 {
@@ -78,12 +89,16 @@ pub unsafe fn data_open(kind: i32, number: u64) -> i32 {
 
 pub unsafe fn data_read(handle: i32, buffer: *mut u8, capacity: usize) -> i32 {
     // SAFETY: the caller's buffer is valid for `capacity` bytes.
-    table().map_or(-1, |h| unsafe { (h.data_read)(h.context, handle, buffer, width(capacity)) })
+    table().map_or(-1, |h| unsafe {
+        (h.data_read)(h.context, handle, buffer, width(capacity))
+    })
 }
 
 pub unsafe fn data_write(handle: i32, buffer: *const u8, length: usize) -> i32 {
     // SAFETY: the caller's buffer is valid for `length` bytes.
-    table().map_or(-1, |h| unsafe { (h.data_write)(h.context, handle, buffer, width(length)) })
+    table().map_or(-1, |h| unsafe {
+        (h.data_write)(h.context, handle, buffer, width(length))
+    })
 }
 
 pub unsafe fn data_close(handle: i32) -> i32 {
@@ -98,10 +113,27 @@ pub unsafe fn data_shutdown(handle: i32) -> i32 {
 
 pub unsafe fn poll(handles: *const i32, count: usize, timeout_ms: i32) -> i32 {
     let Some(h) = table() else { return -2 };
-    if (h.struct_size as usize) < std::mem::size_of::<HostV1>() {
-        // A host without the optional readiness wait: a transport failure, as the header says.
+    // A host without the optional readiness wait: a transport failure, as the header says.
+    let Some(poll) = poll_member(h) else {
         return -2;
+    };
+    // SAFETY: the caller's slice is valid for `count` handles.
+    unsafe { poll(h.context, handles, width(count), timeout_ms) }
+}
+
+/// The host's `poll`, if its table is long enough to hold one.
+fn poll_member(h: &HostV1) -> Option<PollFn> {
+    if (h.struct_size as usize) < POLL_OFFSET + std::mem::size_of::<Option<PollFn>>() {
+        return None;
     }
-    // SAFETY: the caller's slice is valid for `count` handles; the member is present (checked above).
-    unsafe { (h.poll)(h.context, handles, width(count), timeout_ms) }
+    // SAFETY: `struct_size` says the host's table extends over the member, which the pinned header
+    // places right after the fixed ones; it is read unaligned-safe as an optional function pointer,
+    // so a null member is `None` rather than a call through null.
+    unsafe {
+        (h as *const HostV1)
+            .cast::<u8>()
+            .add(POLL_OFFSET)
+            .cast::<Option<PollFn>>()
+            .read_unaligned()
+    }
 }

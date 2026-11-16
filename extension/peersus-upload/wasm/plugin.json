@@ -7,29 +7,135 @@
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Upload an explicitly selected file after destination approval."
   },
-  "platforms": ["linux", "android", "macos"],
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
   "program": "peersus_upload_wasm.wasm",
-  "execution": {"kind": "wasm", "abi": 1},
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
   "capabilities": {},
   "imports": [
-    {"provider": "host", "service": "peersus.files", "version": 1, "methods": ["selected", "release"], "events": []},
-    {"provider": "host", "service": "peersus.http", "version": 1, "methods": ["configure", "authorize", "request", "check", "present", "release"], "events": []}
-  ],
-  "exports": [{
-    "service": "upload.file", "version": 1,
-    "description": "Explicit file selection and cloud-upload consent; file bytes and credentials stay in the trusted platform host.",
-    "consumers": ["host"],
-    "methods": {
-      "choose": {"description": "Upload the file already selected on Send after destination approval."},
-      "configure": {"description": "Manage the encrypted API key for this destination without selecting or uploading a file."}
+    {
+      "provider": "host",
+      "service": "peersus.files",
+      "version": 1,
+      "methods": [
+        "selected",
+        "release"
+      ],
+      "events": []
     },
-    "events": {}
-  }],
+    {
+      "provider": "host",
+      "service": "peersus.http",
+      "version": 1,
+      "methods": [
+        "configure",
+        "saved",
+        "authorize",
+        "request",
+        "check",
+        "present",
+        "release"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.actions",
+      "version": 1,
+      "methods": [
+        "withhold"
+      ],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "upload.file",
+      "version": 1,
+      "description": "Explicit file selection and cloud-upload consent; file bytes and credentials stay in the trusted platform host.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "choose": {
+          "description": "Upload the file already selected on Send after destination approval."
+        },
+        "configure": {
+          "description": "Manage the encrypted API key for this destination without selecting or uploading a file."
+        },
+        "status": {
+          "description": "Answers what a person did on this extension's settings line with the line as it is after it: whether an API key is saved and whether the provider accepts it."
+        }
+      },
+      "events": {}
+    }
+  ],
   "contributions": {
     "actions": [
-      {"id": "upload", "label": "Upload selected file", "input": "selected_file", "target": {"service": "upload.file", "method": "choose"}, "needs_device": false, "destructive": false, "timeout_ms": 600000},
-      {"id": "configure", "label": "API key…", "input": "secret_text", "target": {"service": "upload.file", "method": "configure"}, "needs_device": false, "destructive": false, "timeout_ms": 600000}
+      {
+        "id": "upload",
+        "label": "Upload selected file",
+        "input": "selected_file",
+        "target": {
+          "service": "upload.file",
+          "method": "choose"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "timeout_ms": 600000
+      },
+      {
+        "id": "configure",
+        "label": "API key…",
+        "input": "secret_text",
+        "target": {
+          "service": "upload.file",
+          "method": "configure"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "timeout_ms": 600000
+      }
+    ],
+    "pages": [
+      {
+        "id": "key",
+        "label": "API key",
+        "placement": "settings",
+        "surface": "elements",
+        "source": {
+          "service": "upload.file",
+          "method": "status"
+        }
+      }
     ],
     "settings": []
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Upload sends one file you explicitly select to a cloud destination you configure, only after destination approval. The file bytes and your API key stay in the trusted host; this guest only asks the host to act.",
+        "changes": "After installing, an 'API key…' action appears, and 'Upload selected file' once an API key is saved. The extension's settings say whether a key is saved and whether the destination accepts it; checking that sends the key to the destination and nothing else. An upload sends the selected file to a third-party destination where it may be publicly visible through a link; nothing is sent without your approval."
+      }
+    ]
   }
 }

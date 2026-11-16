@@ -14,6 +14,16 @@ The credential action declares `input: "secret_text"`: the host renders a masked
 
 After a key is saved, the guest asks the host's `peersus.http.check` to read it back against the provider's identity route and reports one of three outcomes: `valid` (a success status), `rejected` (the provider answered 401 or 403, which fails the action so the person is told at once) or `unverified` (anything else, including a host that cannot make the check). Only the status crosses back to the guest; neither the key nor the provider's response body does. A host without `peersus.http.check` reports `unverified`, never `valid`.
 
+The guest keeps the upload honest about the key:
+
+- When it starts, and whenever its settings are opened or a key is saved or removed, it asks the application whether a usable key is saved (`peersus.http` `saved`: yes or no, nothing of the key) and takes "Upload selected file" back while there is none (`peersus.actions` `withhold`). With no key the action is not offered anywhere; saving one offers it again. If the application will not say (the extension is not allowed the network yet), the action stays and a press says what is missing.
+- When an upload starts it asks the provider about the key first (`check`, as above). A key the provider refuses ends the upload before the file is prepared or the person is asked to allow anything; a provider that could not say does not stop it.
+- Its settings show one line, drawn by the application from what the guest answers (a page placed in Settings): no key saved; a key saved and not yet asked about; accepted; refused. "Check now" asks the provider. The line asks to be drawn again every two seconds while it is shown, and drawing asks nobody.
+
+An application without `peersus.http` `saved` or `peersus.actions` does not start this guest: update the application and this package together.
+
+A file larger than one request is sent in parts that carry a session header of the provider's protocol. The guest names that header when it asks to send the file (`peersus.http` `authorize`, `headers`), the person is shown it with the file and the address, and the application then lets requests of that authorization carry it. An application older than this refuses the first part of a large file with "Unsupported request header" after nothing of it was sent; a small file is unaffected. Update the application and this package together.
+
 ## Execution format
 
 The **WASM guest is the official build** of this extension and is packaged for Linux, Android and macOS; the store refuses a submission without it. Why WASM: one module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
@@ -29,16 +39,16 @@ From the application workspace root:
 ```sh
 cargo build -p peersus-upload
 cargo test -p peersus-upload --all-targets
-cargo test --manifest-path crates/peersus-upload/wasm/Cargo.toml
+cargo test --manifest-path plugin/peersus-upload/wasm/Cargo.toml
 cargo test -p peersus-ui-android --test extension_services
 ```
 
 For the real authenticated sandbox integration, install the `wasm32-unknown-unknown` Rust target in the development environment, then build the production guest and run the explicit integration test:
 
 ```sh
-cargo build --manifest-path crates/peersus-upload/wasm/Cargo.toml \
+cargo build --manifest-path plugin/peersus-upload/wasm/Cargo.toml \
   --release --target wasm32-unknown-unknown
-PEERSUS_UPLOAD_WASM="$PWD/crates/peersus-upload/wasm/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
+PEERSUS_UPLOAD_WASM="$PWD/plugin/peersus-upload/wasm/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
   cargo test -p peersus-plugin-runtime --test process \
   real_upload_guest_uses_host_services_and_returns_the_verified_link -- --ignored
 ```

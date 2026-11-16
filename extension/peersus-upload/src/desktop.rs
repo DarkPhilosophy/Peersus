@@ -8,7 +8,6 @@ use peersus_plugin::{
 };
 use rfd::{AsyncMessageDialog, MessageButtons, MessageDialogResult};
 use serde_json::json;
-use tokio::net::UnixStream;
 
 pub const KEYRING_SERVICE: &str = "org.peersus.upload.poo.wang";
 pub const KEYRING_ACCOUNT: &str = "non-owner-machine-token";
@@ -166,7 +165,7 @@ async fn flow() -> &'static str {
 
 /// One reader owns framing, so dialog/network completion can never cancel a partial frame.
 pub async fn run(bootstrap: Bootstrap) {
-    let Ok(mut stream) = UnixStream::connect(bootstrap.socket).await else {
+    let Ok(mut stream) = peersus_plugin::transport::connect(bootstrap.socket).await else {
         return;
     };
     if frame::write(
@@ -186,7 +185,7 @@ pub async fn run(bootstrap: Bootstrap) {
 
 // Injectable only inside this adapter: fixtures exercise the same framing and lifecycle
 // without opening UI, reading credentials, or making requests.
-async fn run_stream<F, A>(stream: UnixStream, mut start: F)
+async fn run_stream<F, A>(stream: peersus_plugin::transport::Stream, mut start: F)
 where
     F: FnMut() -> A,
     A: Future<Output = &'static str>,
@@ -349,9 +348,19 @@ mod runner_tests {
         }
     }
 
+    async fn pair() -> (
+        peersus_plugin::transport::Stream,
+        peersus_plugin::transport::Stream,
+    ) {
+        let directory = tempfile::tempdir().unwrap();
+        peersus_plugin::transport::connected_pair(directory.path())
+            .await
+            .unwrap()
+    }
+
     #[tokio::test]
     async fn six_cancellations_drop_flows_and_seventh_call_completes() {
-        let (mut host, plugin) = UnixStream::pair().unwrap();
+        let (mut host, plugin) = pair().await;
         let starts = Arc::new(AtomicUsize::new(0));
         let (started, mut starting) = mpsc::unbounded_channel();
         let (dropped, mut dropping) = mpsc::unbounded_channel();
@@ -404,7 +413,7 @@ mod runner_tests {
 
     #[tokio::test]
     async fn native_cancellation_is_not_a_successful_upload() {
-        let (mut host, plugin) = UnixStream::pair().unwrap();
+        let (mut host, plugin) = pair().await;
         let runner = tokio::spawn(run_stream(plugin, || async { "cancelled" }));
         timeout(Duration::from_secs(5), async {
             frame::write(&mut host, &call(1), CONTROL_LIMIT)

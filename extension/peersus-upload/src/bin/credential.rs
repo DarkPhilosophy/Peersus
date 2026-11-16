@@ -1,6 +1,9 @@
 //! Explicit provisioning only. No credential is accepted through argv, environment or settings.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use peersus_upload::Credential;
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use peersus_upload::desktop::{KEYRING_ACCOUNT, KEYRING_SERVICE};
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 
 fn main() {
@@ -11,6 +14,15 @@ fn main() {
         std::process::exit(1);
     }
 }
+
+/// The desktop uploader whose credential this stores exists for Linux and macOS only.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn run() -> Result<(), ()> {
+    eprintln!("This uploader does not run on this system.");
+    Err(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn run() -> Result<(), ()> {
     let mut args = std::env::args().skip(1);
     if args.next().as_deref() != Some("provision") || args.next().is_some() {

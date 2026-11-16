@@ -27,5 +27,25 @@
       "needs_device": false, "destructive": false, "timeout_ms": 600000
     }],
     "settings": []
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Upload sends one file you explicitly choose to a cloud destination you configure, only after the application asks and you approve each upload. It stores an API key for that destination in the application's credential store.",
+        "changes": "After installing, an 'Upload file…' action appears. Choosing it can send the selected file to a third-party service where it may be publicly visible through a link. The application asks before every upload; nothing is sent automatically."
+      }
+    ]
   }
 }

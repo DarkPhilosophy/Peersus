@@ -1,4 +1,5 @@
 //! The uploader is a separate process, never loaded into the host UI.
+#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn main() {
     let (Ok(socket), Ok(token), Ok(data_socket)) = (
         std::env::var("PEERSUS_PLUGIN_SOCKET"),
@@ -21,4 +22,12 @@ fn main() {
             data_socket: data_socket.into(),
         },
     ));
+}
+
+/// The desktop uploader exists for Linux and macOS only (see `plugin.json`); elsewhere the WASM
+/// extension uploads. Started anyway, it says so and ends.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn main() {
+    eprintln!("This uploader does not run on this system.");
+    std::process::exit(1);
 }
