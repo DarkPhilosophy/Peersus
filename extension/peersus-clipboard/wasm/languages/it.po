@@ -24,3 +24,6 @@ msgstr "Invia"
 
 msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
 msgstr "Attivalo qui e per ogni dispositivo. Le nuove copie vengono inviate solo mentre questo dispositivo può leggere gli appunti, e i contenuti sensibili sono esclusi."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Condivisione del testo degli appunti con autorizzazioni esplicite e sincronizzazione automatica facoltativa."

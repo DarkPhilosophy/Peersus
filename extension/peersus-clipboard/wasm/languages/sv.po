@@ -24,3 +24,6 @@ msgstr "Skicka"
 
 msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
 msgstr "Slå på här och per enhet. Nya kopior skickas bara medan den här enheten kan läsa urklippet, och känsligt innehåll undantas."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Delning av text i urklipp med uttryckliga behörigheter och valfri automatisk synkronisering."

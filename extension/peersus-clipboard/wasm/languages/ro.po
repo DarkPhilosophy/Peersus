@@ -24,3 +24,6 @@ msgstr "Trimite"
 
 msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
 msgstr "Activează aici și pentru fiecare dispozitiv. Copiile noi se trimit doar cât timp acest dispozitiv poate citi clipboardul, iar textul sensibil este exclus."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Partajarea textului din clipboard, cu permisiuni explicite și sincronizare automată opțională."

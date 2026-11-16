@@ -24,3 +24,6 @@ msgstr "Odeslat"
 
 msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
 msgstr "Zapněte zde a pro každé zařízení. Nové kopie se odesílají jen tehdy, když toto zařízení může číst schránku, a citlivý obsah se vynechává."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Sdílení textu ze schránky s výslovnými oprávněními a volitelnou automatickou synchronizací."
