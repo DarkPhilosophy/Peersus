@@ -366,9 +366,11 @@ fn grant(
     client.command(Command::SetGrants {
         plugin: id("clipboard"),
         peer: Some(peer.clone()),
-        grants: Grants::new(permissions.iter().map(|(owner, name)| {
-            peersus_api::permission::Permission::new(*owner, *name).unwrap()
-        }))
+        grants: Grants::new(
+            permissions.iter().map(|(owner, name)| {
+                peersus_api::permission::Permission::new(*owner, *name).unwrap()
+            }),
+        )
         .unwrap(),
     })
 }

@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pt\n"
+"X-Language-Name: Português\n"
+
+msgid "Send clipboard text"
+msgstr "Enviar o texto da área de transferência"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizar automaticamente o texto da área de transferência"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Enviar automaticamente o texto da área de transferência para este dispositivo"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Requer a sincronização automática, a permissão da área de transferência e a permissão de envio para este dispositivo. O texto recebido requer também a permissão da área de transferência deste plugin para cada dispositivo."
+
+msgid "Send"
+msgstr "Enviar"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Ative aqui e por dispositivo. O Android envia as novas cópias quando regressa a esta aplicação e pode receber com a conectividade em segundo plano ativada. O que foi copiado antes da ativação e o conteúdo sensível ficam excluídos."

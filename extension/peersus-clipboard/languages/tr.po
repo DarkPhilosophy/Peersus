@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: tr\n"
+"X-Language-Name: Türkçe\n"
+
+msgid "Send clipboard text"
+msgstr "Pano metnini gönder"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Pano metnini otomatik eşitle"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Pano metnini bu cihaza otomatik gönder"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Bu cihaz için otomatik eşitleme, pano izni ve gönderme izni gerekir. Gelen metin için ayrıca bu eklentinin cihaz başına pano izni gerekir."
+
+msgid "Send"
+msgstr "Gönder"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Burada ve her cihaz için açın. Android, bu uygulamaya döndüğünüzde yeni kopyaları gönderir ve arka plan bağlantısı açıkken alabilir. Açmadan önce kopyalananlar ve hassas içerik hariç tutulur."

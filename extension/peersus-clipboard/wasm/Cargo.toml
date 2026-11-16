@@ -12,6 +12,8 @@ crate-type = ["cdylib", "staticlib"]
 [features]
 # The same guest as a native library (second tier, not recommended): `cargo build --release --features native`.
 native = []
+# Matching development hosts only; normal modules have no diagnostic import.
+development-diagnostics = []
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

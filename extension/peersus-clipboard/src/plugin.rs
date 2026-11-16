@@ -280,8 +280,10 @@ pub fn withdraw_cancelled(queue: &mut VecDeque<Delivery>) {
 /// then there is simply nothing, so it returns), and only once one byte is really there is the
 /// rest of that one delivery waited for, which is brief because the application writes a
 /// delivery in one piece.
-#[cfg(unix)]
-pub async fn drain(stream: &mut tokio::net::UnixStream, waiting: &mut VecDeque<Delivery>) -> bool {
+pub async fn drain(
+    stream: &mut peersus_plugin::transport::Stream,
+    waiting: &mut VecDeque<Delivery>,
+) -> bool {
     use std::io::ErrorKind;
     loop {
         // The runtime only knows the connection is readable once its reactor has seen it, and
@@ -1062,13 +1064,24 @@ mod tests {
         }
     }
 
-    async fn write_delivery(stream: &mut tokio::net::UnixStream, delivery: &Delivery) {
+    /// A connected pair over the platform's real plugin transport, application end first.
+    async fn pair() -> (
+        peersus_plugin::transport::Stream,
+        peersus_plugin::transport::Stream,
+    ) {
+        let directory = tempfile::tempdir().unwrap();
+        peersus_plugin::transport::connected_pair(directory.path())
+            .await
+            .unwrap()
+    }
+
+    async fn write_delivery(stream: &mut peersus_plugin::transport::Stream, delivery: &Delivery) {
         frame::write(stream, delivery, CONTROL_LIMIT).await.unwrap();
     }
 
     #[tokio::test]
     async fn what_has_already_arrived_is_brought_in_without_waiting_for_more() {
-        let (mut app, mut plugin) = tokio::net::UnixStream::pair().unwrap();
+        let (mut app, mut plugin) = pair().await;
         let mut waiting = VecDeque::new();
         write_delivery(&mut app, &call(2, "share", json!({ "peer": "d" }))).await;
         write_delivery(&mut app, &cancelled(2)).await;
@@ -1090,7 +1103,7 @@ mod tests {
     async fn with_nothing_to_bring_in_it_returns_at_once_instead_of_waiting() {
         // The plugin has work to do or is about to wait for the next delivery itself; if this
         // waited for something to arrive it would hold up everything behind it.
-        let (_app, mut plugin) = tokio::net::UnixStream::pair().unwrap();
+        let (_app, mut plugin) = pair().await;
         let mut waiting = VecDeque::new();
         let drained = tokio::time::timeout(
             std::time::Duration::from_secs(5),
@@ -1107,7 +1120,7 @@ mod tests {
         // Reading must never be abandoned halfway through a delivery: that would drop the
         // bytes read so far and leave the stream in the middle of one.
         use tokio::io::AsyncWriteExt;
-        let (mut app, mut plugin) = tokio::net::UnixStream::pair().unwrap();
+        let (mut app, mut plugin) = pair().await;
         let mut waiting = VecDeque::new();
         let whole = {
             let body = serde_json::to_vec(&call(8, "receive", Value::Null)).unwrap();
@@ -1142,7 +1155,7 @@ mod tests {
         // ignored it would see only the low three bytes, a perfectly small length, and take
         // the well-formed delivery that follows as valid.
         use tokio::io::AsyncWriteExt;
-        let (mut app, mut plugin) = tokio::net::UnixStream::pair().unwrap();
+        let (mut app, mut plugin) = pair().await;
         let mut waiting = VecDeque::new();
         let body = serde_json::to_vec(&call(6, "receive", Value::Null)).unwrap();
         let low = (body.len() as u32).to_be_bytes();
@@ -1166,7 +1179,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_says_so_when_the_application_has_gone() {
-        let (app, mut plugin) = tokio::net::UnixStream::pair().unwrap();
+        let (app, mut plugin) = pair().await;
         let mut waiting = VecDeque::new();
         drop(app);
         assert!(!drain(&mut plugin, &mut waiting).await);

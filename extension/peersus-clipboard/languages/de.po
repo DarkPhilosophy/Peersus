@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de\n"
+"X-Language-Name: Deutsch\n"
+
+msgid "Send clipboard text"
+msgstr "Text aus der Zwischenablage senden"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Text der Zwischenablage automatisch abgleichen"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Text der Zwischenablage automatisch an dieses Gerät senden"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Erfordert den automatischen Abgleich, die Berechtigung für die Zwischenablage und die Sendeberechtigung für dieses Gerät. Für eingehenden Text ist außerdem die gerätebezogene Zwischenablage-Berechtigung dieses Plugins nötig."
+
+msgid "Send"
+msgstr "Senden"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Hier und pro Gerät einschalten. Android sendet neue Kopien, wenn du zu dieser App zurückkehrst, und kann bei aktivierter Hintergrundverbindung empfangen. Vor dem Einschalten Kopiertes und vertrauliche Inhalte sind ausgenommen."

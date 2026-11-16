@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: it\n"
+"X-Language-Name: Italiano\n"
+
+msgid "Send clipboard text"
+msgstr "Invia il testo degli appunti"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizza automaticamente il testo degli appunti"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Invia automaticamente il testo degli appunti a questo dispositivo"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Richiede la sincronizzazione automatica, il permesso per gli appunti e il permesso di invio per questo dispositivo. Il testo in arrivo richiede anche il permesso per gli appunti di questo plugin per ogni dispositivo."
+
+msgid "Send"
+msgstr "Invia"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Attivalo qui e per ogni dispositivo. Android invia le nuove copie quando torni in questa app e può ricevere con la connettività in background attiva. Sono esclusi i contenuti copiati prima dell'attivazione e quelli sensibili."

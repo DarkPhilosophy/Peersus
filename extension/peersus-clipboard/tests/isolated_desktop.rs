@@ -20,13 +20,13 @@
 // that wrote to "the clipboard" there would write to the user's real one.
 #![cfg(target_os = "linux")]
 
-use peersus_clipboard::wire::{self, Item};
-use peersus_plugin::hub::{Channel, Hub};
 use peersus_api::{
     manifest::{Export, Import, Manifest},
     message::{Delivery, Operation, Outcome},
     permission::Permission,
 };
+use peersus_clipboard::wire::{self, Item};
+use peersus_plugin::hub::{Channel, Hub};
 use peersus_plugin::{Accepted, Event, Plugin, Service, data::Right, supervisor::Policy};
 use serde_json::json;
 use std::{

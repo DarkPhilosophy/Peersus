@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: cs\n"
+"X-Language-Name: Čeština\n"
+
+msgid "Send clipboard text"
+msgstr "Odeslat text ze schránky"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Automaticky synchronizovat text ze schránky"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Automaticky odesílat text ze schránky do tohoto zařízení"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Vyžaduje automatickou synchronizaci, oprávnění ke schránce a oprávnění k odesílání pro toto zařízení. Příchozí text vyžaduje i oprávnění tohoto pluginu ke schránce pro každé zařízení."
+
+msgid "Send"
+msgstr "Odeslat"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Zapněte zde a pro každé zařízení. Android posílá nové kopie, když se vrátíte do této aplikace, a může přijímat se zapnutým připojením na pozadí. Obsah zkopírovaný před zapnutím a citlivý obsah se vynechává."

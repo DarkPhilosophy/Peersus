@@ -1,5 +1,10 @@
 //! The only door a guest has to the application: `peersus_v1`. Control messages are JSON, data streams are raw bytes.
 //! Both are traits so every rule in the guest is tested against a script, with no device and no host.
+//!
+//! This file is the same in every extension that carries it (`templates/guest/host.rs` in the application's source is
+//! the one copy; `scripts/check-guest-glue.py` compares). It is changed there, never in an extension.
+// Not every guest goes through every door.
+#![allow(dead_code)]
 use serde_json::Value;
 
 /// Largest control message in either direction: the broker admits 48 KiB serialized.
@@ -22,6 +27,34 @@ pub trait Data {
     fn write(&mut self, handle: Handle, from: &[u8]) -> Result<usize, &'static str>;
     fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str>;
     fn close(&mut self, handle: Handle);
+    /// Wait for control (0) or one selected readable stream; no bytes are consumed.
+    fn poll(&mut self, handles: &[Handle], timeout_ms: i32)
+    -> Result<Option<Handle>, &'static str>;
+}
+
+/// Closed SDK vocabulary only: no text or input payloads cross this boundary.
+pub fn diagnostic(stage: i32, outcome: i32, correlation: u64, actual: u64, expected: u64) {
+    #[cfg(all(target_family = "wasm", feature = "development-diagnostics"))]
+    {
+        let Ok(correlation) = i64::try_from(correlation) else {
+            return;
+        };
+        let (Ok(actual), Ok(expected)) = (u32::try_from(actual), u32::try_from(expected)) else {
+            return;
+        };
+        // SAFETY: scalar-only SDK import with validated numeric bounds.
+        let _ = unsafe {
+            import::diagnostic(
+                stage,
+                outcome,
+                correlation,
+                i64::from(actual),
+                i64::from(expected),
+            )
+        };
+    }
+    #[cfg(not(all(target_family = "wasm", feature = "development-diagnostics")))]
+    let _ = (stage, outcome, correlation, actual, expected);
 }
 
 /// Write all of `bytes`, however the host splits it: a stream operation need not take the requested length.
@@ -111,6 +144,17 @@ mod import {
         pub fn data_close(handle: i32) -> i32;
         #[link_name = "data_shutdown"]
         pub fn data_shutdown(handle: i32) -> i32;
+        #[link_name = "poll"]
+        pub fn poll(handles: *const i32, count: usize, timeout_ms: i32) -> i32;
+        #[cfg(feature = "development-diagnostics")]
+        #[link_name = "diagnostic"]
+        pub fn diagnostic(
+            stage: i32,
+            outcome: i32,
+            correlation: i64,
+            actual: i64,
+            expected: i64,
+        ) -> i32;
     }
 }
 
@@ -171,6 +215,17 @@ impl Data for Host {
     fn close(&mut self, handle: Handle) {
         let _ = unsafe { import::data_close(handle) };
     }
+    fn poll(
+        &mut self,
+        handles: &[Handle],
+        timeout_ms: i32,
+    ) -> Result<Option<Handle>, &'static str> {
+        match unsafe { import::poll(handles.as_ptr(), handles.len(), timeout_ms) } {
+            -1 => Ok(None),
+            value if value >= 0 => Ok(Some(value)),
+            _ => Err("The host readiness wait failed"),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -191,6 +246,13 @@ pub(crate) mod scripted {
         pub closed: usize,
         /// The most bytes a write accepts at once: real streams split writes.
         pub write_chunk: usize,
+        /// Acknowledge each stream with exactly the bytes written on it, as a well-behaved host does.
+        pub acks: bool,
+        pub stream_start: usize,
+        /// The other side says nothing more: no stream becomes readable, and a read would stand still.
+        pub silent: bool,
+        /// How long each readiness wait was allowed to take, in milliseconds.
+        pub waits: Vec<i32>,
     }
 
     impl Wire for Script {
@@ -219,9 +281,11 @@ pub(crate) mod scripted {
     impl Data for Script {
         fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
             self.opened.push((claim, number));
+            self.stream_start = self.written.len();
             Ok(7)
         }
         fn read(&mut self, _: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
+            assert!(!self.silent, "a read from a silent peer never returns");
             let Some(front) = self.incoming.front_mut() else {
                 return Ok(0);
             };
@@ -244,10 +308,28 @@ pub(crate) mod scripted {
         }
         fn shutdown(&mut self, _: Handle) -> Result<(), &'static str> {
             self.shutdowns += 1;
+            if self.acks {
+                self.incoming
+                    .push_front(ack((self.written.len() - self.stream_start) as u64));
+            }
             Ok(())
         }
         fn close(&mut self, _: Handle) {
             self.closed += 1;
+        }
+        fn poll(
+            &mut self,
+            handles: &[Handle],
+            timeout_ms: i32,
+        ) -> Result<Option<Handle>, &'static str> {
+            self.waits.push(timeout_ms);
+            Ok(if !self.deliveries.is_empty() {
+                Some(0)
+            } else if self.silent {
+                None
+            } else {
+                Some(handles.first().copied().unwrap_or(0))
+            })
         }
     }
 

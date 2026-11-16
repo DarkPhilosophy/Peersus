@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es\n"
+"X-Language-Name: Español\n"
+
+msgid "Send clipboard text"
+msgstr "Enviar el texto del portapapeles"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizar automáticamente el texto del portapapeles"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Enviar automáticamente el texto del portapapeles a este dispositivo"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Requiere la sincronización automática, el permiso del portapapeles y el permiso de envío para este dispositivo. El texto entrante también requiere el permiso del portapapeles de este plugin para cada dispositivo."
+
+msgid "Send"
+msgstr "Enviar"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Actívalo aquí y por dispositivo. Android envía las copias nuevas cuando vuelves a esta aplicación y puede recibir con la conectividad en segundo plano activada. Se excluye lo copiado antes de activarlo y el contenido sensible."

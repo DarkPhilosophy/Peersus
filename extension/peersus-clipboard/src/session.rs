@@ -16,7 +16,6 @@ use std::{
     collections::VecDeque,
     time::{Duration, Instant},
 };
-use tokio::net::UnixStream;
 
 const MAX_WAITING: usize = 32;
 const FRESH_FOR: Duration = Duration::from_secs(3);
@@ -159,7 +158,7 @@ async fn rebaseline<C: Clipboard>(clipboard: &mut Observed<C>) -> bool {
 }
 
 async fn configuration(
-    stream: &mut UnixStream,
+    stream: &mut peersus_plugin::transport::Stream,
     waiting: &mut VecDeque<Delivery>,
 ) -> Option<Config> {
     let request = Operation::Call {
@@ -208,7 +207,7 @@ async fn configuration(
 /// Run only inside the plugin process. Bootstrap comes from the supervisor, never disk or
 /// logs. Cancellation drops sockets and the platform-owned clipboard handle.
 pub async fn run<C: Clipboard>(clipboard: C, bootstrap: Bootstrap) {
-    let Ok(mut stream) = UnixStream::connect(&bootstrap.socket).await else {
+    let Ok(mut stream) = peersus_plugin::transport::connect(&bootstrap.socket).await else {
         return;
     };
     if frame::write(
@@ -250,7 +249,7 @@ pub async fn run<C: Clipboard>(clipboard: C, bootstrap: Bootstrap) {
                     &bootstrap.token,
                     &mut waiting,
                     delivery,
-                    || UnixStream::connect(&bootstrap.data_socket),
+                    || peersus_plugin::transport::connect(&bootstrap.data_socket),
                 ),
             )
             .await;
@@ -316,7 +315,7 @@ pub async fn run<C: Clipboard>(clipboard: C, bootstrap: Bootstrap) {
                         &mut snapshot,
                         Control { stream: &mut stream, token: &bootstrap.token, waiting: &mut waiting },
                         &device,
-                        || UnixStream::connect(&bootstrap.data_socket),
+                        || peersus_plugin::transport::connect(&bootstrap.data_socket),
                         Some(observed_at + FRESH_FOR),
                     )).await;
                     // A timed-out frame exchange cannot safely be reused.
@@ -417,9 +416,9 @@ mod grant_tests {
             "permissions":[{"owner":"host","name":"peers.send"},{"owner":"other","name":"clipboard.use"}]
         })).unwrap();
         assert!(!device.allowed("clipboard"));
-        device.permissions.push(
-            peersus_api::permission::Permission::new("clipboard", "clipboard.use").unwrap(),
-        );
+        device
+            .permissions
+            .push(peersus_api::permission::Permission::new("clipboard", "clipboard.use").unwrap());
         assert!(device.allowed("clipboard"));
         device
             .permissions
@@ -431,11 +430,12 @@ mod grant_tests {
 #[cfg(test)]
 mod epoch_regressions {
     use super::*;
+    use peersus_plugin::transport::Listener;
     use std::sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     };
-    use tokio::{io::AsyncReadExt, net::UnixListener};
+    use tokio::io::AsyncReadExt;
 
     struct Events {
         pending: Option<String>,
@@ -496,7 +496,10 @@ mod epoch_regressions {
         ]})
     }
 
-    async fn reply_config(stream: &mut UnixStream, value: serde_json::Value) {
+    async fn reply_config(
+        stream: &mut peersus_plugin::transport::Stream,
+        value: serde_json::Value,
+    ) {
         let request = frame::read::<Operation>(stream, CONTROL_LIMIT)
             .await
             .unwrap();
@@ -519,10 +522,10 @@ mod epoch_regressions {
     #[tokio::test]
     async fn slow_first_destination_cannot_fan_out_to_second_after_its_sync_opt_in_is_revoked() {
         let directory = tempfile::tempdir().unwrap();
-        let socket = directory.path().join("control");
-        let data_socket = directory.path().join("data");
-        let listener = UnixListener::bind(&socket).unwrap();
-        let data_listener = UnixListener::bind(&data_socket).unwrap();
+        let listener = Listener::bind(&directory.path().join("control")).unwrap();
+        let data_listener = Listener::bind(&directory.path().join("data")).unwrap();
+        let socket = listener.endpoint().to_owned();
+        let data_socket = data_listener.endpoint().to_owned();
         let resets = Arc::new(AtomicUsize::new(0));
         let clipboard = Events {
             pending: None,
@@ -538,7 +541,7 @@ mod epoch_regressions {
             },
         );
         let host = async {
-            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut stream = listener.accept().await.unwrap();
             let _: Hello = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
             // Acquire destinations, establish a baseline, then observe a new copy.
             for _ in 0..4 {
@@ -563,9 +566,8 @@ mod epoch_regressions {
             )
             .await
             .unwrap();
-            let (mut data, _) = data_listener.accept().await.unwrap();
-            let _: peersus_plugin::data::DataHello =
-                frame::read(&mut data, 1024).await.unwrap();
+            let mut data = data_listener.accept().await.unwrap();
+            let _: peersus_plugin::data::DataHello = frame::read(&mut data, 1024).await.unwrap();
             let mut body = Vec::new();
             data.read_to_end(&mut body).await.unwrap();
             frame::write(&mut data, &(body.len() as u64), 1024)
@@ -617,8 +619,8 @@ mod epoch_regressions {
     #[tokio::test]
     async fn connectivity_change_does_not_revoke_a_copy_under_unchanged_consent() {
         let directory = tempfile::tempdir().unwrap();
-        let socket = directory.path().join("control");
-        let listener = UnixListener::bind(&socket).unwrap();
+        let listener = Listener::bind(&directory.path().join("control")).unwrap();
+        let socket = listener.endpoint().to_owned();
         let pending = Arc::new(std::sync::Mutex::new(None));
         let session = run(
             PendingCopy(pending.clone()),
@@ -629,7 +631,7 @@ mod epoch_regressions {
             },
         );
         let host = async {
-            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut stream = listener.accept().await.unwrap();
             let _: Hello = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
             reply_config(&mut stream, config(false)).await;
             let mut offline = config(false);
@@ -706,8 +708,8 @@ mod epoch_regressions {
     #[tokio::test]
     async fn transient_baseline_failure_retries_without_exiting_or_observing() {
         let directory = tempfile::tempdir().unwrap();
-        let socket = directory.path().join("control");
-        let listener = UnixListener::bind(&socket).unwrap();
+        let listener = Listener::bind(&directory.path().join("control")).unwrap();
+        let socket = listener.endpoint().to_owned();
         let resets = Arc::new(AtomicUsize::new(0));
         let observations = Arc::new(AtomicUsize::new(0));
         let clipboard = RetryReset {
@@ -723,7 +725,7 @@ mod epoch_regressions {
             },
         );
         let host = async {
-            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut stream = listener.accept().await.unwrap();
             let _: Hello = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
             reply_config(&mut stream, config(true)).await;
             // A second config request proves failure did not terminate the session.

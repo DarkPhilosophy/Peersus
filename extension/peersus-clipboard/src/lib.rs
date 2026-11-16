@@ -10,6 +10,5 @@
 pub use peersus_clipboard_platform::{owner, watch};
 pub mod picture;
 pub mod plugin;
-#[cfg(unix)]
 pub mod session;
 pub mod wire;

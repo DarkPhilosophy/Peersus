@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: nl\n"
+"X-Language-Name: Nederlands\n"
+
+msgid "Send clipboard text"
+msgstr "Tekst van het klembord versturen"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Tekst van het klembord automatisch synchroniseren"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Tekst van het klembord automatisch naar dit apparaat versturen"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Vereist automatische synchronisatie, de klembordmachtiging en de verzendmachtiging voor dit apparaat. Inkomende tekst vereist ook de klembordmachtiging van deze plugin per apparaat."
+
+msgid "Send"
+msgstr "Versturen"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Zet het hier en per apparaat aan. Android verstuurt nieuwe kopieën als je terugkeert naar deze app en kan ontvangen als verbinding op de achtergrond aan staat. Wat vóór het aanzetten is gekopieerd en gevoelige inhoud worden overgeslagen."

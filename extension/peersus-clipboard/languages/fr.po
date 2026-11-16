@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+"X-Language-Name: Français\n"
+
+msgid "Send clipboard text"
+msgstr "Envoyer le texte du presse-papiers"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Synchroniser automatiquement le texte du presse-papiers"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Envoyer automatiquement le texte du presse-papiers à cet appareil"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Nécessite la synchronisation automatique, l'autorisation du presse-papiers et l'autorisation d'envoi pour cet appareil. Le texte entrant nécessite aussi l'autorisation du presse-papiers de ce plugin pour chaque appareil."
+
+msgid "Send"
+msgstr "Envoyer"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Activez-le ici et pour chaque appareil. Android envoie les nouvelles copies quand vous revenez dans cette application et peut recevoir si la connectivité en arrière-plan est activée. Ce qui a été copié avant l'activation et les contenus sensibles sont exclus."

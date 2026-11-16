@@ -42,6 +42,9 @@ pub struct Session<'a, H: Wire + Data> {
     pub cancelled: bool,
     /// The text this session put on the clipboard, if it did: the loop must know it so that it is never sent back.
     pub placed: Option<String>,
+    /// The first standard reason the application gave for a call of ours that failed, if any: it is the reason this
+    /// session's own answer gives, so the person is told why (not allowed, unavailable, …) rather than only that it failed.
+    reason: Option<&'static str>,
 }
 
 impl<'a, H: Wire + Data> Session<'a, H> {
@@ -53,6 +56,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             waiting: Vec::new(),
             cancelled: false,
             placed: None,
+            reason: None,
         }
     }
 
@@ -84,6 +88,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                     } else if result["code"] == "cancelled" {
                         Err(answer::CANCELLED)
                     } else {
+                        self.reason = self.reason.or_else(|| standard_code(&result["code"]));
                         Err(answer::REFUSED)
                     };
                 }
@@ -286,14 +291,25 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     }
 }
 
-/// What to reply for one finished call.
-pub fn outcome(result: Result<(), &'static str>) -> Value {
+/// The application's own failure codes a reply may repeat, as the application reads them (`action_state`); anything else
+/// it said is not repeated.
+fn standard_code(code: &Value) -> Option<&'static str> {
+    ["denied", "refused", "unavailable", "stopped", "timeout", "busy"]
+        .into_iter()
+        .find(|known| code == *known)
+}
+
+/// What to reply for one finished call. `reason` is the standard code the application gave for the call of ours that
+/// failed it, if one did.
+pub fn outcome(result: Result<(), &'static str>, reason: Option<&'static str>) -> Value {
     match result {
         Ok(()) => json!({"status":"ok","value":true}),
-        Err(reason) if reason == answer::CANCELLED => {
-            json!({"status":"error","code":"cancelled","message":reason})
+        Err(message) if message == answer::CANCELLED => {
+            json!({"status":"error","code":"cancelled","message":message})
         }
-        Err(reason) => json!({"status":"error","code":"failed","message":reason}),
+        Err(message) => {
+            json!({"status":"error","code":reason.unwrap_or("failed"),"message":message})
+        }
     }
 }
 
@@ -334,16 +350,17 @@ pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) ->
         _ => Err(answer::UNKNOWN),
     };
     *next = session.next();
-    let (cancelled, waiting, placed) = (
+    let (cancelled, waiting, placed, reason) = (
         session.cancelled,
         std::mem::take(&mut session.waiting),
         session.placed.take(),
+        session.reason,
     );
     if cancelled {
         // A cancelled call is answered by nobody: the application no longer waits for it.
         return Handled::Cancelled { waiting };
     }
-    let reply = json!({"op":"reply","ticket":ticket,"result":outcome(result)});
+    let reply = json!({"op":"reply","ticket":ticket,"result":outcome(result, reason)});
     Handled::Replied {
         reply,
         waiting,
@@ -456,6 +473,32 @@ mod tests {
         };
         assert_eq!(reply["result"]["message"], answer::NOTHING);
         assert!(host.opened.is_empty() && host.written.is_empty());
+    }
+
+    #[test]
+    fn a_failure_repeats_the_applications_standard_reason_and_nothing_else() {
+        for (given, expected) in [
+            ("unavailable", "unavailable"),
+            ("denied", "denied"),
+            ("busy", "busy"),
+            ("made-up", "failed"),
+        ] {
+            let mut host = Script::default();
+            host.results.extend(captured("hello"));
+            host.results
+                .push_back(json!({"status":"error","code":given,"message":"x"}));
+            let mut next = 0;
+            let Handled::Replied { reply, .. } = handle(
+                &mut host,
+                &call("share", json!({"peer":"phone"})),
+                &mut next,
+            ) else {
+                panic!("replied");
+            };
+            assert_eq!(reply["result"]["status"], "error");
+            assert_eq!(reply["result"]["code"], expected, "for {given}");
+            assert!(host.opened.is_empty(), "nothing was sent");
+        }
     }
 
     #[test]

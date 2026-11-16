@@ -106,15 +106,17 @@ impl Automatic {
         }
     }
 
-    /// Whether a copy is worth sending at all right now.
+    /// Whether a copy is worth sending at all right now. Sending itself asks the destinations, so only the tests ask this.
+    #[cfg(test)]
+    #[cfg(test)]
     pub fn can_send(&self) -> bool {
         !self.baseline_needed && !self.seen.reachable.is_empty()
     }
 
-    /// Whether the platform should be kept observing. That follows CONSENT and not reachability: the application publishes
-    /// no event when a device comes online, so a guest that stopped observing while every consenting device was offline
-    /// would never be woken again. Observing sends nothing: what is sent is decided separately by `can_send` and the
-    /// reachable destinations, and the first reading after a device becomes reachable is a baseline, never a copy.
+    /// Whether the platform should be kept observing. That follows CONSENT and not reachability: a guest that stopped
+    /// observing while every consenting device was offline would depend on a notice to start again. Observing sends
+    /// nothing: what is sent is decided by the reachable destinations, and the first reading after a device becomes
+    /// reachable is a baseline, never a copy.
     pub fn can_observe(&self) -> bool {
         !self.baseline_needed && !self.seen.consented.is_empty()
     }
@@ -267,7 +269,11 @@ mod tests {
             !state.still_valid(&revoked),
             "b was revoked while a was being sent to: stop"
         );
-        assert!(state.baseline_needed || state.destinations().len() == 2 || true);
+        assert_eq!(
+            state.copy(Reading::Snapshot("old snapshot".into())),
+            None,
+            "a consent change invalidates the old observation before the next destination"
+        );
         assert_eq!(
             state.destinations(),
             ["a"],

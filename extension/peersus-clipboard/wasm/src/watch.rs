@@ -99,8 +99,9 @@ fn send_new_copy<H: Wire + Data>(session: &mut Session<'_, H>, state: &mut Autom
 /// is what makes the platform start telling. A second pass exists for a baseline whose reset failed: that leaves the state
 /// needing a baseline, and without a retry here a transient failure would keep the guest deaf until the next notice, which
 /// nothing could cause. What was on the clipboard before is the baseline, so it is never sent as if it had just been
-/// copied. With nobody to send to nothing is read: the guest then arms on the first pass that finds somebody, because the
-/// application publishes no event when a device becomes eligible.
+/// copied. With nobody to send to nothing is read: the guest arms on the first pass that finds somebody. The application
+/// wakes it for that with a clipboard change notice after every configuration change (settings, grants, a device going
+/// online or offline), so no timer is needed to notice a device becoming eligible.
 pub fn start<H: Wire + Data>(
     host: &mut H,
     state: &mut Automatic,
@@ -323,8 +324,8 @@ mod tests {
         );
     }
 
-    /// The application publishes no event when a device comes online, so a guest that stopped observing while every
-    /// consenting device was offline could never be woken again. Observing follows consent; sending follows reachability.
+    /// Observing follows consent; sending follows reachability. A guest that stopped observing while every consenting
+    /// device was offline would depend on a notice to start again, so it keeps observing instead.
     #[test]
     fn a_consented_device_that_is_offline_keeps_the_platform_observing_and_nothing_is_sent() {
         let mut state = Automatic::new();

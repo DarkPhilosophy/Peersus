@@ -35,3 +35,54 @@ iroh.workspace = true
 
 [lints]
 workspace = true
+
+[workspace]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+arboard = { version = "=3.7.0", default-features = false, features = ["wayland-data-control"] }
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
+iroh = "1.4.1"
+peersus-api = { path = "../../crates/peersus-api" }
+peersus-app = { path = "../../crates/peersus-app" }
+peersus-clipboard-platform = { path = "../../crates/peersus-clipboard-platform" }
+peersus-core = { path = "../../crates/peersus-core" }
+peersus-net = { path = "../../crates/peersus-net" }
+peersus-plugin = { path = "../../crates/peersus-plugin" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net", "signal"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+correctness = "deny"
+
+[patch.crates-io]
+winit = { path = "../../vendor/winit" }
+netwatch = { path = "../../vendor/netwatch" }
+sctk-adwaita = { path = "../../vendor/sctk-adwaita" }
+freya-core = { path = "../../vendor/freya-core" }
+freya-components = { path = "../../vendor/freya-components" }
+pulp = { path = "../../vendor/pulp" }
+rav1e = { path = "../../vendor/rav1e" }
+mundy = { path = "../../vendor/mundy" }
+atspi = { path = "../../vendor/atspi" }
+atspi-common = { path = "../../vendor/atspi-common" }
+atspi-proxies = { path = "../../vendor/atspi-proxies" }
+accesskit_atspi_common = { path = "../../vendor/accesskit_atspi_common" }
+accesskit_unix = { path = "../../vendor/accesskit_unix" }
+zbus-lockstep = { path = "../../vendor/zbus-lockstep" }
+zbus-lockstep-macros = { path = "../../vendor/zbus-lockstep-macros" }
+keyring = { path = "../../vendor/keyring" }

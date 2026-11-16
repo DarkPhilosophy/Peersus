@@ -77,5 +77,25 @@
         "kind": { "type": "toggle", "default": false }
       }
     ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Clipboard reads this device's clipboard text and sends it to a paired device you choose, and can replace this device's clipboard with text a paired device sends. Optional automatic synchronization is off until you enable it here and per device.",
+        "changes": "After installing, a 'Send clipboard text' action appears. Clipboard text you share leaves this device for the paired device you chose; with synchronization on, new clipboard text may be sent automatically to devices you enabled."
+      }
+    ]
   }
 }

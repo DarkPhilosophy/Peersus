@@ -1,7 +1,7 @@
 //! Runs the real automatic session against authenticated local socket protocol, not a UI.
 #![cfg(unix)]
-use peersus_clipboard::{plugin::Clipboard, session};
 use peersus_api::message::{Delivery, Operation, Outcome};
+use peersus_clipboard::{plugin::Clipboard, session};
 use peersus_plugin::{
     frame::{self, CONTROL_LIMIT},
     link::Hello,
@@ -213,27 +213,48 @@ async fn a_slow_delivery_ack_keeps_the_session_alive(automatic: bool) {
     let data_listener = UnixListener::bind(&data_socket).unwrap();
     let text = Arc::new(Mutex::new("baseline".to_owned()));
     let reads = Arc::new(AtomicUsize::new(0));
-    let local = Local { text: text.clone(), reads: reads.clone() };
-    let plugin = tokio::spawn(session::run(local, Bootstrap {
-        socket, data_socket, token: "synthetic-bootstrap".into(),
-    }));
+    let local = Local {
+        text: text.clone(),
+        reads: reads.clone(),
+    };
+    let plugin = tokio::spawn(session::run(
+        local,
+        Bootstrap {
+            socket,
+            data_socket,
+            token: "synthetic-bootstrap".into(),
+        },
+    ));
     let (completed, completion) = tokio::sync::oneshot::channel();
     let host = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
         let _: Hello = frame::read(&mut stream, CONTROL_LIMIT).await.unwrap();
         if !automatic {
-            frame::write(&mut stream, &Delivery::Call {
-                ticket: 41, caller: "host".into(), service: "clipboard.text".into(),
-                version: 1, method: "share".into(), args: json!({"peer":"device-alias"}),
-            }, CONTROL_LIMIT).await.unwrap();
+            frame::write(
+                &mut stream,
+                &Delivery::Call {
+                    ticket: 41,
+                    caller: "host".into(),
+                    service: "clipboard.text".into(),
+                    version: 1,
+                    method: "share".into(),
+                    args: json!({"peer":"device-alias"}),
+                },
+                CONTROL_LIMIT,
+            )
+            .await
+            .unwrap();
         }
         let mut sending = false;
         let mut completed = Some(completed);
         while let Ok(operation) = frame::read::<Operation>(&mut stream, CONTROL_LIMIT).await {
             match operation {
-                Operation::Call { id, service, method, .. }
-                    if service == "peersus.config" && method == "get" =>
-                {
+                Operation::Call {
+                    id,
+                    service,
+                    method,
+                    ..
+                } if service == "peersus.config" && method == "get" => {
                     if automatic && sending {
                         let _ = completed.take().unwrap().send(true);
                         break;
@@ -248,16 +269,29 @@ async fn a_slow_delivery_ack_keeps_the_session_alive(automatic: bool) {
                                            {"owner":"host","name":"peers.send"}]}]
                     })) }, CONTROL_LIMIT).await.unwrap();
                 }
-                Operation::Call { id, service, method, .. }
-                    if service == "peersus.peers" && method == "send" =>
-                {
+                Operation::Call {
+                    id,
+                    service,
+                    method,
+                    ..
+                } if service == "peersus.peers" && method == "send" => {
                     sending = true;
-                    frame::write(&mut stream, &Delivery::Result {
-                        id, result: Outcome::ok(json!({"claim":7})),
-                    }, CONTROL_LIMIT).await.unwrap();
+                    frame::write(
+                        &mut stream,
+                        &Delivery::Result {
+                            id,
+                            result: Outcome::ok(json!({"claim":7})),
+                        },
+                        CONTROL_LIMIT,
+                    )
+                    .await
+                    .unwrap();
                 }
                 Operation::Reply { ticket: 41, result } if !automatic => {
-                    let _ = completed.take().unwrap().send(matches!(result, Outcome::Ok { .. }));
+                    let _ = completed
+                        .take()
+                        .unwrap()
+                        .send(matches!(result, Outcome::Ok { .. }));
                     break;
                 }
                 _ => panic!("unexpected session operation"),
@@ -265,17 +299,33 @@ async fn a_slow_delivery_ack_keeps_the_session_alive(automatic: bool) {
         }
     });
     let (mut data, _) = tokio::time::timeout(Duration::from_secs(5), data_listener.accept())
-        .await.expect("session never began the transfer").unwrap();
-    let hello: peersus_plugin::data::DataHello = frame::read(&mut data, CONTROL_LIMIT).await.unwrap();
+        .await
+        .expect("session never began the transfer")
+        .unwrap();
+    let hello: peersus_plugin::data::DataHello =
+        frame::read(&mut data, CONTROL_LIMIT).await.unwrap();
     assert_eq!(hello.claim, Some(7));
     let mut payload = Vec::new();
     data.read_to_end(&mut payload).await.unwrap();
     tokio::time::sleep(Duration::from_secs(13)).await;
-    assert!(!plugin.is_finished(), "outer session deadline preempted a valid delivery acknowledgement");
-    frame::write(&mut data, &(payload.len() as u64), CONTROL_LIMIT).await.unwrap();
-    assert!(tokio::time::timeout(Duration::from_secs(3), completion).await.unwrap().unwrap());
+    assert!(
+        !plugin.is_finished(),
+        "outer session deadline preempted a valid delivery acknowledgement"
+    );
+    frame::write(&mut data, &(payload.len() as u64), CONTROL_LIMIT)
+        .await
+        .unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(3), completion)
+            .await
+            .unwrap()
+            .unwrap()
+    );
     host.await.unwrap();
-    tokio::time::timeout(Duration::from_secs(3), plugin).await.unwrap().unwrap();
+    tokio::time::timeout(Duration::from_secs(3), plugin)
+        .await
+        .unwrap()
+        .unwrap();
 }
 
 #[tokio::test]

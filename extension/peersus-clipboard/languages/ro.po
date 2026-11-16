@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ro\n"
+"X-Language-Name: Română\n"
+
+msgid "Send clipboard text"
+msgstr "Trimite textul din clipboard"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizează automat textul din clipboard"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Trimite automat textul din clipboard către acest dispozitiv"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Necesită sincronizare automată și permisiunile clipboard și trimitere pentru acest dispozitiv. Primirea textului necesită și permisiunea clipboard pentru fiecare dispozitiv."
+
+msgid "Send"
+msgstr "Trimite"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Activează aici și pentru fiecare dispozitiv. Android trimite copiile noi când revii în aplicație și poate primi cu conectivitatea în fundal activată. Textul copiat înainte de activare și cel sensibil sunt excluse."

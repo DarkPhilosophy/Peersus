@@ -1,0 +1,23 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pl\n"
+"X-Language-Name: Polski\n"
+
+msgid "Send clipboard text"
+msgstr "Wyślij tekst ze schowka"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Automatycznie synchronizuj tekst ze schowka"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Automatycznie wysyłaj tekst ze schowka na to urządzenie"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device. Incoming text also requires this plugin's per-device clipboard permission."
+msgstr "Wymaga automatycznej synchronizacji, uprawnienia do schowka i uprawnienia do wysyłania dla tego urządzenia. Odbieranie tekstu wymaga też uprawnienia tej wtyczki do schowka dla każdego urządzenia."
+
+msgid "Send"
+msgstr "Wyślij"
+
+msgid "Opt in here and per device. Android sends new copies when you return to this app and can receive with background connectivity enabled. Pre-opt-in and sensitive clips are excluded."
+msgstr "Włącz tutaj i dla każdego urządzenia. Android wysyła nowe kopie po powrocie do tej aplikacji i może odbierać, gdy włączona jest łączność w tle. Treści skopiowane przed włączeniem i poufne są pomijane."
