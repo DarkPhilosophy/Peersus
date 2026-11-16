@@ -1,14 +1,13 @@
 # Upload extension
 
-One extension identity with two execution variants: a native desktop process and an Android WASM guest. Both require an explicitly selected file and destination approval. Uploading sends plaintext content to the approved external provider and may create a public link; peer-to-peer transport encryption does not protect a file after that upload.
+One extension identity, one source: a WASM guest (official) for Linux, Android and macOS; the same source also builds a native library and a process (not recommended). Every upload requires an explicitly selected file and destination approval. Uploading sends plaintext content to the approved external provider and may create a public link; peer-to-peer transport encryption does not protect a file after that upload.
 
 ## Platforms and prerequisites
 
-- Legacy native variant (not used by the Linux or Android WASM packages): a graphical session, `zenity`, a desktop file portal and a platform credential-store service. Building this variant on Linux does not certify macOS behavior.
-- WASM (Linux and Android): the matching application's trusted file-selection, HTTPS, encrypted credential configuration and result-presentation services. The guest receives opaque file and authorization handles, not ambient filesystem access or credential bytes. It validates provider success and its canonical single-file result before requesting presentation.
+- The application's trusted file-selection, HTTPS, encrypted credential configuration and result-presentation services (`peersus.files`, `peersus.http`, `peersus.actions`). The guest receives opaque file and authorization handles, not ambient filesystem access or credential bytes. It validates provider success and its canonical single-file result before requesting presentation.
 - Network uploads require HTTPS access to the configured provider. Tests below use synthetic data and do not require an account, a credential or a real upload.
 
-The source is Apache-2.0 licensed; retain LICENSE and NOTICE in exported submissions. `submission.toml` declares build commands; CI resolves and records the trusted host SDK commit and uses its workspace lockfile. The WASM guest also has its own lockfile. Host and guest must be updated together when their service contract changes; an older host without `peersus.http.present` is not compatible with the updated WASM guest.
+The source is Apache-2.0 licensed; retain LICENSE and NOTICE in exported submissions. `submission.toml` declares build commands; CI resolves and records the trusted host SDK commit. The guest has its own lockfile (`wasm/Cargo.lock`) and depends on no application crate. Host and guest must be updated together when their service contract changes; an older host without `peersus.http.present` is not compatible with the updated guest.
 
 The credential action declares `input: "secret_text"`: the host renders a masked field directly, with the same submit operation for Enter and the trailing Enter icon. The value answers a host-owned credential request and is never included in guest action arguments. Update the host and the WASM package together; older hosts cannot interpret this input declaration.
 
@@ -34,32 +33,31 @@ macOS support is limited: the same WASM package runs, but host services implemen
 
 ## Build and test
 
-From the application workspace root:
+In `wasm/`:
 
 ```sh
-cargo build -p peersus-upload
-cargo test -p peersus-upload --all-targets
-cargo test --manifest-path plugin/peersus-upload/wasm/Cargo.toml
-cargo test -p peersus-ui-android --test extension_services
+cargo build --release --target wasm32-unknown-unknown --locked
+cargo test --locked
 ```
 
-For the real authenticated sandbox integration, install the `wasm32-unknown-unknown` Rust target in the development environment, then build the production guest and run the explicit integration test:
+The guest's unit tests drive its protocol with scripted host answers: malformed results, snapshot and authorization ownership, bounds, the key's three outcomes, parts and cancellation.
+
+The application carries the tests that run the compiled guest itself. From the application workspace root, with the guest built as above:
 
 ```sh
-cargo build --manifest-path plugin/peersus-upload/wasm/Cargo.toml \
-  --release --target wasm32-unknown-unknown
-PEERSUS_UPLOAD_WASM="$PWD/plugin/peersus-upload/wasm/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
+PEERSUS_UPLOAD_WASM="$PWD/plugins/peersus-upload/wasm/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
+PEERSUS_UPLOAD_MANIFEST="$PWD/plugins/peersus-upload/wasm/plugin.json" \
   cargo test -p peersus-plugin-runtime --test process \
   real_upload_guest_uses_host_services_and_returns_the_verified_link -- --ignored
 ```
 
-The unit and host-adapter tests cover malformed results, snapshot and authorization ownership, bounds and cancellation. The sandbox test executes the compiled production guest through the actual worker/hub ABI with synthetic host replies; it does not open Android dialogs or perform a live upload. Run real UI checks separately and only use a file and credential explicitly approved for that test. Never put credentials or personal test files in a submission.
+That test executes the production guest through the actual worker and hub with synthetic host replies; `upload_wasm_pipeline.rs` in `peersus-app` (also `--ignored`, with `PEERSUS_WASM_HOST`) sends it through a local TLS server, whole and in parts. Neither opens a dialog or performs a live upload. Run real UI checks separately and only use a file and credential explicitly approved for that test. Never put credentials or personal test files in a submission.
 
 ## Submission
 
-Export one source directory and one ownership identity for both native and WASM variants. Include this README, source and Cargo files, manifests, `submission.toml`, `ownership.json` and license notices. Follow the extension branch's root guide for standalone CI and submission commands. Passing CI is not catalog publication: each update still needs ownership verification and independent maintainer approval.
+Export one source directory and one ownership identity. Include this README, the `wasm/` guest (manifest, sources and lockfile), `submission.toml`, `ownership.json` and license notices. Follow the extension branch's root guide for standalone CI and submission commands. Passing CI is not catalog publication: each update still needs ownership verification and independent maintainer approval.
 
 ## License and third-party notices
 
-This extension is licensed under Apache-2.0 (`LICENSE`, `NOTICE`). The WASM guest is built from these libraries: serde, serde_derive, serde_core, serde_json, itoa, memchr, zmij (MIT OR Apache-2.0, MIT, or Unlicense OR MIT), with build-time proc-macro2, quote, syn and unicode-ident ((MIT OR Apache-2.0) AND Unicode-3.0). Legacy native variant (not packaged): arboard, keyring, reqwest, rfd, rpassword, rustix, serde, serde_json, sha2, tempfile, thiserror, tokio, url and zeroize (MIT and/or Apache-2.0).
+This extension is licensed under Apache-2.0 (`LICENSE`, `NOTICE`). The guest is built from these libraries: serde_json, serde_core, itoa, memchr and zmij (MIT OR Apache-2.0, MIT, or Unlicense OR MIT). The native library and the process are the same guest; the process also links the SDK's native host (`crates/peersus-plugin-runtime/native/host.c`, Apache-2.0).
 Every packaged archive carries `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.txt` and the license texts of its exact resolved dependency set under `licenses/`, generated by the packager from the lockfile; keep them when redistributing.

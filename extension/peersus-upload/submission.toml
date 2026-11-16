@@ -8,7 +8,6 @@ build = [
   ["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-fstack-protector-strong", "-fPIE", "-pie", "-DPEERSUS_LINKED_MODULE", "{sdk}/crates/peersus-plugin-runtime/native/host.c", "{sdk}/target/release/libpeersus_upload_wasm.a", "-Wl,-z,relro,-z,now", "-lpthread", "-ldl", "-lm", "-o", "{sdk}/target/release/peersus-upload-process"],
 ]
 test = [
-  ["cargo", "test", "--manifest-path", "{source}/Cargo.toml", "--locked", "--all-targets", "--target-dir", "{sdk}/target"],
   ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
 ]
 package = [
