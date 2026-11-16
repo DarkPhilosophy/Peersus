@@ -1,0 +1,2998 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: cs\n"
+"X-Language-Name: Čeština\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Požádá vás o výběr souboru pro toto rozšíření; bez implicitního přístupu k systému souborů."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "Vyžádá výslovné schválení cíle požadavků HTTPS; přihlašovací údaje zůstávají v hostitelské aplikaci."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Čte nebo nahrazuje text schránky tohoto zařízení v omezených částech, každou pod vlastním oprávněním."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Čte text schránky tohoto zařízení v omezených částech; platforma rozhoduje, kdy je čitelný, a vylučuje citlivý obsah."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Nahrazuje text schránky tohoto zařízení textem, který rozšíření dodává v omezených částech."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Dostane oznámení, když se změní schránka tohoto zařízení, bez jejího obsahu; čtení nadále vyžaduje oprávnění ke čtení."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Zobrazuje vám oznámení pod svým názvem, s vlastními slovy a tlačítky, v okně i mimo něj."
+
+msgid "Confirm {label}"
+msgstr "Confirm {label}"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "Zrušeno. Před dalším pokusem zkontrolujte případný externí výsledek."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "Nepovoleno. Zkontrolujte oprávnění tohoto pluginu."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Plugin není dostupný. Spusťte ho a zkuste to znovu."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "Akce vypršela. Před dalším pokusem zkontrolujte její výsledek."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "Probíhá jiná operace. Zkuste to znovu, až skončí."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "Akci se nepodařilo dokončit. Zkontrolujte plugin a zkuste to znovu."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Spusťte plugin, v případě potřeby vyberte zařízení online a povolte jeho oprávnění."
+
+msgid "Enter a value within the declared limits."
+msgstr "Zadejte hodnotu v deklarovaných mezích."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Neplatné uložené nastavení. Obnovte platnou hodnotu."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Podporované platformy: {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Tento starší plugin neuvádí podporované platformy."
+
+msgid "For {name}"
+msgstr "For {name}"
+
+msgid "Install bundled {name}"
+msgstr "Nainstalovat přiložený {name}"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Nepodporuje tento operační systém"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Podpořte Peersus — zcela dobrovolně"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Pokud je vám Peersus užitečný, můžete přispět dobrovolným spropitným. Všechny funkce zůstávají zdarma, bez reklam, placených funkcí a přednostního přístupu."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Platby kartou používají propojený účet Stripe autora, kde to Ko-fi nabízí; platební metody se liší. Peersus s údaji vaší karty nepracuje."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "Spropitné nekupuje žádný produkt, službu, přístup ani odměnu. Mohou se účtovat poplatky. Daňová odečitatelnost se neslibuje. Veřejné poděkování je samostatná dobrovolná volba na webu, nikdy výhoda v aplikaci."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Podpořit na Ko-fi (otevře prohlížeč)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Prohlížeč se nepodařilo otevřít. Můžete otevřít https://ko-fi.com/DarkPhilosophy ručně."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Nelze přečíst: již neexistuje nebo jej aplikace nesmí otevřít."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Tento soubor je prázdný, a proto neobsahuje balíček."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Nejde o složku ani soubor, a proto to nemůže být balíček."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Odesílat data do vybraného spárovaného zařízení. Nemůže zobrazit klíč žádného zařízení."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "Přerušit a restartovat JAKÝKOLI zásuvný modul, včetně těch, které jste za tímto účelem neinstalovali. Nemůže číst jejich data ani měnit oprávnění."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "Pohybovat ukazatelem, mačkat tlačítka a klávesy a psát text na tomto počítači, jako by šlo o připojenou myš a klávesnici."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "Měnit uspořádání spárovaných ploch tohoto počítače a místo, kde jeho ukazatel přechází mezi nimi."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Dozvědět se, když přenos začne, pokračuje, skončí, je zrušen nebo selže: který přenos a jak daleko je. Nemůže vidět název souboru, název zařízení ani místo uložení a nemůže přenos přijmout, odmítnout ani zrušit."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Vidět také NÁZEV každého přenášeného souboru a název zařízení, na které míří nebo ze kterého přichází. Názvy souborů mohou o člověku hodně prozradit."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Vytvářet vlastní stavy a volit slova, která je pojmenují. Stav, který je pouze vytvořen, o vás nic neříká, dokud není zapnut."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Zapínat a vypínat vlastní stavy. Co je zapnuto, se ZOBRAZUJE každému spárovanému zařízení slovy, která zvolil zásuvný modul, dokud je to zapnuto."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Vidět, jaké stavy zobrazují vaše spárovaná zařízení, a dozvědět se, když se změní. To, co stav říká (sledování něčeho, zaneprázdněnost), může být osobní."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Nebyla vybrána složka. U každého souboru se zobrazí dotaz na umístění."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "Složka je vybrána. Soubory půjdou přímo do ní."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "Zpočátku nemá žádná oprávnění. Po instalaci rozhodnete, co smí dělat."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Zásuvný modul s tímto názvem je již nainstalován. Bude nahrazen a začne bez oprávnění."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Tento zásuvný modul nebyl schválen, a proto neběží. Schválení umožní jeho spuštění s níže uvedenými požadavky."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Program tohoto zásuvného modulu se liší od schváleného, a proto neběží. Nové schválení umožní jeho spuštění a zapomene předchozí oprávnění."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Tento zásuvný modul je poškozen nebo jeho program nelze spustit. Lze jej pouze odebrat."
+
+msgid "RUNNING"
+msgstr "SPUŠTĚNO"
+
+msgid "STARTING"
+msgstr "SPOUŠTĚNÍ"
+
+msgid "RESTARTING"
+msgstr "RESTARTOVÁNÍ"
+
+msgid "OFF"
+msgstr "VYPNUTO"
+
+msgid "FAILED"
+msgstr "SELHALO"
+
+msgid "BROKEN"
+msgstr "POŠKOZENO"
+
+msgid "CHANGED"
+msgstr "ZMĚNĚNO"
+
+msgid "NEEDS APPROVAL"
+msgstr "VYŽADUJE SCHVÁLENÍ"
+
+msgid "Replace"
+msgstr "Nahradit"
+
+msgid "Drop one package at a time."
+msgstr "Přetáhněte vždy jen jeden balíček."
+
+msgid "No description was given for this permission."
+msgstr "Pro toto oprávnění nebyl uveden popis."
+
+msgid "The selection is too large"
+msgstr "Výběr je příliš velký"
+
+msgid "The file picker did not report its selection count"
+msgstr "Výběr souborů neoznámil počet vybraných souborů"
+
+msgid "The application answered with something else than a code"
+msgstr "Aplikace odpověděla něčím jiným než kódem"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "Příprava souborů se zastavila před dokončením výběru."
+
+msgid "The file producer stopped before creating a code."
+msgstr "Příprava souborů se zastavila před vytvořením kódu."
+
+msgid "Could not create invitation"
+msgstr "Pozvánku nelze vytvořit"
+
+msgid "Application stopped"
+msgstr "Aplikace byla zastavena"
+
+msgid "Left out: {items}."
+msgstr "Vynecháno: {items}."
+
+msgid "Not files: {count}"
+msgstr "Nejsou soubory: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Nelze přečíst: {count}"
+
+msgid "Empty files: {count}"
+msgstr "Prázdné soubory: {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "Nad limitem výběru {limit} souborů: {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Vybrané soubory, které nebylo možné nabídnout: {refused}."
+
+msgid "Restart"
+msgstr "Restartovat"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "NEBO VYBERTE ULOŽENÉ ZAŘÍZENÍ"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "MÁTE KÓD Z JINÉHO ZAŘÍZENÍ?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "NEBO VLOŽTE KÓD Z DRUHÉHO ZAŘÍZENÍ"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "NEBO VLOŽTE TENTO KÓD NA DRUHÉM ZAŘÍZENÍ"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "PŘIPOJIT K DRUHÉMU ZAŘÍZENÍ"
+
+msgid "TRANSFERS"
+msgstr "PŘENOSY"
+
+msgid "PAIRED PEERS"
+msgstr "SPÁROVANÁ ZAŘÍZENÍ"
+
+msgid "MET BY CODE"
+msgstr "NALEZENO POMOCÍ KÓDU"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} online)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} spuštěno)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Přejde přímo do vybraného zařízení"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Přejde přímo do vybraných zařízení"
+
+msgid "No device picked: a code will be made"
+msgstr "Nebylo vybráno zařízení: vytvoří se kód"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "Vybrané zařízení není dostupné. Vyberte znovu, nebo žádné a použijte kód"
+
+msgid "tap to choose files"
+msgstr "klepnutím vyberte soubory"
+
+msgid "click to browse your computer"
+msgstr "kliknutím procházejte počítač"
+
+msgid "SCAN"
+msgstr "NASKENOVAT"
+
+msgid "tap to open the camera"
+msgstr "klepnutím otevřete fotoaparát"
+
+msgid "starting the camera"
+msgstr "spouštění fotoaparátu"
+
+msgid "NO CAMERA"
+msgstr "FOTOAPARÁT NENÍ DOSTUPNÝ"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "povolte přístup pro Peersus v nastavení telefonu a klepněte"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Spárovat: zobrazte kód ke skenování na druhém zařízení. Připojit: naskenujte nebo vložte kód z druhého zařízení."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "Párování důvěřuje druhému zařízení, dokud ho neodeberete. Samotné odeslání souboru kódem to nikdy nedělá."
+
+msgid "CHOOSE FILES"
+msgstr "VYBERTE SOUBORY"
+
+msgid "TO SEND"
+msgstr "K ODESLÁNÍ"
+
+msgid "NO DEVICE PICKED"
+msgstr "NENÍ VYBRÁNO ZAŘÍZENÍ"
+
+msgid "TAP FOR"
+msgstr "KLEPNĚTE PRO"
+
+msgid "A QR CODE"
+msgstr "QR KÓD"
+
+msgid "HOLD TO SEND"
+msgstr "PODRŽTE PRO ODESLÁNÍ"
+
+msgid "TAP TO SEND"
+msgstr "KLEPNĚTE PRO ODESLÁNÍ"
+
+msgid "1 DEVICE"
+msgstr "1 ZAŘÍZENÍ"
+
+msgid "{count} DEVICES"
+msgstr "ZAŘÍZENÍ: {count}"
+
+msgid "keep holding until it is full"
+msgstr "držte, dokud se nenaplní"
+
+msgid "it sends at once"
+msgstr "odešle okamžitě"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "ZAŘÍZENÍ ZMIZELO"
+
+msgid "PICK AGAIN"
+msgstr "VYBERTE ZNOVU"
+
+msgid "nothing is sent until you do"
+msgstr "dokud to neuděláte, nic se neodešle"
+
+msgid "READY TO RECEIVE"
+msgstr "PŘIPRAVENO K PŘÍJMU"
+
+msgid "PASTE"
+msgstr "VLOŽTE"
+
+msgid "THE CODE"
+msgstr "KÓD"
+
+msgid "from the other device"
+msgstr "z druhého zařízení"
+
+msgid "CONNECT"
+msgstr "PŘIPOJIT"
+
+msgid "{name} wants to pair"
+msgstr "{name} se chce spárovat"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "ODPOVĚĎ ODESLÁNA, ČEKÁNÍ NA DRUHÉ ZAŘÍZENÍ"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "VYBERTE NA OBOU ZAŘÍZENÍCH STEJNÉ ČÍSLO"
+
+msgid "Send"
+msgstr "Odeslat"
+
+msgid "Receive"
+msgstr "Přijmout"
+
+msgid "Peers"
+msgstr "Zařízení"
+
+msgid "Settings"
+msgstr "Nastavení"
+
+msgid "Overview"
+msgstr "Přehled"
+
+msgid "Device"
+msgstr "Zařízení"
+
+msgid "Appearance"
+msgstr "Vzhled"
+
+msgid "Network"
+msgstr "Síť"
+
+msgid "Extensions"
+msgstr "Rozšíření"
+
+msgid "Permissions"
+msgstr "Oprávnění"
+
+msgid "History"
+msgstr "Historie"
+
+msgid "About"
+msgstr "O aplikaci"
+
+msgid "Language"
+msgstr "Jazyk"
+
+msgid "Reset"
+msgstr "Obnovit"
+
+msgid "Accent colour"
+msgstr "Barva zvýraznění"
+
+msgid "Coral"
+msgstr "Korálová"
+
+msgid "Sky"
+msgstr "Nebe"
+
+msgid "Moss"
+msgstr "Mech"
+
+msgid "Amber"
+msgstr "Jantar"
+
+msgid "Violet"
+msgstr "Fialová"
+
+msgid "Rose"
+msgstr "Růžová"
+
+msgid "Interface size"
+msgstr "Velikost rozhraní"
+
+msgid "Compact"
+msgstr "Kompaktní"
+
+msgid "Normal"
+msgstr "Normální"
+
+msgid "Large"
+msgstr "Velký"
+
+msgid "Larger"
+msgstr "Větší"
+
+msgid "Largest"
+msgstr "Největší"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Text, ikony a mezery rostou společně. Ctrl a + nebo − to změní jen pro toto okno."
+
+msgid "Save"
+msgstr "Uložit"
+
+msgid "Cancel"
+msgstr "Zrušit"
+
+msgid "View files"
+msgstr "Zobrazit soubory"
+
+msgid "Close"
+msgstr "Zavřít"
+
+msgid "Copy"
+msgstr "Kopírovat"
+
+msgid "Request unlock"
+msgstr "Požádat o odemknutí"
+
+msgid "Generate a new identity"
+msgstr "Vytvořit novou identitu"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Ano, smazat předchozí identitu a vytvořit novou"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Tím se smaže identita uložená systémem a spárování se odloží stranou. Zařízení je nutné spárovat znovu. Nelze to vrátit zpět."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "Identita byla obnovena. Zavřete toto okno a znovu otevřete Peersus."
+
+msgid "Turn on devices nearby"
+msgstr "Zapnout zařízení v okolí"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Zařízení v okolí jsou vypnutá. Zapněte je, abyste viděli blízká zařízení, která lze spárovat."
+
+msgid "Paste"
+msgstr "Vložit"
+
+msgid "Select all"
+msgstr "Vybrat vše"
+
+msgid "Cut"
+msgstr "Vyjmout"
+
+msgid "Remove"
+msgstr "Odstranit"
+
+msgid "Relays"
+msgstr "Relé"
+
+msgid "Edit"
+msgstr "Upravit"
+
+msgid "New relay: relay.example.org"
+msgstr "Nové relé: relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Zadejte server relé, například relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Jak dlouho má přímé spojení, než data smějí jít přes relé."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "V pořadí Priorita: jak dlouho se používá záložní, než se znovu zkusí první relé."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Hledat relé"
+
+msgid "Position"
+msgstr "Pozice"
+
+msgid "New address"
+msgstr "Nová adresa"
+
+msgid "This relay's own timings"
+msgstr "Vlastní časy tohoto relé"
+
+msgid "Uses the list-wide timings"
+msgstr "Používá časy seznamu"
+
+msgid "Use list-wide timings"
+msgstr "Použít časy seznamu"
+
+msgid "Accept"
+msgstr "Přijmout"
+
+msgid "Refuse"
+msgstr "Odmítnout"
+
+msgid "Stop"
+msgstr "Zastavit"
+
+msgid "Done"
+msgstr "Hotovo"
+
+msgid "Connect"
+msgstr "Připojit"
+
+msgid "Pair"
+msgstr "Spárovat"
+
+msgid "Install"
+msgstr "Nainstalovat"
+
+msgid "Uninstall"
+msgstr "Odinstalovat"
+
+msgid "Retry"
+msgstr "Zkusit znovu"
+
+msgid "Open"
+msgstr "Otevřít"
+
+msgid "Back"
+msgstr "Zpět"
+
+msgid "System"
+msgstr "Systém"
+
+msgid "Light"
+msgstr "Světlý"
+
+msgid "Dark"
+msgstr "Tmavý"
+
+msgid "Custom"
+msgstr "Vlastní"
+
+msgid "Device name"
+msgstr "Název zařízení"
+
+msgid "CODE SCANNED"
+msgstr "KÓD NASKENOVÁN"
+
+msgid "SCANNED"
+msgstr "NASKENOVÁNO"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "Druhé zařízení přečetlo kód. Čeká se na přijetí."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "ČEKÁ SE NA SCHVÁLENÍ"
+
+msgid "SENDING"
+msgstr "ODESÍLÁNÍ"
+
+msgid "DONE"
+msgstr "HOTOVO"
+
+msgid "STOPPED"
+msgstr "ZASTAVENO"
+
+msgid "ENDS IN {time}"
+msgstr "VYPRŠÍ ZA {time}"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} ti chce poslat soubor"
+
+msgid "A device wants to send you a file"
+msgstr "Zařízení ti chce poslat soubor"
+
+msgid "{files} are waiting in all"
+msgstr "Celkem ve frontě: {files}"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "Čeká se, až druhé zařízení přijme {files}."
+
+msgid "Sending 1 file."
+msgstr "Odesílá se 1 soubor."
+
+msgid "Sending {files}."
+msgstr "Odesílání: {files}."
+
+msgid "1 file arrived."
+msgstr "Byl přijat 1 soubor."
+
+msgid "{files} arrived."
+msgstr "Přijato: {files}."
+
+msgid "1 SENT"
+msgstr "1 ODESLÁN"
+
+msgid "{count} SENT"
+msgstr "{count} ODESLÁNO"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "Přijato {done} z {files}. Zbytek byl odmítnut, zrušen nebo selhal."
+
+msgid "1 file selected"
+msgstr "Vybrán 1 soubor"
+
+msgid "{files} selected"
+msgstr "Vybráno: {files}"
+
+msgid "+ {count} more"
+msgstr "+ dalších {count}"
+
+msgid "never seen"
+msgstr "dosud neviděno"
+
+msgid "just now"
+msgstr "právě teď"
+
+msgid "{duration} ago"
+msgstr "před {duration}"
+
+msgid "Continue"
+msgstr "Pokračovat"
+
+msgid "Join"
+msgstr "Připojit se"
+
+msgid "Keep"
+msgstr "Ponechat"
+
+msgid "Forget"
+msgstr "Zapomenout"
+
+msgid "Not now"
+msgstr "Teď ne"
+
+msgid "Choose folder"
+msgstr "Vybrat složku"
+
+msgid "Use none"
+msgstr "Nepoužívat žádnou"
+
+msgid "Name this device"
+msgstr "Pojmenuj toto zařízení"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Ostatní zařízení zobrazí tento název. Vyber takový, který poznáš."
+
+msgid "For example: Alex's laptop"
+msgstr "Například: Alexův notebook"
+
+msgid "Paste the code"
+msgstr "Vlož kód"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Zatím nejsou uložená zařízení. Odešli pomocí kódu a na výzvu zařízení ponech."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "Jedna akce. Jeden cíl. Přenášej soubory mezi zařízeními bez bludiště nabídek."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Vyber si, co přijmeš. Pravidla určuješ ty. Bez tvého souhlasu nic nedorazí."
+
+msgid "That is not a code from another device."
+msgstr "To není kód z jiného zařízení."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Zatím nejsou spárovaná zařízení. Spáruj zařízení výše."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Vyber archiv rozšíření nebo sem přetáhni složku či archiv."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Zapomenou se i všechna oprávnění na všech zařízeních. Pro odstranění stiskni znovu."
+
+msgid "No plugins installed."
+msgstr "Nejsou nainstalována žádná rozšíření."
+
+msgid "It cannot be granted anything."
+msgstr "Nelze mu udělit žádná oprávnění."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Spáruj zařízení, abys pro ně mohl tomuto rozšíření udělit oprávnění."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Nejsou nainstalována rozšíření, není tedy co povolit."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Zatím nebylo nic odesláno ani přijato."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "DŮLEŽITÉ — RIZIKA PRO DATA A BEZPEČNOST"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "PORTÁL PŘENOSŮ"
+
+msgid "WELCOME"
+msgstr "VÍTEJ"
+
+msgid "HISTORY"
+msgstr "HISTORIE"
+
+msgid "NOT PAIRED"
+msgstr "NESPÁROVÁNO"
+
+msgid "WAITING FOR YOU"
+msgstr "ČEKÁ NA TEBE"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "NEVÁZÁNO NA ŽÁDNÉ ZAŘÍZENÍ"
+
+msgid "Received"
+msgstr "Přijato"
+
+msgid "Sent"
+msgstr "Odesláno"
+
+msgid "done"
+msgstr "hotovo"
+
+msgid "cancelled"
+msgstr "zrušeno"
+
+msgid "failed"
+msgstr "selhalo"
+
+msgid "going"
+msgstr "probíhá"
+
+msgid "SEND"
+msgstr "ODESLAT"
+
+msgid "RECEIVE"
+msgstr "PŘIJMOUT"
+
+msgid "PEERS"
+msgstr "ZAŘÍZENÍ"
+
+msgid "Make files"
+msgstr "Nech soubory"
+
+msgid "fly."
+msgstr "létat."
+
+msgid "Ready when"
+msgstr "Připraveno, až"
+
+msgid "you are."
+msgstr "budeš i ty."
+
+msgid "HOW THINGS STAND"
+msgstr "AKTUÁLNÍ STAV"
+
+msgid "This device"
+msgstr "Toto zařízení"
+
+msgid "Internet relays"
+msgstr "Internetová relé"
+
+msgid "Runs in the background"
+msgstr "Běží na pozadí"
+
+msgid "Paired devices"
+msgstr "Spárovaná zařízení"
+
+msgid "Transfers in progress"
+msgstr "Probíhající přenosy"
+
+msgid "on"
+msgstr "zapnuto"
+
+msgid "off"
+msgstr "vypnuto"
+
+msgid "yes"
+msgstr "ano"
+
+msgid "no"
+msgstr "ne"
+
+msgid "THIS DEVICE"
+msgstr "TOTO ZAŘÍZENÍ"
+
+msgid "Run in the background"
+msgstr "Spouštět na pozadí"
+
+msgid "Start without opening a window."
+msgstr "Spustit bez otevření okna."
+
+msgid "Notifications"
+msgstr "Oznámení"
+
+msgid "Offers over other apps"
+msgstr "Nabídky nad ostatními aplikacemi"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "Zapnuto: seznam souborů nabídky se otevře nad tím, co děláte, a Přijmout neotevře Peersus."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Vypnuto: seznam souborů nabídky se otevře v Peersus. Povolte to, abyste seznam viděli nad ostatními aplikacemi."
+
+msgid "Where an offer appears"
+msgstr "Kde se nabídka zobrazí"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "Okraj obrazovky, u kterého se nabídka souboru zobrazí nad tím, co právě děláte."
+
+msgid "Top"
+msgstr "Nahoře"
+
+msgid "Bottom"
+msgstr "Dole"
+
+msgid "Left"
+msgstr "Vlevo"
+
+msgid "Right"
+msgstr "Vpravo"
+
+msgid "Battery"
+msgstr "Baterie"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "Zapnuto: síť služby na pozadí funguje dál, i když je telefon nečinný."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Omezeno: když je telefon nečinný, může systém odpojit síť služby na pozadí. Povolte to v nastavení baterie."
+
+msgid "Trying to reach the device"
+msgstr "Pokus o spojení se zařízením"
+
+msgid "This can take up to half a minute."
+msgstr "Může to trvat až půl minuty."
+
+msgid "It answers, and it knows this device"
+msgstr "Odpovídá a zná toto zařízení"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "Spojení funguje. Není třeba nic dělat."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Odpovídá, ale toto zařízení už nezná"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Zapomeňte ho tady a spárujte obě zařízení znovu. Nic jiného není špatně."
+
+msgid "It does not answer"
+msgstr "Neodpovídá"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Může být vypnuté nebo mimo dosah. Zkuste to za chvíli znovu. Relé jsou zapnutá, takže změna sítě není příčinou."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "Relé jsou vypnutá, takže zařízení v různých sítích se nemohou najít. Zapněte „Používat internetová relé“ v nastavení."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "Zapnuto: nabídka souboru se zobrazí i při zavřeném programu."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Zablokováno: nabídka souboru se nezobrazí, dokud neumožníte oznámení."
+
+msgid "Allow"
+msgstr "Povolit"
+
+msgid "Camera"
+msgstr "Fotoaparát"
+
+msgid "Wide"
+msgstr "Širokoúhlý"
+
+msgid "Main"
+msgstr "Hlavní"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Automaticky"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Vyberte fotoaparát, který čte kód, a stisknutím Vyzkoušet uvidíte, co ukazuje."
+
+msgid "Test the camera"
+msgstr "Vyzkoušet fotoaparát"
+
+msgid "Test connection"
+msgstr "Otestovat spojení"
+
+msgid "Where is this device?"
+msgstr "Kde je toto zařízení?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 nebo jmeno.priklad.cz:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Napište, kde lze toto zařízení najít, když se změnila adresa z doby párování."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Jméno je lepší než číslo: hledá se pokaždé znovu, takže funguje i když se číslo změní."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "Port se zobrazuje na druhém zařízení v nastavení. Bez portu se použije ten, na kterém bylo naposledy vidět."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Pomůže to jen tehdy, když je zařízení na té adrese dosažitelné. Telefon v mobilní síti obvykle není, a pak ho spojí jen relé."
+
+msgid "Save and test"
+msgstr "Uložit a otestovat"
+
+msgid "Remove the address"
+msgstr "Odebrat adresu"
+
+msgid "Listening port"
+msgstr "Port, na kterém se naslouchá"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "Jiné zařízení píše tento port za adresu tohoto, aby ho našlo. Mění se při každém spuštění programu."
+
+msgid "Search settings"
+msgstr "Hledat v nastavení"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Nic v nastavení tomu nepodobá."
+
+msgid "Files sent"
+msgstr "Odeslané soubory"
+
+msgid "Files received"
+msgstr "Přijaté soubory"
+
+msgid "Files in all"
+msgstr "Souborů celkem"
+
+msgid "Generate QR code"
+msgstr "Vytvořit QR kód"
+
+msgid "Clear the list"
+msgstr "Vymazat seznam"
+
+msgid "+ Add more files"
+msgstr "+ Přidat další soubory"
+
+msgid "All"
+msgstr "Vše"
+
+msgid "Active"
+msgstr "Aktivní"
+
+msgid "Stopped"
+msgstr "Zastavené"
+
+msgid "Incoming"
+msgstr "Příchozí"
+
+msgid "Outgoing"
+msgstr "Odchozí"
+
+msgid "Search transfers"
+msgstr "Hledat přenosy"
+
+msgid "No transfer matches."
+msgstr "Žádný přenos neodpovídá."
+
+msgid "Minimize"
+msgstr "Minimalizovat"
+
+msgid "Expand"
+msgstr "Rozbalit"
+
+msgid "OUTGOING FILES"
+msgstr "ODCHOZÍ SOUBORY"
+
+msgid "EXPERIMENTAL"
+msgstr "EXPERIMENTÁLNÍ"
+
+msgid "Devices nearby"
+msgstr "Zařízení v okolí"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Vypnuto: nic se neoznamuje a ničemu se nenaslouchá. Zapnuto: dokud je toto okno otevřené, toto zařízení naslouchá zařízením v okolí a ta ho mohou najít. S otevřeným Receive říká, že přijímá soubory: soubory uvedené na spárovaném zařízení drženém těsně vedle něj se odešlou ihned a nespárované zařízení může nabídnout své, když je přiblíženo; na každý soubor se zde zeptá. S otevřeným Peers říká, že je tu ke spárování, a Peers vypisuje zařízení v okolí, která říkají totéž. Používá Bluetooth."
+
+msgid "NEARBY"
+msgstr "V OKOLÍ"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Zatím žádné zařízení v okolí. Otevřete Peers na druhém zařízení, kde je „Zařízení v okolí“ také zapnuté."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Název zde je to, co o sobě zařízení samo říká. Výběrem začne párování: poté oba zvolíte stejné číslo."
+
+msgid "That device is no longer nearby"
+msgstr "Toto zařízení už není v okolí"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Nabídnuto přiblíženému zařízení. Každý soubor musí přijmout jeho uživatel."
+
+msgid "That device does not take files this way"
+msgstr "Toto zařízení tímto způsobem soubory nepřijímá"
+
+msgid "How near is near"
+msgstr "Jak blízko je blízko"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "Držte obě zařízení tak blízko, jak je budete držet při odesílání, s aplikací otevřenou na obou, pak změřte a nastavte. Zařízení se počítá jako přiblížené o něco pod změřenou silou, aby ho ne zcela klidná ruka neztratila."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "Blízko začíná na {dbm} dBm, jak jste nastavili."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "Blízko začíná na {dbm} dBm, což je hodnota aplikace."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Nejsilnější nyní slyšené zařízení: {dbm} dBm. Při nastavení odsud by blízko začínalo na {near} dBm."
+
+msgid "No device with this application open is heard yet."
+msgstr "Zatím není slyšet žádné zařízení s otevřenou aplikací."
+
+msgid "Measure"
+msgstr "Změřit"
+
+msgid "Stop measuring"
+msgstr "Zastavit měření"
+
+msgid "Set near from here"
+msgstr "Nastavit blízko odsud"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Toto zařízení nemá Bluetooth, které by šlo použít k nalezení přiblížených zařízení."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Bluetooth je vypnuté. Zapněte ho, abyste našli přiblížená zařízení."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Systém tomuto programu nedovoluje používat Bluetooth k nalezení přiblížených zařízení."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Bluetooth odmítl. Zkusí se to samo znovu."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Systém dovoluje tomuto zařízení najít přiložená zařízení, ale ne být jimi nalezeno."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Odesláno zařízení drženému blízko, s otevřeným Receive. Každý soubor musí přijmout jeho uživatel."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} je blízko. Otevřete na něm Receive a tyto soubory se mu odešlou."
+
+msgid "Send instantly"
+msgstr "Odeslat okamžitě"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Vypnuto: po výběru cíle držíte kruh, dokud se nenaplní, takže špatná volba nic nestojí. Zapnuto: dotyk kruhu odešle okamžitě."
+
+msgid "INCOMING FILES"
+msgstr "PŘÍCHOZÍ SOUBORY"
+
+msgid "Save incoming files on their own"
+msgstr "Automaticky ukládat příchozí soubory"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Vypnuto: na cíl každého souboru se aplikace zeptá. Zapnuto: soubory jdou bez dotazu do složky níže."
+
+msgid "THEME"
+msgstr "MOTIV"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Ponechat ikony při zavřeném panelu"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Zavřený panel zobrazuje jen ikony. Při vypnutí se nezobrazuje vůbec."
+
+msgid "Reduce motion"
+msgstr "Omezit pohyb"
+
+msgid "Turn off decorative animation."
+msgstr "Vypnout dekorativní animace."
+
+msgid "CONNECTIONS"
+msgstr "PŘIPOJENÍ"
+
+msgid "Use internet relays"
+msgstr "Používat internetová relé"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Umožňuje propojit zařízení mezi sítěmi. Po vypnutí provoz zůstává v této síti."
+
+msgid "INSTALLED"
+msgstr "NAINSTALOVÁNO"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "CO SMÍ JEDNOTLIVÁ ROZŠÍŘENÍ"
+
+msgid "File"
+msgstr "Soubor"
+
+msgid "Direction"
+msgstr "Směr"
+
+msgid "State"
+msgstr "Stav"
+
+msgid "Move it. Don't store it."
+msgstr "Přenášej, neukládej."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Soukromá spojení mezi vlastními zařízeními. Soubory přecházejí přímo ze zařízení na zařízení až po souhlasu příjemce, bez cloudové složky."
+
+msgid "INTERFACE"
+msgstr "ROZHRANÍ"
+
+msgid "RENDERING"
+msgstr "VYKRESLOVÁNÍ"
+
+msgid "NETWORK"
+msgstr "SÍŤ"
+
+msgid "ENGINE"
+msgstr "JÁDRO"
+
+msgid "The windows, layout and components of this application."
+msgstr "Okna, rozložení a součásti aplikace."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "Systémový výběr souborů a složek."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Vytváří kód, který jiné zařízení naskenuje pro připojení."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Vykresluje vše na obrazovce, text i tvary."
+
+msgid "Shapes the letters of the text."
+msgstr "Vytváří tvary písmen textu."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "Malá kreslicí knihovna používaná tam, kde se nepoužívá Skia."
+
+msgid "Encrypted connections between your devices."
+msgstr "Šifrovaná spojení mezi zařízeními."
+
+msgid "The encryption of those connections."
+msgstr "Šifrování těchto spojení."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "Kryptografické stavební bloky rustls."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Načítá přes HTTPS to, co aplikace potřebuje."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Spouští více přenosů současně bez vzájemného čekání."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Čte a zapisuje uložené soubory a zprávy aplikace."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Uchovává identitu zařízení v systémové klíčence. Místní oprava kompatibility odstraňuje nepoužívaný asynchronní backend a jeho zastaralé závislosti serializace, přičemž zachovává nativní backendy a dosavadní vyhledávání přihlašovacích údajů. Stav ověření a původ jsou zdokumentovány u opravy."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Hashe a autentizační kódy pro kontrolu souborů a párování."
+
+msgid "That file could not be read."
+msgstr "Soubor se nepodařilo přečíst."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Soubor je příliš velký pro profilový obrázek."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "Vyber obrázek PNG nebo JPEG."
+
+msgid "That picture is too large to use."
+msgstr "Obrázek je příliš velký pro použití."
+
+msgid "That picture could not be read."
+msgstr "Obrázek se nepodařilo přečíst."
+
+msgid "That picture could not be kept; try again."
+msgstr "Obrázek se nepodařilo uchovat; zkus to znovu."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Na tomto telefonu zde nelze vybrat obrázek."
+
+msgid "NOTICES"
+msgstr "OZNÁMENÍ"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Uchovávej nezávislé zálohy a po přenosu ověř důležité soubory. Aplikace je nástroj pro přenos, nikoli zálohovací služba. Za vybrané soubory, důvěryhodná zařízení a udělená oprávnění nadále odpovídáš ty."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Bezpečnostní opatření snižují riziko; nemohou zaručit, že nikdy nedojde ke zranitelnostem, neoprávněnému přístupu či úniku dat. Napadená zařízení, nebezpečná rozšíření, chyby konfigurace a budoucí zranitelnosti mohou ovlivnit tvá data."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Aplikace využívá knihovny třetích stran, operační systémy, rozšíření a případně síťové přenosové služby. Tyto závislosti přinášejí rizika mimo kontrolu autorů. Komponenty třetích stran si zachovávají vlastní licence, podmínky a oznámení."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Toto oznámení nevylučuje odpovědnost, jejíž vyloučení platné právo nepřipouští, ani neomezuje práva, kterých se nelze právně vzdát."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Software je poskytován TAK, JAK JE, bez jakýchkoli záruk či podmínek, jak popisují oddíly 7 a 8 licence Apache 2.0. V rozsahu povoleném platným právem autoři a přispěvatelé neodpovídají za ztráty vzniklé používáním, včetně ztracených, poškozených či zveřejněných dat."
+
+msgid "Device is offline"
+msgstr "Zařízení je offline"
+
+msgid "Could not open selected file"
+msgstr "Vybraný soubor se nepodařilo otevřít"
+
+msgid "Could not offer selected files"
+msgstr "Vybrané soubory se nepodařilo nabídnout"
+
+msgid "Could not accept transfer"
+msgstr "Přenos se nepodařilo přijmout"
+
+msgid "Could not cancel transfer"
+msgstr "Přenos se nepodařilo zrušit"
+
+msgid "Files selection is no longer active"
+msgstr "Výběr souborů už není aktivní"
+
+msgid "Could not queue selected files"
+msgstr "Vybrané soubory se nepodařilo zařadit do fronty"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Nastavení bylo změněno jinde; před uložením je znovu načti"
+
+msgid "Invalid or expired invitation"
+msgstr "Neplatná nebo vypršelá pozvánka"
+
+msgid "Connection queue is full"
+msgstr "Fronta připojení je plná"
+
+msgid "Pairing request is no longer active"
+msgstr "Žádost o párování už není aktivní"
+
+msgid "The owner answered with something else."
+msgstr "Služba vrátila neočekávanou odpověď."
+
+msgid "Unexpected file handoff reply"
+msgstr "Neočekávaná odpověď při předání souborů"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "Přijatý soubor se nepodařilo umístit do zvolené složky. Zůstává ve vlastní složce aplikace."
+
+msgid "STORE"
+msgstr "OBCHOD"
+
+msgid "Search extensions"
+msgstr "Hledat rozšíření"
+
+msgid "Install from file"
+msgstr "Instalovat ze souboru"
+
+msgid "Before you choose a file"
+msgstr "Než vyberete soubor"
+
+msgid "I understand and accept the risk"
+msgstr "Rozumím a přijímám riziko"
+
+msgid "Search the store"
+msgstr "Hledat v obchodě"
+
+msgid "Refresh"
+msgstr "Obnovit"
+
+msgid "Refresh the list"
+msgstr "Obnovit seznam"
+
+msgid "by {author} · version {version}"
+msgstr "od {author} · verze {version}"
+
+msgid "Installed: version {version}"
+msgstr "Nainstalováno: verze {version}"
+
+msgid "Update"
+msgstr "Aktualizovat"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "Aktualizace zapomene, co smělo dělat nainstalované vydání. Poté rozhodneš znovu."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "Je nainstalována novější verze než schválená. Odstraň ji, abys nainstaloval schválenou verzi."
+
+msgid "The extension store is not set up in this build."
+msgstr "Obchod s rozšířeními není v této verzi nastaven."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Stiskni Obnovit, abys viděl rozšíření schválená správcem."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "Obchod to nemohl dokončit. Nic se nezměnilo."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "Správce zatím neschválil žádné rozšíření."
+
+msgid "No extension matches your search."
+msgstr "Hledání neodpovídá žádné rozšíření."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "Ruční instalace neznamená oficiální schválení. Zkontroluj rozšíření i jeho zdroj; za kód nainstalovaný mimo obchod odpovídáš ty."
+
+msgid "Remove for good?"
+msgstr "Odstranit natrvalo?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Poškozené nebo zastaralé: opravte opětovnou instalací"
+
+msgid "Stopped working: update or install it again"
+msgstr "Přestalo fungovat: aktualizujte nebo znovu nainstalujte"
+
+msgid "Update available:"
+msgstr "Dostupná aktualizace:"
+
+msgid "Automatic updates"
+msgstr "Automatické aktualizace"
+
+msgid "Approve"
+msgstr "Schválit"
+
+msgid "Reinstall"
+msgstr "Přeinstalovat"
+
+msgid "Background clipboard access"
+msgstr "Přístup ke schránce na pozadí"
+
+msgid "On"
+msgstr "Zapnuto"
+
+msgid "Off"
+msgstr "Vypnuto"
+
+msgid "Remote input accessibility"
+msgstr "Přístupnost pro vzdálené ovládání"
+
+msgid "Relay"
+msgstr "Relé"
+
+msgid "Advanced relay options"
+msgstr "Pokročilé možnosti relé"
+
+msgid "Direct wait (ms)"
+msgstr "Čekání na přímé spojení (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Časový limit relé (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Opakovat preferované relé (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Rozsahy v ms: přímé 100–30000; záložní 500–60000; opakování 5000–3600000."
+
+msgid "Not installed"
+msgstr "Nenainstalováno"
+
+msgid "Connecting to home relay"
+msgstr "Připojování k domovskému relé"
+
+msgid "Home relay connected"
+msgstr "Domovské relé připojeno"
+
+msgid "Home relay unavailable"
+msgstr "Domovské relé není dostupné"
+
+msgid "Home relay refused access"
+msgstr "Domovské relé odmítlo přístup"
+
+msgid "Direct connection is always tried first."
+msgstr "Vždy se nejprve zkouší přímé připojení."
+
+msgid "Project relay"
+msgstr "Relé projektu"
+
+msgid "Public relays (n0)"
+msgstr "Veřejná relé (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Povolit veřejná relé (n0)"
+
+msgid "Move up"
+msgstr "Posunout nahoru"
+
+msgid "Move down"
+msgstr "Posunout dolů"
+
+msgid "Save and enable relay"
+msgstr "Uložit a povolit relé"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Token se odesílá pouze vlastnímu relé, nikdy relé projektu ani veřejným relé."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Provoz aplikace čeká na přímou cestu, než použije relé v tomto pořadí. Signalizace může začít dříve. Přenášený provoz je šifrovaný mezi koncovými zařízeními, metadata připojení jsou však viditelná. Telemetrie aplikace se neodesílá."
+
+msgid "Public relays"
+msgstr "Veřejná relé"
+
+msgid "No relay"
+msgstr "Bez relé"
+
+msgid "My own relay"
+msgstr "Moje vlastní relé"
+
+msgid "Priority"
+msgstr "Priorita"
+
+msgid "Sequential"
+msgstr "Postupně"
+
+msgid "Latency"
+msgstr "Latence"
+
+msgid "Order"
+msgstr "Pořadí"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Všechna zapnutá relé se nabídnou současně; použije se nejbližší, které odpoví."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "Pořadí v seznamu je preference; po záložním se znovu zkusí první relé."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "V pořadí seznamu; fungující relé se drží, dokud neselže."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "Zapnutá relé se změří a použije se nejrychlejší, které odpoví."
+
+msgid "No answer"
+msgstr "Bez odpovědi"
+
+msgid "Remove this relay?"
+msgstr "Odstranit toto relé?"
+
+msgid "Change address"
+msgstr "Změnit adresu"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Token se posílá jen tomuto relé, nikdy ostatním."
+
+msgid "Test relays"
+msgstr "Otestovat relé"
+
+msgid "Add a relay"
+msgstr "Přidat relé"
+
+msgid "Add relay"
+msgstr "Přidat relé"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "Relé, která může používat kdokoli. Přenášejí jen šifrovaný provoz a nemohou ho číst."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Bez relé: zařízení v různých sítích se nenajdou. Provoz zůstává v této síti."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Relé, které provozuješ sám, místo veřejných."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Použít toto relé"
+
+msgid "Access token (kept on this device only)"
+msgstr "Přístupový token (uložen jen v tomto zařízení)"
+
+msgid "Save token"
+msgstr "Uložit token"
+
+msgid "Forget token"
+msgstr "Zapomenout token"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Token je uložen v zabezpečeném úložišti tohoto zařízení. Už se nikdy nezobrazí a neodesílá se do jiných zařízení."
+
+msgid "Token saved"
+msgstr "Token uložen"
+
+msgid "Token forgotten"
+msgstr "Token zapomenut"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "Adresa relé musí začínat https:// a být jedna adresa bez mezer"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Token relé musí být jeden řádek o nejvýše 512 znacích"
+
+msgid "Page background"
+msgstr "Pozadí stránky"
+
+msgid "Cards and panels"
+msgstr "Karty a panely"
+
+msgid "Raised controls and hover"
+msgstr "Vyvýšené ovládací prvky a zvýraznění"
+
+msgid "Top header background"
+msgstr "Pozadí záhlaví"
+
+msgid "Sidebar background"
+msgstr "Pozadí postranního panelu"
+
+msgid "Borders and separators"
+msgstr "Okraje a oddělovače"
+
+msgid "Primary text"
+msgstr "Hlavní text"
+
+msgid "Secondary text"
+msgstr "Vedlejší text"
+
+msgid "Portal disc"
+msgstr "Disk portálu"
+
+msgid "Portal text"
+msgstr "Text portálu"
+
+msgid "Send indicators"
+msgstr "Ukazatele odesílání"
+
+msgid "Receive indicators"
+msgstr "Ukazatele příjmu"
+
+msgid "Connected and successful"
+msgstr "Připojeno a úspěšné"
+
+msgid "Offline and failed"
+msgstr "Offline a neúspěšné"
+
+msgid "Warning text"
+msgstr "Text varování"
+
+msgid "Warning background"
+msgstr "Pozadí varování"
+
+msgid "Primary button background"
+msgstr "Pozadí hlavního tlačítka"
+
+msgid "Primary button text"
+msgstr "Text hlavního tlačítka"
+
+msgid "Minimise window control"
+msgstr "Tlačítko minimalizace okna"
+
+msgid "Maximise window control"
+msgstr "Tlačítko maximalizace okna"
+
+msgid "Close window control"
+msgstr "Tlačítko zavření okna"
+
+msgid "Navigation icons"
+msgstr "Navigační ikony"
+
+msgid "Selected navigation icon"
+msgstr "Vybraná navigační ikona"
+
+msgid "Camera detection outline"
+msgstr "Obrys detekce kamery"
+
+msgid "CUSTOM THEME"
+msgstr "VLASTNÍ MOTIV"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Vyber prvek a zadej jeho barvu. Náhled i celé rozhraní se mění při psaní; nic se neuloží, dokud motiv neuložíš."
+
+msgid "Dark base"
+msgstr "Tmavý základ"
+
+msgid "Light base"
+msgstr "Světlý základ"
+
+msgid "Editing: {element}"
+msgstr "Upravuje se: {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Zadej šest šestnáctkových číslic RGB, například #708090."
+
+msgid "Discard changes"
+msgstr "Zahodit změny"
+
+msgid "Reset selected element"
+msgstr "Obnovit vybraný prvek"
+
+msgid "Your theme name"
+msgstr "Název tvého motivu"
+
+msgid "Confirm replace existing theme"
+msgstr "Potvrdit nahrazení stávajícího motivu"
+
+msgid "Save named theme"
+msgstr "Uložit motiv pod tímto názvem"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "KNIHOVNA ULOŽENÝCH MOTIVŮ"
+
+msgid "Load {name}"
+msgstr "Načíst {name}"
+
+msgid "Confirm removal"
+msgstr "Potvrdit odstranění"
+
+msgid "IMPORT / EXPORT"
+msgstr "IMPORT / EXPORT"
+
+msgid "Export / copy theme JSON"
+msgstr "Exportovat / kopírovat JSON motivu"
+
+msgid "Paste exported theme JSON here"
+msgstr "Sem vlož JSON exportovaného motivu"
+
+msgid "Import JSON for preview"
+msgstr "Importovat JSON pro náhled"
+
+msgid "Import theme file…"
+msgstr "Importovat soubor motivu…"
+
+msgid "Export theme file…"
+msgstr "Exportovat soubor motivu…"
+
+msgid "Theme JSON"
+msgstr "JSON motivu"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Nízký kontrast: „{text}“ na „{surface}“ může být špatně čitelný."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Zvol název motivu o délce 1–64 znaků, bez mezer na začátku a na konci."
+
+msgid "The theme could not be exported."
+msgstr "Motiv se nepodařilo exportovat."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Soubory motivů mohou mít nejvýše 64 KiB."
+
+msgid "This is not a valid theme file."
+msgstr "Toto není platný soubor motivu."
+
+msgid "This theme format version is not supported."
+msgstr "Tato verze formátu motivu není podporována."
+
+msgid "The theme name is invalid."
+msgstr "Název motivu je neplatný."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Tento název už existuje. Potvrď nahrazení níže, nebo použij jiný název."
+
+msgid "Theme saved in your library."
+msgstr "Motiv byl uložen do tvé knihovny."
+
+msgid "The theme could not be saved."
+msgstr "Motiv se nepodařilo uložit."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Motiv byl zkopírován. Vlož ho do souboru nebo do jiné instalace."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "JSON motivu je v poli pro výměnu níže; lze ho vybrat a zkopírovat."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Importováno pro náhled. Ulož, aby se motiv přidal do tvé knihovny."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Změny byly zahozeny; uložené předvolby se nemění."
+
+msgid "The theme file could not be opened."
+msgstr "Soubor motivu se nepodařilo otevřít."
+
+msgid "The theme file could not be read."
+msgstr "Soubor motivu se nepodařilo přečíst."
+
+msgid "Theme exported."
+msgstr "Motiv byl exportován."
+
+msgid "Theme removed from your library."
+msgstr "Motiv byl odstraněn z tvé knihovny."
+
+msgid "The theme could not be removed."
+msgstr "Motiv se nepodařilo odstranit."
+
+msgid "Top header"
+msgstr "Záhlaví"
+
+msgid "Header · navigation and window controls"
+msgstr "Záhlaví · navigace a ovládání okna"
+
+msgid "Sidebar"
+msgstr "Postranní panel"
+
+msgid "Navigation icon"
+msgstr "Navigační ikona"
+
+msgid "Window control (preview only)"
+msgstr "Ovládání okna (pouze náhled)"
+
+msgid "Portal disc and its text"
+msgstr "Disk portálu a jeho text"
+
+msgid "PORTAL"
+msgstr "PORTÁL"
+
+msgid "Primary button"
+msgstr "Hlavní tlačítko"
+
+msgid "Primary action"
+msgstr "Hlavní akce"
+
+msgid "Warning notice"
+msgstr "Varování"
+
+msgid "Warning: verify received files."
+msgstr "Varování: ověř přijaté soubory."
+
+msgid "Camera detection marker"
+msgstr "Značka detekce kamery"
+
+msgid "Sending →"
+msgstr "Odesílání →"
+
+msgid "← Receiving"
+msgstr "← Příjem"
+
+msgid "● Connected · Complete"
+msgstr "● Připojeno · Dokončeno"
+
+msgid "● Offline · Failed"
+msgstr "● Offline · Selhalo"
+
+msgid "Transfer or connection indicator"
+msgstr "Ukazatel přenosu nebo připojení"
+
+msgid "Text on the page"
+msgstr "Text na stránce"
+
+msgid "Primary text — names and headings"
+msgstr "Hlavní text — názvy a nadpisy"
+
+msgid "Secondary text — descriptions and details"
+msgstr "Vedlejší text — popisy a podrobnosti"
+
+msgid "Surface and border"
+msgstr "Povrch a okraj"
+
+msgid "Panel / page content"
+msgstr "Panel / obsah stránky"
+
+msgid "PREVIEW — {element}"
+msgstr "NÁHLED — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Importovat soubor motivu · Exportovat soubor motivu · JSON"
+
+msgid "UPDATES"
+msgstr "AKTUALIZACE"
+
+msgid "Update automatically"
+msgstr "Aktualizovat automaticky"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "Zapnuto: ověřená aktualizace Peersus se stáhne a nasadí bez dotazu."
+
+msgid "Restart after an update"
+msgstr "Restartovat po aktualizaci"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "Zapnuto: Peersus se sám restartuje, jakmile je aktualizace nasazena a nic se neodesílá ani nepřijímá."
+
+msgid "Check for updates"
+msgstr "Vyhledat aktualizace"
+
+msgid "Update now"
+msgstr "Aktualizovat nyní"
+
+msgid "Restart now"
+msgstr "Restartovat nyní"
+
+msgid "This installation does not update itself."
+msgstr "Tato instalace se sama neaktualizuje."
+
+msgid "Updates have not been looked for yet."
+msgstr "Aktualizace zatím nebyly vyhledány."
+
+msgid "Looking for an update…"
+msgstr "Vyhledává se aktualizace…"
+
+msgid "This version is up to date."
+msgstr "Tato verze je aktuální."
+
+msgid "Version {version} is available."
+msgstr "Je k dispozici verze {version}."
+
+msgid "Version"
+msgstr "Verze"
+
+msgid "Updates"
+msgstr "Aktualizace"
+
+msgid "not in this build"
+msgstr "není v tomto sestavení"
+
+msgid "not automatic"
+msgstr "nejsou automatické"
+
+msgid "not checked yet"
+msgstr "zatím nezkontrolováno"
+
+msgid "checking…"
+msgstr "kontroluje se…"
+
+msgid "up to date"
+msgstr "aktuální"
+
+msgid "update available"
+msgstr "dostupná aktualizace"
+
+msgid "updating…"
+msgstr "aktualizuje se…"
+
+msgid "restart to finish"
+msgstr "dokončete restartem"
+
+msgid "Binds"
+msgstr "Zkratky"
+
+msgid "KEY BINDINGS"
+msgstr "KLÁVESOVÉ ZKRATKY"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "Zkratka dělá to, co říká její řádek, dokud je okno vpředu. Stiskněte + a pak klávesy současně a přidejte ji, až tři; stiskněte zkratku a změňte ji, pak Backspace ji odstraní, Escape ji ponechá."
+
+msgid "press the keys…"
+msgstr "stiskněte klávesy…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Backspace odstraní"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} už má tři klávesové zkratky."
+
+msgid "Also while the window is not in front"
+msgstr "I když okno není vpředu"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Plocha vás požádá o schválení kláves a tam, kde je některá obsazená, může přidělit jinou."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} už spouští: {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Přijme nejnovější čekající nabídku souborů, uložených tam, kam říká vaše pravidlo pro přijaté soubory."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Odmítne nejnovější čekající nabídku souborů."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Otevře stránku Odeslat pro výběr souborů a zařízení, kam půjdou."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Otevře stránku Přijmout s kódem pro spárování a přijatými soubory."
+
+msgid "Accept incoming files"
+msgstr "Přijmout příchozí soubory"
+
+msgid "Decline incoming files"
+msgstr "Odmítnout příchozí soubory"
+
+msgid "Show Send"
+msgstr "Zobrazit Odeslat"
+
+msgid "Show Receive"
+msgstr "Zobrazit Přijmout"
+
+msgid "something no longer installed"
+msgstr "něco, co už není nainstalováno"
+
+msgid "Downloading the update…"
+msgstr "Stahuje se aktualizace…"
+
+msgid "Putting the update in place…"
+msgstr "Nasazuje se aktualizace…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "Aktualizace je nasazena. Spustí se po restartu."
+
+msgid "Restarting…"
+msgstr "Restartuje se…"
+
+msgid "The update could not be completed."
+msgstr "Aktualizaci se nepodařilo dokončit."
+
+msgid "Accept TOS"
+msgstr "Přijmout TOS"
+
+msgid "Next"
+msgstr "Další"
+
+msgid "Hold to confirm"
+msgstr "Podržte pro potvrzení"
+
+msgid "Keep holding"
+msgstr "Držte dál"
+
+msgid "Read to the end to go on"
+msgstr "Pro pokračování dočtěte až do konce"
+
+msgid "Step {number} of {total}"
+msgstr "Krok {number} z {total}"
+
+msgid "WHAT THIS IS"
+msgstr "CO TO JE"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "CO SE PRO VÁS MĚNÍ"
+
+msgid "READ THE FULL TEXT"
+msgstr "PŘEČÍST CELÉ ZNĚNÍ"
+
+msgid "LICENCE"
+msgstr "LICENCE"
+
+msgid "NOTICE"
+msgstr "UPOZORNĚNÍ"
+
+msgid "TERMS"
+msgstr "PODMÍNKY"
+
+msgid "OUTSIDE THE STORE"
+msgstr "MIMO OBCHOD"
+
+msgid "This extension did not come through the store"
+msgstr "Toto rozšíření nepochází z obchodu"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Nikdo v Peersus ho neposoudil, nepodepsal ani neslíbil, že je bezpečné. Běží s vaším přístupem v tomto zařízení a může číst a odesílat vše, k čemu mu dovolíte přístup."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Projekt Peersus nemůže převzít riziko rozšíření mimo svůj obchod a nenese odpovědnost za to, co udělá vám, vašim souborům nebo zařízením. Riziko je vaše."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Dávejte přednost obchodu: co je v něm uvedeno, bylo před nabídnutím posouzeno. Pokud nevíte, kdo tento balíček vytvořil, neinstalujte ho."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Dočtěte až do konce a poté podržte tlačítko na potvrzení, že tomu rozumíte a riziko přijímáte."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} soubor"
+msgstr[1] "{count} soubory"
+msgstr[2] "{count} souborů"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minutou"
+msgstr[1] "{count} minutami"
+msgstr[2] "{count} minutami"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} hodinou"
+msgstr[1] "{count} hodinami"
+msgstr[2] "{count} hodinami"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dnem"
+msgstr[1] "{count} dny"
+msgstr[2] "{count} dny"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} měsícem"
+msgstr[1] "{count} měsíci"
+msgstr[2] "{count} měsíci"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} rokem"
+msgstr[1] "{count} lety"
+msgstr[2] "{count} lety"
+
+msgid "The language file could not be read."
+msgstr "Soubor jazyka se nepodařilo přečíst."
+
+msgid "The language file was imported."
+msgstr "Soubor jazyka byl importován."
+
+msgid "The template was saved."
+msgstr "Šablona byla uložena."
+
+msgid "The template could not be saved."
+msgstr "Šablonu se nepodařilo uložit."
+
+msgid "Could not open a browser."
+msgstr "Nepodařilo se otevřít prohlížeč."
+
+msgid "This device is set to {language}."
+msgstr "Toto zařízení je nastaveno na {language}."
+
+msgid "This device names no language, so English is used."
+msgstr "Toto zařízení neuvádí žádný jazyk, proto se používá angličtina."
+
+msgid "LANGUAGE"
+msgstr "JAZYK"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "Angličtina je vestavěná. Každý jiný jazyk je soubor stažený pro tuto verzi; co nepřekládá, se zobrazí anglicky."
+
+msgid "Use the device's language"
+msgstr "Používat jazyk zařízení"
+
+msgid "Looking for languages…"
+msgstr "Hledají se jazyky…"
+
+msgid "The languages could not be fetched"
+msgstr "Jazyky se nepodařilo získat"
+
+msgid "No other language is offered for this version yet."
+msgstr "Pro tuto verzi se zatím nenabízí žádný jiný jazyk."
+
+msgid "TRANSLATE"
+msgstr "PŘEKLAD"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Uložte šablonu, přeložte ji v libovolném editoru PO, importujte ji sem, abyste ji hned viděli, a pak ji sdílejte, aby mohla být nabídnuta všem."
+
+msgid "{percent}% translated"
+msgstr "Přeloženo {percent} %"
+
+msgid "{about} · imported"
+msgstr "{about} · importováno"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · stáhne se po výběru"
+
+msgid "IN USE"
+msgstr "POUŽÍVÁ SE"
+
+msgid "Use"
+msgstr "Použít"
+
+msgid "Check again"
+msgstr "Zkontrolovat znovu"
+
+msgid "Language file"
+msgstr "Soubor jazyka"
+
+msgid "Import a language file…"
+msgstr "Importovat soubor jazyka…"
+
+msgid "Language template"
+msgstr "Šablona jazyka"
+
+msgid "Save the template…"
+msgstr "Uložit šablonu…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Sdílet překlad (otevře prohlížeč)"
+
+msgid "Languages"
+msgstr "Jazyky"
+
+msgid "English is the application's own language and needs no file"
+msgstr "Angličtina je vlastní jazyk aplikace a nepotřebuje soubor"
+
+msgid "No languages are offered for this release yet"
+msgstr "Pro tuto verzi se zatím nenabízejí žádné jazyky"
+
+msgid "That language file is not held"
+msgstr "Tento soubor jazyka zde není"
+
+msgid "The language file could not be read"
+msgstr "Soubor jazyka se nepodařilo přečíst"
+
+msgid "The language file could not be removed"
+msgstr "Soubor jazyka se nepodařilo odebrat"
+
+msgid "The language file could not be saved"
+msgstr "Soubor jazyka se nepodařilo uložit"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Soubor jazyka neříká, o jaký jazyk jde (jeho hlavička nemá Language)"
+
+msgid "The language file is too large"
+msgstr "Soubor jazyka je příliš velký"
+
+msgid "The languages could not be saved"
+msgstr "Jazyky se nepodařilo uložit"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "Okna se zobrazují anglicky, což nepotřebuje soubor"
+
+msgid "This is not a language file the application can read"
+msgstr "Toto není soubor jazyka, který aplikace umí přečíst"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "To, co poslala větev jazyků, se nepodařilo ověřit"
+
+msgid "Languages are not available here"
+msgstr "Jazyky zde nejsou k dispozici"
+
+msgid "The plugin picker could not be opened"
+msgstr "Výběr pluginů se nepodařilo otevřít"
+
+msgid "The file picker could not be opened"
+msgstr "Výběr souborů se nepodařilo otevřít"
+
+msgid "Another language file is being imported"
+msgstr "Již se importuje jiný jazykový soubor"
+
+msgid "The application is not ready to import a language file"
+msgstr "Aplikace není připravena importovat jazykový soubor"
+
+msgid "The application is not ready to open plugins"
+msgstr "Aplikace není připravena otevírat pluginy"
+
+msgid "Another plugin archive is being opened"
+msgstr "Již se otevírá jiný archiv pluginu"
+
+msgid "The selected archive could not be staged"
+msgstr "Vybraný archiv se nepodařilo připravit"
+
+msgid "The selected archive could not be read"
+msgstr "Vybraný archiv se nepodařilo přečíst"
+
+msgid "The embedded metadata is not valid"
+msgstr "Vložená metadata nejsou platná"
+
+msgid "The program carries no embedded metadata"
+msgstr "Program neobsahuje žádná vložená metadata"
+
+msgid "The program is not a recognised binary"
+msgstr "Program není rozpoznaný binární soubor"
+
+msgid "Input capabilities are unavailable"
+msgstr "Možnosti vstupu nejsou dostupné"
+
+msgid "Input is unavailable"
+msgstr "Vstup není dostupný"
+
+msgid "The input was not understood"
+msgstr "Vstupu se nepodařilo porozumět"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Tento počítač nelze ovládat: nepodařilo se vytvořit žádné vstupní zařízení"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Tento počítač nemůže tomu zařízení přidělit vlastní ukazatel"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Toto rozšíření přehrává vstup pro příliš mnoho zařízení najednou"
+
+msgid "Unknown input method"
+msgstr "Neznámá metoda vstupu"
+
+msgid "An installed native module must be read-only"
+msgstr "Nainstalovaný nativní modul musí být jen pro čtení"
+
+msgid "Another plugin already has this name"
+msgstr "Jiný plugin už má tento název"
+
+msgid "It could not be read"
+msgstr "Nepodařilo se ho načíst"
+
+msgid "It has no manifest"
+msgstr "Nemá manifest"
+
+msgid "It has no program"
+msgstr "Nemá program"
+
+msgid "It has two manifests"
+msgstr "Má dva manifesty"
+
+msgid "It is not a directory"
+msgstr "Nejde o složku"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Nabízí službu, kterou už nabízí jiný plugin"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Přijímá data bez oprávnění, které by je chránilo"
+
+msgid "Its directory belongs to someone else"
+msgstr "Jeho složka patří někomu jinému"
+
+msgid "Its directory can be changed by others"
+msgstr "Jeho složku mohou měnit jiní"
+
+msgid "Its manifest could not be read"
+msgstr "Jeho manifest se nepodařilo načíst"
+
+msgid "Its manifest is not a file"
+msgstr "Jeho manifest není soubor"
+
+msgid "Its manifest is not valid"
+msgstr "Jeho manifest není platný"
+
+msgid "Its manifest is too large"
+msgstr "Jeho manifest je příliš velký"
+
+msgid "Its name is not usable"
+msgstr "Jeho název nelze použít"
+
+msgid "Its program belongs to someone else"
+msgstr "Jeho program patří někomu jinému"
+
+msgid "Its program can be changed by others"
+msgstr "Jeho program mohou měnit jiní"
+
+msgid "Its program cannot be run"
+msgstr "Jeho program nelze spustit"
+
+msgid "Its program is not a file"
+msgstr "Jeho program není soubor"
+
+msgid "One of its actions could never be reached"
+msgstr "Jedna z jeho akcí by nikdy nemohla být spuštěna"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Na tomto systému nelze spouštět pluginy"
+
+msgid "Cannot create application directory"
+msgstr "Nelze vytvořit adresář aplikace"
+
+msgid "Cannot open identity lock"
+msgstr "Nelze otevřít zámek identity"
+
+msgid "Identity is being opened by another process"
+msgstr "Identitu právě otevírá jiný proces"
+
+msgid "System credential store is unavailable"
+msgstr "Systémové úložiště přihlašovacích údajů není dostupné"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Nelze zahájit přístup ke klíčence systému; stávající identita se nezměnila"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Nelze ověřit odemčení klíčenky systému; stávající identita se nezměnila"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Klíčenka systému je stále zamčená; stávající identita a párování se nezměnily"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Klíčenka systému není dostupná; stávající identita a párování se nezměnily"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Vypršel časový limit pro odemčení klíčenky systému; stávající identita a párování se nezměnily"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Odemčení klíčenky systému bylo zrušeno; stávající identita a párování se nezměnily"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "Systémová klíčenka je zamčená a její služba nezobrazila výzvu k zadání hesla; stávající identita a párování se nezměnily"
+
+msgid "Could not read local application state"
+msgstr "Nelze načíst místní stav aplikace"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "Místní připojení selhalo; výsledek příkazu nemusí být známý"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "Místní požadavek vypršel; výsledek příkazu nemusí být známý"
+
+msgid "Too many windows are attached"
+msgstr "Je připojeno příliš mnoho oken"
+
+msgid "The window program is not beside the owner"
+msgstr "Program okna neběží vedle vlastníka"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Tato relace nemá displej X, na který by šlo umístit panel"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Tento formát rozšíření není v této distribuci dostupný"
+
+msgid "It clashes with another plugin"
+msgstr "Je v konfliktu s jiným pluginem"
+
+msgid "It could not be loaded"
+msgstr "Nepodařilo se ho načíst"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Tento balíček nemá licenci ani upozornění, takže ho nelze nainstalovat"
+
+msgid "It has no manifest the application can use"
+msgstr "Nemá žádný manifest, který by aplikace mohla použít"
+
+msgid "It has no program the application can run"
+msgstr "Nemá žádný program, který by aplikace mohla spustit"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "Jeho složku mohou měnit jiní, proto se nespustí"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Konfiguraci soukromého katalogu nelze zakódovat"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Pomocníka soukromého katalogu nelze najít"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Nelze připravit stav soukromého katalogu"
+
+msgid "Cannot protect private catalog state"
+msgstr "Nelze zabezpečit stav soukromého katalogu"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Nelze přečíst konfiguraci soukromého katalogu"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Konfiguraci soukromého katalogu nelze bezpečně uložit"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Uloženou konfiguraci soukromého katalogu nelze ověřit"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "Konfigurace soukromého katalogu se během ukládání změnila"
+
+msgid "The private catalog signing key is not valid"
+msgstr "Podpisový klíč soukromého katalogu není platný"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "Uloženou konfiguraci soukromého katalogu nelze použít"
+
+msgid "The system credential store is unavailable"
+msgstr "Systémové úložiště přihlašovacích údajů není dostupné"
+
+msgid "Cannot forget the relay token"
+msgstr "Token relaye nelze zapomenout"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Token relaye nelze přečíst; uložený token se nezměnil"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Token relaye nelze uložit do systémového úložiště přihlašovacích údajů"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Uložený token relaye nelze ověřit"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Uložený token relaye se během ukládání změnil"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Uložený token relaye nelze použít; nebyl změněn"
+
+msgid "Action arguments are invalid"
+msgstr "Argumenty akce jsou neplatné"
+
+msgid "Action context is invalid"
+msgstr "Kontext akce je neplatný"
+
+msgid "Action is not permitted for this device"
+msgstr "Akce není pro toto zařízení povolena"
+
+msgid "An action can have up to three key bindings"
+msgstr "Akce může mít nejvýše tři klávesové zkratky"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "Rozšíření žádalo příliš mnoho a příliš rychle, proto je na chvíli pozastaveno"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "Rozšíření vyžaduje, abys přečetl a přijal jeho licenci a upozornění; otevři Rozšíření"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Externí balíček nemůže nahradit vestavěný plugin"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "Vstup mezi zařízeními už přenáší jiné rozšíření. Pokud chceš použít toto, vypni ho"
+
+msgid "Application updates are not available here"
+msgstr "Aktualizace aplikace tady nejsou k dispozici"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Vestavěné pluginy nelze odebrat"
+
+msgid "Choose a device for this action"
+msgstr "Vyber zařízení pro tuto akci"
+
+msgid "Choose a device for this setting"
+msgstr "Vyber zařízení pro toto nastavení"
+
+msgid "Choose between one and sixteen files"
+msgstr "Vyber jeden až šestnáct souborů"
+
+msgid "Choose exactly one file for this action"
+msgstr "Vyber pro tuto akci právě jeden soubor"
+
+msgid "Could not change this permission"
+msgstr "Toto oprávnění se nepodařilo změnit"
+
+msgid "Could not clear the history"
+msgstr "Historii se nepodařilo vymazat"
+
+msgid "Could not forget device"
+msgstr "Zařízení se nepodařilo zapomenout"
+
+msgid "Could not forget what it was granted"
+msgstr "Nepodařilo se zapomenout udělená oprávnění"
+
+msgid "Could not keep the picture"
+msgstr "Obrázek se nepodařilo uložit"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Vybranou složku se nepodařilo otevřít nebo je zařízení offline"
+
+msgid "Could not remove the picture"
+msgstr "Obrázek se nepodařilo odstranit"
+
+msgid "Could not save permissions"
+msgstr "Oprávnění se nepodařilo uložit"
+
+msgid "Device is not paired"
+msgstr "Zařízení není spárováno"
+
+msgid "Extension prompts unavailable"
+msgstr "Dotazy rozšíření nejsou k dispozici"
+
+msgid "Files selection is not fully accounted for"
+msgstr "Výběr souborů není úplně zpracován"
+
+msgid "Input arguments are invalid"
+msgstr "Vstupní argumenty jsou neplatné"
+
+msgid "Invalid value for this setting"
+msgstr "Neplatná hodnota pro toto nastavení"
+
+msgid "Key bindings are not available on this device"
+msgstr "Klávesové zkratky nejsou na tomto zařízení k dispozici"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Načítají se jazyky; zkus to znovu, až to skončí"
+
+msgid "No picture is held for that"
+msgstr "Pro tuto položku není uložen žádný obrázek"
+
+msgid "No plugin handles this request"
+msgstr "Tento požadavek nezpracovává žádný plugin"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Pro tento plugin se nic nezobrazilo"
+
+msgid "Permissions could not be applied"
+msgstr "Oprávnění se nepodařilo použít"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Plugin není pro toto zařízení povolen"
+
+msgid "Plugin unavailable"
+msgstr "Plugin není k dispozici"
+
+msgid "Plugins cannot be installed here"
+msgstr "Pluginy zde nelze instalovat"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Konfiguraci soukromého katalogu se nepodařilo uložit"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Soukromé katalogy nejsou na tomto zařízení povoleny"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Ukázka jen pro čtení: toto okno není připojené k vlastníkovi"
+
+msgid "Selected input is unavailable"
+msgstr "Vybraný vstup není dostupný"
+
+msgid "That action cannot be run by a key"
+msgstr "Tuto akci nelze spustit klávesou"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Tato akce potřebuje pro svou klávesu zařízení, a jen v takovém případě"
+
+msgid "That device cannot be sent to"
+msgstr "Na toto zařízení nelze odesílat"
+
+msgid "That extension action is not installed"
+msgstr "Tato akce rozšíření není nainstalována"
+
+msgid "That input was not understood"
+msgstr "Tomuto vstupu se nepodařilo porozumět"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Toto oprávnění nelze tomuto pluginu udělit"
+
+msgid "The code was already used or is no longer shown"
+msgstr "Kód už byl použit nebo se už nezobrazuje"
+
+msgid "The extension store failed"
+msgstr "Obchod s rozšířeními selhal"
+
+msgid "The extension store is not available here"
+msgstr "Obchod s rozšířeními tady není k dispozici"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "Licence a upozornění nebyly přijaty, takže se nic nenainstalovalo"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Balíček se po zobrazení změnil; vyber ho znovu"
+
+msgid "The package has no valid name"
+msgstr "Balíček nemá platný název"
+
+msgid "The plugin could not be registered"
+msgstr "Plugin se nepodařilo zaregistrovat"
+
+msgid "The plugin does not allow this action"
+msgstr "Plugin tuto akci nepovoluje"
+
+msgid "The plugin does not offer this action"
+msgstr "Plugin tuto akci nenabízí"
+
+msgid "The plugin is not running"
+msgstr "Plugin neběží"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "Plugin není ten, který byl zobrazen; prohlédni si ho znovu"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "Plugin posílá příliš mnoho dat příliš rychle"
+
+msgid "The request could not be sent"
+msgstr "Požadavek nebylo možné odeslat"
+
+msgid "The text to share is empty or too large"
+msgstr "Text ke sdílení je prázdný nebo příliš dlouhý"
+
+msgid "The update failed"
+msgstr "Aktualizace selhala"
+
+msgid "This action does not accept selected input"
+msgstr "Tato akce nepřijímá vybraný vstup"
+
+msgid "This action does not accept shared text"
+msgstr "Tato akce nepřijímá sdílený text"
+
+msgid "This action does not use a device"
+msgstr "Tato akce nepoužívá zařízení"
+
+msgid "This action is not available now"
+msgstr "Tato akce teď není dostupná"
+
+msgid "This action requires its declared selected input"
+msgstr "Tato akce vyžaduje svůj deklarovaný vybraný vstup"
+
+msgid "This device cannot keep a relay token"
+msgstr "Toto zařízení nemůže uchovat token relay"
+
+msgid "This extension declares no input transport"
+msgstr "Toto rozšíření nedeklaruje žádný přenos vstupu"
+
+msgid "This is not permitted for this device"
+msgstr "Pro toto zařízení to není povoleno"
+
+msgid "This page is not offered on this system"
+msgstr "Tato stránka není v tomto systému k dispozici"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Tato platforma požadovanou funkci nenabízí"
+
+msgid "This setting is not per device"
+msgstr "Toto nastavení není pro jednotlivá zařízení"
+
+msgid "Too many calls"
+msgstr "Příliš mnoho volání"
+
+msgid "Too many operations are pending"
+msgstr "Čeká příliš mnoho operací"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "Na pluginy čeká příliš mnoho přenosů"
+
+msgid "Unknown action"
+msgstr "Neznámá akce"
+
+msgid "Unknown device"
+msgstr "Neznámé zařízení"
+
+msgid "Unknown page"
+msgstr "Neznámá stránka"
+
+msgid "Unknown plugin"
+msgstr "Neznámý plugin"
+
+msgid "Unknown setting"
+msgstr "Neznámé nastavení"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Počkej, až skončí aktuální operace katalogu"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Tvůj souhlas se nepodařilo zaznamenat, proto se nic nenainstalovalo"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "AppImage se sám nenahrazuje; stáhni si nový"
+
+msgid "Kept by something else"
+msgstr "Drží to něco jiného"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "Aplikace se na tomto systému zatím nemůže sama nahradit"
+
+msgid "The update could not be unpacked"
+msgstr "Aktualizaci se nepodařilo rozbalit"
+
+msgid "The update could not be written beside the application"
+msgstr "Aktualizaci se nepodařilo zapsat vedle aplikace"
+
+msgid "The update is not a plain set of programs"
+msgstr "Aktualizace není prostá sada programů"
+
+msgid "The update is not for this installation"
+msgstr "Aktualizace není pro tuto instalaci"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "Aktualizace se nainstalovala jen částečně; nainstaluj aplikaci znovu"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Tuto instalaci spravuje systém a aktualizuje se spolu s ním"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Tuto instalaci aktualizuje Flatpak"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Tento typ aktualizace nelze na tuto instalaci použít"
+
+msgid "Loading…"
+msgstr "Načítání…"
+
+msgid "Another device"
+msgstr "Jiné zařízení"
+
+msgid "CANCELLED"
+msgstr "ZRUŠENO"
+
+msgid "CONNECTED"
+msgstr "PŘIPOJENO"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Vyber archiv pluginu (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Vyber profilový obrázek (PNG nebo JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Výběr složky není na tomto zařízení k dispozici."
+
+msgid "Clear"
+msgstr "Vymazat"
+
+msgid "Clear them?"
+msgstr "Vymazat je?"
+
+msgid "FAILED · {reason}"
+msgstr "SELHALO · {reason}"
+
+msgid "FOR {device}"
+msgstr "PRO {device}"
+
+msgid "Folder for incoming files"
+msgstr "Složka pro příchozí soubory"
+
+msgid "INCOMING"
+msgstr "PŘÍCHOZÍ"
+
+msgid "NOT RUNNING"
+msgstr "NESPUŠTĚNO"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Nebyla vybrána žádná složka, takže soubor nebyl přijat."
+
+msgid "OUTGOING"
+msgstr "ODCHOZÍ"
+
+msgid "OUTGOING · PREPARED"
+msgstr "ODCHOZÍ · PŘIPRAVENO"
+
+msgid "Peersus could not be started again"
+msgstr "Peersus se nepodařilo znovu spustit"
+
+msgid "Save the file in"
+msgstr "Uložit soubor do"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "Složka zvolená pro příchozí soubory už neexistuje. Vyber jinou."
+
+msgid "The identity could not be reset"
+msgstr "Identitu se nepodařilo resetovat"
+
+msgid "The plugin picker is unavailable"
+msgstr "Výběr pluginů není k dispozici"
+
+msgid "There is no data directory to look in"
+msgstr "Není žádná datová složka, kde hledat"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Dotkni se obrazovky dvěma prsty a stáhni Nastavení shora. Když je Nastavení už otevřené, nic se nestane."
+
+msgid "Two fingers open Settings"
+msgstr "Dva prsty otevřou Nastavení"
+
+msgid "Identity unavailable"
+msgstr "Identita není k dispozici"
+
+msgid "Nowhere to look"
+msgstr "Není kde hledat"
+
+msgid "Peersus could not start"
+msgstr "Peersus se nepodařilo spustit"
+
+msgid "Peersus stopped"
+msgstr "Peersus se zastavil"
+
+msgid "The action did not accept the value"
+msgstr "Akce hodnotu nepřijala"
+
+msgid "The owner stopped"
+msgstr "Vlastník se zastavil"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Část Peersusu, která udržuje tvá zařízení propojená, se nespustila a neuvedla proč."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Část aplikace Peersus, která udržuje tvá zařízení propojená, se nespustila. Hlášení: {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Část aplikace Peersus, která udržuje tvá zařízení propojená, skončila a automatické opětovné spuštění ji neudrželo v chodu."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Tento účet nemá datovou složku, takže aplikaci nelze najít."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Zadej svůj GitHub token jen pro čtení. Žádná další nastavení tu nejsou potřeba; token zůstane v zabezpečeném úložišti zařízení."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "GitHub token s oprávněním Contents: read pro repozitář"
+
+msgid "Private development catalog"
+msgstr "Soukromý vývojový katalog"
+
+msgid "Save and apply"
+msgstr "Uložit a použít"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "GitHub token musí být jeden řádek o délce nejvýše 512 bajtů"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Token byl bezpečně uložen a použit. Seznam rozšíření se aktualizuje na pozadí."
+
+msgid "OFFLINE"
+msgstr "OFFLINE"
+
+msgid "ONLINE"
+msgstr "ONLINE"
+
+msgid "SLEEPING"
+msgstr "SPÍ"
+
+msgid "An update is already being worked on"
+msgstr "Na aktualizaci se už pracuje"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "Aktualizace byla nainstalována; pro její použití restartuj aplikaci"
+
+msgid "Application updates are not set up in this build"
+msgstr "Aktualizace aplikace nejsou v tomto sestavení nastaveny"
+
+msgid "No update is available"
+msgstr "Není k dispozici žádná aktualizace"
+
+msgid "No update is waiting for a restart"
+msgstr "Žádná aktualizace nečeká na restart"
+
+msgid "The application update key is not valid"
+msgstr "Klíč pro aktualizace aplikace není platný"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "Stažená aktualizace není ta, která byla zveřejněna"
+
+msgid "The saved update state could not be read"
+msgstr "Uložený stav aktualizace se nepodařilo načíst"
+
+msgid "The saved update state is damaged"
+msgstr "Uložený stav aktualizace je poškozený"
+
+msgid "The update could not be checked"
+msgstr "Aktualizaci se nepodařilo zkontrolovat"
+
+msgid "The update is described in a way this version does not read"
+msgstr "Aktualizace je popsána způsobem, který tato verze neumí přečíst"
+
+msgid "The update is for another release channel"
+msgstr "Aktualizace je pro jiný kanál vydání"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "Aktualizace není podepsána vydavatelem této aplikace"
+
+msgid "The update is too large"
+msgstr "Aktualizace je příliš velká"
+
+msgid "The update listing could not be checked"
+msgstr "Seznam aktualizací se nepodařilo zkontrolovat"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "Nabízená aktualizace není vydání, které už bylo pod touto verzí viděno"
+
+msgid "The update offered is older than one already seen"
+msgstr "Nabízená aktualizace je starší než už viděná"
+
+msgid "The update state could not be saved"
+msgstr "Stav aktualizace se nepodařilo uložit"
+
+msgid "The catalog could not be read"
+msgstr "Katalog se nepodařilo načíst"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "Katalog obsahuje nejednoznačné nebo neplatné artefakty platforem"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "Katalog obsahuje neplatnou položku"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "Katalog obsahuje neplatné artefakty platforem"
+
+msgid "The catalog is a version this application does not read"
+msgstr "Katalog má verzi, kterou tato aplikace neumí přečíst"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "Katalog není podepsán správcem"
+
+msgid "The catalog is older than one already seen"
+msgstr "Katalog je starší než už viděný"
+
+msgid "The catalog is too large"
+msgstr "Katalog je příliš velký"
+
+msgid "The catalog lists a name twice"
+msgstr "Katalog uvádí jeden název dvakrát"
+
+msgid "The catalog lists too many extensions"
+msgstr "Katalog uvádí příliš mnoho rozšíření"
+
+msgid "The catalog signature is not valid"
+msgstr "Podpis katalogu není platný"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Balíček neodpovídá tomu, co o něm uvádí katalog"
+
+msgid "The package is not the one that was approved"
+msgstr "Balíček není ten, který byl schválen"
+
+msgid "The package name is not the approved name"
+msgstr "Název balíčku není schválený název"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Program a jeho manifest se neshodují v tom, kdo je vytvořil"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Vyber složku pluginu, ne soubor ani odkaz"
+
+msgid "No data directory"
+msgstr "Žádná datová složka"
+
+msgid "No such plugin is installed"
+msgstr "Takový plugin není nainstalován"
+
+msgid "Nothing was retired under that name"
+msgstr "Pod tímto názvem nebylo nic vyřazeno"
+
+msgid "Something is already installed under this name"
+msgstr "Pod tímto názvem už je něco nainstalováno"
+
+msgid "That is not the name of a plugin"
+msgstr "To není název pluginu"
+
+msgid "The approval could not be written"
+msgstr "Schválení se nepodařilo zapsat"
+
+msgid "The installed plugin directory is not safe"
+msgstr "Složka nainstalovaného pluginu není bezpečná"
+
+msgid "The native module could not be made read-only"
+msgstr "Nativní modul se nepodařilo nastavit jen pro čtení"
+
+msgid "The package could not be put back"
+msgstr "Balíček se nepodařilo vrátit zpět"
+
+msgid "The package could not be put in place"
+msgstr "Balíček se nepodařilo umístit"
+
+msgid "The package could not be read"
+msgstr "Balíček se nepodařilo načíst"
+
+msgid "The package could not be staged"
+msgstr "Balíček se nepodařilo připravit"
+
+msgid "The package could not be taken out of use"
+msgstr "Balíček se nepodařilo vyřadit z používání"
+
+msgid "The package has too many files"
+msgstr "Balíček obsahuje příliš mnoho souborů"
+
+msgid "The package is too large"
+msgstr "Balíček je příliš velký"
+
+msgid "The package names a file it does not have"
+msgstr "Balíček uvádí soubor, který neobsahuje"
+
+msgid "The package needs a manifest and a program"
+msgstr "Balíček potřebuje manifest a program"
+
+msgid "The package's name is not usable"
+msgstr "Název balíčku nelze použít"
+
+msgid "The plugin could not be switched off"
+msgstr "Plugin se nepodařilo vypnout"
+
+msgid "The plugin could not be switched on"
+msgstr "Plugin se nepodařilo zapnout"
+
+msgid "The plugin store can be changed by others"
+msgstr "Úložiště pluginů mohou měnit jiní"
+
+msgid "The plugin store could not be locked"
+msgstr "Úložiště pluginů se nepodařilo zamknout"
+
+msgid "The plugin store could not be made"
+msgstr "Úložiště pluginů se nepodařilo vytvořit"
+
+msgid "The plugin store could not be read"
+msgstr "Úložiště pluginů se nepodařilo načíst"
+
+msgid "The plugin store is a link"
+msgstr "Úložiště pluginů je odkaz"
+
+msgid "The plugin store is being changed by another process"
+msgstr "Úložiště pluginů mění jiný proces"
+
+msgid "The plugin store is not a directory"
+msgstr "Úložiště pluginů není složka"
+
+msgid "The retired plugin directory is not safe"
+msgstr "Složka vyřazeného pluginu není bezpečná"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "U tohoto pluginu není co schválit"
+
+msgid "Too many plugins are installed"
+msgstr "Je nainstalováno příliš mnoho pluginů"
+
+msgid "The extension store could not be reached"
+msgstr "Obchod s rozšířeními není dostupný"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Obchod poslal víc dat, než je povoleno"

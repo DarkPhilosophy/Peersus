@@ -1,0 +1,2998 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ro\n"
+"X-Language-Name: Română\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Îți cere să selectezi un fișier pentru această extensie; nu oferă acces implicit la sistemul de fișiere."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "Cere aprobarea explicită a destinației pentru cererile HTTPS; credentialele rămân în aplicația gazdă."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Citește sau înlocuiește textul din clipboard-ul acestui dispozitiv, în bucăți limitate, fiecare sub propria permisiune."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Citește textul din clipboard-ul acestui dispozitiv, în bucăți limitate; platforma decide când poate fi citit și exclude conținutul sensibil."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Înlocuiește textul din clipboard-ul acestui dispozitiv cu textul furnizat de extensie, în bucăți limitate."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Primește o notificare când se schimbă clipboard-ul acestui dispozitiv, fără conținutul lui; citirea cere în continuare permisiunea de citire."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Îți arată notificări sub numele ei, cu propriile cuvinte și butoane, în fereastră și în afara ei."
+
+msgid "Confirm {label}"
+msgstr "Confirmă {label}"
+
+msgid "Working…"
+msgstr "Se lucrează…"
+
+msgid "Completed"
+msgstr "Finalizat"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "Anulat. Verifică rezultatul extern înainte de a încerca din nou."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "Nu este permis. Verifică permisiunile extensiei."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Extensia nu este disponibilă. Pornește-o și încearcă din nou."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "Acțiunea a expirat. Verifică rezultatul înainte de a încerca din nou."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "O altă operațiune rulează. Încearcă din nou după finalizare."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "Acțiunea nu s-a putut finaliza. Verifică extensia și încearcă din nou."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Pornește extensia, alege un dispozitiv online când este necesar și acordă permisiunile."
+
+msgid "Enter a value within the declared limits."
+msgstr "Introdu o valoare în limitele declarate."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Setarea salvată nu este validă. Restabilește o valoare validă."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Platforme compatibile: {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Această extensie veche nu declară platformele compatibile."
+
+msgid "For {name}"
+msgstr "Pentru {name}"
+
+msgid "Install bundled {name}"
+msgstr "Instalează extensia inclusă {name}"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Nu este compatibilă cu acest sistem de operare"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Susține Peersus — complet opțional"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Dacă Peersus îți este util, poți oferi o contribuție voluntară. Toate funcțiile rămân gratuite, fără reclame, funcții plătite sau acces prioritar."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Plățile cu cardul folosesc contul Stripe conectat al creatorului, unde Ko-fi permite; metodele de plată pot varia. Peersus nu gestionează datele cardului."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "Contribuția nu cumpără un produs, serviciu, acces sau recompensă. Pot exista comisioane de procesare. Nu se promite deductibilitate fiscală. Mulțumirile publice sunt o alegere separată și opțională pe website, niciodată un beneficiu în aplicație."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Susține pe Ko-fi (deschide browserul)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Browserul nu a putut fi deschis. Poți deschide manual https://ko-fi.com/DarkPhilosophy."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Nu s-a putut citi: nu mai există sau aplicația nu îl poate deschide."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Fișierul este gol, deci nu conține niciun pachet."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Nu este nici dosar, nici fișier, deci nu poate fi un pachet."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Trimite date către un dispozitiv asociat pe care îl alegi. Nu poate vedea cheia niciunui dispozitiv."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "Întrerupe și repornește ORICE extensie, inclusiv cele pe care nu le-ai instalat în acest scop. Nu poate citi datele lor și nici modifica permisiunile lor."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "Mișcă cursorul, apasă butoane și taste și scrie text pe acest computer, ca de la un mouse și o tastatură conectate la el."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "Schimbă aranjamentul desktopurilor asociate ale acestui computer și locul în care cursorul trece de la unul la altul."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Este anunțată când un transfer începe, avansează, se încheie, este anulat sau eșuează: care transfer și cât a ajuns. Nu poate vedea numele unui fișier, numele unui dispozitiv sau locul în care se salvează ceva și nu poate accepta, refuza sau anula un transfer."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Vede și NUMELE fiecărui fișier transferat și numele dispozitivului către care merge sau de la care vine. Numele fișierelor pot spune multe despre o persoană."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Își creează propriile stări și alege cuvintele care le numesc. O stare doar creată nu spune nimic despre tine până când este activată."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Își activează și dezactivează propriile stări. Ce este activ este ARĂTAT fiecărui dispozitiv asociat, în cuvintele alese de extensie, cât timp rămâne activ."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Vede ce stări arată dispozitivele tale asociate și este anunțată când se schimbă. Ce spune o stare (urmărește ceva, este ocupat) poate fi personal."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Niciun dosar ales. Pentru fiecare fișier alegi unde ajunge."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "Un dosar este ales. Fișierele ajung direct în el."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "La început nu are nicio permisiune. După instalare decizi ce îi permiți să facă."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Există deja o extensie cu acest nume. Va fi înlocuită, iar cea nouă nu va avea nicio permisiune."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Această extensie nu a fost aprobată, deci nu rulează. Aprobarea îi permite să ruleze cu ceea ce solicită, enumerat mai jos."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Programul acestei extensii diferă de cel aprobat, deci nu rulează. O nouă aprobare îi permite să ruleze, iar permisiunile anterioare sunt uitate."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Această extensie nu poate fi folosită: este deteriorată sau programul ei nu poate rula. Poate fi doar eliminată."
+
+msgid "RUNNING"
+msgstr "ÎN EXECUȚIE"
+
+msgid "STARTING"
+msgstr "SE PORNEȘTE"
+
+msgid "RESTARTING"
+msgstr "SE REPORNEȘTE"
+
+msgid "OFF"
+msgstr "OPRITĂ"
+
+msgid "FAILED"
+msgstr "EȘUATĂ"
+
+msgid "BROKEN"
+msgstr "DETERIORATĂ"
+
+msgid "CHANGED"
+msgstr "MODIFICATĂ"
+
+msgid "NEEDS APPROVAL"
+msgstr "NECESITĂ APROBARE"
+
+msgid "Replace"
+msgstr "Înlocuiește"
+
+msgid "Drop one package at a time."
+msgstr "Plasează câte un singur pachet."
+
+msgid "No description was given for this permission."
+msgstr "Nu există o descriere pentru această permisiune."
+
+msgid "The selection is too large"
+msgstr "Selecția este prea mare"
+
+msgid "The file picker did not report its selection count"
+msgstr "Selectorul de fișiere nu a raportat numărul de fișiere selectate"
+
+msgid "The application answered with something else than a code"
+msgstr "Aplicația a răspuns cu altceva decât un cod"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "Pregătirea fișierelor s-a oprit înainte de finalizarea selecției."
+
+msgid "The file producer stopped before creating a code."
+msgstr "Pregătirea fișierelor s-a oprit înainte de crearea codului."
+
+msgid "Could not create invitation"
+msgstr "Nu s-a putut crea invitația"
+
+msgid "Application stopped"
+msgstr "Aplicația s-a oprit"
+
+msgid "Left out: {items}."
+msgstr "Omise: {items}."
+
+msgid "Not files: {count}"
+msgstr "Nu sunt fișiere: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Nu s-au putut citi: {count}"
+
+msgid "Empty files: {count}"
+msgstr "Fișiere goale: {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "Peste limita de {limit} de fișiere selectate: {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Fișiere selectate care nu au putut fi oferite: {refused}."
+
+msgid "Restart"
+msgstr "Repornește"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "SAU ALEGE UN DISPOZITIV SALVAT"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "AI UN COD DE PE ALT DISPOZITIV?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "SAU LIPEȘTE CODUL DE PE CELĂLALT DISPOZITIV"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "SAU LIPEȘTE ACEST COD PE CELĂLALT DISPOZITIV"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "CONECTEAZĂ LA CELĂLALT DISPOZITIV"
+
+msgid "TRANSFERS"
+msgstr "TRANSFERURI"
+
+msgid "PAIRED PEERS"
+msgstr "DISPOZITIVE ASOCIATE"
+
+msgid "MET BY CODE"
+msgstr "ÎNTÂLNITE PRIN COD"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} conectate)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} în execuție)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Ajunge direct pe dispozitivul ales"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Ajunge direct pe dispozitivele alese"
+
+msgid "No device picked: a code will be made"
+msgstr "Niciun dispozitiv ales: se va crea un cod"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "Un dispozitiv ales nu este disponibil. Alege din nou sau niciunul pentru a folosi un cod"
+
+msgid "tap to choose files"
+msgstr "atinge pentru a alege fișiere"
+
+msgid "click to browse your computer"
+msgstr "clic pentru a răsfoi calculatorul"
+
+msgid "SCAN"
+msgstr "SCANEAZĂ"
+
+msgid "tap to open the camera"
+msgstr "atinge pentru a deschide camera"
+
+msgid "starting the camera"
+msgstr "se pornește camera"
+
+msgid "NO CAMERA"
+msgstr "CAMERĂ INDISPONIBILĂ"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "permite accesul pentru Peersus în setările telefonului, apoi atinge"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Asociază: arată un cod de scanat pe celălalt dispozitiv. Conectează: scanează sau lipește codul afișat de celălalt dispozitiv."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "Asocierea acordă încredere celuilalt dispozitiv până îl elimini. Simpla trimitere a unui fișier prin cod nu acordă încredere."
+
+msgid "CHOOSE FILES"
+msgstr "ALEGE FIȘIERE"
+
+msgid "TO SEND"
+msgstr "DE TRIMIS"
+
+msgid "NO DEVICE PICKED"
+msgstr "NICIUN DISPOZITIV ALES"
+
+msgid "TAP FOR"
+msgstr "ATINGE PENTRU"
+
+msgid "A QR CODE"
+msgstr "UN COD QR"
+
+msgid "HOLD TO SEND"
+msgstr "ȚINE APĂSAT PENTRU A TRIMITE"
+
+msgid "TAP TO SEND"
+msgstr "ATINGE PENTRU A TRIMITE"
+
+msgid "1 DEVICE"
+msgstr "1 DISPOZITIV"
+
+msgid "{count} DEVICES"
+msgstr "{count} DISPOZITIVE"
+
+msgid "keep holding until it is full"
+msgstr "ține apăsat până se umple"
+
+msgid "it sends at once"
+msgstr "trimite imediat"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "UN DISPOZITIV A DISPĂRUT"
+
+msgid "PICK AGAIN"
+msgstr "ALEGE DIN NOU"
+
+msgid "nothing is sent until you do"
+msgstr "nu se trimite nimic până nu o faci"
+
+msgid "READY TO RECEIVE"
+msgstr "GATA DE PRIMIRE"
+
+msgid "PASTE"
+msgstr "LIPEȘTE"
+
+msgid "THE CODE"
+msgstr "CODUL"
+
+msgid "from the other device"
+msgstr "de pe celălalt dispozitiv"
+
+msgid "CONNECT"
+msgstr "CONECTEAZĂ"
+
+msgid "{name} wants to pair"
+msgstr "{name} dorește asocierea"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "AI RĂSPUNS, SE AȘTEAPTĂ CELĂLALT DISPOZITIV"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "ALEGE ACELAȘI NUMĂR PE AMBELE DISPOZITIVE"
+
+msgid "Send"
+msgstr "Trimite"
+
+msgid "Receive"
+msgstr "Primește"
+
+msgid "Peers"
+msgstr "Dispozitive"
+
+msgid "Settings"
+msgstr "Setări"
+
+msgid "Overview"
+msgstr "Prezentare generală"
+
+msgid "Device"
+msgstr "Dispozitiv"
+
+msgid "Appearance"
+msgstr "Aspect"
+
+msgid "Network"
+msgstr "Rețea"
+
+msgid "Extensions"
+msgstr "Extensii"
+
+msgid "Permissions"
+msgstr "Permisiuni"
+
+msgid "History"
+msgstr "Istoric"
+
+msgid "About"
+msgstr "Despre"
+
+msgid "Language"
+msgstr "Limbă"
+
+msgid "Reset"
+msgstr "Resetează"
+
+msgid "Accent colour"
+msgstr "Culoare de accent"
+
+msgid "Coral"
+msgstr "Coral"
+
+msgid "Sky"
+msgstr "Cer"
+
+msgid "Moss"
+msgstr "Mușchi"
+
+msgid "Amber"
+msgstr "Chihlimbar"
+
+msgid "Violet"
+msgstr "Violet"
+
+msgid "Rose"
+msgstr "Roz"
+
+msgid "Interface size"
+msgstr "Dimensiunea interfeței"
+
+msgid "Compact"
+msgstr "Compact"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Large"
+msgstr "Mare"
+
+msgid "Larger"
+msgstr "Mai mare"
+
+msgid "Largest"
+msgstr "Foarte mare"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Textul, pictogramele și spațierea cresc împreună. Ctrl și + sau − îl schimbă doar pentru această fereastră."
+
+msgid "Save"
+msgstr "Salvează"
+
+msgid "Cancel"
+msgstr "Anulează"
+
+msgid "View files"
+msgstr "Vezi fișierele"
+
+msgid "Close"
+msgstr "Închide"
+
+msgid "Copy"
+msgstr "Copiază"
+
+msgid "Request unlock"
+msgstr "Cere deblocarea"
+
+msgid "Generate a new identity"
+msgstr "Generează o identitate nouă"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Da, șterge identitatea anterioară și generează una nouă"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Aceasta șterge identitatea păstrată de sistem și pune deoparte asocierile. Dispozitivele trebuie asociate din nou. Nu poate fi anulată."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "Identitatea a fost resetată. Închide această fereastră și deschide Peersus din nou."
+
+msgid "Turn on devices nearby"
+msgstr "Pornește dispozitivele din apropiere"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Dispozitivele din apropiere sunt oprite. Pornește-le ca să vezi dispozitive apropiate care pot fi asociate."
+
+msgid "Paste"
+msgstr "Lipește"
+
+msgid "Select all"
+msgstr "Selectează tot"
+
+msgid "Cut"
+msgstr "Decupează"
+
+msgid "Remove"
+msgstr "Elimină"
+
+msgid "Relays"
+msgstr "Relee"
+
+msgid "Edit"
+msgstr "Editează"
+
+msgid "New relay: relay.example.org"
+msgstr "Releu nou: relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Scrie serverul releului, de exemplu relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Cât timp primește conexiunea directă înainte ca datele să poată trece printr-un releu."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "În ordinea Prioritate, cât timp se folosește o rezervă înainte ca primul releu să fie încercat din nou."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Caută relee"
+
+msgid "Position"
+msgstr "Poziția"
+
+msgid "New address"
+msgstr "Adresă nouă"
+
+msgid "This relay's own timings"
+msgstr "Timpii proprii ai acestui releu"
+
+msgid "Uses the list-wide timings"
+msgstr "Folosește timpii generali ai listei"
+
+msgid "Use list-wide timings"
+msgstr "Folosește timpii generali"
+
+msgid "Accept"
+msgstr "Acceptă"
+
+msgid "Refuse"
+msgstr "Refuză"
+
+msgid "Stop"
+msgstr "Oprește"
+
+msgid "Done"
+msgstr "Gata"
+
+msgid "Connect"
+msgstr "Conectează"
+
+msgid "Pair"
+msgstr "Asociază"
+
+msgid "Install"
+msgstr "Instalează"
+
+msgid "Uninstall"
+msgstr "Dezinstalează"
+
+msgid "Retry"
+msgstr "Reîncearcă"
+
+msgid "Open"
+msgstr "Deschide"
+
+msgid "Back"
+msgstr "Înapoi"
+
+msgid "System"
+msgstr "Sistem"
+
+msgid "Light"
+msgstr "Luminos"
+
+msgid "Dark"
+msgstr "Întunecat"
+
+msgid "Custom"
+msgstr "Personalizat"
+
+msgid "Device name"
+msgstr "Numele dispozitivului"
+
+msgid "CODE SCANNED"
+msgstr "COD SCANAT"
+
+msgid "SCANNED"
+msgstr "SCANAT"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "Celălalt dispozitiv a citit codul. Se așteaptă acceptarea."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "SE AȘTEAPTĂ ACCEPTAREA"
+
+msgid "SENDING"
+msgstr "SE TRIMITE"
+
+msgid "DONE"
+msgstr "GATA"
+
+msgid "STOPPED"
+msgstr "OPRIT"
+
+msgid "ENDS IN {time}"
+msgstr "EXPIRĂ ÎN {time}"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} vrea să îți trimită un fișier"
+
+msgid "A device wants to send you a file"
+msgstr "Un dispozitiv vrea să îți trimită un fișier"
+
+msgid "{files} are waiting in all"
+msgstr "În total așteaptă {files}"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "Se așteaptă ca celălalt dispozitiv să accepte {files}."
+
+msgid "Sending 1 file."
+msgstr "Se trimite 1 fișier."
+
+msgid "Sending {files}."
+msgstr "Se trimit {files}."
+
+msgid "1 file arrived."
+msgstr "1 fișier a sosit."
+
+msgid "{files} arrived."
+msgstr "{files} au sosit."
+
+msgid "1 SENT"
+msgstr "1 TRIMIS"
+
+msgid "{count} SENT"
+msgstr "{count} TRIMISE"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "Au sosit {done} din {files}. Restul au fost refuzate, anulate sau au eșuat."
+
+msgid "1 file selected"
+msgstr "1 fișier selectat"
+
+msgid "{files} selected"
+msgstr "{files} selectate"
+
+msgid "+ {count} more"
+msgstr "+ încă {count}"
+
+msgid "never seen"
+msgstr "nevăzut încă"
+
+msgid "just now"
+msgstr "chiar acum"
+
+msgid "{duration} ago"
+msgstr "acum {duration}"
+
+msgid "Continue"
+msgstr "Continuă"
+
+msgid "Join"
+msgstr "Conectează"
+
+msgid "Keep"
+msgstr "Păstrează"
+
+msgid "Forget"
+msgstr "Elimină asocierea"
+
+msgid "Not now"
+msgstr "Nu acum"
+
+msgid "Choose folder"
+msgstr "Alege dosarul"
+
+msgid "Use none"
+msgstr "Fără dosar"
+
+msgid "Name this device"
+msgstr "Numește acest dispozitiv"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Celelalte dispozitive îl vor afișa cu acest nume. Alege unul ușor de recunoscut."
+
+msgid "For example: Alex's laptop"
+msgstr "De exemplu: laptopul lui Alex"
+
+msgid "Paste the code"
+msgstr "Lipește codul"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Nu există dispozitive salvate. Trimite prin cod și păstrează dispozitivul când ți se cere."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "O acțiune. O destinație. Mută fișiere între dispozitive fără un labirint de meniuri."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Alege ce accepți. Tu stabilești regulile. Nimic nu sosește fără acordul tău."
+
+msgid "That is not a code from another device."
+msgstr "Acesta nu este un cod de la alt dispozitiv."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Nu există dispozitive asociate. Asociază unul mai sus."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Alege arhiva unei extensii sau lasă aici un dosar ori o arhivă."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Se vor elimina și toate permisiunile sale, pe fiecare dispozitiv. Apasă din nou pentru eliminare."
+
+msgid "No plugins installed."
+msgstr "Nu există extensii instalate."
+
+msgid "It cannot be granted anything."
+msgstr "Nu i se poate acorda nicio permisiune."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Asociază un dispozitiv pentru a acorda extensiei permisiuni pentru el."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Nu există extensii instalate, deci nu sunt permisiuni de acordat."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Nu s-a trimis sau primit nimic încă."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "IMPORTANT — RISCURI PRIVIND DATELE ȘI SECURITATEA"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "PORTALUL DE TRANSFER"
+
+msgid "WELCOME"
+msgstr "BUN VENIT"
+
+msgid "HISTORY"
+msgstr "ISTORIC"
+
+msgid "NOT PAIRED"
+msgstr "NEASOCIAT"
+
+msgid "WAITING FOR YOU"
+msgstr "TE AȘTEAPTĂ"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "FĂRĂ LEGĂTURĂ CU UN DISPOZITIV"
+
+msgid "Received"
+msgstr "Primit"
+
+msgid "Sent"
+msgstr "Trimis"
+
+msgid "done"
+msgstr "finalizat"
+
+msgid "cancelled"
+msgstr "anulat"
+
+msgid "failed"
+msgstr "eșuat"
+
+msgid "going"
+msgstr "în curs"
+
+msgid "SEND"
+msgstr "TRIMITE"
+
+msgid "RECEIVE"
+msgstr "PRIMEȘTE"
+
+msgid "PEERS"
+msgstr "DISPOZITIVE"
+
+msgid "Make files"
+msgstr "Fă fișierele"
+
+msgid "fly."
+msgstr "să zboare."
+
+msgid "Ready when"
+msgstr "Pregătit când"
+
+msgid "you are."
+msgstr "ești și tu."
+
+msgid "HOW THINGS STAND"
+msgstr "STAREA ACTUALĂ"
+
+msgid "This device"
+msgstr "Acest dispozitiv"
+
+msgid "Internet relays"
+msgstr "Relee de internet"
+
+msgid "Runs in the background"
+msgstr "Rulează în fundal"
+
+msgid "Paired devices"
+msgstr "Dispozitive asociate"
+
+msgid "Transfers in progress"
+msgstr "Transferuri în curs"
+
+msgid "on"
+msgstr "pornite"
+
+msgid "off"
+msgstr "oprite"
+
+msgid "yes"
+msgstr "da"
+
+msgid "no"
+msgstr "nu"
+
+msgid "THIS DEVICE"
+msgstr "ACEST DISPOZITIV"
+
+msgid "Run in the background"
+msgstr "Rulează în fundal"
+
+msgid "Start without opening a window."
+msgstr "Pornește fără a deschide o fereastră."
+
+msgid "Notifications"
+msgstr "Notificări"
+
+msgid "Offers over other apps"
+msgstr "Oferte peste alte aplicații"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "Pornit: lista fișierelor unei oferte se deschide peste ce faci, iar Acceptă nu deschide Peersus."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Oprit: lista fișierelor unei oferte se deschide în Peersus. Permite-l ca să vezi lista peste alte aplicații."
+
+msgid "Where an offer appears"
+msgstr "Unde apare o ofertă"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "Marginea ecranului la care oferta unui fișier este afișată peste ce faci."
+
+msgid "Top"
+msgstr "Sus"
+
+msgid "Bottom"
+msgstr "Jos"
+
+msgid "Left"
+msgstr "Stânga"
+
+msgid "Right"
+msgstr "Dreapta"
+
+msgid "Battery"
+msgstr "Baterie"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "Pornit: rețeaua serviciului din fundal continuă să funcționeze cât telefonul este inactiv."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Limitat: cât telefonul este inactiv, sistemul poate tăia rețeaua serviciului din fundal. Permite în setările bateriei."
+
+msgid "Trying to reach the device"
+msgstr "Se încearcă conectarea la dispozitiv"
+
+msgid "This can take up to half a minute."
+msgstr "Poate dura până la o jumătate de minut."
+
+msgid "It answers, and it knows this device"
+msgstr "Răspunde și recunoaște acest dispozitiv"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "Conexiunea funcționează. Nu trebuie făcut nimic."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Răspunde, dar nu mai recunoaște acest dispozitiv"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Șterge-l de aici și asociază din nou cele două dispozitive. Nimic altceva nu e greșit."
+
+msgid "It does not answer"
+msgstr "Nu răspunde"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Poate fi oprit sau în afara razei. Încearcă din nou peste puțin timp. Releele sunt pornite, deci schimbarea rețelei nu e cauza."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "Releele sunt oprite, așa că dispozitivele din rețele diferite nu se pot găsi. Pornește „Folosește relee de internet” în Setări."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "Pornite: o ofertă de fișier este afișată chiar și când programul e închis."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Blocate: o ofertă de fișier nu este afișată până nu permiți notificările."
+
+msgid "Allow"
+msgstr "Permite"
+
+msgid "Camera"
+msgstr "Cameră"
+
+msgid "Wide"
+msgstr "Ultra-wide"
+
+msgid "Main"
+msgstr "Principală"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Automat"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Alege camera care citește un cod și apasă Testează ca să vezi ce arată."
+
+msgid "Test the camera"
+msgstr "Testează camera"
+
+msgid "Test connection"
+msgstr "Testează conexiunea"
+
+msgid "Where is this device?"
+msgstr "Unde este acest dispozitiv?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 sau nume.exemplu.ro:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Scrie unde poate fi găsit acest dispozitiv când adresa de la asociere s-a schimbat."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Un nume e mai bun decât un număr: e căutat din nou de fiecare dată, deci merge și când numărul se schimbă."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "Portul e afișat pe celălalt dispozitiv, în Setări. Fără port se folosește cel la care a fost văzut ultima dată."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Ajută doar dacă dispozitivul poate fi atins la acea adresă. Un telefon pe rețea mobilă de obicei nu poate, și atunci doar releele îl conectează."
+
+msgid "Save and test"
+msgstr "Salvează și testează"
+
+msgid "Remove the address"
+msgstr "Șterge adresa"
+
+msgid "Listening port"
+msgstr "Port de ascultare"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "Alt dispozitiv scrie acest port după adresa acestuia ca să-l găsească. Se schimbă la fiecare pornire a programului."
+
+msgid "Search settings"
+msgstr "Caută în setări"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Nimic din setări nu seamănă cu asta."
+
+msgid "Files sent"
+msgstr "Fișiere trimise"
+
+msgid "Files received"
+msgstr "Fișiere primite"
+
+msgid "Files in all"
+msgstr "Fișiere în total"
+
+msgid "Generate QR code"
+msgstr "Generează cod QR"
+
+msgid "Clear the list"
+msgstr "Golește lista"
+
+msgid "+ Add more files"
+msgstr "+ Adaugă alte fișiere"
+
+msgid "All"
+msgstr "Toate"
+
+msgid "Active"
+msgstr "Active"
+
+msgid "Stopped"
+msgstr "Oprite"
+
+msgid "Incoming"
+msgstr "Primite"
+
+msgid "Outgoing"
+msgstr "Trimise"
+
+msgid "Search transfers"
+msgstr "Caută transferuri"
+
+msgid "No transfer matches."
+msgstr "Niciun transfer nu se potrivește."
+
+msgid "Minimize"
+msgstr "Minimizează"
+
+msgid "Expand"
+msgstr "Extinde"
+
+msgid "OUTGOING FILES"
+msgstr "FIȘIERE TRIMISE"
+
+msgid "EXPERIMENTAL"
+msgstr "EXPERIMENTAL"
+
+msgid "Devices nearby"
+msgstr "Dispozitive din apropiere"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Oprit: nu se anunță nimic și nu se ascultă nimic. Pornit: cât timp fereastra este deschisă, acest dispozitiv ascultă dispozitivele din apropiere și poate fi găsit de ele. Cu Receive deschis spune că primește fișiere: fișierele din lista unui dispozitiv asociat ținut chiar lângă el sunt trimise imediat, iar un dispozitiv neasociat își poate oferi fișierele când este adus aproape; pentru fiecare fișier ești întrebat aici. Cu Peers deschis spune că este acolo pentru asociere, iar în Peers apar dispozitivele din apropiere care spun același lucru. Folosește Bluetooth."
+
+msgid "NEARBY"
+msgstr "ÎN APROPIERE"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Niciun dispozitiv în apropiere deocamdată. Deschide Peers pe celălalt dispozitiv, cu „Dispozitive din apropiere” pornit și acolo."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Numele de aici este ce spune acel dispozitiv despre sine. Alegerea unuia începe asocierea: apoi amândoi alegeți același număr."
+
+msgid "That device is no longer nearby"
+msgstr "Acel dispozitiv nu mai este în apropiere"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Oferite dispozitivului adus aproape. Fiecare fișier trebuie acceptat de persoana de acolo."
+
+msgid "That device does not take files this way"
+msgstr "Acel dispozitiv nu primește fișiere în acest fel"
+
+msgid "How near is near"
+msgstr "Cât de aproape înseamnă aproape"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "Ține cele două dispozitive atât de aproape cât le vei ține când trimiți, cu aplicația deschisă pe amândouă, apoi măsoară și setează. Un dispozitiv contează ca adus aproape puțin sub puterea măsurată, ca o mână care nu stă complet nemișcată să nu îl piardă."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "Aproape începe de la {dbm} dBm, așa cum ai setat."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "Aproape începe de la {dbm} dBm, valoarea aplicației."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Cel mai puternic dispozitiv auzit acum: {dbm} dBm. Setat de aici, aproape ar începe de la {near} dBm."
+
+msgid "No device with this application open is heard yet."
+msgstr "Niciun dispozitiv cu această aplicație deschisă nu este auzit deocamdată."
+
+msgid "Measure"
+msgstr "Măsoară"
+
+msgid "Stop measuring"
+msgstr "Oprește măsurarea"
+
+msgid "Set near from here"
+msgstr "Setează aproape de aici"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Acest dispozitiv nu are un Bluetooth care să poată fi folosit pentru a găsi dispozitivele aduse aproape."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Bluetooth este oprit. Pornește-l pentru a găsi dispozitivele aduse aproape."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Sistemul nu îi permite acestui program să folosească Bluetooth pentru a găsi dispozitivele aduse aproape."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Bluetooth a refuzat. Se încearcă din nou de la sine."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Sistemul permite acestui dispozitiv să găsească dispozitivele aduse aproape, dar nu și să fie găsit de ele."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Trimise dispozitivului ținut aproape, cu Receive deschis. Fiecare fișier trebuie acceptat de persoana de acolo."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} este aproape. Deschide Receive pe el și aceste fișiere ajung la el."
+
+msgid "Send instantly"
+msgstr "Trimite imediat"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Oprit: după ce alegi destinația, ții apăsat cercul până se umple, deci o alegere greșită nu costă nimic. Pornit: atingerea cercului trimite imediat."
+
+msgid "INCOMING FILES"
+msgstr "FIȘIERE PRIMITE"
+
+msgid "Save incoming files on their own"
+msgstr "Salvează automat fișierele primite"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Oprit: alegi destinația fiecărui fișier. Pornit: fișierele ajung direct în dosarul de mai jos, fără confirmare."
+
+msgid "THEME"
+msgstr "TEMĂ"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Păstrează iconițele când bara este închisă"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Bara închisă afișează doar iconițele. Dacă opțiunea este oprită, bara închisă nu se afișează."
+
+msgid "Reduce motion"
+msgstr "Redu animațiile"
+
+msgid "Turn off decorative animation."
+msgstr "Oprește animațiile decorative."
+
+msgid "CONNECTIONS"
+msgstr "CONEXIUNI"
+
+msgid "Use internet relays"
+msgstr "Folosește relee de internet"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Permite conectarea dispozitivelor din rețele diferite. Oprit: traficul rămâne în această rețea."
+
+msgid "INSTALLED"
+msgstr "INSTALATE"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "CE POATE FACE FIECARE EXTENSIE"
+
+msgid "File"
+msgstr "Fișier"
+
+msgid "Direction"
+msgstr "Direcție"
+
+msgid "State"
+msgstr "Stare"
+
+msgid "Move it. Don't store it."
+msgstr "Transferă. Nu stoca."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Conexiuni private între dispozitivele tale. Fișierele merg direct de pe un dispozitiv pe altul, doar după aprobarea destinatarului, fără dosare în cloud."
+
+msgid "INTERFACE"
+msgstr "INTERFAȚĂ"
+
+msgid "RENDERING"
+msgstr "RANDARE"
+
+msgid "NETWORK"
+msgstr "REȚEA"
+
+msgid "ENGINE"
+msgstr "MOTOR"
+
+msgid "The windows, layout and components of this application."
+msgstr "Ferestrele, aranjarea și componentele aplicației."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "Selectoarele de fișiere și dosare ale sistemului."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Generează codul scanat de alt dispozitiv pentru conectare."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Desenează tot ce apare pe ecran: text și forme."
+
+msgid "Shapes the letters of the text."
+msgstr "Redă formele literelor din text."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "O bibliotecă mică de desenare, folosită unde nu se folosește Skia."
+
+msgid "Encrypted connections between your devices."
+msgstr "Conexiuni criptate între dispozitivele tale."
+
+msgid "The encryption of those connections."
+msgstr "Criptarea acestor conexiuni."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "Componentele criptografice folosite de rustls."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Descarcă prin HTTPS ce are nevoie aplicația."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Rulează mai multe transferuri simultan, fără să se blocheze reciproc."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Citește și scrie fișierele și mesajele salvate de aplicație."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Păstrează identitatea dispozitivului în depozitul de chei al sistemului. Un patch local de compatibilitate elimină backendul asincron nefolosit și dependențele sale vechi de serializare, păstrând backendurile native și comportamentul existent de căutare a credentialelor. Starea verificării și proveniența sunt documentate împreună cu patch-ul."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Hash-uri și coduri de autentificare pentru verificarea fișierelor și asocierii."
+
+msgid "That file could not be read."
+msgstr "Fișierul nu a putut fi citit."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Fișierul este prea mare pentru o imagine de profil."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "Alege o imagine PNG sau JPEG."
+
+msgid "That picture is too large to use."
+msgstr "Imaginea este prea mare pentru a fi folosită."
+
+msgid "That picture could not be read."
+msgstr "Imaginea nu a putut fi citită."
+
+msgid "That picture could not be kept; try again."
+msgstr "Imaginea nu a putut fi păstrată; încearcă din nou."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Acest telefon nu permite alegerea unei imagini aici."
+
+msgid "NOTICES"
+msgstr "MENȚIUNI LEGALE"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Păstrează copii de siguranță independente și verifică fișierele importante după transfer. Aplicația este un instrument de transfer, nu un serviciu de backup. Rămâi responsabil pentru fișierele alese, dispozitivele în care ai încredere și permisiunile acordate."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Măsurile de securitate reduc riscul; nu pot garanta absența vulnerabilităților, a accesului neautorizat sau a divulgării datelor. Dispozitivele compromise, extensiile nesigure, configurările greșite și vulnerabilitățile viitoare îți pot afecta datele."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Aplicația depinde de biblioteci terțe, sisteme de operare, extensii și, când sunt activate, servicii de releu de rețea. Aceste dependențe introduc riscuri în afara controlului autorilor. Componentele terțe își păstrează propriile licențe, condiții și notificări."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Nimic din această notificare nu exclude răspunderea pe care legea aplicabilă nu permite să fie exclusă și nu limitează drepturile la care nu se poate renunța legal."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Acest software este furnizat CA ATARE, fără garanții sau condiții de niciun fel, conform secțiunilor 7 și 8 din Licența Apache 2.0. În măsura permisă de legea aplicabilă, autorii și contribuitorii nu răspund pentru pierderile rezultate din utilizare, inclusiv date pierdute, corupte sau divulgate."
+
+msgid "Device is offline"
+msgstr "Dispozitivul este offline"
+
+msgid "Could not open selected file"
+msgstr "Fișierul ales nu a putut fi deschis"
+
+msgid "Could not offer selected files"
+msgstr "Fișierele alese nu au putut fi oferite"
+
+msgid "Could not accept transfer"
+msgstr "Transferul nu a putut fi acceptat"
+
+msgid "Could not cancel transfer"
+msgstr "Transferul nu a putut fi anulat"
+
+msgid "Files selection is no longer active"
+msgstr "Selecția de fișiere nu mai este activă"
+
+msgid "Could not queue selected files"
+msgstr "Fișierele alese nu au putut fi puse în coadă"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Preferințele au fost schimbate în altă parte; reîncarcă înainte de salvare"
+
+msgid "Invalid or expired invitation"
+msgstr "Invitație invalidă sau expirată"
+
+msgid "Connection queue is full"
+msgstr "Coada de conexiuni este plină"
+
+msgid "Pairing request is no longer active"
+msgstr "Cererea de asociere nu mai este activă"
+
+msgid "The owner answered with something else."
+msgstr "Serviciul a trimis un răspuns neașteptat."
+
+msgid "Unexpected file handoff reply"
+msgstr "Răspuns neașteptat la predarea fișierelor"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "Un fișier primit nu a putut fi mutat în dosarul ales. Este păstrat în dosarul propriu al aplicației."
+
+msgid "STORE"
+msgstr "MAGAZIN"
+
+msgid "Search extensions"
+msgstr "Caută extensii"
+
+msgid "Install from file"
+msgstr "Instalează din fișier"
+
+msgid "Before you choose a file"
+msgstr "Înainte să alegi un fișier"
+
+msgid "I understand and accept the risk"
+msgstr "Înțeleg și accept riscul"
+
+msgid "Search the store"
+msgstr "Caută în magazin"
+
+msgid "Refresh"
+msgstr "Reîmprospătează"
+
+msgid "Refresh the list"
+msgstr "Reîmprospătează lista"
+
+msgid "by {author} · version {version}"
+msgstr "de {author} · versiunea {version}"
+
+msgid "Installed: version {version}"
+msgstr "Instalat: versiunea {version}"
+
+msgid "Update"
+msgstr "Actualizează"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "Actualizarea uită ce avea voie să facă versiunea instalată. Decizi din nou după aceea."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "Este instalată o versiune mai nouă decât cea aprobată. Elimin-o pentru a instala versiunea aprobată."
+
+msgid "The extension store is not set up in this build."
+msgstr "Magazinul de extensii nu este configurat în această versiune."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Apasă Reîmprospătează pentru a vedea extensiile aprobate de responsabil."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "Magazinul nu a putut finaliza acțiunea. Nu s-a schimbat nimic."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "Responsabilul nu a aprobat încă nicio extensie."
+
+msgid "No extension matches your search."
+msgstr "Nicio extensie nu corespunde căutării."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "Instalarea manuală nu înseamnă aprobare oficială. Verifică extensia și sursa ei; ești responsabil pentru codul instalat în afara magazinului."
+
+msgid "Remove for good?"
+msgstr "Elimini definitiv?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Deteriorată sau învechită: instaleaz-o din nou ca s-o repari"
+
+msgid "Stopped working: update or install it again"
+msgstr "Nu mai funcționează: actualizeaz-o sau instaleaz-o din nou"
+
+msgid "Update available:"
+msgstr "Actualizare disponibilă:"
+
+msgid "Automatic updates"
+msgstr "Actualizări automate"
+
+msgid "Approve"
+msgstr "Aprobă"
+
+msgid "Reinstall"
+msgstr "Reinstalează"
+
+msgid "Background clipboard access"
+msgstr "Acces la clipboard în fundal"
+
+msgid "On"
+msgstr "Pornit"
+
+msgid "Off"
+msgstr "Oprit"
+
+msgid "Remote input accessibility"
+msgstr "Accesibilitate pentru control la distanță"
+
+msgid "Relay"
+msgstr "Releu"
+
+msgid "Advanced relay options"
+msgstr "Opțiuni avansate relay"
+
+msgid "Direct wait (ms)"
+msgstr "Așteptare conexiune directă (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Timeout relay (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Reîncearcă relay-ul preferat (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Intervale în ms: direct 100–30000; fallback 500–60000; reîncercare 5000–3600000."
+
+msgid "Not installed"
+msgstr "Disponibilă"
+
+msgid "Connecting to home relay"
+msgstr "Conectare la releul principal"
+
+msgid "Home relay connected"
+msgstr "Releul principal este conectat"
+
+msgid "Home relay unavailable"
+msgstr "Releul principal nu este disponibil"
+
+msgid "Home relay refused access"
+msgstr "Releul principal a refuzat accesul"
+
+msgid "Direct connection is always tried first."
+msgstr "Conexiunea directă este încercată întotdeauna prima."
+
+msgid "Project relay"
+msgstr "Releul proiectului"
+
+msgid "Public relays (n0)"
+msgstr "Relee publice (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Activează releele publice (n0)"
+
+msgid "Move up"
+msgstr "Mută în sus"
+
+msgid "Move down"
+msgstr "Mută în jos"
+
+msgid "Save and enable relay"
+msgstr "Salvează și activează releul"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Tokenul este trimis doar releului tău personalizat, niciodată releelor proiectului sau celor publice."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Traficul aplicației așteaptă o legătură directă înainte de a folosi releele în această ordine. Semnalizarea poate începe mai devreme. Traficul retransmis este criptat integral, dar metadatele conexiunii sunt vizibile. Aplicația nu trimite telemetrie."
+
+msgid "Public relays"
+msgstr "Relee publice"
+
+msgid "No relay"
+msgstr "Fără releu"
+
+msgid "My own relay"
+msgstr "Releul meu"
+
+msgid "Priority"
+msgstr "Prioritate"
+
+msgid "Sequential"
+msgstr "Secvențial"
+
+msgid "Latency"
+msgstr "Latență"
+
+msgid "Order"
+msgstr "Ordine"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Toate releele active sunt oferite împreună; se folosește cel mai apropiat care răspunde."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "Ordinea din listă este preferința; primul releu este încercat din nou după o rezervă."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "În ordinea listei; un releu care merge este păstrat până cade."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "Releele active sunt măsurate și se folosește cel mai rapid care răspunde."
+
+msgid "No answer"
+msgstr "Fără răspuns"
+
+msgid "Remove this relay?"
+msgstr "Elimini acest releu?"
+
+msgid "Change address"
+msgstr "Schimbă adresa"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Tokenul este trimis doar acestui releu, niciodată celorlalte."
+
+msgid "Test relays"
+msgstr "Testează releele"
+
+msgid "Add a relay"
+msgstr "Adaugă un releu"
+
+msgid "Add relay"
+msgstr "Adaugă releu"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "Releele pe care le poate folosi oricine. Transportă doar trafic criptat și nu îl pot citi."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Fără releu: dispozitivele din rețele diferite nu se pot găsi. Traficul rămâne în această rețea."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Un releu pe care îl rulezi tu, în locul celor publice."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Folosește acest releu"
+
+msgid "Access token (kept on this device only)"
+msgstr "Token de acces (păstrat doar pe acest dispozitiv)"
+
+msgid "Save token"
+msgstr "Salvează tokenul"
+
+msgid "Forget token"
+msgstr "Uită tokenul"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Tokenul este păstrat în stocarea sigură a acestui dispozitiv. Nu mai este afișat și nu este trimis altor dispozitive."
+
+msgid "Token saved"
+msgstr "Token salvat"
+
+msgid "Token forgotten"
+msgstr "Token uitat"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "Adresa releului trebuie să înceapă cu https:// și să fie o singură adresă, fără spații"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Tokenul releului trebuie să fie o singură linie de cel mult 512 caractere"
+
+msgid "Page background"
+msgstr "Fundalul paginii"
+
+msgid "Cards and panels"
+msgstr "Carduri și panouri"
+
+msgid "Raised controls and hover"
+msgstr "Controale în relief și evidențiere"
+
+msgid "Top header background"
+msgstr "Fundalul antetului"
+
+msgid "Sidebar background"
+msgstr "Fundalul barei laterale"
+
+msgid "Borders and separators"
+msgstr "Borduri și separatoare"
+
+msgid "Primary text"
+msgstr "Text principal"
+
+msgid "Secondary text"
+msgstr "Text secundar"
+
+msgid "Portal disc"
+msgstr "Discul portalului"
+
+msgid "Portal text"
+msgstr "Textul portalului"
+
+msgid "Send indicators"
+msgstr "Indicatori de trimitere"
+
+msgid "Receive indicators"
+msgstr "Indicatori de primire"
+
+msgid "Connected and successful"
+msgstr "Conectat și reușit"
+
+msgid "Offline and failed"
+msgstr "Offline și eșuat"
+
+msgid "Warning text"
+msgstr "Textul avertizării"
+
+msgid "Warning background"
+msgstr "Fundalul avertizării"
+
+msgid "Primary button background"
+msgstr "Fundalul butonului principal"
+
+msgid "Primary button text"
+msgstr "Textul butonului principal"
+
+msgid "Minimise window control"
+msgstr "Butonul de minimizare a ferestrei"
+
+msgid "Maximise window control"
+msgstr "Butonul de maximizare a ferestrei"
+
+msgid "Close window control"
+msgstr "Butonul de închidere a ferestrei"
+
+msgid "Navigation icons"
+msgstr "Pictograme de navigare"
+
+msgid "Selected navigation icon"
+msgstr "Pictograma de navigare selectată"
+
+msgid "Camera detection outline"
+msgstr "Conturul detecției camerei"
+
+msgid "CUSTOM THEME"
+msgstr "TEMĂ PERSONALIZATĂ"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Alege un element și scrie-i culoarea. Previzualizarea și întreaga interfață se schimbă pe măsură ce scrii; nimic nu se salvează până nu salvezi tema."
+
+msgid "Dark base"
+msgstr "Bază întunecată"
+
+msgid "Light base"
+msgstr "Bază luminoasă"
+
+msgid "Editing: {element}"
+msgstr "Se editează: {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Introdu șase cifre hexazecimale RGB, de exemplu #708090."
+
+msgid "Discard changes"
+msgstr "Renunță la modificări"
+
+msgid "Reset selected element"
+msgstr "Resetează elementul selectat"
+
+msgid "Your theme name"
+msgstr "Numele temei tale"
+
+msgid "Confirm replace existing theme"
+msgstr "Confirmă înlocuirea temei existente"
+
+msgid "Save named theme"
+msgstr "Salvează tema cu acest nume"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "BIBLIOTECA DE TEME SALVATE"
+
+msgid "Load {name}"
+msgstr "Încarcă {name}"
+
+msgid "Confirm removal"
+msgstr "Confirmă eliminarea"
+
+msgid "IMPORT / EXPORT"
+msgstr "IMPORT / EXPORT"
+
+msgid "Export / copy theme JSON"
+msgstr "Exportă / copiază JSON-ul temei"
+
+msgid "Paste exported theme JSON here"
+msgstr "Lipește aici JSON-ul unei teme exportate"
+
+msgid "Import JSON for preview"
+msgstr "Importă JSON-ul pentru previzualizare"
+
+msgid "Import theme file…"
+msgstr "Importă fișier cu temă…"
+
+msgid "Export theme file…"
+msgstr "Exportă fișier cu temă…"
+
+msgid "Theme JSON"
+msgstr "JSON temă"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Contrast scăzut: „{text}” pe „{surface}” poate fi greu de citit."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Alege un nume de temă de 1–64 de caractere, fără spații la început sau la sfârșit."
+
+msgid "The theme could not be exported."
+msgstr "Tema nu a putut fi exportată."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Fișierele cu teme pot avea cel mult 64 KiB."
+
+msgid "This is not a valid theme file."
+msgstr "Acesta nu este un fișier de temă valid."
+
+msgid "This theme format version is not supported."
+msgstr "Această versiune a formatului de temă nu este acceptată."
+
+msgid "The theme name is invalid."
+msgstr "Numele temei nu este valid."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Acest nume există deja. Confirmă înlocuirea mai jos sau folosește alt nume."
+
+msgid "Theme saved in your library."
+msgstr "Tema a fost salvată în biblioteca ta."
+
+msgid "The theme could not be saved."
+msgstr "Tema nu a putut fi salvată."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Tema a fost copiată. Lipește-o într-un fișier sau într-o altă instalare."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "JSON-ul temei este în câmpul de schimb de mai jos; poate fi selectat și copiat."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Importată pentru previzualizare. Salveaz-o pentru a o adăuga în biblioteca ta."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Modificările au fost abandonate; preferințele salvate rămân neschimbate."
+
+msgid "The theme file could not be opened."
+msgstr "Fișierul temei nu a putut fi deschis."
+
+msgid "The theme file could not be read."
+msgstr "Fișierul temei nu a putut fi citit."
+
+msgid "Theme exported."
+msgstr "Tema a fost exportată."
+
+msgid "Theme removed from your library."
+msgstr "Tema a fost eliminată din biblioteca ta."
+
+msgid "The theme could not be removed."
+msgstr "Tema nu a putut fi eliminată."
+
+msgid "Top header"
+msgstr "Antet"
+
+msgid "Header · navigation and window controls"
+msgstr "Antet · navigare și butoanele ferestrei"
+
+msgid "Sidebar"
+msgstr "Bară laterală"
+
+msgid "Navigation icon"
+msgstr "Pictogramă de navigare"
+
+msgid "Window control (preview only)"
+msgstr "Buton de fereastră (doar previzualizare)"
+
+msgid "Portal disc and its text"
+msgstr "Discul portalului și textul lui"
+
+msgid "PORTAL"
+msgstr "PORTAL"
+
+msgid "Primary button"
+msgstr "Buton principal"
+
+msgid "Primary action"
+msgstr "Acțiune principală"
+
+msgid "Warning notice"
+msgstr "Notă de avertizare"
+
+msgid "Warning: verify received files."
+msgstr "Atenție: verifică fișierele primite."
+
+msgid "Camera detection marker"
+msgstr "Marcaj de detecție al camerei"
+
+msgid "Sending →"
+msgstr "Se trimite →"
+
+msgid "← Receiving"
+msgstr "← Se primește"
+
+msgid "● Connected · Complete"
+msgstr "● Conectat · Finalizat"
+
+msgid "● Offline · Failed"
+msgstr "● Offline · Eșuat"
+
+msgid "Transfer or connection indicator"
+msgstr "Indicator de transfer sau de conexiune"
+
+msgid "Text on the page"
+msgstr "Text pe pagină"
+
+msgid "Primary text — names and headings"
+msgstr "Text principal — nume și titluri"
+
+msgid "Secondary text — descriptions and details"
+msgstr "Text secundar — descrieri și detalii"
+
+msgid "Surface and border"
+msgstr "Suprafață și bordură"
+
+msgid "Panel / page content"
+msgstr "Panou / conținutul paginii"
+
+msgid "PREVIEW — {element}"
+msgstr "PREVIZUALIZARE — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Importă fișier cu temă · Exportă fișier cu temă · JSON"
+
+msgid "UPDATES"
+msgstr "ACTUALIZĂRI"
+
+msgid "Update automatically"
+msgstr "Actualizează automat"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "Pornit: o actualizare verificată a Peersus este descărcată și pusă la locul ei fără a întreba."
+
+msgid "Restart after an update"
+msgstr "Repornește după o actualizare"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "Pornit: Peersus repornește singur după ce o actualizare este la locul ei, când nu se trimite și nu se primește nimic."
+
+msgid "Check for updates"
+msgstr "Caută actualizări"
+
+msgid "Update now"
+msgstr "Actualizează acum"
+
+msgid "Restart now"
+msgstr "Repornește acum"
+
+msgid "This installation does not update itself."
+msgstr "Această instalare nu se actualizează singură."
+
+msgid "Updates have not been looked for yet."
+msgstr "Încă nu s-au căutat actualizări."
+
+msgid "Looking for an update…"
+msgstr "Se caută o actualizare…"
+
+msgid "This version is up to date."
+msgstr "Această versiune este la zi."
+
+msgid "Version {version} is available."
+msgstr "Versiunea {version} este disponibilă."
+
+msgid "Version"
+msgstr "Versiune"
+
+msgid "Updates"
+msgstr "Actualizări"
+
+msgid "not in this build"
+msgstr "nu în acest build"
+
+msgid "not automatic"
+msgstr "nu automate"
+
+msgid "not checked yet"
+msgstr "neverificate încă"
+
+msgid "checking…"
+msgstr "se verifică…"
+
+msgid "up to date"
+msgstr "la zi"
+
+msgid "update available"
+msgstr "actualizare disponibilă"
+
+msgid "updating…"
+msgstr "se actualizează…"
+
+msgid "restart to finish"
+msgstr "repornește pentru a termina"
+
+msgid "Binds"
+msgstr "Taste"
+
+msgid "KEY BINDINGS"
+msgstr "COMBINAȚII DE TASTE"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "O combinație face ce scrie pe rândul ei cât timp fereastra este în față. Apasă + și apoi tastele împreună ca să adaugi una, până la trei; apasă o combinație ca s-o schimbi, apoi Backspace ca s-o elimini sau Escape ca s-o lași."
+
+msgid "press the keys…"
+msgstr "apasă tastele…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Backspace o elimină"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} are deja trei combinații de taste."
+
+msgid "Also while the window is not in front"
+msgstr "Și cât timp fereastra nu este în față"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Desktopul îți cere să aprobi tastele și poate da altă tastă acolo unde una este ocupată."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} face deja: {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Acceptă cea mai nouă ofertă de fișiere care te așteaptă, salvate unde spune regula ta pentru fișierele primite."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Refuză cea mai nouă ofertă de fișiere care te așteaptă."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Deschide pagina Trimite, pentru a alege fișierele și dispozitivul către care pleacă."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Deschide pagina Primește, cu codul de asociere și fișierele primite."
+
+msgid "Accept incoming files"
+msgstr "Acceptă fișierele primite"
+
+msgid "Decline incoming files"
+msgstr "Refuză fișierele primite"
+
+msgid "Show Send"
+msgstr "Arată Trimite"
+
+msgid "Show Receive"
+msgstr "Arată Primește"
+
+msgid "something no longer installed"
+msgstr "ceva care nu mai este instalat"
+
+msgid "Downloading the update…"
+msgstr "Se descarcă actualizarea…"
+
+msgid "Putting the update in place…"
+msgstr "Se pune actualizarea la locul ei…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "Actualizarea este la locul ei. Rulează după o repornire."
+
+msgid "Restarting…"
+msgstr "Se repornește…"
+
+msgid "The update could not be completed."
+msgstr "Actualizarea nu a putut fi finalizată."
+
+msgid "Accept TOS"
+msgstr "Acceptă TOS"
+
+msgid "Next"
+msgstr "Înainte"
+
+msgid "Hold to confirm"
+msgstr "Ține apăsat pentru a confirma"
+
+msgid "Keep holding"
+msgstr "Continuă să ții apăsat"
+
+msgid "Read to the end to go on"
+msgstr "Citește până la capăt ca să continui"
+
+msgid "Step {number} of {total}"
+msgstr "Pasul {number} din {total}"
+
+msgid "WHAT THIS IS"
+msgstr "CE ESTE"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "CE SE SCHIMBĂ PENTRU TINE"
+
+msgid "READ THE FULL TEXT"
+msgstr "CITEȘTE TEXTUL COMPLET"
+
+msgid "LICENCE"
+msgstr "LICENȚĂ"
+
+msgid "NOTICE"
+msgstr "NOTĂ"
+
+msgid "TERMS"
+msgstr "TERMENI"
+
+msgid "OUTSIDE THE STORE"
+msgstr "ÎN AFARA MAGAZINULUI"
+
+msgid "This extension did not come through the store"
+msgstr "Această extensie nu a venit prin magazin"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Nimeni de la Peersus nu a verificat-o, nu a semnat-o și nu a promis că este sigură. Rulează cu accesul tău pe acest dispozitiv și poate citi și trimite tot ce îi dai voie să atingă."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Proiectul Peersus nu poate lua asupra lui riscul unei extensii din afara magazinului său și nu răspunde pentru ce face aceasta cu tine, cu fișierele sau cu dispozitivele tale. Riscul este al tău."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Alege magazinul: ce e listat acolo a fost verificat înainte de a fi oferit. Dacă nu știi cine a făcut acest pachet, nu-l instala."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Citește până la capăt, apoi ține apăsat butonul ca să confirmi că ai înțeles și accepți riscul."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} fișier"
+msgstr[1] "{count} fișiere"
+msgstr[2] "{count} de fișiere"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minut"
+msgstr[1] "{count} minute"
+msgstr[2] "{count} de minute"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} oră"
+msgstr[1] "{count} ore"
+msgstr[2] "{count} de ore"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} zi"
+msgstr[1] "{count} zile"
+msgstr[2] "{count} de zile"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} lună"
+msgstr[1] "{count} luni"
+msgstr[2] "{count} de luni"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} an"
+msgstr[1] "{count} ani"
+msgstr[2] "{count} de ani"
+
+msgid "The language file could not be read."
+msgstr "Fișierul de limbă nu a putut fi citit."
+
+msgid "The language file was imported."
+msgstr "Fișierul de limbă a fost importat."
+
+msgid "The template was saved."
+msgstr "Șablonul a fost salvat."
+
+msgid "The template could not be saved."
+msgstr "Șablonul nu a putut fi salvat."
+
+msgid "Could not open a browser."
+msgstr "Nu s-a putut deschide un browser."
+
+msgid "This device is set to {language}."
+msgstr "Acest dispozitiv folosește {language}."
+
+msgid "This device names no language, so English is used."
+msgstr "Acest dispozitiv nu numește nicio limbă, așa că se folosește engleza."
+
+msgid "LANGUAGE"
+msgstr "LIMBĂ"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "Engleza este inclusă. Orice altă limbă este un fișier descărcat pentru această versiune; ce nu traduce se afișează în engleză."
+
+msgid "Use the device's language"
+msgstr "Folosește limba dispozitivului"
+
+msgid "Looking for languages…"
+msgstr "Se caută limbi…"
+
+msgid "The languages could not be fetched"
+msgstr "Limbile nu au putut fi preluate"
+
+msgid "No other language is offered for this version yet."
+msgstr "Nicio altă limbă nu este oferită încă pentru această versiune."
+
+msgid "TRANSLATE"
+msgstr "TRADUCERE"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Salvează șablonul, tradu-l în orice editor PO, importă-l aici ca să-l vezi imediat, apoi distribuie-l ca să poată fi oferit tuturor."
+
+msgid "{percent}% translated"
+msgstr "{percent}% tradus"
+
+msgid "{about} · imported"
+msgstr "{about} · importat"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · se descarcă la alegere"
+
+msgid "IN USE"
+msgstr "ÎN UZ"
+
+msgid "Use"
+msgstr "Folosește"
+
+msgid "Check again"
+msgstr "Verifică din nou"
+
+msgid "Language file"
+msgstr "Fișier de limbă"
+
+msgid "Import a language file…"
+msgstr "Importă un fișier de limbă…"
+
+msgid "Language template"
+msgstr "Șablon de limbă"
+
+msgid "Save the template…"
+msgstr "Salvează șablonul…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Distribuie o traducere (deschide browserul)"
+
+msgid "Languages"
+msgstr "Limbi"
+
+msgid "English is the application's own language and needs no file"
+msgstr "Engleza este limba proprie a aplicației și nu are nevoie de fișier"
+
+msgid "No languages are offered for this release yet"
+msgstr "Nu se oferă încă limbi pentru această versiune"
+
+msgid "That language file is not held"
+msgstr "Acel fișier de limbă nu este păstrat"
+
+msgid "The language file could not be read"
+msgstr "Fișierul de limbă nu a putut fi citit"
+
+msgid "The language file could not be removed"
+msgstr "Fișierul de limbă nu a putut fi șters"
+
+msgid "The language file could not be saved"
+msgstr "Fișierul de limbă nu a putut fi salvat"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Fișierul de limbă nu spune ce limbă este (antetul nu are Language)"
+
+msgid "The language file is too large"
+msgstr "Fișierul de limbă este prea mare"
+
+msgid "The languages could not be saved"
+msgstr "Limbile nu au putut fi salvate"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "Ferestrele sunt afișate în engleză, care nu are nevoie de fișier"
+
+msgid "This is not a language file the application can read"
+msgstr "Acesta nu este un fișier de limbă pe care aplicația îl poate citi"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "Ce a trimis ramura de limbi nu a putut fi verificat"
+
+msgid "Languages are not available here"
+msgstr "Limbile nu sunt disponibile aici"
+
+msgid "The plugin picker could not be opened"
+msgstr "Selectorul de pluginuri nu a putut fi deschis"
+
+msgid "The file picker could not be opened"
+msgstr "Selectorul de fișiere nu a putut fi deschis"
+
+msgid "Another language file is being imported"
+msgstr "Se importă deja un alt fișier de limbă"
+
+msgid "The application is not ready to import a language file"
+msgstr "Aplicația nu este pregătită să importe un fișier de limbă"
+
+msgid "The application is not ready to open plugins"
+msgstr "Aplicația nu este pregătită să deschidă pluginuri"
+
+msgid "Another plugin archive is being opened"
+msgstr "Se deschide deja o altă arhivă de plugin"
+
+msgid "The selected archive could not be staged"
+msgstr "Arhiva aleasă nu a putut fi pregătită"
+
+msgid "The selected archive could not be read"
+msgstr "Arhiva aleasă nu a putut fi citită"
+
+msgid "The embedded metadata is not valid"
+msgstr "Metadatele încorporate nu sunt valide"
+
+msgid "The program carries no embedded metadata"
+msgstr "Programul nu conține metadate încorporate"
+
+msgid "The program is not a recognised binary"
+msgstr "Programul nu este un binar recunoscut"
+
+msgid "Input capabilities are unavailable"
+msgstr "Funcțiile de introducere nu sunt disponibile"
+
+msgid "Input is unavailable"
+msgstr "Introducerea nu este disponibilă"
+
+msgid "The input was not understood"
+msgstr "Datele introduse nu au fost înțelese"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Acest computer nu poate fi controlat: nu s-a putut crea niciun dispozitiv de intrare"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Acest computer nu poate oferi acelui dispozitiv un cursor propriu"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Această extensie redă datele introduse pentru prea multe dispozitive deodată"
+
+msgid "Unknown input method"
+msgstr "Metodă de introducere necunoscută"
+
+msgid "An installed native module must be read-only"
+msgstr "Un modul nativ instalat trebuie să fie doar în citire"
+
+msgid "Another plugin already has this name"
+msgstr "Alt plugin are deja acest nume"
+
+msgid "It could not be read"
+msgstr "Nu a putut fi citit"
+
+msgid "It has no manifest"
+msgstr "Nu are manifest"
+
+msgid "It has no program"
+msgstr "Nu are program"
+
+msgid "It has two manifests"
+msgstr "Are două manifeste"
+
+msgid "It is not a directory"
+msgstr "Nu este un director"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Oferă un serviciu pe care îl oferă deja alt plugin"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Primește date fără o permisiune care să le protejeze"
+
+msgid "Its directory belongs to someone else"
+msgstr "Directorul său aparține altcuiva"
+
+msgid "Its directory can be changed by others"
+msgstr "Directorul său poate fi modificat de alții"
+
+msgid "Its manifest could not be read"
+msgstr "Manifestul său nu a putut fi citit"
+
+msgid "Its manifest is not a file"
+msgstr "Manifestul său nu este un fișier"
+
+msgid "Its manifest is not valid"
+msgstr "Manifestul său nu este valid"
+
+msgid "Its manifest is too large"
+msgstr "Manifestul său este prea mare"
+
+msgid "Its name is not usable"
+msgstr "Numele său nu poate fi folosit"
+
+msgid "Its program belongs to someone else"
+msgstr "Programul său aparține altcuiva"
+
+msgid "Its program can be changed by others"
+msgstr "Programul său poate fi modificat de alții"
+
+msgid "Its program cannot be run"
+msgstr "Programul său nu poate fi rulat"
+
+msgid "Its program is not a file"
+msgstr "Programul său nu este un fișier"
+
+msgid "One of its actions could never be reached"
+msgstr "Una dintre acțiunile sale nu ar putea fi accesată niciodată"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Pluginurile nu pot rula pe acest sistem"
+
+msgid "Cannot create application directory"
+msgstr "Nu se poate crea directorul aplicației"
+
+msgid "Cannot open identity lock"
+msgstr "Nu se poate deschide blocarea identității"
+
+msgid "Identity is being opened by another process"
+msgstr "Identitatea este deschisă de alt proces"
+
+msgid "System credential store is unavailable"
+msgstr "Depozitul de date de autentificare al sistemului nu este disponibil"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Nu se poate porni accesul la keyring-ul sistemului; identitatea existentă nu a fost modificată"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Nu se poate verifica deblocarea keyring-ului sistemului; identitatea existentă nu a fost modificată"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Keyring-ul sistemului este încă blocat; identitatea și asocierile existente nu au fost modificate"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Keyring-ul sistemului nu este disponibil; identitatea și asocierile existente nu au fost modificate"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Timpul pentru deblocarea keyring-ului sistemului a expirat; identitatea și asocierile existente nu au fost modificate"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Deblocarea keyring-ului sistemului a fost anulată; identitatea și asocierile existente nu au fost modificate"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "Keyring-ul sistemului este blocat și serviciul său nu a afișat solicitarea parolei; identitatea și asocierile existente nu au fost modificate"
+
+msgid "Could not read local application state"
+msgstr "Nu s-a putut citi starea locală a aplicației"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "Conexiunea locală a eșuat; rezultatul comenzii poate fi necunoscut"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "Cererea locală a expirat; rezultatul comenzii poate fi necunoscut"
+
+msgid "Too many windows are attached"
+msgstr "Sunt atașate prea multe ferestre"
+
+msgid "The window program is not beside the owner"
+msgstr "Programul ferestrei nu se află lângă proprietar"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Această sesiune nu are un afișaj X pe care să se plaseze un panou"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Acest format de extensie nu este disponibil în această distribuție"
+
+msgid "It clashes with another plugin"
+msgstr "Intră în conflict cu alt plugin"
+
+msgid "It could not be loaded"
+msgstr "Nu a putut fi încărcat"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Acest pachet nu are licență și notificare, așa că nu poate fi instalat"
+
+msgid "It has no manifest the application can use"
+msgstr "Nu are un manifest pe care aplicația să-l poată folosi"
+
+msgid "It has no program the application can run"
+msgstr "Nu are un program pe care aplicația să-l poată rula"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "Folderul său poate fi modificat de alții, așa că nu este rulat"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Nu se poate codifica configurația catalogului privat"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Nu se găsește asistentul catalogului privat"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Nu se poate pregăti starea catalogului privat"
+
+msgid "Cannot protect private catalog state"
+msgstr "Nu se poate proteja starea catalogului privat"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Nu se poate citi configurația catalogului privat"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Configurația catalogului privat nu poate fi salvată în siguranță"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Configurația salvată a catalogului privat nu poate fi verificată"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "Configurația catalogului privat s-a modificat în timpul salvării"
+
+msgid "The private catalog signing key is not valid"
+msgstr "Cheia de semnare a catalogului privat nu este validă"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "Configurația salvată a catalogului privat nu poate fi folosită"
+
+msgid "The system credential store is unavailable"
+msgstr "Depozitul de credențiale al sistemului nu este disponibil"
+
+msgid "Cannot forget the relay token"
+msgstr "Tokenul de releu nu poate fi uitat"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Tokenul de releu nu poate fi citit; cel salvat nu a fost modificat"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Tokenul de releu nu poate fi salvat în depozitul de credențiale al sistemului"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Tokenul de releu salvat nu poate fi verificat"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Tokenul de releu salvat s-a modificat în timpul salvării"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Tokenul de releu salvat nu poate fi folosit; nu a fost modificat"
+
+msgid "Action arguments are invalid"
+msgstr "Argumentele acțiunii nu sunt valide"
+
+msgid "Action context is invalid"
+msgstr "Contextul acțiunii nu este valid"
+
+msgid "Action is not permitted for this device"
+msgstr "Acțiunea nu este permisă pentru acest dispozitiv"
+
+msgid "An action can have up to three key bindings"
+msgstr "O acțiune poate avea cel mult trei combinații de taste"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "O extensie a cerut prea mult, prea repede, și este pusă pe pauză pentru scurt timp"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "O extensie are nevoie să-i citești și să-i accepți licența și notificarea; deschide Extensii"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Un pachet extern nu poate înlocui un plugin inclus"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "O altă extensie transmite deja intrarea între dispozitive. Dezactiveaz-o pe aceea ca să o folosești pe aceasta"
+
+msgid "Application updates are not available here"
+msgstr "Actualizările aplicației nu sunt disponibile aici"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Pluginurile incluse nu pot fi eliminate"
+
+msgid "Choose a device for this action"
+msgstr "Alege un dispozitiv pentru această acțiune"
+
+msgid "Choose a device for this setting"
+msgstr "Alege un dispozitiv pentru această setare"
+
+msgid "Choose between one and sixteen files"
+msgstr "Alege între unul și șaisprezece fișiere"
+
+msgid "Choose exactly one file for this action"
+msgstr "Alege exact un fișier pentru această acțiune"
+
+msgid "Could not change this permission"
+msgstr "Această permisiune nu a putut fi modificată"
+
+msgid "Could not clear the history"
+msgstr "Istoricul nu a putut fi șters"
+
+msgid "Could not forget device"
+msgstr "Dispozitivul nu a putut fi uitat"
+
+msgid "Could not forget what it was granted"
+msgstr "Nu s-a putut uita ce i s-a acordat"
+
+msgid "Could not keep the picture"
+msgstr "Imaginea nu a putut fi păstrată"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Nu s-a putut deschide folderul selectat sau dispozitivul este offline"
+
+msgid "Could not remove the picture"
+msgstr "Imaginea nu a putut fi eliminată"
+
+msgid "Could not save permissions"
+msgstr "Permisiunile nu au putut fi salvate"
+
+msgid "Device is not paired"
+msgstr "Dispozitivul nu este asociat"
+
+msgid "Extension prompts unavailable"
+msgstr "Solicitările extensiilor nu sunt disponibile"
+
+msgid "Files selection is not fully accounted for"
+msgstr "Selecția de fișiere nu este complet contabilizată"
+
+msgid "Input arguments are invalid"
+msgstr "Argumentele de intrare sunt nevalide"
+
+msgid "Invalid value for this setting"
+msgstr "Valoare nevalidă pentru această setare"
+
+msgid "Key bindings are not available on this device"
+msgstr "Combinațiile de taste nu sunt disponibile pe acest dispozitiv"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Limbile se descarcă; încearcă din nou după ce se termină"
+
+msgid "No picture is held for that"
+msgstr "Nu există nicio imagine păstrată pentru asta"
+
+msgid "No plugin handles this request"
+msgstr "Niciun plugin nu gestionează această solicitare"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Nu s-a afișat nimic pentru acel plugin"
+
+msgid "Permissions could not be applied"
+msgstr "Permisiunile nu au putut fi aplicate"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Pluginul nu este permis pentru acest dispozitiv"
+
+msgid "Plugin unavailable"
+msgstr "Plugin indisponibil"
+
+msgid "Plugins cannot be installed here"
+msgstr "Pluginurile nu pot fi instalate aici"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Configurația catalogului privat nu a putut fi salvată"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Cataloagele private nu sunt activate pe acest dispozitiv"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Demo doar pentru citire: această fereastră nu este conectată la un proprietar"
+
+msgid "Selected input is unavailable"
+msgstr "Câmpul selectat nu este disponibil"
+
+msgid "That action cannot be run by a key"
+msgstr "Această acțiune nu poate fi rulată printr-o tastă"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Această acțiune are nevoie de un dispozitiv pentru tasta ei, și abia apoi"
+
+msgid "That device cannot be sent to"
+msgstr "Nu se poate trimite către acel dispozitiv"
+
+msgid "That extension action is not installed"
+msgstr "Acea acțiune a extensiei nu este instalată"
+
+msgid "That input was not understood"
+msgstr "Datele introduse nu au fost înțelese"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Această permisiune nu poate fi acordată acestui plugin"
+
+msgid "The code was already used or is no longer shown"
+msgstr "Codul a fost deja folosit sau nu mai este afișat"
+
+msgid "The extension store failed"
+msgstr "Magazinul de extensii a eșuat"
+
+msgid "The extension store is not available here"
+msgstr "Magazinul de extensii nu este disponibil aici"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "Licența și notificarea nu au fost acceptate, așa că nu s-a instalat nimic"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Pachetul s-a modificat după ce a fost afișat; alege-l din nou"
+
+msgid "The package has no valid name"
+msgstr "Pachetul nu are un nume valid"
+
+msgid "The plugin could not be registered"
+msgstr "Pluginul nu a putut fi înregistrat"
+
+msgid "The plugin does not allow this action"
+msgstr "Pluginul nu permite această acțiune"
+
+msgid "The plugin does not offer this action"
+msgstr "Pluginul nu oferă această acțiune"
+
+msgid "The plugin is not running"
+msgstr "Pluginul nu rulează"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "Pluginul nu este cel care a fost afișat; verifică-l din nou"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "Pluginul trimite prea mult, prea repede"
+
+msgid "The request could not be sent"
+msgstr "Cererea nu a putut fi trimisă"
+
+msgid "The text to share is empty or too large"
+msgstr "Textul de partajat este gol sau prea mare"
+
+msgid "The update failed"
+msgstr "Actualizarea a eșuat"
+
+msgid "This action does not accept selected input"
+msgstr "Această acțiune nu acceptă elemente selectate"
+
+msgid "This action does not accept shared text"
+msgstr "Această acțiune nu acceptă text partajat"
+
+msgid "This action does not use a device"
+msgstr "Această acțiune nu folosește un dispozitiv"
+
+msgid "This action is not available now"
+msgstr "Această acțiune nu este disponibilă acum"
+
+msgid "This action requires its declared selected input"
+msgstr "Această acțiune necesită elementele selectate pe care le-a declarat"
+
+msgid "This device cannot keep a relay token"
+msgstr "Acest dispozitiv nu poate păstra un token de releu"
+
+msgid "This extension declares no input transport"
+msgstr "Această extensie nu declară niciun transport de intrare"
+
+msgid "This is not permitted for this device"
+msgstr "Acest lucru nu este permis pentru acest dispozitiv"
+
+msgid "This page is not offered on this system"
+msgstr "Această pagină nu este disponibilă pe acest sistem"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Această platformă nu oferă funcția solicitată"
+
+msgid "This setting is not per device"
+msgstr "Această setare nu este per dispozitiv"
+
+msgid "Too many calls"
+msgstr "Prea multe apeluri"
+
+msgid "Too many operations are pending"
+msgstr "Prea multe operațiuni în așteptare"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "Prea multe transferuri așteaptă după pluginuri"
+
+msgid "Unknown action"
+msgstr "Acțiune necunoscută"
+
+msgid "Unknown device"
+msgstr "Dispozitiv necunoscut"
+
+msgid "Unknown page"
+msgstr "Pagină necunoscută"
+
+msgid "Unknown plugin"
+msgstr "Plugin necunoscut"
+
+msgid "Unknown setting"
+msgstr "Setare necunoscută"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Așteaptă să se termine operațiunea curentă din catalog"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Acceptul tău nu a putut fi înregistrat, așa că nu s-a instalat nimic"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "Un AppImage nu se înlocuiește singur; descarcă-l pe cel nou"
+
+msgid "Kept by something else"
+msgstr "Păstrat de altceva"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "Aplicația nu se poate înlocui singură pe acest sistem încă"
+
+msgid "The update could not be unpacked"
+msgstr "Actualizarea nu a putut fi dezarhivată"
+
+msgid "The update could not be written beside the application"
+msgstr "Actualizarea nu a putut fi scrisă lângă aplicație"
+
+msgid "The update is not a plain set of programs"
+msgstr "Actualizarea nu este un simplu set de programe"
+
+msgid "The update is not for this installation"
+msgstr "Actualizarea nu este pentru această instalare"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "Actualizarea a fost aplicată doar parțial; instalează aplicația din nou"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Această instalare este gestionată de sistem și se actualizează odată cu el"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Această instalare este actualizată prin Flatpak"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Acest tip de actualizare nu poate fi aplicat acestei instalări"
+
+msgid "Loading…"
+msgstr "Se încarcă…"
+
+msgid "Another device"
+msgstr "Alt dispozitiv"
+
+msgid "CANCELLED"
+msgstr "ANULAT"
+
+msgid "CONNECTED"
+msgstr "CONECTAT"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Alege o arhivă de plugin (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Alege o poză de profil (PNG sau JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Alegerea unui folder nu este disponibilă pe acest dispozitiv."
+
+msgid "Clear"
+msgstr "Golește"
+
+msgid "Clear them?"
+msgstr "Le golești?"
+
+msgid "FAILED · {reason}"
+msgstr "EȘUAT · {reason}"
+
+msgid "FOR {device}"
+msgstr "PENTRU {device}"
+
+msgid "Folder for incoming files"
+msgstr "Folder pentru fișierele primite"
+
+msgid "INCOMING"
+msgstr "PRIMITE"
+
+msgid "NOT RUNNING"
+msgstr "NU RULEAZĂ"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Nu ai ales niciun folder, așa că fișierul nu a fost acceptat."
+
+msgid "OUTGOING"
+msgstr "TRIMISE"
+
+msgid "OUTGOING · PREPARED"
+msgstr "TRIMISE · PREGĂTITE"
+
+msgid "Peersus could not be started again"
+msgstr "Peersus nu a putut fi repornit"
+
+msgid "Save the file in"
+msgstr "Salvează fișierul în"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "Folderul ales pentru fișierele primite nu mai există. Alege altul."
+
+msgid "The identity could not be reset"
+msgstr "Identitatea nu a putut fi resetată"
+
+msgid "The plugin picker is unavailable"
+msgstr "Selectorul de pluginuri nu este disponibil"
+
+msgid "There is no data directory to look in"
+msgstr "Nu există niciun director de date în care să cauți"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Atinge ecranul cu două degete pentru a coborî Setările din partea de sus. Nu are niciun efect dacă Setările sunt deja deschise."
+
+msgid "Two fingers open Settings"
+msgstr "Două degete deschid Setările"
+
+msgid "Identity unavailable"
+msgstr "Identitate indisponibilă"
+
+msgid "Nowhere to look"
+msgstr "Nu există unde să cauți"
+
+msgid "Peersus could not start"
+msgstr "Peersus nu a putut porni"
+
+msgid "Peersus stopped"
+msgstr "Peersus s-a oprit"
+
+msgid "The action did not accept the value"
+msgstr "Acțiunea nu a acceptat valoarea"
+
+msgid "The owner stopped"
+msgstr "Proprietarul s-a oprit"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Componenta Peersus care îți menține dispozitivele conectate nu a pornit și nu a indicat motivul."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Partea din Peersus care îți menține dispozitivele conectate nu a pornit. Mesajul a fost: {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Partea din Peersus care îți menține dispozitivele conectate s-a oprit, iar repornirea automată nu a reușit s-o mențină în funcțiune."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Acest cont nu are director de date, așa că aplicația nu poate fi găsită."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Introdu tokenul GitHub doar pentru citire. Nu sunt necesare alte setări aici; tokenul rămâne în spațiul de stocare securizat al dispozitivului."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "Token GitHub cu permisiunea Contents: read pentru depozit"
+
+msgid "Private development catalog"
+msgstr "Catalog privat de dezvoltare"
+
+msgid "Save and apply"
+msgstr "Salvează și aplică"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "Tokenul GitHub trebuie să fie pe un singur rând și să aibă cel mult 512 octeți"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Token salvat în siguranță și aplicat. Lista de extensii se actualizează în fundal."
+
+msgid "OFFLINE"
+msgstr "OFFLINE"
+
+msgid "ONLINE"
+msgstr "ONLINE"
+
+msgid "SLEEPING"
+msgstr "ÎN REPAUS"
+
+msgid "An update is already being worked on"
+msgstr "O actualizare este deja în curs"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "O actualizare a fost instalată; repornește aplicația ca să o folosești"
+
+msgid "Application updates are not set up in this build"
+msgstr "Actualizările aplicației nu sunt configurate în această versiune"
+
+msgid "No update is available"
+msgstr "Nu există nicio actualizare disponibilă"
+
+msgid "No update is waiting for a restart"
+msgstr "Nicio actualizare nu așteaptă o repornire"
+
+msgid "The application update key is not valid"
+msgstr "Cheia de actualizare a aplicației nu este validă"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "Actualizarea descărcată nu este cea care a fost publicată"
+
+msgid "The saved update state could not be read"
+msgstr "Starea salvată a actualizării nu a putut fi citită"
+
+msgid "The saved update state is damaged"
+msgstr "Starea salvată a actualizării este deteriorată"
+
+msgid "The update could not be checked"
+msgstr "Actualizarea nu a putut fi verificată"
+
+msgid "The update is described in a way this version does not read"
+msgstr "Actualizarea este descrisă într-un format pe care această versiune nu îl poate citi"
+
+msgid "The update is for another release channel"
+msgstr "Actualizarea este pentru alt canal de lansare"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "Actualizarea nu este semnată de editorul acestei aplicații"
+
+msgid "The update is too large"
+msgstr "Actualizarea este prea mare"
+
+msgid "The update listing could not be checked"
+msgstr "Lista de actualizări nu a putut fi verificată"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "Actualizarea oferită nu este versiunea deja văzută sub acest număr de versiune"
+
+msgid "The update offered is older than one already seen"
+msgstr "Actualizarea oferită este mai veche decât una deja văzută"
+
+msgid "The update state could not be saved"
+msgstr "Starea actualizării nu a putut fi salvată"
+
+msgid "The catalog could not be read"
+msgstr "Catalogul nu a putut fi citit"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "Catalogul are artefacte de platformă ambigue sau nevalide"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "Catalogul are o intrare care nu este validă"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "Catalogul are artefacte de platformă nevalide"
+
+msgid "The catalog is a version this application does not read"
+msgstr "Catalogul are o versiune pe care această aplicație nu o poate citi"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "Catalogul nu este semnat de responsabil"
+
+msgid "The catalog is older than one already seen"
+msgstr "Catalogul este mai vechi decât unul deja văzut"
+
+msgid "The catalog is too large"
+msgstr "Catalogul este prea mare"
+
+msgid "The catalog lists a name twice"
+msgstr "Catalogul conține un nume de două ori"
+
+msgid "The catalog lists too many extensions"
+msgstr "Catalogul conține prea multe extensii"
+
+msgid "The catalog signature is not valid"
+msgstr "Semnătura catalogului nu este validă"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Pachetul nu corespunde cu ce spune catalogul despre el"
+
+msgid "The package is not the one that was approved"
+msgstr "Pachetul nu este cel care a fost aprobat"
+
+msgid "The package name is not the approved name"
+msgstr "Numele pachetului nu este numele aprobat"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Programul și manifestul său nu sunt de acord asupra autorului"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Alege un director de plugin, nu un fișier sau o legătură"
+
+msgid "No data directory"
+msgstr "Niciun director de date"
+
+msgid "No such plugin is installed"
+msgstr "Nu este instalat niciun astfel de plugin"
+
+msgid "Nothing was retired under that name"
+msgstr "Nimic nu a fost retras sub acest nume"
+
+msgid "Something is already installed under this name"
+msgstr "Ceva este deja instalat sub acest nume"
+
+msgid "That is not the name of a plugin"
+msgstr "Acesta nu este numele unui plugin"
+
+msgid "The approval could not be written"
+msgstr "Aprobarea nu a putut fi scrisă"
+
+msgid "The installed plugin directory is not safe"
+msgstr "Directorul pluginului instalat nu este sigur"
+
+msgid "The native module could not be made read-only"
+msgstr "Modulul nativ nu a putut fi făcut doar pentru citire"
+
+msgid "The package could not be put back"
+msgstr "Pachetul nu a putut fi pus înapoi"
+
+msgid "The package could not be put in place"
+msgstr "Pachetul nu a putut fi pus la locul lui"
+
+msgid "The package could not be read"
+msgstr "Pachetul nu a putut fi citit"
+
+msgid "The package could not be staged"
+msgstr "Pachetul nu a putut fi pregătit"
+
+msgid "The package could not be taken out of use"
+msgstr "Pachetul nu a putut fi scos din uz"
+
+msgid "The package has too many files"
+msgstr "Pachetul are prea multe fișiere"
+
+msgid "The package is too large"
+msgstr "Pachetul este prea mare"
+
+msgid "The package names a file it does not have"
+msgstr "Pachetul menționează un fișier pe care nu îl conține"
+
+msgid "The package needs a manifest and a program"
+msgstr "Pachetul are nevoie de un manifest și de un program"
+
+msgid "The package's name is not usable"
+msgstr "Numele pachetului nu poate fi folosit"
+
+msgid "The plugin could not be switched off"
+msgstr "Pluginul nu a putut fi dezactivat"
+
+msgid "The plugin could not be switched on"
+msgstr "Pluginul nu a putut fi activat"
+
+msgid "The plugin store can be changed by others"
+msgstr "Depozitul de pluginuri poate fi modificat de alții"
+
+msgid "The plugin store could not be locked"
+msgstr "Depozitul de pluginuri nu a putut fi blocat"
+
+msgid "The plugin store could not be made"
+msgstr "Depozitul de pluginuri nu a putut fi creat"
+
+msgid "The plugin store could not be read"
+msgstr "Depozitul de pluginuri nu a putut fi citit"
+
+msgid "The plugin store is a link"
+msgstr "Depozitul de pluginuri este o legătură"
+
+msgid "The plugin store is being changed by another process"
+msgstr "Depozitul de pluginuri este modificat de alt proces"
+
+msgid "The plugin store is not a directory"
+msgstr "Depozitul de pluginuri nu este un director"
+
+msgid "The retired plugin directory is not safe"
+msgstr "Directorul pluginului retras nu este sigur"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "Nu există nimic de aprobat pentru acest plugin"
+
+msgid "Too many plugins are installed"
+msgstr "Sunt instalate prea multe pluginuri"
+
+msgid "The extension store could not be reached"
+msgstr "Magazinul de extensii nu a putut fi accesat"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Ce a trimis magazinul depășește limita permisă"

@@ -1,0 +1,2992 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: sv\n"
+"X-Language-Name: Svenska\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Ber dig välja en fil för tillägget; ingen generell åtkomst till filsystemet."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "Begär uttryckligt godkännande av målet för HTTPS-anrop; autentiseringsuppgifter stannar i värdprogrammet."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Läser eller ersätter den här enhetens urklippstext i begränsade delar, var och en under sin egen behörighet."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Läser den här enhetens urklippstext i begränsade delar; plattformen avgör när den är läsbar och utesluter känsligt innehåll."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Ersätter den här enhetens urklippstext med text som tillägget levererar i begränsade delar."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Får ett meddelande när den här enhetens urklipp ändras, utan innehållet; läsning kräver fortfarande läsbehörighet."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Visar dig aviseringar under sitt namn, med egna ord och knappar, i fönstret och utanför det."
+
+msgid "Confirm {label}"
+msgstr "Confirm {label}"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "Avbrutet. Kontrollera eventuella externa resultat innan du försöker igen."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "Inte tillåtet. Kontrollera pluginens behörigheter."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Pluginen är inte tillgänglig. Starta den och försök igen."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "Åtgärden tog för lång tid. Kontrollera resultatet innan du försöker igen."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "En annan åtgärd pågår. Försök igen när den är klar."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "Åtgärden kunde inte slutföras. Kontrollera pluginen och försök igen."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Starta pluginen, välj en enhet som är online när det behövs och tillåt dess behörigheter."
+
+msgid "Enter a value within the declared limits."
+msgstr "Ange ett värde inom de angivna gränserna."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Ogiltig sparad inställning. Återställ ett giltigt värde."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Plattformar som stöds: {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Den här äldre pluginen anger inte vilka plattformar den stöder."
+
+msgid "For {name}"
+msgstr "For {name}"
+
+msgid "Install bundled {name}"
+msgstr "Installera medföljande {name}"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Den stöder inte det här operativsystemet"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Stöd Peersus — helt frivilligt"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Om Peersus är till nytta för dig kan du ge en frivillig dricks. Alla funktioner förblir gratis, utan annonser, betalda funktioner eller förtur."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Kortbetalningar går via skaparens kopplade Stripe-konto där Ko-fi erbjuder det; betalsätten varierar. Peersus hanterar inte dina kortuppgifter."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "En dricks köper ingen produkt, tjänst, åtkomst eller belöning. Avgifter kan tillkomma. Inget skatteavdrag utlovas. Ett offentligt tack är ett separat, frivilligt val på webbplatsen, aldrig en förmån i appen."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Stöd på Ko-fi (öppnar webbläsaren)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Det gick inte att öppna en webbläsare. Du kan öppna https://ko-fi.com/DarkPhilosophy själv."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Kunde inte läsas: det finns inte längre eller appen får inte öppna det."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Filen är tom och innehåller därför inget paket."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Det är varken en mapp eller en fil och kan därför inte vara ett paket."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Skicka data till en parkopplad enhet som du väljer. Det kan inte se någon enhets nyckel."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "Avbryta och starta om VALFRITT insticksprogram, även sådana du inte installerat för detta ändamål. Det kan inte läsa deras data eller ändra deras behörigheter."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "Flytta pekaren, trycka på knappar och tangenter och skriva text på den här datorn, som från en mus och ett tangentbord som är anslutna till den."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "Ändra den här datorns arrangemang av parkopplade skrivbord och var pekaren går över mellan dem."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Få veta när en överföring startar, går framåt, blir klar, avbryts eller misslyckas: vilken överföring och hur långt den har kommit. Det kan inte se namnet på en fil, namnet på en enhet eller var något sparas, och kan inte godkänna, neka eller avbryta en överföring."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Se även NAMNET på varje fil som överförs och namnet på enheten den går till eller kommer från. Filnamn kan säga mycket om en person."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Skapa egna statusar och välja orden som benämner dem. En status som bara har skapats säger inget om dig förrän den slås på."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Slå på och av egna statusar. Det som är på VISAS för varje parkopplad enhet, med de ord insticksprogrammet valt, så länge det är på."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Se vilka statusar dina parkopplade enheter visar och få veta när de ändras. Vad en status säger (tittar på något, är upptagen) kan vara personligt."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Ingen mapp vald. För varje fil får du välja var den ska sparas."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "En mapp är vald. Filer hamnar direkt i den."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "Det börjar utan behörigheter. Efter installationen bestämmer du vad det får göra."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Ett insticksprogram med det här namnet är installerat. Det ersätts och börjar utan behörigheter."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Det här insticksprogrammet har inte godkänts och körs därför inte. Ett godkännande tillåter det att köras med det som begärs nedan."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Programmet i det här insticksprogrammet skiljer sig från det godkända och körs därför inte. Ett nytt godkännande tillåter det att köras och glömmer tidigare behörigheter."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Det här insticksprogrammet är skadat eller kan inte köras. Det kan bara tas bort."
+
+msgid "RUNNING"
+msgstr "KÖRS"
+
+msgid "STARTING"
+msgstr "STARTAR"
+
+msgid "RESTARTING"
+msgstr "STARTAR OM"
+
+msgid "OFF"
+msgstr "AV"
+
+msgid "FAILED"
+msgstr "MISSLYCKADES"
+
+msgid "BROKEN"
+msgstr "SKADAD"
+
+msgid "CHANGED"
+msgstr "ÄNDRAD"
+
+msgid "NEEDS APPROVAL"
+msgstr "KRÄVER GODKÄNNANDE"
+
+msgid "Replace"
+msgstr "Ersätt"
+
+msgid "Drop one package at a time."
+msgstr "Släpp ett paket i taget."
+
+msgid "No description was given for this permission."
+msgstr "Ingen beskrivning angavs för den här behörigheten."
+
+msgid "The selection is too large"
+msgstr "Urvalet är för stort"
+
+msgid "The file picker did not report its selection count"
+msgstr "Filväljaren rapporterade inte antalet valda filer"
+
+msgid "The application answered with something else than a code"
+msgstr "Appen svarade med något annat än en kod"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "Filförberedelsen stoppades innan urvalet slutfördes."
+
+msgid "The file producer stopped before creating a code."
+msgstr "Filförberedelsen stoppades innan en kod skapades."
+
+msgid "Could not create invitation"
+msgstr "Kunde inte skapa inbjudan"
+
+msgid "Application stopped"
+msgstr "Appen stoppades"
+
+msgid "Left out: {items}."
+msgstr "Överhoppat: {items}."
+
+msgid "Not files: {count}"
+msgstr "Inte filer: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Kunde inte läsas: {count}"
+
+msgid "Empty files: {count}"
+msgstr "Tomma filer: {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "Över urvalsgränsen på {limit} filer: {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Valda filer som inte kunde erbjudas: {refused}."
+
+msgid "Restart"
+msgstr "Starta om"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "ELLER VÄLJ EN SPARAD ENHET"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "HAR DU EN KOD FRÅN EN ANNAN ENHET?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "ELLER KLISTRA IN KODEN FRÅN DEN ANDRA ENHETEN"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "ELLER KLISTRA IN DEN HÄR KODEN PÅ DEN ANDRA ENHETEN"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "ANSLUT TILL DEN ANDRA ENHETEN"
+
+msgid "TRANSFERS"
+msgstr "ÖVERFÖRINGAR"
+
+msgid "PAIRED PEERS"
+msgstr "PARKOPPLADE ENHETER"
+
+msgid "MET BY CODE"
+msgstr "HITTADE VIA KOD"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} online)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} körs)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Skickas direkt till den valda enheten"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Skickas direkt till de valda enheterna"
+
+msgid "No device picked: a code will be made"
+msgstr "Ingen enhet vald: en kod skapas"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "En vald enhet är inte tillgänglig. Välj igen, eller ingen för att använda en kod"
+
+msgid "tap to choose files"
+msgstr "tryck för att välja filer"
+
+msgid "click to browse your computer"
+msgstr "klicka för att bläddra på datorn"
+
+msgid "SCAN"
+msgstr "SKANNA"
+
+msgid "tap to open the camera"
+msgstr "tryck för att öppna kameran"
+
+msgid "starting the camera"
+msgstr "startar kameran"
+
+msgid "NO CAMERA"
+msgstr "INGEN KAMERA"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "tillåt åtkomst för Peersus i telefonens inställningar och tryck sedan"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Parkoppla: visa en kod som den andra enheten kan skanna. Anslut: skanna eller klistra in koden från den andra enheten."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "Parkoppling gör den andra enheten betrodd tills du glömmer den. Att enbart skicka en fil via kod gör aldrig det."
+
+msgid "CHOOSE FILES"
+msgstr "VÄLJ FILER"
+
+msgid "TO SEND"
+msgstr "ATT SKICKA"
+
+msgid "NO DEVICE PICKED"
+msgstr "INGEN ENHET VALD"
+
+msgid "TAP FOR"
+msgstr "TRYCK FÖR"
+
+msgid "A QR CODE"
+msgstr "EN QR-KOD"
+
+msgid "HOLD TO SEND"
+msgstr "HÅLL FÖR ATT SKICKA"
+
+msgid "TAP TO SEND"
+msgstr "TRYCK FÖR ATT SKICKA"
+
+msgid "1 DEVICE"
+msgstr "1 ENHET"
+
+msgid "{count} DEVICES"
+msgstr "{count} ENHETER"
+
+msgid "keep holding until it is full"
+msgstr "håll tills den är full"
+
+msgid "it sends at once"
+msgstr "skickar direkt"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "EN ENHET FÖRSVANN"
+
+msgid "PICK AGAIN"
+msgstr "VÄLJ IGEN"
+
+msgid "nothing is sent until you do"
+msgstr "inget skickas förrän du gör det"
+
+msgid "READY TO RECEIVE"
+msgstr "REDO ATT TA EMOT"
+
+msgid "PASTE"
+msgstr "KLISTRA IN"
+
+msgid "THE CODE"
+msgstr "KODEN"
+
+msgid "from the other device"
+msgstr "från den andra enheten"
+
+msgid "CONNECT"
+msgstr "ANSLUT"
+
+msgid "{name} wants to pair"
+msgstr "{name} vill parkoppla"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "SVAR SKICKAT, VÄNTAR PÅ DEN ANDRA ENHETEN"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "VÄLJ SAMMA SIFFRA PÅ BÅDA ENHETERNA"
+
+msgid "Send"
+msgstr "Skicka"
+
+msgid "Receive"
+msgstr "Ta emot"
+
+msgid "Peers"
+msgstr "Enheter"
+
+msgid "Settings"
+msgstr "Inställningar"
+
+msgid "Overview"
+msgstr "Översikt"
+
+msgid "Device"
+msgstr "Enhet"
+
+msgid "Appearance"
+msgstr "Utseende"
+
+msgid "Network"
+msgstr "Nätverk"
+
+msgid "Extensions"
+msgstr "Tillägg"
+
+msgid "Permissions"
+msgstr "Behörigheter"
+
+msgid "History"
+msgstr "Historik"
+
+msgid "About"
+msgstr "Om"
+
+msgid "Language"
+msgstr "Språk"
+
+msgid "Reset"
+msgstr "Återställ"
+
+msgid "Accent colour"
+msgstr "Accentfärg"
+
+msgid "Coral"
+msgstr "Korall"
+
+msgid "Sky"
+msgstr "Himmel"
+
+msgid "Moss"
+msgstr "Mossa"
+
+msgid "Amber"
+msgstr "Bärnsten"
+
+msgid "Violet"
+msgstr "Violett"
+
+msgid "Rose"
+msgstr "Rosa"
+
+msgid "Interface size"
+msgstr "Gränssnittets storlek"
+
+msgid "Compact"
+msgstr "Kompakt"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Large"
+msgstr "Stor"
+
+msgid "Larger"
+msgstr "Större"
+
+msgid "Largest"
+msgstr "Störst"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Text, ikoner och avstånd växer tillsammans. Ctrl och + eller − ändrar det bara för det här fönstret."
+
+msgid "Save"
+msgstr "Spara"
+
+msgid "Cancel"
+msgstr "Avbryt"
+
+msgid "View files"
+msgstr "Visa filer"
+
+msgid "Close"
+msgstr "Stäng"
+
+msgid "Copy"
+msgstr "Kopiera"
+
+msgid "Request unlock"
+msgstr "Begär upplåsning"
+
+msgid "Generate a new identity"
+msgstr "Skapa en ny identitet"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Ja, radera den tidigare identiteten och skapa en ny"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Detta raderar identiteten som systemet har sparat och lägger parningarna åt sidan. Enheter måste paras ihop igen. Det går inte att ångra."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "Identiteten har återställts. Stäng det här fönstret och öppna Peersus igen."
+
+msgid "Turn on devices nearby"
+msgstr "Slå på enheter i närheten"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Enheter i närheten är avstängda. Slå på dem för att se enheter nära dig som kan paras ihop."
+
+msgid "Paste"
+msgstr "Klistra in"
+
+msgid "Select all"
+msgstr "Markera allt"
+
+msgid "Cut"
+msgstr "Klipp ut"
+
+msgid "Remove"
+msgstr "Ta bort"
+
+msgid "Relays"
+msgstr "Reläer"
+
+msgid "Edit"
+msgstr "Redigera"
+
+msgid "New relay: relay.example.org"
+msgstr "Nytt relä: relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Ange reläservern, till exempel relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Hur länge en direkt anslutning får innan data får gå via ett relä."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "I ordningen Prioritet: hur länge en reserv används innan det första reläet prövas igen."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Sök reläer"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "New address"
+msgstr "Ny adress"
+
+msgid "This relay's own timings"
+msgstr "Det här reläets egna tider"
+
+msgid "Uses the list-wide timings"
+msgstr "Använder listans tider"
+
+msgid "Use list-wide timings"
+msgstr "Använd listans tider"
+
+msgid "Accept"
+msgstr "Godkänn"
+
+msgid "Refuse"
+msgstr "Avvisa"
+
+msgid "Stop"
+msgstr "Stoppa"
+
+msgid "Done"
+msgstr "Klart"
+
+msgid "Connect"
+msgstr "Anslut"
+
+msgid "Pair"
+msgstr "Parkoppla"
+
+msgid "Install"
+msgstr "Installera"
+
+msgid "Uninstall"
+msgstr "Avinstallera"
+
+msgid "Retry"
+msgstr "Försök igen"
+
+msgid "Open"
+msgstr "Öppna"
+
+msgid "Back"
+msgstr "Tillbaka"
+
+msgid "System"
+msgstr "System"
+
+msgid "Light"
+msgstr "Ljust"
+
+msgid "Dark"
+msgstr "Mörkt"
+
+msgid "Custom"
+msgstr "Anpassat"
+
+msgid "Device name"
+msgstr "Enhetsnamn"
+
+msgid "CODE SCANNED"
+msgstr "KOD SKANNAD"
+
+msgid "SCANNED"
+msgstr "SKANNAD"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "Den andra enheten har läst koden. Väntar på godkännande."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "VÄNTAR PÅ GODKÄNNANDE"
+
+msgid "SENDING"
+msgstr "SKICKAR"
+
+msgid "DONE"
+msgstr "KLART"
+
+msgid "STOPPED"
+msgstr "STOPPAT"
+
+msgid "ENDS IN {time}"
+msgstr "UPPHÖR OM {time}"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} vill skicka en fil till dig"
+
+msgid "A device wants to send you a file"
+msgstr "En enhet vill skicka en fil till dig"
+
+msgid "{files} are waiting in all"
+msgstr "Totalt väntar {files}"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "Väntar på att den andra enheten godkänner {files}."
+
+msgid "Sending 1 file."
+msgstr "Skickar 1 fil."
+
+msgid "Sending {files}."
+msgstr "Skickar {files}."
+
+msgid "1 file arrived."
+msgstr "1 fil har kommit fram."
+
+msgid "{files} arrived."
+msgstr "{files} har kommit fram."
+
+msgid "1 SENT"
+msgstr "1 SKICKAD"
+
+msgid "{count} SENT"
+msgstr "{count} SKICKADE"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "{done} av {files} har kommit fram. Resten avvisades, avbröts eller misslyckades."
+
+msgid "1 file selected"
+msgstr "1 fil vald"
+
+msgid "{files} selected"
+msgstr "{files} valda"
+
+msgid "+ {count} more"
+msgstr "+ {count} till"
+
+msgid "never seen"
+msgstr "aldrig sedd"
+
+msgid "just now"
+msgstr "just nu"
+
+msgid "{duration} ago"
+msgstr "för {duration} sedan"
+
+msgid "Continue"
+msgstr "Fortsätt"
+
+msgid "Join"
+msgstr "Anslut"
+
+msgid "Keep"
+msgstr "Behåll"
+
+msgid "Forget"
+msgstr "Glöm"
+
+msgid "Not now"
+msgstr "Inte nu"
+
+msgid "Choose folder"
+msgstr "Välj mapp"
+
+msgid "Use none"
+msgstr "Använd ingen"
+
+msgid "Name this device"
+msgstr "Namnge den här enheten"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Dina andra enheter visar det här namnet. Välj ett som du känner igen."
+
+msgid "For example: Alex's laptop"
+msgstr "Till exempel: Alex bärbara dator"
+
+msgid "Paste the code"
+msgstr "Klistra in koden"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Inga sparade enheter ännu. Skicka med en kod och behåll enheten när du blir tillfrågad."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "En åtgärd. En destination. Flytta filer mellan dina enheter utan en labyrint av menyer."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Välj vad du godkänner. Du bestämmer villkoren. Inget kommer fram utan ditt godkännande."
+
+msgid "That is not a code from another device."
+msgstr "Det är inte en kod från en annan enhet."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Inga parkopplade enheter ännu. Parkoppla en enhet ovan."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Välj ett tilläggsarkiv eller släpp en mapp eller ett arkiv här."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Alla dess behörigheter på varje enhet glöms också. Tryck igen för att ta bort."
+
+msgid "No plugins installed."
+msgstr "Inga tillägg installerade."
+
+msgid "It cannot be granted anything."
+msgstr "Inga behörigheter kan beviljas."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Parkoppla en enhet för att ge tillägget behörigheter för den."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Inga tillägg installerade, så inget att tillåta."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Inget har skickats eller tagits emot ännu."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "VIKTIGT — DATA- OCH SÄKERHETSRISKER"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "ÖVERFÖRINGSPORTALEN"
+
+msgid "WELCOME"
+msgstr "VÄLKOMMEN"
+
+msgid "HISTORY"
+msgstr "HISTORIK"
+
+msgid "NOT PAIRED"
+msgstr "INTE PARKOPPLAD"
+
+msgid "WAITING FOR YOU"
+msgstr "VÄNTAR PÅ DIG"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "INTE KNUTET TILL NÅGON ENHET"
+
+msgid "Received"
+msgstr "Mottaget"
+
+msgid "Sent"
+msgstr "Skickat"
+
+msgid "done"
+msgstr "klart"
+
+msgid "cancelled"
+msgstr "avbrutet"
+
+msgid "failed"
+msgstr "misslyckat"
+
+msgid "going"
+msgstr "pågår"
+
+msgid "SEND"
+msgstr "SKICKA"
+
+msgid "RECEIVE"
+msgstr "TA EMOT"
+
+msgid "PEERS"
+msgstr "ENHETER"
+
+msgid "Make files"
+msgstr "Låt filer"
+
+msgid "fly."
+msgstr "flyga."
+
+msgid "Ready when"
+msgstr "Redo när"
+
+msgid "you are."
+msgstr "du är det."
+
+msgid "HOW THINGS STAND"
+msgstr "AKTUELL STATUS"
+
+msgid "This device"
+msgstr "Den här enheten"
+
+msgid "Internet relays"
+msgstr "Internetreläer"
+
+msgid "Runs in the background"
+msgstr "Körs i bakgrunden"
+
+msgid "Paired devices"
+msgstr "Parkopplade enheter"
+
+msgid "Transfers in progress"
+msgstr "Pågående överföringar"
+
+msgid "on"
+msgstr "på"
+
+msgid "off"
+msgstr "av"
+
+msgid "yes"
+msgstr "ja"
+
+msgid "no"
+msgstr "nej"
+
+msgid "THIS DEVICE"
+msgstr "DEN HÄR ENHETEN"
+
+msgid "Run in the background"
+msgstr "Kör i bakgrunden"
+
+msgid "Start without opening a window."
+msgstr "Starta utan att öppna ett fönster."
+
+msgid "Notifications"
+msgstr "Aviseringar"
+
+msgid "Offers over other apps"
+msgstr "Erbjudanden över andra appar"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "På: filerna i ett erbjudande visas över det du gör, och Acceptera öppnar inte Peersus."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Av: filerna i ett erbjudande visas i Peersus. Tillåt det för att se listan över andra appar."
+
+msgid "Where an offer appears"
+msgstr "Var ett erbjudande visas"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "Skärmkanten där ett erbjudande om en fil visas över det du gör."
+
+msgid "Top"
+msgstr "Uppe"
+
+msgid "Bottom"
+msgstr "Nere"
+
+msgid "Left"
+msgstr "Vänster"
+
+msgid "Right"
+msgstr "Höger"
+
+msgid "Battery"
+msgstr "Batteri"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "På: bakgrundstjänstens nätverk fortsätter fungera medan telefonen är inaktiv."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Begränsad: när telefonen är inaktiv kan systemet stänga av bakgrundstjänstens nätverk. Tillåt det i batteriinställningarna."
+
+msgid "Trying to reach the device"
+msgstr "Försöker nå enheten"
+
+msgid "This can take up to half a minute."
+msgstr "Det kan ta upp till en halv minut."
+
+msgid "It answers, and it knows this device"
+msgstr "Den svarar och känner igen den här enheten"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "Anslutningen fungerar. Inget behöver göras."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Den svarar men känner inte längre igen den här enheten"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Glöm den här och para ihop de två enheterna igen. Inget annat är fel."
+
+msgid "It does not answer"
+msgstr "Den svarar inte"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Den kan vara avstängd eller utom räckhåll. Försök igen om en stund. Reläerna är på, så ett nätverksbyte är inte orsaken."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "Reläerna är av, så enheter i olika nätverk kan inte hitta varandra. Slå på ”Använd internetreläer” i inställningarna."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "På: ett filerbjudande visas även när programmet är stängt."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Blockerade: ett filerbjudande visas inte förrän du tillåter aviseringar."
+
+msgid "Allow"
+msgstr "Tillåt"
+
+msgid "Camera"
+msgstr "Kamera"
+
+msgid "Wide"
+msgstr "Vidvinkel"
+
+msgid "Main"
+msgstr "Huvud"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Automatiskt"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Välj kameran som läser en kod och tryck på Testa för att se vad den visar."
+
+msgid "Test the camera"
+msgstr "Testa kameran"
+
+msgid "Test connection"
+msgstr "Testa anslutningen"
+
+msgid "Where is this device?"
+msgstr "Var finns den här enheten?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 eller namn.exempel.se:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Skriv var den här enheten finns när adressen från ihopparningen har ändrats."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Ett namn är bättre än ett nummer: det slås upp på nytt varje gång och fungerar därför även när numret ändras."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "Porten visas på den andra enheten, i inställningarna. Utan port används den där den senast sågs."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Det hjälper bara om enheten kan nås på den adressen. En telefon i mobilnät kan oftast inte det, och då ansluter bara reläerna den."
+
+msgid "Save and test"
+msgstr "Spara och testa"
+
+msgid "Remove the address"
+msgstr "Ta bort adressen"
+
+msgid "Listening port"
+msgstr "Lyssningsport"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "En annan enhet skriver den här porten efter adressen till den här för att hitta den. Den ändras varje gång programmet startar."
+
+msgid "Search settings"
+msgstr "Sök i inställningar"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Inget i inställningarna liknar det."
+
+msgid "Files sent"
+msgstr "Skickade filer"
+
+msgid "Files received"
+msgstr "Mottagna filer"
+
+msgid "Files in all"
+msgstr "Filer totalt"
+
+msgid "Generate QR code"
+msgstr "Skapa QR-kod"
+
+msgid "Clear the list"
+msgstr "Rensa listan"
+
+msgid "+ Add more files"
+msgstr "+ Lägg till fler filer"
+
+msgid "All"
+msgstr "Alla"
+
+msgid "Active"
+msgstr "Aktiva"
+
+msgid "Stopped"
+msgstr "Stoppade"
+
+msgid "Incoming"
+msgstr "Inkommande"
+
+msgid "Outgoing"
+msgstr "Utgående"
+
+msgid "Search transfers"
+msgstr "Sök överföringar"
+
+msgid "No transfer matches."
+msgstr "Ingen överföring matchar."
+
+msgid "Minimize"
+msgstr "Minimera"
+
+msgid "Expand"
+msgstr "Expandera"
+
+msgid "OUTGOING FILES"
+msgstr "UTGÅENDE FILER"
+
+msgid "EXPERIMENTAL"
+msgstr "EXPERIMENTELLT"
+
+msgid "Devices nearby"
+msgstr "Enheter i närheten"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Av: inget annonseras och inget avlyssnas. På: medan det här fönstret är öppet lyssnar den här enheten efter enheter i närheten och kan hittas av dem. Med Receive öppet säger den att den tar emot filer: filer som listas på en parkopplad enhet som hålls alldeles intill skickas genast, och en enhet som inte är parkopplad kan erbjuda sina när den förs nära; här tillfrågas du om varje fil. Med Peers öppet säger den att den finns där för parkoppling, och Peers listar de enheter i närheten som säger detsamma. Använder Bluetooth."
+
+msgid "NEARBY"
+msgstr "I NÄRHETEN"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Ingen enhet i närheten ännu. Öppna Peers på den andra enheten, med ”Enheter i närheten” på även där."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Ett namn här är vad den enheten säger om sig själv. Att välja en startar parkopplingen: sedan väljer ni båda samma siffra."
+
+msgid "That device is no longer nearby"
+msgstr "Den enheten är inte längre i närheten"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Erbjudna till enheten som fördes nära. Varje fil måste godkännas av personen där."
+
+msgid "That device does not take files this way"
+msgstr "Den enheten tar inte emot filer på det här sättet"
+
+msgid "How near is near"
+msgstr "Hur nära är nära"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "Håll de två enheterna så nära som du kommer att göra när du skickar, med programmet öppet på båda, mät sedan och ställ in. En enhet räknas som förd nära strax under den uppmätta styrkan, så att en hand som inte är helt stilla inte tappar den."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "Nära börjar vid {dbm} dBm, som du har ställt in."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "Nära börjar vid {dbm} dBm, programmets eget värde."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Starkaste enheten som hörs nu: {dbm} dBm. Inställt härifrån skulle nära börja vid {near} dBm."
+
+msgid "No device with this application open is heard yet."
+msgstr "Ingen enhet med det här programmet öppet hörs ännu."
+
+msgid "Measure"
+msgstr "Mät"
+
+msgid "Stop measuring"
+msgstr "Sluta mäta"
+
+msgid "Set near from here"
+msgstr "Ställ in nära härifrån"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Den här enheten har ingen Bluetooth som kan användas för att hitta enheter som hålls nära."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Bluetooth är av. Slå på det för att hitta enheter som hålls nära."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Systemet låter inte det här programmet använda Bluetooth för att hitta enheter som hålls nära."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Bluetooth nekade. Det försöks igen av sig självt."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Systemet låter den här enheten hitta enheter som hålls nära, men inte bli hittad av dem."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Skickade till enheten som hålls nära, med Receive öppet. Varje fil måste godkännas av personen där."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} är nära. Öppna Receive på den så skickas de här filerna dit."
+
+msgid "Send instantly"
+msgstr "Skicka direkt"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Av: när du valt mål håller du cirkeln nedtryckt tills den fylls, så ett felval kostar ingenting. På: en tryckning på cirkeln skickar direkt."
+
+msgid "INCOMING FILES"
+msgstr "INKOMMANDE FILER"
+
+msgid "Save incoming files on their own"
+msgstr "Spara inkommande filer automatiskt"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Av: du får välja plats för varje fil. På: filer går direkt till mappen nedan utan att fråga."
+
+msgid "THEME"
+msgstr "TEMA"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Behåll ikoner när fältet är stängt"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Ett stängt fält visar bara ikoner. Om avstängt döljs fältet helt."
+
+msgid "Reduce motion"
+msgstr "Minska rörelse"
+
+msgid "Turn off decorative animation."
+msgstr "Stäng av dekorativa animationer."
+
+msgid "CONNECTIONS"
+msgstr "ANSLUTNINGAR"
+
+msgid "Use internet relays"
+msgstr "Använd internetreläer"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Låter enheter ansluta mellan nätverk. Av: trafiken stannar i det här nätverket."
+
+msgid "INSTALLED"
+msgstr "INSTALLERADE"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "VAD VARJE TILLÄGG FÅR GÖRA"
+
+msgid "File"
+msgstr "Fil"
+
+msgid "Direction"
+msgstr "Riktning"
+
+msgid "State"
+msgstr "Status"
+
+msgid "Move it. Don't store it."
+msgstr "Överför, lagra inte."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Privata anslutningar mellan dina egna enheter. Filer skickas direkt mellan enheter, först efter mottagarens godkännande och utan någon molnmapp."
+
+msgid "INTERFACE"
+msgstr "GRÄNSSNITT"
+
+msgid "RENDERING"
+msgstr "RENDERING"
+
+msgid "NETWORK"
+msgstr "NÄTVERK"
+
+msgid "ENGINE"
+msgstr "MOTOR"
+
+msgid "The windows, layout and components of this application."
+msgstr "Programmets fönster, layout och komponenter."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "Operativsystemets fil- och mappväljare."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Skapar koden som en annan enhet skannar för att ansluta."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Ritar allt på skärmen, både text och former."
+
+msgid "Shapes the letters of the text."
+msgstr "Formar bokstäverna i texten."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "Ett litet ritbibliotek där Skia inte används."
+
+msgid "Encrypted connections between your devices."
+msgstr "Krypterade anslutningar mellan dina enheter."
+
+msgid "The encryption of those connections."
+msgstr "Krypteringen av dessa anslutningar."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "De kryptografiska byggstenarna under rustls."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Hämtar det programmet behöver via HTTPS."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Kör flera överföringar samtidigt utan att de väntar på varandra."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Läser och skriver programmets sparade filer och meddelanden."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Lagrar enhetens identitet i systemets nyckelring. En lokal kompatibilitetspatch tar bort den oanvända asynkrona bakänden och dess föråldrade serialiseringsberoenden, samtidigt som de inbyggda bakändarna och det befintliga sökbeteendet för inloggningsuppgifter bevaras. Verifieringsstatus och ursprung dokumenteras med patchen."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Hashar och meddelandekoder som kontrollerar filer och parkoppling."
+
+msgid "That file could not be read."
+msgstr "Filen kunde inte läsas."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Filen är för stor för en profilbild."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "Välj en PNG- eller JPEG-bild."
+
+msgid "That picture is too large to use."
+msgstr "Bilden är för stor för att användas."
+
+msgid "That picture could not be read."
+msgstr "Bilden kunde inte läsas."
+
+msgid "That picture could not be kept; try again."
+msgstr "Bilden kunde inte sparas; försök igen."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Det går inte att välja en bild här på den här telefonen."
+
+msgid "NOTICES"
+msgstr "MEDDELANDEN"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Behåll oberoende säkerhetskopior och kontrollera viktiga filer efter överföring. Programmet är ett överföringsverktyg, inte en säkerhetskopieringstjänst. Du ansvarar fortfarande för valda filer, betrodda enheter och beviljade behörigheter."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Säkerhetsåtgärder minskar risker men garanterar inte att sårbarheter, obehörig åtkomst eller röjande av uppgifter aldrig inträffar. Komprometterade enheter, osäkra tillägg, konfigurationsfel och framtida sårbarheter kan påverka dina data."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Programmet förlitar sig på tredjepartsbibliotek, operativsystem, tillägg och, när de är aktiverade, nätverksrelätjänster. Dessa beroenden medför risker utanför författarnas kontroll. Tredjepartskomponenter behåller sina egna licenser, villkor och meddelanden."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Detta meddelande utesluter inte ansvar som enligt tillämplig lag inte får uteslutas och begränsar inte rättigheter som inte lagligen kan avstås."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Programvaran tillhandahålls I BEFINTLIGT SKICK, utan garantier eller villkor av något slag, enligt avsnitt 7 och 8 i Apache-licensen 2.0. I den utsträckning tillämplig lag tillåter ansvarar författare och bidragsgivare inte för förluster till följd av användningen, inklusive förlorade, skadade eller röjda data."
+
+msgid "Device is offline"
+msgstr "Enheten är offline"
+
+msgid "Could not open selected file"
+msgstr "Den valda filen kunde inte öppnas"
+
+msgid "Could not offer selected files"
+msgstr "De valda filerna kunde inte erbjudas"
+
+msgid "Could not accept transfer"
+msgstr "Överföringen kunde inte accepteras"
+
+msgid "Could not cancel transfer"
+msgstr "Överföringen kunde inte avbrytas"
+
+msgid "Files selection is no longer active"
+msgstr "Filvalet är inte längre aktivt"
+
+msgid "Could not queue selected files"
+msgstr "De valda filerna kunde inte köas"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Inställningarna ändrades på annat håll; ladda om innan du sparar"
+
+msgid "Invalid or expired invitation"
+msgstr "Ogiltig eller utgången inbjudan"
+
+msgid "Connection queue is full"
+msgstr "Anslutningskön är full"
+
+msgid "Pairing request is no longer active"
+msgstr "Parkopplingsförfrågan är inte längre aktiv"
+
+msgid "The owner answered with something else."
+msgstr "Tjänsten gav ett oväntat svar."
+
+msgid "Unexpected file handoff reply"
+msgstr "Oväntat svar vid filöverlämning"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "En mottagen fil kunde inte placeras i den valda mappen. Den finns kvar i programmets egen mapp."
+
+msgid "STORE"
+msgstr "BUTIK"
+
+msgid "Search extensions"
+msgstr "Sök tillägg"
+
+msgid "Install from file"
+msgstr "Installera från fil"
+
+msgid "Before you choose a file"
+msgstr "Innan du väljer en fil"
+
+msgid "I understand and accept the risk"
+msgstr "Jag förstår och accepterar risken"
+
+msgid "Search the store"
+msgstr "Sök i butiken"
+
+msgid "Refresh"
+msgstr "Uppdatera"
+
+msgid "Refresh the list"
+msgstr "Uppdatera listan"
+
+msgid "by {author} · version {version}"
+msgstr "av {author} · version {version}"
+
+msgid "Installed: version {version}"
+msgstr "Installerad: version {version}"
+
+msgid "Update"
+msgstr "Uppdatera"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "Uppdateringen glömmer vad den installerade versionen fick göra. Efteråt bestämmer du på nytt."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "En nyare version än den godkända är installerad. Ta bort den för att installera den godkända versionen."
+
+msgid "The extension store is not set up in this build."
+msgstr "Tilläggsbutiken är inte konfigurerad i den här versionen."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Tryck på Uppdatera för att se tilläggen som underhållaren har godkänt."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "Butiken kunde inte slutföra det. Inget ändrades."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "Underhållaren har ännu inte godkänt något tillägg."
+
+msgid "No extension matches your search."
+msgstr "Inget tillägg matchar sökningen."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "Manuell installation innebär inget officiellt godkännande. Granska tillägget och dess källa; du ansvarar själv för kod som installeras utanför butiken."
+
+msgid "Remove for good?"
+msgstr "Ta bort för gott?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Skadad eller inaktuell: installera igen för att reparera"
+
+msgid "Stopped working: update or install it again"
+msgstr "Slutade fungera: uppdatera eller installera igen"
+
+msgid "Update available:"
+msgstr "Uppdatering tillgänglig:"
+
+msgid "Automatic updates"
+msgstr "Automatiska uppdateringar"
+
+msgid "Approve"
+msgstr "Godkänn"
+
+msgid "Reinstall"
+msgstr "Installera om"
+
+msgid "Background clipboard access"
+msgstr "Åtkomst till urklipp i bakgrunden"
+
+msgid "On"
+msgstr "På"
+
+msgid "Off"
+msgstr "Av"
+
+msgid "Remote input accessibility"
+msgstr "Tillgänglighet för fjärrstyrning"
+
+msgid "Relay"
+msgstr "Relä"
+
+msgid "Advanced relay options"
+msgstr "Avancerade reläalternativ"
+
+msgid "Direct wait (ms)"
+msgstr "Väntetid för direktanslutning (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Tidsgräns för relä (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Försök med föredraget relä igen (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Intervall i ms: direkt 100–30000; reserv 500–60000; nytt försök 5000–3600000."
+
+msgid "Not installed"
+msgstr "Inte installerad"
+
+msgid "Connecting to home relay"
+msgstr "Ansluter till hemrelä"
+
+msgid "Home relay connected"
+msgstr "Hemrelä anslutet"
+
+msgid "Home relay unavailable"
+msgstr "Hemrelä ej tillgängligt"
+
+msgid "Home relay refused access"
+msgstr "Hemrelä nekade åtkomst"
+
+msgid "Direct connection is always tried first."
+msgstr "Direktanslutning provas alltid först."
+
+msgid "Project relay"
+msgstr "Projektets relä"
+
+msgid "Public relays (n0)"
+msgstr "Offentliga reläer (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Aktivera offentliga reläer (n0)"
+
+msgid "Move up"
+msgstr "Flytta upp"
+
+msgid "Move down"
+msgstr "Flytta ned"
+
+msgid "Save and enable relay"
+msgstr "Spara och aktivera relä"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Token skickas bara till ditt egna relä, aldrig till projektets eller offentliga reläer."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Programtrafik väntar på en direkt väg innan reläer används i denna ordning. Signalering kan börja tidigare. Vidarebefordrad trafik är ändpunktskrypterad men anslutningsmetadata är synliga. Ingen programtelemetri skickas."
+
+msgid "Public relays"
+msgstr "Offentliga reläer"
+
+msgid "No relay"
+msgstr "Inget relä"
+
+msgid "My own relay"
+msgstr "Mitt eget relä"
+
+msgid "Priority"
+msgstr "Prioritet"
+
+msgid "Sequential"
+msgstr "I tur och ordning"
+
+msgid "Latency"
+msgstr "Latens"
+
+msgid "Order"
+msgstr "Ordning"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Alla aktiverade reläer erbjuds tillsammans; det närmaste som svarar används."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "Listans ordning är preferensen; det första reläet prövas igen efter en reserv."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "I listans ordning; ett fungerande relä behålls tills det fallerar."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "De aktiverade reläerna mäts och det snabbaste som svarar används."
+
+msgid "No answer"
+msgstr "Inget svar"
+
+msgid "Remove this relay?"
+msgstr "Ta bort det här reläet?"
+
+msgid "Change address"
+msgstr "Ändra adress"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Token skickas bara till det här reläet, aldrig till de andra."
+
+msgid "Test relays"
+msgstr "Testa reläer"
+
+msgid "Add a relay"
+msgstr "Lägg till ett relä"
+
+msgid "Add relay"
+msgstr "Lägg till relä"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "Reläer som vem som helst kan använda. De för bara vidare krypterad trafik och kan inte läsa den."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Inget relä: enheter i olika nätverk kan inte hitta varandra. Trafiken stannar i det här nätverket."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Ett relä som du driver själv, i stället för de offentliga."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Använd det här reläet"
+
+msgid "Access token (kept on this device only)"
+msgstr "Åtkomsttoken (sparas bara på den här enheten)"
+
+msgid "Save token"
+msgstr "Spara token"
+
+msgid "Forget token"
+msgstr "Glöm token"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Token lagras i den här enhetens säkra lagring. Den visas aldrig igen och skickas aldrig till andra enheter."
+
+msgid "Token saved"
+msgstr "Token sparad"
+
+msgid "Token forgotten"
+msgstr "Token glömd"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "Reläadressen måste börja med https:// och vara en enda adress utan mellanslag"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Relätoken måste vara en enda rad på högst 512 tecken"
+
+msgid "Page background"
+msgstr "Sidbakgrund"
+
+msgid "Cards and panels"
+msgstr "Kort och paneler"
+
+msgid "Raised controls and hover"
+msgstr "Upphöjda reglage och hovring"
+
+msgid "Top header background"
+msgstr "Sidhuvudets bakgrund"
+
+msgid "Sidebar background"
+msgstr "Sidofältets bakgrund"
+
+msgid "Borders and separators"
+msgstr "Kanter och avgränsare"
+
+msgid "Primary text"
+msgstr "Primär text"
+
+msgid "Secondary text"
+msgstr "Sekundär text"
+
+msgid "Portal disc"
+msgstr "Portalskiva"
+
+msgid "Portal text"
+msgstr "Portaltext"
+
+msgid "Send indicators"
+msgstr "Sändningsindikatorer"
+
+msgid "Receive indicators"
+msgstr "Mottagningsindikatorer"
+
+msgid "Connected and successful"
+msgstr "Ansluten och lyckad"
+
+msgid "Offline and failed"
+msgstr "Offline och misslyckad"
+
+msgid "Warning text"
+msgstr "Varningstext"
+
+msgid "Warning background"
+msgstr "Varningsbakgrund"
+
+msgid "Primary button background"
+msgstr "Primärknappens bakgrund"
+
+msgid "Primary button text"
+msgstr "Primärknappens text"
+
+msgid "Minimise window control"
+msgstr "Fönsterknapp för minimering"
+
+msgid "Maximise window control"
+msgstr "Fönsterknapp för maximering"
+
+msgid "Close window control"
+msgstr "Fönsterknapp för stängning"
+
+msgid "Navigation icons"
+msgstr "Navigeringsikoner"
+
+msgid "Selected navigation icon"
+msgstr "Vald navigeringsikon"
+
+msgid "Camera detection outline"
+msgstr "Kontur för kameradetektering"
+
+msgid "CUSTOM THEME"
+msgstr "ANPASSAT TEMA"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Välj ett element och skriv dess färg. Förhandsvisningen och hela gränssnittet följer medan du skriver; inget sparas förrän du sparar temat."
+
+msgid "Dark base"
+msgstr "Mörk bas"
+
+msgid "Light base"
+msgstr "Ljus bas"
+
+msgid "Editing: {element}"
+msgstr "Redigerar: {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Ange sex hexadecimala RGB-siffror, till exempel #708090."
+
+msgid "Discard changes"
+msgstr "Ignorera ändringar"
+
+msgid "Reset selected element"
+msgstr "Återställ valt element"
+
+msgid "Your theme name"
+msgstr "Namn på ditt tema"
+
+msgid "Confirm replace existing theme"
+msgstr "Bekräfta att befintligt tema ersätts"
+
+msgid "Save named theme"
+msgstr "Spara temat med detta namn"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "BIBLIOTEK MED SPARADE TEMAN"
+
+msgid "Load {name}"
+msgstr "Läs in {name}"
+
+msgid "Confirm removal"
+msgstr "Bekräfta borttagning"
+
+msgid "IMPORT / EXPORT"
+msgstr "IMPORT / EXPORT"
+
+msgid "Export / copy theme JSON"
+msgstr "Exportera / kopiera temats JSON"
+
+msgid "Paste exported theme JSON here"
+msgstr "Klistra in exporterad tema-JSON här"
+
+msgid "Import JSON for preview"
+msgstr "Importera JSON för förhandsvisning"
+
+msgid "Import theme file…"
+msgstr "Importera temafil…"
+
+msgid "Export theme file…"
+msgstr "Exportera temafil…"
+
+msgid "Theme JSON"
+msgstr "Tema-JSON"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Låg kontrast: ”{text}” på ”{surface}” kan vara svårt att läsa."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Välj ett temanamn på 1–64 tecken, utan blanksteg i början eller slutet."
+
+msgid "The theme could not be exported."
+msgstr "Temat kunde inte exporteras."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Temafiler får vara högst 64 KiB."
+
+msgid "This is not a valid theme file."
+msgstr "Det här är inte en giltig temafil."
+
+msgid "This theme format version is not supported."
+msgstr "Den här versionen av temaformatet stöds inte."
+
+msgid "The theme name is invalid."
+msgstr "Temanamnet är ogiltigt."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Det här namnet finns redan. Bekräfta ersättningen nedan eller använd ett annat namn."
+
+msgid "Theme saved in your library."
+msgstr "Temat har sparats i ditt bibliotek."
+
+msgid "The theme could not be saved."
+msgstr "Temat kunde inte sparas."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Temat har kopierats. Klistra in det i en fil eller en annan installation."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "Temats JSON finns i utbytesfältet nedan; det kan markeras och kopieras."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Importerat för förhandsvisning. Spara för att lägga till temat i ditt bibliotek."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Ändringarna ignorerades; sparade inställningar är oförändrade."
+
+msgid "The theme file could not be opened."
+msgstr "Temafilen kunde inte öppnas."
+
+msgid "The theme file could not be read."
+msgstr "Temafilen kunde inte läsas."
+
+msgid "Theme exported."
+msgstr "Temat har exporterats."
+
+msgid "Theme removed from your library."
+msgstr "Temat har tagits bort från ditt bibliotek."
+
+msgid "The theme could not be removed."
+msgstr "Temat kunde inte tas bort."
+
+msgid "Top header"
+msgstr "Sidhuvud"
+
+msgid "Header · navigation and window controls"
+msgstr "Sidhuvud · navigering och fönsterknappar"
+
+msgid "Sidebar"
+msgstr "Sidofält"
+
+msgid "Navigation icon"
+msgstr "Navigeringsikon"
+
+msgid "Window control (preview only)"
+msgstr "Fönsterknapp (endast förhandsvisning)"
+
+msgid "Portal disc and its text"
+msgstr "Portalskivan och dess text"
+
+msgid "PORTAL"
+msgstr "PORTAL"
+
+msgid "Primary button"
+msgstr "Primärknapp"
+
+msgid "Primary action"
+msgstr "Primär åtgärd"
+
+msgid "Warning notice"
+msgstr "Varningsmeddelande"
+
+msgid "Warning: verify received files."
+msgstr "Varning: kontrollera mottagna filer."
+
+msgid "Camera detection marker"
+msgstr "Markör för kameradetektering"
+
+msgid "Sending →"
+msgstr "Skickar →"
+
+msgid "← Receiving"
+msgstr "← Tar emot"
+
+msgid "● Connected · Complete"
+msgstr "● Ansluten · Klar"
+
+msgid "● Offline · Failed"
+msgstr "● Offline · Misslyckades"
+
+msgid "Transfer or connection indicator"
+msgstr "Indikator för överföring eller anslutning"
+
+msgid "Text on the page"
+msgstr "Text på sidan"
+
+msgid "Primary text — names and headings"
+msgstr "Primär text — namn och rubriker"
+
+msgid "Secondary text — descriptions and details"
+msgstr "Sekundär text — beskrivningar och detaljer"
+
+msgid "Surface and border"
+msgstr "Yta och kant"
+
+msgid "Panel / page content"
+msgstr "Panel / sidinnehåll"
+
+msgid "PREVIEW — {element}"
+msgstr "FÖRHANDSVISNING — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Importera temafil · Exportera temafil · JSON"
+
+msgid "UPDATES"
+msgstr "UPPDATERINGAR"
+
+msgid "Update automatically"
+msgstr "Uppdatera automatiskt"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "På: en verifierad uppdatering av Peersus hämtas och läggs på plats utan att fråga."
+
+msgid "Restart after an update"
+msgstr "Starta om efter en uppdatering"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "På: Peersus startar om av sig själv när en uppdatering är på plats och inget skickas eller tas emot."
+
+msgid "Check for updates"
+msgstr "Sök efter uppdateringar"
+
+msgid "Update now"
+msgstr "Uppdatera nu"
+
+msgid "Restart now"
+msgstr "Starta om nu"
+
+msgid "This installation does not update itself."
+msgstr "Den här installationen uppdaterar inte sig själv."
+
+msgid "Updates have not been looked for yet."
+msgstr "Inga uppdateringar har sökts ännu."
+
+msgid "Looking for an update…"
+msgstr "Söker efter en uppdatering…"
+
+msgid "This version is up to date."
+msgstr "Den här versionen är aktuell."
+
+msgid "Version {version} is available."
+msgstr "Version {version} är tillgänglig."
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Updates"
+msgstr "Uppdateringar"
+
+msgid "not in this build"
+msgstr "inte i denna version"
+
+msgid "not automatic"
+msgstr "inte automatiska"
+
+msgid "not checked yet"
+msgstr "inte kontrollerat än"
+
+msgid "checking…"
+msgstr "kontrollerar…"
+
+msgid "up to date"
+msgstr "aktuell"
+
+msgid "update available"
+msgstr "uppdatering tillgänglig"
+
+msgid "updating…"
+msgstr "uppdaterar…"
+
+msgid "restart to finish"
+msgstr "starta om för att slutföra"
+
+msgid "Binds"
+msgstr "Kortkommandon"
+
+msgid "KEY BINDINGS"
+msgstr "KORTKOMMANDON"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "Ett kortkommando gör det dess rad säger medan fönstret är främst. Tryck + och sedan tangenterna samtidigt för att lägga till ett, upp till tre; tryck på ett kortkommando för att ändra det, sedan Backsteg för att ta bort det eller Escape för att behålla det."
+
+msgid "press the keys…"
+msgstr "tryck på tangenterna…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Backsteg tar bort"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} har redan tre kortkommandon."
+
+msgid "Also while the window is not in front"
+msgstr "Även när fönstret inte är främst"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Skrivbordet ber dig godkänna tangenterna och kan ge en annan tangent där en redan är upptagen."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} kör redan: {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Tar emot det senaste väntande erbjudandet av filer, sparade där din regel för mottagna filer säger."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Avböjer det senaste väntande erbjudandet av filer."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Öppnar sidan Skicka, för att välja filer och enheten de skickas till."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Öppnar sidan Ta emot, med parkopplingskoden och de mottagna filerna."
+
+msgid "Accept incoming files"
+msgstr "Ta emot inkommande filer"
+
+msgid "Decline incoming files"
+msgstr "Avböj inkommande filer"
+
+msgid "Show Send"
+msgstr "Visa Skicka"
+
+msgid "Show Receive"
+msgstr "Visa Ta emot"
+
+msgid "something no longer installed"
+msgstr "något som inte längre är installerat"
+
+msgid "Downloading the update…"
+msgstr "Hämtar uppdateringen…"
+
+msgid "Putting the update in place…"
+msgstr "Lägger uppdateringen på plats…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "Uppdateringen är på plats. Den körs efter en omstart."
+
+msgid "Restarting…"
+msgstr "Startar om…"
+
+msgid "The update could not be completed."
+msgstr "Uppdateringen kunde inte slutföras."
+
+msgid "Accept TOS"
+msgstr "Godkänn TOS"
+
+msgid "Next"
+msgstr "Nästa"
+
+msgid "Hold to confirm"
+msgstr "Håll för att bekräfta"
+
+msgid "Keep holding"
+msgstr "Fortsätt hålla"
+
+msgid "Read to the end to go on"
+msgstr "Läs till slutet för att gå vidare"
+
+msgid "Step {number} of {total}"
+msgstr "Steg {number} av {total}"
+
+msgid "WHAT THIS IS"
+msgstr "VAD DET ÄR"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "VAD SOM ÄNDRAS FÖR DIG"
+
+msgid "READ THE FULL TEXT"
+msgstr "LÄS HELA TEXTEN"
+
+msgid "LICENCE"
+msgstr "LICENS"
+
+msgid "NOTICE"
+msgstr "MEDDELANDE"
+
+msgid "TERMS"
+msgstr "VILLKOR"
+
+msgid "OUTSIDE THE STORE"
+msgstr "UTANFÖR BUTIKEN"
+
+msgid "This extension did not come through the store"
+msgstr "Det här tillägget kommer inte från butiken"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Ingen på Peersus har granskat det, signerat det eller lovat att det är säkert. Det körs med din åtkomst på den här enheten och kan läsa och skicka allt du låter det nå."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Peersus-projektet kan inte ta på sig risken med ett tillägg utanför sin butik och ansvarar inte för vad det gör med dig, dina filer eller dina enheter. Risken är din."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Föredra butiken: det som finns där granskades innan det erbjöds. Om du inte vet vem som gjort det här paketet, installera det inte."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Läs till slutet och håll sedan knappen för att bekräfta att du förstår detta och accepterar risken."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} fil"
+msgstr[1] "{count} filer"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minut"
+msgstr[1] "{count} minuter"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} timme"
+msgstr[1] "{count} timmar"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dag"
+msgstr[1] "{count} dagar"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} månad"
+msgstr[1] "{count} månader"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} år"
+msgstr[1] "{count} år"
+
+msgid "The language file could not be read."
+msgstr "Språkfilen kunde inte läsas."
+
+msgid "The language file was imported."
+msgstr "Språkfilen importerades."
+
+msgid "The template was saved."
+msgstr "Mallen sparades."
+
+msgid "The template could not be saved."
+msgstr "Mallen kunde inte sparas."
+
+msgid "Could not open a browser."
+msgstr "Kunde inte öppna en webbläsare."
+
+msgid "This device is set to {language}."
+msgstr "Den här enheten använder {language}."
+
+msgid "This device names no language, so English is used."
+msgstr "Den här enheten anger inget språk, så engelska används."
+
+msgid "LANGUAGE"
+msgstr "SPRÅK"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "Engelska är inbyggt. Alla andra språk är en fil som hämtas för den här versionen; det den inte översätter visas på engelska."
+
+msgid "Use the device's language"
+msgstr "Använd enhetens språk"
+
+msgid "Looking for languages…"
+msgstr "Letar efter språk…"
+
+msgid "The languages could not be fetched"
+msgstr "Språken kunde inte hämtas"
+
+msgid "No other language is offered for this version yet."
+msgstr "Inget annat språk erbjuds ännu för den här versionen."
+
+msgid "TRANSLATE"
+msgstr "ÖVERSÄTT"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Spara mallen, översätt den i valfri PO-redigerare, importera den här för att se den direkt och dela den sedan så att den kan erbjudas alla."
+
+msgid "{percent}% translated"
+msgstr "{percent} % översatt"
+
+msgid "{about} · imported"
+msgstr "{about} · importerad"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · hämtas när det väljs"
+
+msgid "IN USE"
+msgstr "ANVÄNDS"
+
+msgid "Use"
+msgstr "Använd"
+
+msgid "Check again"
+msgstr "Kontrollera igen"
+
+msgid "Language file"
+msgstr "Språkfil"
+
+msgid "Import a language file…"
+msgstr "Importera en språkfil…"
+
+msgid "Language template"
+msgstr "Språkmall"
+
+msgid "Save the template…"
+msgstr "Spara mallen…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Dela en översättning (öppnar webbläsaren)"
+
+msgid "Languages"
+msgstr "Språk"
+
+msgid "English is the application's own language and needs no file"
+msgstr "Engelska är programmets eget språk och behöver ingen fil"
+
+msgid "No languages are offered for this release yet"
+msgstr "Inga språk erbjuds ännu för den här versionen"
+
+msgid "That language file is not held"
+msgstr "Den språkfilen finns inte här"
+
+msgid "The language file could not be read"
+msgstr "Språkfilen kunde inte läsas"
+
+msgid "The language file could not be removed"
+msgstr "Språkfilen kunde inte tas bort"
+
+msgid "The language file could not be saved"
+msgstr "Språkfilen kunde inte sparas"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Språkfilen säger inte vilket språk den är (dess huvud har ingen Language)"
+
+msgid "The language file is too large"
+msgstr "Språkfilen är för stor"
+
+msgid "The languages could not be saved"
+msgstr "Språken kunde inte sparas"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "Fönstren visas på engelska, som inte behöver någon fil"
+
+msgid "This is not a language file the application can read"
+msgstr "Det här är inte en språkfil som programmet kan läsa"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "Det som språkgrenen skickade kunde inte kontrolleras"
+
+msgid "Languages are not available here"
+msgstr "Språk är inte tillgängliga här"
+
+msgid "The plugin picker could not be opened"
+msgstr "Pluginväljaren kunde inte öppnas"
+
+msgid "The file picker could not be opened"
+msgstr "Filväljaren kunde inte öppnas"
+
+msgid "Another language file is being imported"
+msgstr "En annan språkfil importeras redan"
+
+msgid "The application is not ready to import a language file"
+msgstr "Programmet är inte redo att importera en språkfil"
+
+msgid "The application is not ready to open plugins"
+msgstr "Programmet är inte redo att öppna plugins"
+
+msgid "Another plugin archive is being opened"
+msgstr "Ett annat pluginarkiv öppnas redan"
+
+msgid "The selected archive could not be staged"
+msgstr "Det valda arkivet kunde inte förberedas"
+
+msgid "The selected archive could not be read"
+msgstr "Det valda arkivet kunde inte läsas"
+
+msgid "The embedded metadata is not valid"
+msgstr "De inbäddade metadata är ogiltiga"
+
+msgid "The program carries no embedded metadata"
+msgstr "Programmet saknar inbäddade metadata"
+
+msgid "The program is not a recognised binary"
+msgstr "Programmet är inte en känd binärfil"
+
+msgid "Input capabilities are unavailable"
+msgstr "Inmatningsfunktioner är inte tillgängliga"
+
+msgid "Input is unavailable"
+msgstr "Inmatning är inte tillgänglig"
+
+msgid "The input was not understood"
+msgstr "Inmatningen förstods inte"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Den här datorn kan inte styras: ingen inmatningsenhet kunde skapas"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Den här datorn kan inte ge den enheten en egen pekare"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Det här tillägget spelar upp inmatning för för många enheter samtidigt"
+
+msgid "Unknown input method"
+msgstr "Okänd inmatningsmetod"
+
+msgid "An installed native module must be read-only"
+msgstr "En installerad inbyggd modul måste vara skrivskyddad"
+
+msgid "Another plugin already has this name"
+msgstr "Ett annat tillägg har redan det här namnet"
+
+msgid "It could not be read"
+msgstr "Det gick inte att läsa"
+
+msgid "It has no manifest"
+msgstr "Det har inget manifest"
+
+msgid "It has no program"
+msgstr "Det har inget program"
+
+msgid "It has two manifests"
+msgstr "Det har två manifest"
+
+msgid "It is not a directory"
+msgstr "Det är ingen mapp"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Den erbjuder en tjänst som ett annat tillägg redan erbjuder"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Den tar emot saker utan någon behörighet som skyddar dem"
+
+msgid "Its directory belongs to someone else"
+msgstr "Dess mapp tillhör någon annan"
+
+msgid "Its directory can be changed by others"
+msgstr "Dess mapp kan ändras av andra"
+
+msgid "Its manifest could not be read"
+msgstr "Dess manifest gick inte att läsa"
+
+msgid "Its manifest is not a file"
+msgstr "Dess manifest är ingen fil"
+
+msgid "Its manifest is not valid"
+msgstr "Dess manifest är ogiltigt"
+
+msgid "Its manifest is too large"
+msgstr "Dess manifest är för stort"
+
+msgid "Its name is not usable"
+msgstr "Dess namn går inte att använda"
+
+msgid "Its program belongs to someone else"
+msgstr "Dess program tillhör någon annan"
+
+msgid "Its program can be changed by others"
+msgstr "Dess program kan ändras av andra"
+
+msgid "Its program cannot be run"
+msgstr "Dess program kan inte köras"
+
+msgid "Its program is not a file"
+msgstr "Dess program är ingen fil"
+
+msgid "One of its actions could never be reached"
+msgstr "En av dess åtgärder skulle aldrig kunna nås"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Tillägg kan inte köras på det här systemet"
+
+msgid "Cannot create application directory"
+msgstr "Kan inte skapa programkatalogen"
+
+msgid "Cannot open identity lock"
+msgstr "Kan inte öppna identitetslåset"
+
+msgid "Identity is being opened by another process"
+msgstr "Identiteten öppnas av en annan process"
+
+msgid "System credential store is unavailable"
+msgstr "Systemets lagring för inloggningsuppgifter är inte tillgänglig"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Kan inte starta åtkomst till systemets nyckelring. Befintlig identitet har inte ändrats"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Kan inte verifiera upplåsningen av systemets nyckelring. Befintlig identitet har inte ändrats"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Systemets nyckelring är fortfarande låst. Befintlig identitet och parkopplingar har inte ändrats"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Systemets nyckelring är inte tillgänglig. Befintlig identitet och parkopplingar har inte ändrats"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Tidsgränsen för att låsa upp systemets nyckelring gick ut. Befintlig identitet och parkopplingar har inte ändrats"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Upplåsningen av systemets nyckelring avbröts. Befintlig identitet och parkopplingar har inte ändrats"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "Systemets nyckelring är låst och dess tjänst visade inte lösenordsrutan; befintlig identitet och parkopplingar ändrades inte"
+
+msgid "Could not read local application state"
+msgstr "Kunde inte läsa programmets lokala tillstånd"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "Den lokala anslutningen misslyckades; kommandots resultat kan vara okänt"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "Den lokala begäran tog för lång tid; kommandots resultat kan vara okänt"
+
+msgid "Too many windows are attached"
+msgstr "För många fönster är anslutna"
+
+msgid "The window program is not beside the owner"
+msgstr "Fönsterprogrammet finns inte bredvid ägaren"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Den här sessionen har ingen X-skärm att placera en panel på"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Det här tilläggsformatet är inte tillgängligt i den här distributionen"
+
+msgid "It clashes with another plugin"
+msgstr "Det krockar med ett annat tillägg"
+
+msgid "It could not be loaded"
+msgstr "Det gick inte att läsa in"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Paketet saknar licens och meddelande, så det kan inte installeras"
+
+msgid "It has no manifest the application can use"
+msgstr "Den har inget manifest som appen kan använda"
+
+msgid "It has no program the application can run"
+msgstr "Den har inget program som appen kan köra"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "Dess mapp kan ändras av andra, så den körs inte"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Det går inte att koda konfigurationen för den privata katalogen"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Det går inte att hitta hjälpprogrammet för den privata katalogen"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Det går inte att förbereda den privata katalogens tillstånd"
+
+msgid "Cannot protect private catalog state"
+msgstr "Det går inte att skydda den privata katalogens tillstånd"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Det går inte att läsa konfigurationen för den privata katalogen"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Det går inte att spara konfigurationen för den privata katalogen säkert"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Det går inte att verifiera den sparade konfigurationen för den privata katalogen"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "Konfigurationen för den privata katalogen ändrades medan den sparades"
+
+msgid "The private catalog signing key is not valid"
+msgstr "Signeringsnyckeln för den privata katalogen är ogiltig"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "Den sparade konfigurationen för den privata katalogen går inte att använda"
+
+msgid "The system credential store is unavailable"
+msgstr "Systemets lagring för inloggningsuppgifter är inte tillgänglig"
+
+msgid "Cannot forget the relay token"
+msgstr "Det går inte att glömma relätoken"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Det går inte att läsa relätoken; den sparade ändrades inte"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Det går inte att spara relätoken i systemets lagring för inloggningsuppgifter"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Det går inte att verifiera den sparade relätoken"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Den sparade relätoken ändrades medan den sparades"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Den sparade relätoken går inte att använda; den har inte ändrats"
+
+msgid "Action arguments are invalid"
+msgstr "Åtgärdens argument är ogiltiga"
+
+msgid "Action context is invalid"
+msgstr "Åtgärdens kontext är ogiltig"
+
+msgid "Action is not permitted for this device"
+msgstr "Åtgärden är inte tillåten för den här enheten"
+
+msgid "An action can have up to three key bindings"
+msgstr "En åtgärd kan ha upp till tre kortkommandon"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "Ett tillägg begärde för mycket för snabbt och är pausat en kort stund"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "Ett tillägg kräver att du läser och godkänner dess licens och meddelande; öppna Tillägg"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Ett externt paket kan inte ersätta ett medföljande tillägg"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "Ett annat tillägg överför redan indata mellan enheter. Stäng av det för att använda det här"
+
+msgid "Application updates are not available here"
+msgstr "Appuppdateringar är inte tillgängliga här"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Medföljande tillägg kan inte tas bort"
+
+msgid "Choose a device for this action"
+msgstr "Välj en enhet för den här åtgärden"
+
+msgid "Choose a device for this setting"
+msgstr "Välj en enhet för den här inställningen"
+
+msgid "Choose between one and sixteen files"
+msgstr "Välj mellan en och sexton filer"
+
+msgid "Choose exactly one file for this action"
+msgstr "Välj exakt en fil för den här åtgärden"
+
+msgid "Could not change this permission"
+msgstr "Kunde inte ändra den här behörigheten"
+
+msgid "Could not clear the history"
+msgstr "Kunde inte rensa historiken"
+
+msgid "Could not forget device"
+msgstr "Kunde inte glömma enheten"
+
+msgid "Could not forget what it was granted"
+msgstr "Kunde inte glömma vad som beviljats"
+
+msgid "Could not keep the picture"
+msgstr "Kunde inte behålla bilden"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Kunde inte öppna den valda mappen, eller så är enheten offline"
+
+msgid "Could not remove the picture"
+msgstr "Kunde inte ta bort bilden"
+
+msgid "Could not save permissions"
+msgstr "Kunde inte spara behörigheterna"
+
+msgid "Device is not paired"
+msgstr "Enheten är inte parkopplad"
+
+msgid "Extension prompts unavailable"
+msgstr "Tilläggsfrågor är inte tillgängliga"
+
+msgid "Files selection is not fully accounted for"
+msgstr "Filvalet är inte helt redovisat"
+
+msgid "Input arguments are invalid"
+msgstr "Indataargumenten är ogiltiga"
+
+msgid "Invalid value for this setting"
+msgstr "Ogiltigt värde för den här inställningen"
+
+msgid "Key bindings are not available on this device"
+msgstr "Kortkommandon är inte tillgängliga på den här enheten"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Språk hämtas; försök igen när det är klart"
+
+msgid "No picture is held for that"
+msgstr "Ingen bild finns sparad för det"
+
+msgid "No plugin handles this request"
+msgstr "Inget tillägg hanterar den här begäran"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Inget visades för det tillägget"
+
+msgid "Permissions could not be applied"
+msgstr "Behörigheterna kunde inte tillämpas"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Tillägget är inte tillåtet för den här enheten"
+
+msgid "Plugin unavailable"
+msgstr "Tillägget är inte tillgängligt"
+
+msgid "Plugins cannot be installed here"
+msgstr "Tillägg kan inte installeras här"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Konfigurationen för den privata katalogen kunde inte sparas"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Privata kataloger är inte aktiverade på den här enheten"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Skrivskyddad demo: det här fönstret är inte anslutet till en ägare"
+
+msgid "Selected input is unavailable"
+msgstr "Markerad inmatning är inte tillgänglig"
+
+msgid "That action cannot be run by a key"
+msgstr "Den åtgärden kan inte köras med en tangent"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Den åtgärden behöver en enhet för sin tangent, och bara då"
+
+msgid "That device cannot be sent to"
+msgstr "Det går inte att skicka till den enheten"
+
+msgid "That extension action is not installed"
+msgstr "Den tilläggsåtgärden är inte installerad"
+
+msgid "That input was not understood"
+msgstr "Indatan kunde inte tolkas"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Den behörigheten kan inte ges till det här tillägget"
+
+msgid "The code was already used or is no longer shown"
+msgstr "Koden har redan använts eller visas inte längre"
+
+msgid "The extension store failed"
+msgstr "Tilläggsbutiken misslyckades"
+
+msgid "The extension store is not available here"
+msgstr "Tilläggsbutiken är inte tillgänglig här"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "Licensen och meddelandet godkändes inte, så inget installerades"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Paketet ändrades efter att det visades; välj det igen"
+
+msgid "The package has no valid name"
+msgstr "Paketet har inget giltigt namn"
+
+msgid "The plugin could not be registered"
+msgstr "Tillägget kunde inte registreras"
+
+msgid "The plugin does not allow this action"
+msgstr "Tillägget tillåter inte den här åtgärden"
+
+msgid "The plugin does not offer this action"
+msgstr "Tillägget erbjuder inte den här åtgärden"
+
+msgid "The plugin is not running"
+msgstr "Tillägget körs inte"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "Tillägget är inte det som visades; titta på det igen"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "Tillägget skickar för mycket för snabbt"
+
+msgid "The request could not be sent"
+msgstr "Begäran kunde inte skickas"
+
+msgid "The text to share is empty or too large"
+msgstr "Texten att dela är tom eller för stor"
+
+msgid "The update failed"
+msgstr "Uppdateringen misslyckades"
+
+msgid "This action does not accept selected input"
+msgstr "Den här åtgärden tar inte emot valda indata"
+
+msgid "This action does not accept shared text"
+msgstr "Den här åtgärden tar inte emot delad text"
+
+msgid "This action does not use a device"
+msgstr "Den här åtgärden använder ingen enhet"
+
+msgid "This action is not available now"
+msgstr "Den här åtgärden är inte tillgänglig just nu"
+
+msgid "This action requires its declared selected input"
+msgstr "Den här åtgärden kräver sina angivna valda indata"
+
+msgid "This device cannot keep a relay token"
+msgstr "Den här enheten kan inte spara en reläsignatur"
+
+msgid "This extension declares no input transport"
+msgstr "Det här tillägget anger ingen indatatransport"
+
+msgid "This is not permitted for this device"
+msgstr "Det här är inte tillåtet för den här enheten"
+
+msgid "This page is not offered on this system"
+msgstr "Den här sidan erbjuds inte på det här systemet"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Den här plattformen erbjuder inte den begärda funktionen"
+
+msgid "This setting is not per device"
+msgstr "Den här inställningen gäller inte per enhet"
+
+msgid "Too many calls"
+msgstr "För många anrop"
+
+msgid "Too many operations are pending"
+msgstr "För många åtgärder väntar"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "För många överföringar väntar på tillägg"
+
+msgid "Unknown action"
+msgstr "Okänd åtgärd"
+
+msgid "Unknown device"
+msgstr "Okänd enhet"
+
+msgid "Unknown page"
+msgstr "Okänd sida"
+
+msgid "Unknown plugin"
+msgstr "Okänt tillägg"
+
+msgid "Unknown setting"
+msgstr "Okänd inställning"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Vänta tills den pågående katalogåtgärden är klar"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Ditt godkännande kunde inte registreras, så inget installerades"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "En AppImage ersätter inte sig själv; ladda ner den nya"
+
+msgid "Kept by something else"
+msgstr "Hålls av något annat"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "Appen kan inte ersätta sig själv på det här systemet än"
+
+msgid "The update could not be unpacked"
+msgstr "Uppdateringen kunde inte packas upp"
+
+msgid "The update could not be written beside the application"
+msgstr "Uppdateringen kunde inte skrivas bredvid programmet"
+
+msgid "The update is not a plain set of programs"
+msgstr "Uppdateringen är inte en vanlig uppsättning program"
+
+msgid "The update is not for this installation"
+msgstr "Uppdateringen är inte avsedd för den här installationen"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "Uppdateringen installerades bara delvis. Installera appen igen"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Den här installationen hanteras av systemet och uppdateras med det"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Den här installationen uppdateras av Flatpak"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Den här typen av uppdatering kan inte tillämpas på den här installationen"
+
+msgid "Loading…"
+msgstr "Läser in…"
+
+msgid "Another device"
+msgstr "En annan enhet"
+
+msgid "CANCELLED"
+msgstr "AVBRUTEN"
+
+msgid "CONNECTED"
+msgstr "ANSLUTEN"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Välj ett tilläggsarkiv (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Välj en profilbild (PNG eller JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Det går inte att välja mapp på den här enheten."
+
+msgid "Clear"
+msgstr "Rensa"
+
+msgid "Clear them?"
+msgstr "Rensa dem?"
+
+msgid "FAILED · {reason}"
+msgstr "MISSLYCKADES · {reason}"
+
+msgid "FOR {device}"
+msgstr "FÖR {device}"
+
+msgid "Folder for incoming files"
+msgstr "Mapp för inkommande filer"
+
+msgid "INCOMING"
+msgstr "INKOMMANDE"
+
+msgid "NOT RUNNING"
+msgstr "KÖRS INTE"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Ingen mapp valdes, så filen togs inte emot."
+
+msgid "OUTGOING"
+msgstr "UTGÅENDE"
+
+msgid "OUTGOING · PREPARED"
+msgstr "UTGÅENDE · FÖRBEREDD"
+
+msgid "Peersus could not be started again"
+msgstr "Peersus kunde inte startas om"
+
+msgid "Save the file in"
+msgstr "Spara filen i"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "Mappen du valde för inkommande filer finns inte längre. Välj en annan."
+
+msgid "The identity could not be reset"
+msgstr "Identiteten kunde inte återställas"
+
+msgid "The plugin picker is unavailable"
+msgstr "Tilläggsväljaren är inte tillgänglig"
+
+msgid "There is no data directory to look in"
+msgstr "Det finns ingen datakatalog att söka i"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Rör vid skärmen med två fingrar för att dra ner Inställningar uppifrån. Det gör ingenting när Inställningar redan är öppet."
+
+msgid "Two fingers open Settings"
+msgstr "Två fingrar öppnar Inställningar"
+
+msgid "Identity unavailable"
+msgstr "Identiteten är inte tillgänglig"
+
+msgid "Nowhere to look"
+msgstr "Ingenstans att söka"
+
+msgid "Peersus could not start"
+msgstr "Peersus kunde inte starta"
+
+msgid "Peersus stopped"
+msgstr "Peersus har stoppats"
+
+msgid "The action did not accept the value"
+msgstr "Åtgärden godtog inte värdet"
+
+msgid "The owner stopped"
+msgstr "Ägaren har stoppats"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Den del av Peersus som håller dina enheter anslutna startade inte och angav inte varför."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Den del av Peersus som håller dina enheter anslutna startade inte. Felmeddelande: {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Den del av Peersus som håller dina enheter anslutna har avslutats, och den automatiska omstarten fick den inte att fortsätta köra."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Kontot har ingen datakatalog, så appen kan inte hittas."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Ange din skrivskyddade GitHub-token. Inga andra inställningar behövs här; token stannar i enhetens säkra lagring."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "GitHub-token med repository Contents: read"
+
+msgid "Private development catalog"
+msgstr "Privat utvecklingskatalog"
+
+msgid "Save and apply"
+msgstr "Spara och tillämpa"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "GitHub-token måste vara en enda rad på högst 512 byte"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Token sparad säkert och tillämpad. Tilläggslistan uppdateras i bakgrunden."
+
+msgid "OFFLINE"
+msgstr "OFFLINE"
+
+msgid "ONLINE"
+msgstr "ONLINE"
+
+msgid "SLEEPING"
+msgstr "VILOLÄGE"
+
+msgid "An update is already being worked on"
+msgstr "En uppdatering pågår redan"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "En uppdatering har installerats. Starta om appen för att använda den"
+
+msgid "Application updates are not set up in this build"
+msgstr "Appuppdateringar är inte konfigurerade i den här versionen"
+
+msgid "No update is available"
+msgstr "Ingen uppdatering finns tillgänglig"
+
+msgid "No update is waiting for a restart"
+msgstr "Ingen uppdatering väntar på omstart"
+
+msgid "The application update key is not valid"
+msgstr "Appens uppdateringsnyckel är ogiltig"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "Den nedladdade uppdateringen är inte den som publicerades"
+
+msgid "The saved update state could not be read"
+msgstr "Det sparade uppdateringsläget kunde inte läsas"
+
+msgid "The saved update state is damaged"
+msgstr "Det sparade uppdateringsläget är skadat"
+
+msgid "The update could not be checked"
+msgstr "Det gick inte att söka efter uppdateringen"
+
+msgid "The update is described in a way this version does not read"
+msgstr "Uppdateringen beskrivs i ett format som den här versionen inte kan läsa"
+
+msgid "The update is for another release channel"
+msgstr "Uppdateringen är för en annan versionskanal"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "Uppdateringen är inte signerad av appens utgivare"
+
+msgid "The update is too large"
+msgstr "Uppdateringen är för stor"
+
+msgid "The update listing could not be checked"
+msgstr "Uppdateringslistan kunde inte kontrolleras"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "Den erbjudna uppdateringen är inte samma version som redan setts under det versionsnumret"
+
+msgid "The update offered is older than one already seen"
+msgstr "Den erbjudna uppdateringen är äldre än en som redan setts"
+
+msgid "The update state could not be saved"
+msgstr "Uppdateringsläget kunde inte sparas"
+
+msgid "The catalog could not be read"
+msgstr "Katalogen kunde inte läsas"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "Katalogen har tvetydiga eller ogiltiga plattformsfiler"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "Katalogen har en ogiltig post"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "Katalogen har ogiltiga plattformsfiler"
+
+msgid "The catalog is a version this application does not read"
+msgstr "Katalogen har en version som den här appen inte kan läsa"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "Katalogen är inte signerad av förvaltaren"
+
+msgid "The catalog is older than one already seen"
+msgstr "Katalogen är äldre än en som redan setts"
+
+msgid "The catalog is too large"
+msgstr "Katalogen är för stor"
+
+msgid "The catalog lists a name twice"
+msgstr "Katalogen listar ett namn två gånger"
+
+msgid "The catalog lists too many extensions"
+msgstr "Katalogen listar för många tillägg"
+
+msgid "The catalog signature is not valid"
+msgstr "Katalogens signatur är ogiltig"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Paketet stämmer inte med vad katalogen säger om det"
+
+msgid "The package is not the one that was approved"
+msgstr "Paketet är inte det som godkändes"
+
+msgid "The package name is not the approved name"
+msgstr "Paketets namn är inte det godkända namnet"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Programmet och dess manifest är oense om vem som skapat det"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Välj en pluginkatalog, inte en fil eller länk"
+
+msgid "No data directory"
+msgstr "Ingen datakatalog"
+
+msgid "No such plugin is installed"
+msgstr "Inget sådant plugin är installerat"
+
+msgid "Nothing was retired under that name"
+msgstr "Inget har tagits ur bruk under det namnet"
+
+msgid "Something is already installed under this name"
+msgstr "Något är redan installerat under det här namnet"
+
+msgid "That is not the name of a plugin"
+msgstr "Det är inte namnet på ett plugin"
+
+msgid "The approval could not be written"
+msgstr "Godkännandet kunde inte skrivas"
+
+msgid "The installed plugin directory is not safe"
+msgstr "Den installerade pluginkatalogen är inte säker"
+
+msgid "The native module could not be made read-only"
+msgstr "Den inbyggda modulen kunde inte göras skrivskyddad"
+
+msgid "The package could not be put back"
+msgstr "Paketet kunde inte återställas"
+
+msgid "The package could not be put in place"
+msgstr "Paketet kunde inte placeras"
+
+msgid "The package could not be read"
+msgstr "Paketet kunde inte läsas"
+
+msgid "The package could not be staged"
+msgstr "Paketet kunde inte förberedas"
+
+msgid "The package could not be taken out of use"
+msgstr "Paketet kunde inte tas ur bruk"
+
+msgid "The package has too many files"
+msgstr "Paketet har för många filer"
+
+msgid "The package is too large"
+msgstr "Paketet är för stort"
+
+msgid "The package names a file it does not have"
+msgstr "Paketet anger en fil som det inte innehåller"
+
+msgid "The package needs a manifest and a program"
+msgstr "Paketet behöver ett manifest och ett program"
+
+msgid "The package's name is not usable"
+msgstr "Paketets namn kan inte användas"
+
+msgid "The plugin could not be switched off"
+msgstr "Pluginet kunde inte stängas av"
+
+msgid "The plugin could not be switched on"
+msgstr "Pluginet kunde inte slås på"
+
+msgid "The plugin store can be changed by others"
+msgstr "Pluginlagret kan ändras av andra"
+
+msgid "The plugin store could not be locked"
+msgstr "Pluginlagret kunde inte låsas"
+
+msgid "The plugin store could not be made"
+msgstr "Pluginlagret kunde inte skapas"
+
+msgid "The plugin store could not be read"
+msgstr "Pluginlagret kunde inte läsas"
+
+msgid "The plugin store is a link"
+msgstr "Pluginlagret är en länk"
+
+msgid "The plugin store is being changed by another process"
+msgstr "Pluginlagret ändras av en annan process"
+
+msgid "The plugin store is not a directory"
+msgstr "Pluginlagret är inte en katalog"
+
+msgid "The retired plugin directory is not safe"
+msgstr "Katalogen för pensionerade plugins är inte säker"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "Det finns inget att godkänna för det här pluginet"
+
+msgid "Too many plugins are installed"
+msgstr "För många plugins är installerade"
+
+msgid "The extension store could not be reached"
+msgstr "Det gick inte att nå tilläggsbutiken"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Det som butiken skickade är större än tillåtet"

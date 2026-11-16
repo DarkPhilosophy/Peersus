@@ -1,0 +1,2986 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: tr\n"
+"X-Language-Name: Türkçe\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Bu uzantı için bir dosya seçmenizi ister; dosya sistemine örtük erişim vermez."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "HTTPS isteklerinin hedefi için açık onay ister; kimlik bilgileri ana uygulamada kalır."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Bu cihazın pano metnini sınırlı parçalar halinde okur veya değiştirir; her biri kendi iznine bağlıdır."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Bu cihazın pano metnini sınırlı parçalar halinde okur; ne zaman okunabileceğine platform karar verir ve hassas içeriği hariç tutar."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Bu cihazın pano metnini, uzantının sınırlı parçalar halinde sağladığı metinle değiştirir."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Bu cihazın panosu değiştiğinde içeriğini almadan bildirim alır; okumak için okuma izni gerekmeye devam eder."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Size kendi adıyla, kendi sözleri ve düğmeleriyle, pencerede ve pencerenin dışında bildirimler gösterir."
+
+msgid "Confirm {label}"
+msgstr "Confirm {label}"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "İptal edildi. Yeniden denemeden önce harici bir sonucu kontrol edin."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "İzin verilmedi. Bu eklentinin izinlerini kontrol edin."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Eklenti kullanılamıyor. Başlatın ve yeniden deneyin."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "Eylem zaman aşımına uğradı. Yeniden denemeden önce sonucunu kontrol edin."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "Başka bir işlem sürüyor. Bittiğinde yeniden deneyin."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "Eylem tamamlanamadı. Eklentiyi kontrol edip yeniden deneyin."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Eklentiyi başlatın, gerektiğinde çevrimiçi bir cihaz seçin ve izinlerine onay verin."
+
+msgid "Enter a value within the declared limits."
+msgstr "Belirtilen sınırlar içinde bir değer girin."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Kayıtlı ayar geçersiz. Geçerli bir değeri geri yükleyin."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Desteklenen platformlar: {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Bu eski eklenti desteklediği platformları belirtmiyor."
+
+msgid "For {name}"
+msgstr "For {name}"
+
+msgid "Install bundled {name}"
+msgstr "Birlikte gelen {name} eklentisini yükle"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Bu işletim sistemini desteklemiyor"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Peersus'u destekleyin — tamamen isteğe bağlı"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Peersus işinize yarıyorsa gönüllü bir bahşiş bırakabilirsiniz. Tüm işlevler ücretsiz kalır; reklam, ücretli özellik veya öncelikli erişim yoktur."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Kartla ödemeler, Ko-fi'nin sunduğu yerlerde yaratıcının bağlı Stripe hesabını kullanır; ödeme yöntemleri değişir. Peersus kart bilgilerinizi işlemez."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "Bahşiş bir ürün, hizmet, erişim veya ödül satın almaz. İşlem ücretleri uygulanabilir. Vergi indirimi vaat edilmez. Herkese açık teşekkür, web sitesinde ayrı ve isteğe bağlı bir seçimdir; uygulamada asla bir avantaj değildir."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Ko-fi'de destekleyin (tarayıcıyı açar)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Tarayıcı açılamadı. https://ko-fi.com/DarkPhilosophy adresini kendiniz açabilirsiniz."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Okunamadı: artık mevcut değil veya uygulama açamıyor."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Dosya boş, dolayısıyla içinde paket yok."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Bu ne klasör ne de dosya, dolayısıyla paket olamaz."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Seçtiğin eşleştirilmiş bir cihaza veri gönderir. Hiçbir cihazın anahtarını göremez."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "Bu amaçla kurmadıkların da dahil HERHANGİ bir eklentiyi durdurur ve yeniden başlatır. Verilerini okuyamaz veya izinlerini değiştiremez."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "Bu bilgisayarda, ona takılı bir fare ve klavyeden geliyormuş gibi işaretçiyi hareket ettirir, düğmelere ve tuşlara basar ve metin yazar."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "Bu bilgisayarın eşleştirilmiş masaüstlerinin düzenini ve işaretçisinin aralarında nereden geçtiğini değiştirir."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Bir aktarım başladığında, ilerlediğinde, bittiğinde, iptal edildiğinde veya başarısız olduğunda haberdar edilir: hangi aktarım ve ne kadar ilerlediği. Bir dosyanın adını, bir cihazın adını veya bir şeyin nereye kaydedildiğini göremez; bir aktarımı kabul edemez, reddedemez veya iptal edemez."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Aktarılan her dosyanın ADINI ve gittiği veya geldiği cihazın adını da görür. Dosya adları bir kişi hakkında çok şey söyleyebilir."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Kendi durumlarını oluşturur ve onları adlandıran sözcükleri seçer. Yalnızca oluşturulmuş bir durum, açılana kadar senin hakkında hiçbir şey söylemez."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Kendi durumlarını açar ve kapatır. Açık olan, açık kaldığı sürece eklentinin seçtiği sözcüklerle eşleştirdiğin her cihaza GÖSTERİLİR."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Eşleştirdiğin cihazların hangi durumları gösterdiğini görür ve değiştiklerinde haberdar edilir. Bir durumun söylediği şey (bir şey izlemek, meşgul olmak) kişisel olabilir."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Klasör seçilmedi. Her dosyanın nereye kaydedileceği sorulur."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "Bir klasör seçildi. Dosyalar doğrudan oraya gider."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "Başlangıçta hiçbir izni yoktur. Kurulduktan sonra ne yapabileceğine sen karar verirsin."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Bu adda bir eklenti zaten kurulu. Değiştirilir ve hiçbir izin verilmeden başlar."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Bu eklenti onaylanmadığı için çalışmıyor. Onaylamak, aşağıda listelenen istekleriyle çalışmasına izin verir."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Bu eklentinin programı onaylanandan farklı olduğu için çalışmıyor. Yeniden onaylamak bu programın çalışmasına izin verir ve önceki izinleri unutur."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Bu eklenti bozuk veya programı çalıştırılamıyor. Yalnızca kaldırılabilir."
+
+msgid "RUNNING"
+msgstr "ÇALIŞIYOR"
+
+msgid "STARTING"
+msgstr "BAŞLATILIYOR"
+
+msgid "RESTARTING"
+msgstr "YENİDEN BAŞLATILIYOR"
+
+msgid "OFF"
+msgstr "KAPALI"
+
+msgid "FAILED"
+msgstr "BAŞARISIZ"
+
+msgid "BROKEN"
+msgstr "BOZUK"
+
+msgid "CHANGED"
+msgstr "DEĞİŞTİRİLDİ"
+
+msgid "NEEDS APPROVAL"
+msgstr "ONAY GEREKİYOR"
+
+msgid "Replace"
+msgstr "Değiştir"
+
+msgid "Drop one package at a time."
+msgstr "Her seferinde bir paket bırak."
+
+msgid "No description was given for this permission."
+msgstr "Bu izin için açıklama verilmedi."
+
+msgid "The selection is too large"
+msgstr "Seçim çok büyük"
+
+msgid "The file picker did not report its selection count"
+msgstr "Dosya seçici seçilen dosya sayısını bildirmedi"
+
+msgid "The application answered with something else than a code"
+msgstr "Uygulama kod dışında bir yanıt verdi"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "Dosya hazırlığı seçim tamamlanmadan durdu."
+
+msgid "The file producer stopped before creating a code."
+msgstr "Dosya hazırlığı kod oluşturulmadan durdu."
+
+msgid "Could not create invitation"
+msgstr "Davet oluşturulamadı"
+
+msgid "Application stopped"
+msgstr "Uygulama durdu"
+
+msgid "Left out: {items}."
+msgstr "Atlananlar: {items}."
+
+msgid "Not files: {count}"
+msgstr "Dosya olmayanlar: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Okunamayanlar: {count}"
+
+msgid "Empty files: {count}"
+msgstr "Boş dosyalar: {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "{limit} dosyalık seçim sınırını aşanlar: {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Sunulamayan seçili dosya sayısı: {refused}."
+
+msgid "Restart"
+msgstr "Yeniden başlat"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "VEYA KAYITLI BİR CİHAZ SEÇ"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "BAŞKA CİHAZDAN BİR KODUN MU VAR?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "VEYA DİĞER CİHAZDAKİ KODU YAPIŞTIR"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "VEYA BU KODU DİĞER CİHAZA YAPIŞTIR"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "DİĞER CİHAZA BAĞLAN"
+
+msgid "TRANSFERS"
+msgstr "AKTARIMLAR"
+
+msgid "PAIRED PEERS"
+msgstr "EŞLEŞTİRİLMİŞ CİHAZLAR"
+
+msgid "MET BY CODE"
+msgstr "KODLA KARŞILAŞILANLAR"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} çevrimiçi)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} çalışıyor)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Doğrudan seçtiğin cihaza gider"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Doğrudan seçtiğin cihazlara gider"
+
+msgid "No device picked: a code will be made"
+msgstr "Cihaz seçilmedi: bir kod oluşturulacak"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "Seçtiğin bir cihaz kullanılamıyor. Yeniden seç ya da kod kullanmak için hiçbirini seçme"
+
+msgid "tap to choose files"
+msgstr "dosya seçmek için dokun"
+
+msgid "click to browse your computer"
+msgstr "bilgisayarına göz atmak için tıkla"
+
+msgid "SCAN"
+msgstr "TARA"
+
+msgid "tap to open the camera"
+msgstr "kamerayı açmak için dokun"
+
+msgid "starting the camera"
+msgstr "kamera başlatılıyor"
+
+msgid "NO CAMERA"
+msgstr "KAMERA YOK"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "telefon ayarlarından Peersus için izin ver, ardından dokun"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Eşleştir: diğer cihazın taraması için bir kod göster. Bağlan: diğer cihazdaki kodu tara veya yapıştır."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "Eşleştirme, cihazı unutana kadar diğer cihaza güvenir. Yalnızca kodla dosya göndermek bunu yapmaz."
+
+msgid "CHOOSE FILES"
+msgstr "DOSYA SEÇ"
+
+msgid "TO SEND"
+msgstr "GÖNDERMEK İÇİN"
+
+msgid "NO DEVICE PICKED"
+msgstr "CİHAZ SEÇİLMEDİ"
+
+msgid "TAP FOR"
+msgstr "DOKUN:"
+
+msgid "A QR CODE"
+msgstr "BİR QR KOD"
+
+msgid "HOLD TO SEND"
+msgstr "GÖNDERMEK İÇİN BASILI TUT"
+
+msgid "TAP TO SEND"
+msgstr "GÖNDERMEK İÇİN DOKUN"
+
+msgid "1 DEVICE"
+msgstr "1 CİHAZ"
+
+msgid "{count} DEVICES"
+msgstr "{count} CİHAZ"
+
+msgid "keep holding until it is full"
+msgstr "dolana kadar basılı tut"
+
+msgid "it sends at once"
+msgstr "hemen gönderir"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "BİR CİHAZ KAYBOLDU"
+
+msgid "PICK AGAIN"
+msgstr "TEKRAR SEÇ"
+
+msgid "nothing is sent until you do"
+msgstr "sen yapana kadar hiçbir şey gönderilmez"
+
+msgid "READY TO RECEIVE"
+msgstr "ALMAYA HAZIR"
+
+msgid "PASTE"
+msgstr "YAPIŞTIR"
+
+msgid "THE CODE"
+msgstr "KODU"
+
+msgid "from the other device"
+msgstr "diğer cihazdan"
+
+msgid "CONNECT"
+msgstr "BAĞLAN"
+
+msgid "{name} wants to pair"
+msgstr "{name} eşleşmek istiyor"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "YANITLANDI, DİĞER CİHAZ BEKLENİYOR"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "İKİ CİHAZDA DA AYNI NUMARAYI SEÇ"
+
+msgid "Send"
+msgstr "Gönder"
+
+msgid "Receive"
+msgstr "Al"
+
+msgid "Peers"
+msgstr "Cihazlar"
+
+msgid "Settings"
+msgstr "Ayarlar"
+
+msgid "Overview"
+msgstr "Genel bakış"
+
+msgid "Device"
+msgstr "Cihaz"
+
+msgid "Appearance"
+msgstr "Görünüm"
+
+msgid "Network"
+msgstr "Ağ"
+
+msgid "Extensions"
+msgstr "Uzantılar"
+
+msgid "Permissions"
+msgstr "İzinler"
+
+msgid "History"
+msgstr "Geçmiş"
+
+msgid "About"
+msgstr "Hakkında"
+
+msgid "Language"
+msgstr "Dil"
+
+msgid "Reset"
+msgstr "Sıfırla"
+
+msgid "Accent colour"
+msgstr "Vurgu rengi"
+
+msgid "Coral"
+msgstr "Mercan"
+
+msgid "Sky"
+msgstr "Gökyüzü"
+
+msgid "Moss"
+msgstr "Yosun"
+
+msgid "Amber"
+msgstr "Kehribar"
+
+msgid "Violet"
+msgstr "Mor"
+
+msgid "Rose"
+msgstr "Pembe"
+
+msgid "Interface size"
+msgstr "Arayüz boyutu"
+
+msgid "Compact"
+msgstr "Kompakt"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Large"
+msgstr "Büyük"
+
+msgid "Larger"
+msgstr "Daha büyük"
+
+msgid "Largest"
+msgstr "En büyük"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Metin, simgeler ve boşluklar birlikte büyür. Ctrl ve + veya − yalnızca bu pencere için değiştirir."
+
+msgid "Save"
+msgstr "Kaydet"
+
+msgid "Cancel"
+msgstr "İptal"
+
+msgid "View files"
+msgstr "Dosyaları gör"
+
+msgid "Close"
+msgstr "Kapat"
+
+msgid "Copy"
+msgstr "Kopyala"
+
+msgid "Request unlock"
+msgstr "Kilidi aç iste"
+
+msgid "Generate a new identity"
+msgstr "Yeni bir kimlik oluştur"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Evet, önceki kimliği sil ve yenisini oluştur"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Bu, sistemin sakladığı kimliği siler ve eşleşmeleri kenara alır. Cihazlar yeniden eşleştirilmelidir. Geri alınamaz."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "Kimlik sıfırlandı. Bu pencereyi kapatıp Peersus’u yeniden aç."
+
+msgid "Turn on devices nearby"
+msgstr "Yakındaki cihazları aç"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Yakındaki cihazlar kapalı. Eşleştirilebilecek yakın cihazları görmek için aç."
+
+msgid "Paste"
+msgstr "Yapıştır"
+
+msgid "Select all"
+msgstr "Tümünü seç"
+
+msgid "Cut"
+msgstr "Kes"
+
+msgid "Remove"
+msgstr "Kaldır"
+
+msgid "Relays"
+msgstr "Aktarıcılar"
+
+msgid "Edit"
+msgstr "Düzenle"
+
+msgid "New relay: relay.example.org"
+msgstr "Yeni aktarıcı: relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Aktarıcı sunucusunu yazın, örneğin relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Verilerin bir aktarıcıdan geçmesinden önce doğrudan bağlantıya ne kadar süre tanındığı."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "Öncelik sırasında, ilk aktarıcı yeniden denenmeden önce yedeğin ne kadar kullanıldığı."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Aktarıcı ara"
+
+msgid "Position"
+msgstr "Sıra"
+
+msgid "New address"
+msgstr "Yeni adres"
+
+msgid "This relay's own timings"
+msgstr "Bu aktarıcının kendi süreleri"
+
+msgid "Uses the list-wide timings"
+msgstr "Listenin sürelerini kullanır"
+
+msgid "Use list-wide timings"
+msgstr "Listenin sürelerini kullan"
+
+msgid "Accept"
+msgstr "Kabul et"
+
+msgid "Refuse"
+msgstr "Reddet"
+
+msgid "Stop"
+msgstr "Durdur"
+
+msgid "Done"
+msgstr "Tamam"
+
+msgid "Connect"
+msgstr "Bağlan"
+
+msgid "Pair"
+msgstr "Eşleştir"
+
+msgid "Install"
+msgstr "Yükle"
+
+msgid "Uninstall"
+msgstr "Kaldır"
+
+msgid "Retry"
+msgstr "Yeniden dene"
+
+msgid "Open"
+msgstr "Aç"
+
+msgid "Back"
+msgstr "Geri"
+
+msgid "System"
+msgstr "Sistem"
+
+msgid "Light"
+msgstr "Açık"
+
+msgid "Dark"
+msgstr "Koyu"
+
+msgid "Custom"
+msgstr "Özel"
+
+msgid "Device name"
+msgstr "Cihaz adı"
+
+msgid "CODE SCANNED"
+msgstr "KOD TARANDI"
+
+msgid "SCANNED"
+msgstr "TARANDI"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "Diğer cihaz kodu okudu. Kabul etmesi bekleniyor."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "ONAY BEKLENİYOR"
+
+msgid "SENDING"
+msgstr "GÖNDERİLİYOR"
+
+msgid "DONE"
+msgstr "TAMAM"
+
+msgid "STOPPED"
+msgstr "DURDURULDU"
+
+msgid "ENDS IN {time}"
+msgstr "{time} SONRA BİTER"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} sana bir dosya göndermek istiyor"
+
+msgid "A device wants to send you a file"
+msgstr "Bir cihaz sana bir dosya göndermek istiyor"
+
+msgid "{files} are waiting in all"
+msgstr "Toplam {files} bekliyor"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "Diğer cihazın {files} kabul etmesi bekleniyor."
+
+msgid "Sending 1 file."
+msgstr "1 dosya gönderiliyor."
+
+msgid "Sending {files}."
+msgstr "{files} gönderiliyor."
+
+msgid "1 file arrived."
+msgstr "1 dosya alındı."
+
+msgid "{files} arrived."
+msgstr "{files} alındı."
+
+msgid "1 SENT"
+msgstr "1 GÖNDERİLDİ"
+
+msgid "{count} SENT"
+msgstr "{count} GÖNDERİLDİ"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "{files} içinden {done} alındı. Kalanlar reddedildi, iptal edildi veya başarısız oldu."
+
+msgid "1 file selected"
+msgstr "1 dosya seçildi"
+
+msgid "{files} selected"
+msgstr "{files} seçildi"
+
+msgid "+ {count} more"
+msgstr "+ {count} daha"
+
+msgid "never seen"
+msgstr "hiç görülmedi"
+
+msgid "just now"
+msgstr "az önce"
+
+msgid "{duration} ago"
+msgstr "{duration} önce"
+
+msgid "Continue"
+msgstr "Devam et"
+
+msgid "Join"
+msgstr "Katıl"
+
+msgid "Keep"
+msgstr "Sakla"
+
+msgid "Forget"
+msgstr "Unut"
+
+msgid "Not now"
+msgstr "Şimdi değil"
+
+msgid "Choose folder"
+msgstr "Klasör seç"
+
+msgid "Use none"
+msgstr "Hiçbirini kullanma"
+
+msgid "Name this device"
+msgstr "Bu cihaza ad ver"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Diğer cihazların bu adı gösterecek. Tanıyabileceğin bir ad seç."
+
+msgid "For example: Alex's laptop"
+msgstr "Örneğin: Alex’in dizüstü bilgisayarı"
+
+msgid "Paste the code"
+msgstr "Kodu yapıştır"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Henüz kayıtlı cihaz yok. Kodla gönder ve sorulduğunda cihazı sakla."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "Tek işlem. Tek hedef. Menü labirenti olmadan cihazların arasında dosya taşı."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Neyi kabul edeceğini seç. Kontrol sende olsun. Sen onaylamadan hiçbir şey gelmez."
+
+msgid "That is not a code from another device."
+msgstr "Bu, başka bir cihazdan gelen bir kod değil."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Henüz eşleştirilmiş cihaz yok. Yukarıdan bir cihaz eşleştir."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Bir eklenti arşivi seç veya buraya bir klasör ya da arşiv bırak."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Tüm cihazlardaki bütün izinleri de unutulur. Kaldırmak için tekrar bas."
+
+msgid "No plugins installed."
+msgstr "Yüklü eklenti yok."
+
+msgid "It cannot be granted anything."
+msgstr "Hiçbir izin verilemez."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Bu eklentiye bir cihaz için izin vermek üzere cihazı eşleştir."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Yüklü eklenti olmadığından verilecek izin yok."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Henüz hiçbir şey gönderilmedi veya alınmadı."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "ÖNEMLİ — VERİ VE GÜVENLİK RİSKLERİ"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "AKTARIM PORTALI"
+
+msgid "WELCOME"
+msgstr "HOŞ GELDİN"
+
+msgid "HISTORY"
+msgstr "GEÇMİŞ"
+
+msgid "NOT PAIRED"
+msgstr "EŞLEŞTİRİLMEDİ"
+
+msgid "WAITING FOR YOU"
+msgstr "SENİ BEKLİYOR"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "HİÇBİR CİHAZA BAĞLI DEĞİL"
+
+msgid "Received"
+msgstr "Alındı"
+
+msgid "Sent"
+msgstr "Gönderildi"
+
+msgid "done"
+msgstr "tamamlandı"
+
+msgid "cancelled"
+msgstr "iptal edildi"
+
+msgid "failed"
+msgstr "başarısız"
+
+msgid "going"
+msgstr "devam ediyor"
+
+msgid "SEND"
+msgstr "GÖNDER"
+
+msgid "RECEIVE"
+msgstr "AL"
+
+msgid "PEERS"
+msgstr "CİHAZLAR"
+
+msgid "Make files"
+msgstr "Dosyaları"
+
+msgid "fly."
+msgstr "uçur."
+
+msgid "Ready when"
+msgstr "Sen hazır olduğunda"
+
+msgid "you are."
+msgstr "hazır."
+
+msgid "HOW THINGS STAND"
+msgstr "GÜNCEL DURUM"
+
+msgid "This device"
+msgstr "Bu cihaz"
+
+msgid "Internet relays"
+msgstr "İnternet aktarıcıları"
+
+msgid "Runs in the background"
+msgstr "Arka planda çalışır"
+
+msgid "Paired devices"
+msgstr "Eşleştirilmiş cihazlar"
+
+msgid "Transfers in progress"
+msgstr "Devam eden aktarımlar"
+
+msgid "on"
+msgstr "açık"
+
+msgid "off"
+msgstr "kapalı"
+
+msgid "yes"
+msgstr "evet"
+
+msgid "no"
+msgstr "hayır"
+
+msgid "THIS DEVICE"
+msgstr "BU CİHAZ"
+
+msgid "Run in the background"
+msgstr "Arka planda çalıştır"
+
+msgid "Start without opening a window."
+msgstr "Pencere açmadan başlat."
+
+msgid "Notifications"
+msgstr "Bildirimler"
+
+msgid "Offers over other apps"
+msgstr "Diğer uygulamaların üzerinde teklifler"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "Açık: bir teklifin dosya listesi yaptığın işin üzerinde açılır ve Kabul Et Peersus’u açmaz."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Kapalı: bir teklifin dosya listesi Peersus içinde açılır. Listeyi diğer uygulamaların üzerinde görmek için izin ver."
+
+msgid "Where an offer appears"
+msgstr "Teklifin göründüğü yer"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "Bir dosya teklifinin, yaptığınız işin üzerinde gösterildiği ekran kenarı."
+
+msgid "Top"
+msgstr "Üst"
+
+msgid "Bottom"
+msgstr "Alt"
+
+msgid "Left"
+msgstr "Sol"
+
+msgid "Right"
+msgstr "Sağ"
+
+msgid "Battery"
+msgstr "Pil"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "Açık: telefon boştayken arka plan hizmetinin ağı çalışmaya devam eder."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Sınırlı: telefon boştayken sistem arka plan hizmetinin ağını kesebilir. Pil ayarlarından izin verin."
+
+msgid "Trying to reach the device"
+msgstr "Cihaza bağlanmaya çalışılıyor"
+
+msgid "This can take up to half a minute."
+msgstr "Bu yarım dakikaya kadar sürebilir."
+
+msgid "It answers, and it knows this device"
+msgstr "Yanıt veriyor ve bu cihazı tanıyor"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "Bağlantı çalışıyor. Yapılacak bir şey yok."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Yanıt veriyor ama bu cihazı artık tanımıyor"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Burada unut ve iki cihazı yeniden eşleştir. Başka bir sorun yok."
+
+msgid "It does not answer"
+msgstr "Yanıt vermiyor"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Kapalı veya erişim dışında olabilir. Birazdan tekrar dene. Röleler açık, bu yüzden ağ değişikliği sebep değil."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "Röleler kapalı, bu yüzden farklı ağlardaki cihazlar birbirini bulamaz. Ayarlar'da “İnternet rölelerini kullan” seçeneğini aç."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "Açık: dosya teklifi program kapalıyken bile gösterilir."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Engelli: bildirimlere izin verene kadar dosya teklifi gösterilmez."
+
+msgid "Allow"
+msgstr "İzin ver"
+
+msgid "Camera"
+msgstr "Kamera"
+
+msgid "Wide"
+msgstr "Ultra geniş"
+
+msgid "Main"
+msgstr "Ana"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Otomatik"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Kodu okuyacak kamerayı seç ve ne gösterdiğini görmek için Test’e dokun."
+
+msgid "Test the camera"
+msgstr "Kamerayı test et"
+
+msgid "Test connection"
+msgstr "Bağlantıyı test et"
+
+msgid "Where is this device?"
+msgstr "Bu cihaz nerede?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 veya ad.ornek.com:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Eşleştirme sırasındaki adres değiştiğinde bu cihazın nerede bulunabileceğini yaz."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Bir ad bir sayıdan iyidir: her seferinde yeniden aranır, bu yüzden sayı değişse de çalışır."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "Bağlantı noktası diğer cihazda, Ayarlar'da gösterilir. Yazılmazsa en son görüldüğü kullanılır."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Yalnızca cihaza o adresten ulaşılabiliyorsa işe yarar. Mobil ağdaki bir telefona genellikle ulaşılamaz, o zaman yalnızca röleler bağlar."
+
+msgid "Save and test"
+msgstr "Kaydet ve test et"
+
+msgid "Remove the address"
+msgstr "Adresi kaldır"
+
+msgid "Listening port"
+msgstr "Dinleme bağlantı noktası"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "Başka bir cihaz, bunu bulmak için bu bağlantı noktasını bu cihazın adresinin ardına yazar. Program her başladığında değişir."
+
+msgid "Search settings"
+msgstr "Ayarlarda ara"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Ayarlarda buna benzer bir şey yok."
+
+msgid "Files sent"
+msgstr "Gönderilen dosyalar"
+
+msgid "Files received"
+msgstr "Alınan dosyalar"
+
+msgid "Files in all"
+msgstr "Toplam dosya"
+
+msgid "Generate QR code"
+msgstr "QR kodu oluştur"
+
+msgid "Clear the list"
+msgstr "Listeyi temizle"
+
+msgid "+ Add more files"
+msgstr "+ Daha fazla dosya ekle"
+
+msgid "All"
+msgstr "Tümü"
+
+msgid "Active"
+msgstr "Etkin"
+
+msgid "Stopped"
+msgstr "Durdurulan"
+
+msgid "Incoming"
+msgstr "Gelen"
+
+msgid "Outgoing"
+msgstr "Giden"
+
+msgid "Search transfers"
+msgstr "Aktarımlarda ara"
+
+msgid "No transfer matches."
+msgstr "Eşleşen aktarım yok."
+
+msgid "Minimize"
+msgstr "Küçült"
+
+msgid "Expand"
+msgstr "Genişlet"
+
+msgid "OUTGOING FILES"
+msgstr "GİDEN DOSYALAR"
+
+msgid "EXPERIMENTAL"
+msgstr "DENEYSEL"
+
+msgid "Devices nearby"
+msgstr "Yakındaki cihazlar"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Kapalı: hiçbir şey duyurulmaz ve hiçbir şey dinlenmez. Açık: bu pencere açıkken bu cihaz yakındaki cihazları dinler ve onlar tarafından bulunabilir. Receive açıkken dosya kabul ettiğini söyler: hemen yanında tutulan eşleştirilmiş bir cihazda listelenen dosyalar anında gönderilir, eşleştirilmemiş bir cihaz da yaklaştırıldığında kendi dosyalarını sunabilir; her dosya için burada sorulur. Peers açıkken eşleştirilmek için orada olduğunu söyler ve Peers, yakındaki aynı şeyi söyleyen cihazları listeler. Bluetooth kullanır."
+
+msgid "NEARBY"
+msgstr "YAKINDA"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Henüz yakında cihaz yok. Diğer cihazda, “Yakındaki cihazlar” orada da açıkken Peers’ı açın."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Buradaki ad, o cihazın kendisi hakkında söylediğidir. Birini seçmek eşleştirmeyi başlatır: sonra ikiniz de aynı numarayı seçersiniz."
+
+msgid "That device is no longer nearby"
+msgstr "O cihaz artık yakında değil"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Yaklaştırılan cihaza sunuldu. Her dosyayı o cihazdaki kişinin kabul etmesi gerekir."
+
+msgid "That device does not take files this way"
+msgstr "O cihaz bu şekilde dosya almıyor"
+
+msgid "How near is near"
+msgstr "Yakın ne kadar yakın"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "İki cihazı, gönderirken tutacağınız kadar yakın tutun; uygulama ikisinde de açık olsun, sonra ölçün ve ayarlayın. Bir cihaz, ölçülen gücün biraz altında yaklaştırılmış sayılır; böylece tam sabit durmayan bir el onu kaybetmez."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "Yakın, ayarladığınız gibi {dbm} dBm’de başlar."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "Yakın, uygulamanın değeri olan {dbm} dBm’de başlar."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Şu an duyulan en güçlü cihaz: {dbm} dBm. Buradan ayarlanırsa yakın {near} dBm’de başlar."
+
+msgid "No device with this application open is heard yet."
+msgstr "Bu uygulamanın açık olduğu hiçbir cihaz henüz duyulmuyor."
+
+msgid "Measure"
+msgstr "Ölç"
+
+msgid "Stop measuring"
+msgstr "Ölçmeyi durdur"
+
+msgid "Set near from here"
+msgstr "Yakını buradan ayarla"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Bu cihazda, yaklaştırılan cihazları bulmak için kullanılabilecek bir Bluetooth yok."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Bluetooth kapalı. Yaklaştırılan cihazları bulmak için açın."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Sistem, bu programın yaklaştırılan cihazları bulmak için Bluetooth kullanmasına izin vermiyor."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Bluetooth reddetti. Kendiliğinden yeniden denenir."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Sistem bu cihazın yaklaştırılan cihazları bulmasına izin veriyor, ancak onlar tarafından bulunmasına izin vermiyor."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Receive açıkken yakında tutulan cihaza gönderildi. Her dosyayı o cihazdaki kişinin kabul etmesi gerekir."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} yakında. Onda Receive’i açın, bu dosyalar ona gider."
+
+msgid "Send instantly"
+msgstr "Hemen gönder"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Kapalı: hedefi seçtikten sonra daire dolana kadar basılı tutarsınız, böylece yanlış seçim bir şeye mal olmaz. Açık: daireye dokunmak hemen gönderir."
+
+msgid "INCOMING FILES"
+msgstr "GELEN DOSYALAR"
+
+msgid "Save incoming files on their own"
+msgstr "Gelen dosyaları otomatik kaydet"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Kapalı: her dosyanın nereye kaydedileceği sorulur. Açık: dosyalar sorulmadan aşağıdaki klasöre gider."
+
+msgid "THEME"
+msgstr "TEMA"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Çubuk kapalıyken simgeleri koru"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Kapalı çubuk yalnızca simgeleri gösterir. Seçenek kapalıysa çubuk tamamen gizlenir."
+
+msgid "Reduce motion"
+msgstr "Hareketi azalt"
+
+msgid "Turn off decorative animation."
+msgstr "Dekoratif animasyonları kapat."
+
+msgid "CONNECTIONS"
+msgstr "BAĞLANTILAR"
+
+msgid "Use internet relays"
+msgstr "İnternet aktarıcılarını kullan"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Farklı ağlardaki cihazların bağlanmasını sağlar. Kapalıysa trafik bu ağda kalır."
+
+msgid "INSTALLED"
+msgstr "YÜKLÜ"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "HER EKLENTİNİN YAPABİLECEKLERİ"
+
+msgid "File"
+msgstr "Dosya"
+
+msgid "Direction"
+msgstr "Yön"
+
+msgid "State"
+msgstr "Durum"
+
+msgid "Move it. Don't store it."
+msgstr "Aktar, depolama."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Kendi cihazların arasında özel bağlantılar. Dosyalar, yalnızca alıcı onayladıktan sonra bulut klasörü kullanmadan doğrudan bir cihazdan diğerine gider."
+
+msgid "INTERFACE"
+msgstr "ARAYÜZ"
+
+msgid "RENDERING"
+msgstr "ÇİZİM"
+
+msgid "NETWORK"
+msgstr "AĞ"
+
+msgid "ENGINE"
+msgstr "MOTOR"
+
+msgid "The windows, layout and components of this application."
+msgstr "Uygulamanın pencereleri, düzeni ve bileşenleri."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "İşletim sisteminin dosya ve klasör seçicileri."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Başka bir cihazın katılmak için taradığı kodu üretir."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Ekrandaki her şeyi, metinleri ve şekilleri çizer."
+
+msgid "Shapes the letters of the text."
+msgstr "Metindeki harfleri şekillendirir."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "Skia kullanılmayan yerlerde kullanılan küçük bir çizim kütüphanesi."
+
+msgid "Encrypted connections between your devices."
+msgstr "Cihazların arasında şifreli bağlantılar."
+
+msgid "The encryption of those connections."
+msgstr "Bu bağlantıların şifrelenmesi."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "rustls altındaki kriptografik yapı taşları."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Uygulamanın ihtiyaçlarını HTTPS üzerinden alır."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Birçok aktarımı birbirini bekletmeden aynı anda çalıştırır."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Uygulamanın kayıtlı dosya ve mesajlarını okur ve yazar."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Cihaz kimliğini sistem anahtarlığında saklar. Yerel bir uyumluluk yaması, kullanılmayan eşzamansız arka ucu ve eski serileştirme bağımlılıklarını kaldırırken yerel arka uçları ve mevcut kimlik bilgisi arama davranışını korur. Doğrulama durumu ve kaynak bilgileri yamayla birlikte belgelenmiştir."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Dosyaları ve eşleştirmeyi doğrulayan özetler ve mesaj kodları."
+
+msgid "That file could not be read."
+msgstr "Dosya okunamadı."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Dosya, profil resmi için çok büyük."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "PNG veya JPEG resmi seç."
+
+msgid "That picture is too large to use."
+msgstr "Resim kullanılamayacak kadar büyük."
+
+msgid "That picture could not be read."
+msgstr "Resim okunamadı."
+
+msgid "That picture could not be kept; try again."
+msgstr "Resim saklanamadı; tekrar dene."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Bu telefonda buradan resim seçilemiyor."
+
+msgid "NOTICES"
+msgstr "BİLDİRİMLER"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Bağımsız yedekler tut ve önemli dosyaları aktarımdan sonra doğrula. Bu uygulama bir aktarım aracıdır, yedekleme hizmeti değildir. Seçtiğin dosyalardan, güvendiğin cihazlardan ve verdiğin izinlerden sen sorumlusun."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Güvenlik önlemleri riski azaltır; güvenlik açıklarının, yetkisiz erişimin veya veri ifşasının hiçbir zaman olmayacağını garanti etmez. Ele geçirilmiş cihazlar, güvensiz eklentiler, yapılandırma hataları ve gelecekteki açıklar verilerini etkileyebilir."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Bu uygulama üçüncü taraf kütüphanelere, işletim sistemlerine, eklentilere ve etkinleştirildiğinde ağ aktarma hizmetlerine dayanır. Bu bağımlılıklar yazarların kontrolü dışındaki riskler getirir. Üçüncü taraf bileşenler kendi lisans, koşul ve bildirimlerini korur."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Bu bildirimdeki hiçbir hüküm, yürürlükteki hukukun hariç tutulmasına izin vermediği sorumlulukları hariç tutmaz veya hukuken feragat edilemeyen hakları sınırlamaz."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Bu yazılım, Apache Lisansı 2.0’ın 7 ve 8. bölümlerinde açıklandığı üzere, hiçbir garanti veya koşul olmadan OLDUĞU GİBİ sunulur. Yürürlükteki hukukun izin verdiği ölçüde yazarlar ve katkıda bulunanlar, kaybolan, bozulan veya ifşa edilen veriler dahil, kullanımdan doğan kayıplardan sorumlu değildir."
+
+msgid "Device is offline"
+msgstr "Cihaz çevrimdışı"
+
+msgid "Could not open selected file"
+msgstr "Seçilen dosya açılamadı"
+
+msgid "Could not offer selected files"
+msgstr "Seçilen dosyalar sunulamadı"
+
+msgid "Could not accept transfer"
+msgstr "Aktarım kabul edilemedi"
+
+msgid "Could not cancel transfer"
+msgstr "Aktarım iptal edilemedi"
+
+msgid "Files selection is no longer active"
+msgstr "Dosya seçimi artık etkin değil"
+
+msgid "Could not queue selected files"
+msgstr "Seçilen dosyalar kuyruğa alınamadı"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Tercihler başka yerde değiştirildi; kaydetmeden önce yeniden yükle"
+
+msgid "Invalid or expired invitation"
+msgstr "Geçersiz veya süresi dolmuş davet"
+
+msgid "Connection queue is full"
+msgstr "Bağlantı kuyruğu dolu"
+
+msgid "Pairing request is no longer active"
+msgstr "Eşleştirme isteği artık etkin değil"
+
+msgid "The owner answered with something else."
+msgstr "Hizmet beklenmeyen bir yanıt verdi."
+
+msgid "Unexpected file handoff reply"
+msgstr "Dosya tesliminde beklenmeyen yanıt"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "Alınan bir dosya seçtiğin klasöre konulamadı. Uygulamanın kendi klasöründe saklanıyor."
+
+msgid "STORE"
+msgstr "MAĞAZA"
+
+msgid "Search extensions"
+msgstr "Uzantı ara"
+
+msgid "Install from file"
+msgstr "Dosyadan yükle"
+
+msgid "Before you choose a file"
+msgstr "Dosya seçmeden önce"
+
+msgid "I understand and accept the risk"
+msgstr "Anlıyorum ve riski kabul ediyorum"
+
+msgid "Search the store"
+msgstr "Mağazada ara"
+
+msgid "Refresh"
+msgstr "Yenile"
+
+msgid "Refresh the list"
+msgstr "Listeyi yenile"
+
+msgid "by {author} · version {version}"
+msgstr "{author} tarafından · sürüm {version}"
+
+msgid "Installed: version {version}"
+msgstr "Yüklü: sürüm {version}"
+
+msgid "Update"
+msgstr "Güncelle"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "Güncelleme, yüklü sürümün yapmasına izin verilenleri unutur. Sonrasında yeniden karar verirsin."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "Onaylanandan daha yeni bir sürüm yüklü. Onaylı sürümü yüklemek için kaldır."
+
+msgid "The extension store is not set up in this build."
+msgstr "Uzantı mağazası bu sürümde kurulmamış."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Bakım sorumlusunun onayladığı uzantıları görmek için Yenile’ye bas."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "Mağaza bunu tamamlayamadı. Hiçbir şey değişmedi."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "Bakım sorumlusu henüz hiçbir uzantıyı onaylamadı."
+
+msgid "No extension matches your search."
+msgstr "Aramanla eşleşen uzantı yok."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "Elle kurulum resmî onay anlamına gelmez. Uzantıyı ve kaynağını incele; mağaza dışında kurulan koddan sen sorumlusun."
+
+msgid "Remove for good?"
+msgstr "Kalıcı olarak kaldırılsın mı?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Bozuk veya eski: onarmak için yeniden yükleyin"
+
+msgid "Stopped working: update or install it again"
+msgstr "Çalışmayı durdurdu: güncelleyin veya yeniden yükleyin"
+
+msgid "Update available:"
+msgstr "Güncelleme mevcut:"
+
+msgid "Automatic updates"
+msgstr "Otomatik güncellemeler"
+
+msgid "Approve"
+msgstr "Onayla"
+
+msgid "Reinstall"
+msgstr "Yeniden yükle"
+
+msgid "Background clipboard access"
+msgstr "Arka planda pano erişimi"
+
+msgid "On"
+msgstr "Açık"
+
+msgid "Off"
+msgstr "Kapalı"
+
+msgid "Remote input accessibility"
+msgstr "Uzaktan kontrol için erişilebilirlik"
+
+msgid "Relay"
+msgstr "Aktarıcı"
+
+msgid "Advanced relay options"
+msgstr "Gelişmiş aktarıcı seçenekleri"
+
+msgid "Direct wait (ms)"
+msgstr "Doğrudan bağlantı bekleme süresi (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Aktarıcı zaman aşımı (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Tercih edilen aktarıcıyı yeniden dene (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Ms aralıkları: doğrudan 100–30000; yedek 500–60000; yeniden deneme 5000–3600000."
+
+msgid "Not installed"
+msgstr "Yüklü değil"
+
+msgid "Connecting to home relay"
+msgstr "Ana aktarıcıya bağlanılıyor"
+
+msgid "Home relay connected"
+msgstr "Ana aktarıcı bağlı"
+
+msgid "Home relay unavailable"
+msgstr "Ana aktarıcı kullanılamıyor"
+
+msgid "Home relay refused access"
+msgstr "Ana aktarıcı erişimi reddetti"
+
+msgid "Direct connection is always tried first."
+msgstr "Her zaman önce doğrudan bağlantı denenir."
+
+msgid "Project relay"
+msgstr "Proje aktarıcısı"
+
+msgid "Public relays (n0)"
+msgstr "Herkese açık aktarıcılar (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Herkese açık aktarıcıları etkinleştir (n0)"
+
+msgid "Move up"
+msgstr "Yukarı taşı"
+
+msgid "Move down"
+msgstr "Aşağı taşı"
+
+msgid "Save and enable relay"
+msgstr "Aktarıcıyı kaydet ve etkinleştir"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Belirteç yalnızca özel aktarıcınıza gönderilir, proje veya herkese açık aktarıcılara asla gönderilmez."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Uygulama trafiği, aktarıcıları bu sırayla kullanmadan önce doğrudan yol bekler. Sinyalleşme daha erken başlayabilir. Aktarılan trafik uçtan uca şifrelidir ancak bağlantı meta verileri görünürdür. Uygulama telemetrisi gönderilmez."
+
+msgid "Public relays"
+msgstr "Herkese açık aktarıcılar"
+
+msgid "No relay"
+msgstr "Aktarıcı yok"
+
+msgid "My own relay"
+msgstr "Kendi aktarıcım"
+
+msgid "Priority"
+msgstr "Öncelik"
+
+msgid "Sequential"
+msgstr "Sıralı"
+
+msgid "Latency"
+msgstr "Gecikme"
+
+msgid "Order"
+msgstr "Sıra"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Etkin tüm aktarıcılar birlikte sunulur; yanıt veren en yakını kullanılır."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "Liste sırası tercihtir; yedeğe geçildikten sonra ilk aktarıcı yeniden denenir."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "Liste sırasıyla; çalışan aktarıcı arızalanana kadar tutulur."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "Etkin aktarıcılar ölçülür ve yanıt veren en hızlısı kullanılır."
+
+msgid "No answer"
+msgstr "Yanıt yok"
+
+msgid "Remove this relay?"
+msgstr "Bu aktarıcı kaldırılsın mı?"
+
+msgid "Change address"
+msgstr "Adresi değiştir"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Belirteç yalnızca bu aktarıcıya gönderilir, diğerlerine asla."
+
+msgid "Test relays"
+msgstr "Aktarıcıları test et"
+
+msgid "Add a relay"
+msgstr "Aktarıcı ekle"
+
+msgid "Add relay"
+msgstr "Aktarıcıyı ekle"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "Herkesin kullanabildiği aktarıcılar. Yalnızca şifreli trafiği taşırlar ve okuyamazlar."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Aktarıcı yok: farklı ağlardaki cihazlar birbirini bulamaz. Trafik bu ağda kalır."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Herkese açık olanlar yerine kendi çalıştırdığın bir aktarıcı."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Bu aktarıcıyı kullan"
+
+msgid "Access token (kept on this device only)"
+msgstr "Erişim belirteci (yalnızca bu cihazda saklanır)"
+
+msgid "Save token"
+msgstr "Belirteci kaydet"
+
+msgid "Forget token"
+msgstr "Belirteci unut"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Belirteç bu cihazın güvenli depolamasında tutulur. Bir daha gösterilmez ve başka cihazlara gönderilmez."
+
+msgid "Token saved"
+msgstr "Belirteç kaydedildi"
+
+msgid "Token forgotten"
+msgstr "Belirteç unutuldu"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "Aktarıcı adresi https:// ile başlamalı ve boşluksuz tek bir adres olmalı"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Aktarıcı belirteci en çok 512 karakterlik tek bir satır olmalı"
+
+msgid "Page background"
+msgstr "Sayfa arka planı"
+
+msgid "Cards and panels"
+msgstr "Kartlar ve paneller"
+
+msgid "Raised controls and hover"
+msgstr "Yükseltilmiş denetimler ve üzerine gelme"
+
+msgid "Top header background"
+msgstr "Üst başlık arka planı"
+
+msgid "Sidebar background"
+msgstr "Kenar çubuğu arka planı"
+
+msgid "Borders and separators"
+msgstr "Kenarlıklar ve ayırıcılar"
+
+msgid "Primary text"
+msgstr "Birincil metin"
+
+msgid "Secondary text"
+msgstr "İkincil metin"
+
+msgid "Portal disc"
+msgstr "Portal diski"
+
+msgid "Portal text"
+msgstr "Portal metni"
+
+msgid "Send indicators"
+msgstr "Gönderme göstergeleri"
+
+msgid "Receive indicators"
+msgstr "Alma göstergeleri"
+
+msgid "Connected and successful"
+msgstr "Bağlı ve başarılı"
+
+msgid "Offline and failed"
+msgstr "Çevrimdışı ve başarısız"
+
+msgid "Warning text"
+msgstr "Uyarı metni"
+
+msgid "Warning background"
+msgstr "Uyarı arka planı"
+
+msgid "Primary button background"
+msgstr "Birincil düğme arka planı"
+
+msgid "Primary button text"
+msgstr "Birincil düğme metni"
+
+msgid "Minimise window control"
+msgstr "Pencereyi küçültme denetimi"
+
+msgid "Maximise window control"
+msgstr "Pencereyi büyütme denetimi"
+
+msgid "Close window control"
+msgstr "Pencereyi kapatma denetimi"
+
+msgid "Navigation icons"
+msgstr "Gezinme simgeleri"
+
+msgid "Selected navigation icon"
+msgstr "Seçili gezinme simgesi"
+
+msgid "Camera detection outline"
+msgstr "Kamera algılama çerçevesi"
+
+msgid "CUSTOM THEME"
+msgstr "ÖZEL TEMA"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Bir öge seç ve rengini yaz. Önizleme ve tüm arayüz sen yazdıkça değişir; temayı kaydedene kadar hiçbir şey kaydedilmez."
+
+msgid "Dark base"
+msgstr "Koyu taban"
+
+msgid "Light base"
+msgstr "Açık taban"
+
+msgid "Editing: {element}"
+msgstr "Düzenlenen: {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Altı onaltılık RGB basamağı gir, örneğin #708090."
+
+msgid "Discard changes"
+msgstr "Değişiklikleri at"
+
+msgid "Reset selected element"
+msgstr "Seçili ögeyi sıfırla"
+
+msgid "Your theme name"
+msgstr "Temanın adı"
+
+msgid "Confirm replace existing theme"
+msgstr "Mevcut temanın değiştirilmesini onayla"
+
+msgid "Save named theme"
+msgstr "Temayı bu adla kaydet"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "KAYITLI TEMA KİTAPLIĞI"
+
+msgid "Load {name}"
+msgstr "{name} temasını yükle"
+
+msgid "Confirm removal"
+msgstr "Kaldırmayı onayla"
+
+msgid "IMPORT / EXPORT"
+msgstr "İÇE / DIŞA AKTAR"
+
+msgid "Export / copy theme JSON"
+msgstr "Tema JSON’unu dışa aktar / kopyala"
+
+msgid "Paste exported theme JSON here"
+msgstr "Dışa aktarılan tema JSON’unu buraya yapıştır"
+
+msgid "Import JSON for preview"
+msgstr "Önizleme için JSON’u içe aktar"
+
+msgid "Import theme file…"
+msgstr "Tema dosyasını içe aktar…"
+
+msgid "Export theme file…"
+msgstr "Tema dosyasını dışa aktar…"
+
+msgid "Theme JSON"
+msgstr "Tema JSON’u"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Düşük kontrast: “{surface}” üzerinde “{text}” zor okunabilir."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Başında ve sonunda boşluk olmayan, 1–64 karakterlik bir tema adı seç."
+
+msgid "The theme could not be exported."
+msgstr "Tema dışa aktarılamadı."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Tema dosyaları en fazla 64 KiB olabilir."
+
+msgid "This is not a valid theme file."
+msgstr "Bu geçerli bir tema dosyası değil."
+
+msgid "This theme format version is not supported."
+msgstr "Bu tema biçimi sürümü desteklenmiyor."
+
+msgid "The theme name is invalid."
+msgstr "Tema adı geçersiz."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Bu ad zaten var. Aşağıda değiştirmeyi onayla veya başka bir ad kullan."
+
+msgid "Theme saved in your library."
+msgstr "Tema kitaplığına kaydedildi."
+
+msgid "The theme could not be saved."
+msgstr "Tema kaydedilemedi."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Tema kopyalandı. Bir dosyaya veya başka bir kuruluma yapıştır."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "Tema JSON’u aşağıdaki değişim alanında; seçilip kopyalanabilir."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Önizleme için içe aktarıldı. Bu temayı kitaplığına eklemek için kaydet."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Değişiklikler atıldı; kayıtlı tercihler değişmedi."
+
+msgid "The theme file could not be opened."
+msgstr "Tema dosyası açılamadı."
+
+msgid "The theme file could not be read."
+msgstr "Tema dosyası okunamadı."
+
+msgid "Theme exported."
+msgstr "Tema dışa aktarıldı."
+
+msgid "Theme removed from your library."
+msgstr "Tema kitaplığından kaldırıldı."
+
+msgid "The theme could not be removed."
+msgstr "Tema kaldırılamadı."
+
+msgid "Top header"
+msgstr "Üst başlık"
+
+msgid "Header · navigation and window controls"
+msgstr "Üst başlık · gezinme ve pencere denetimleri"
+
+msgid "Sidebar"
+msgstr "Kenar çubuğu"
+
+msgid "Navigation icon"
+msgstr "Gezinme simgesi"
+
+msgid "Window control (preview only)"
+msgstr "Pencere denetimi (yalnızca önizleme)"
+
+msgid "Portal disc and its text"
+msgstr "Portal diski ve metni"
+
+msgid "PORTAL"
+msgstr "PORTAL"
+
+msgid "Primary button"
+msgstr "Birincil düğme"
+
+msgid "Primary action"
+msgstr "Birincil eylem"
+
+msgid "Warning notice"
+msgstr "Uyarı bildirimi"
+
+msgid "Warning: verify received files."
+msgstr "Uyarı: alınan dosyaları doğrula."
+
+msgid "Camera detection marker"
+msgstr "Kamera algılama işareti"
+
+msgid "Sending →"
+msgstr "Gönderiliyor →"
+
+msgid "← Receiving"
+msgstr "← Alınıyor"
+
+msgid "● Connected · Complete"
+msgstr "● Bağlı · Tamamlandı"
+
+msgid "● Offline · Failed"
+msgstr "● Çevrimdışı · Başarısız"
+
+msgid "Transfer or connection indicator"
+msgstr "Aktarım veya bağlantı göstergesi"
+
+msgid "Text on the page"
+msgstr "Sayfadaki metin"
+
+msgid "Primary text — names and headings"
+msgstr "Birincil metin — adlar ve başlıklar"
+
+msgid "Secondary text — descriptions and details"
+msgstr "İkincil metin — açıklamalar ve ayrıntılar"
+
+msgid "Surface and border"
+msgstr "Yüzey ve kenarlık"
+
+msgid "Panel / page content"
+msgstr "Panel / sayfa içeriği"
+
+msgid "PREVIEW — {element}"
+msgstr "ÖNİZLEME — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Tema dosyasını içe aktar · Tema dosyasını dışa aktar · JSON"
+
+msgid "UPDATES"
+msgstr "GÜNCELLEMELER"
+
+msgid "Update automatically"
+msgstr "Otomatik güncelle"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "Açık: Peersus'un doğrulanmış bir güncellemesi sormadan indirilir ve yerine konur."
+
+msgid "Restart after an update"
+msgstr "Güncellemeden sonra yeniden başlat"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "Açık: bir güncelleme yerine konduğunda, hiçbir şey gönderilmiyor veya alınmıyorken Peersus kendiliğinden yeniden başlar."
+
+msgid "Check for updates"
+msgstr "Güncellemeleri denetle"
+
+msgid "Update now"
+msgstr "Şimdi güncelle"
+
+msgid "Restart now"
+msgstr "Şimdi yeniden başlat"
+
+msgid "This installation does not update itself."
+msgstr "Bu kurulum kendini güncellemez."
+
+msgid "Updates have not been looked for yet."
+msgstr "Güncellemeler henüz denetlenmedi."
+
+msgid "Looking for an update…"
+msgstr "Güncelleme aranıyor…"
+
+msgid "This version is up to date."
+msgstr "Bu sürüm güncel."
+
+msgid "Version {version} is available."
+msgstr "{version} sürümü kullanılabilir."
+
+msgid "Version"
+msgstr "Sürüm"
+
+msgid "Updates"
+msgstr "Güncellemeler"
+
+msgid "not in this build"
+msgstr "bu derlemede yok"
+
+msgid "not automatic"
+msgstr "otomatik değil"
+
+msgid "not checked yet"
+msgstr "henüz denetlenmedi"
+
+msgid "checking…"
+msgstr "denetleniyor…"
+
+msgid "up to date"
+msgstr "güncel"
+
+msgid "update available"
+msgstr "güncelleme mevcut"
+
+msgid "updating…"
+msgstr "güncelleniyor…"
+
+msgid "restart to finish"
+msgstr "bitirmek için yeniden başlat"
+
+msgid "Binds"
+msgstr "Kısayollar"
+
+msgid "KEY BINDINGS"
+msgstr "KLAVYE KISAYOLLARI"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "Bir kısayol, pencere öndeyken satırında yazanı yapar. Eklemek için + tuşuna, sonra tuşlara birlikte basın, en fazla üç; değiştirmek için bir kısayola basın, sonra kaldırmak için Geri, bırakmak için Escape."
+
+msgid "press the keys…"
+msgstr "tuşlara basın…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Geri siler"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} zaten üç klavye kısayoluna sahip."
+
+msgid "Also while the window is not in front"
+msgstr "Pencere önde değilken de"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Masaüstü tuşları onaylamanızı ister ve biri doluysa başka bir tuş verebilir."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} zaten şunu çalıştırıyor: {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Sizi bekleyen en yeni dosya teklifini kabul eder; dosyalar alınan dosyalar kuralınızın söylediği yere kaydedilir."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Sizi bekleyen en yeni dosya teklifini reddeder."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Dosyaları ve gidecekleri cihazı seçmek için Gönder sayfasını açar."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Eşleştirme kodu ve alınan dosyalarla Al sayfasını açar."
+
+msgid "Accept incoming files"
+msgstr "Gelen dosyaları kabul et"
+
+msgid "Decline incoming files"
+msgstr "Gelen dosyaları reddet"
+
+msgid "Show Send"
+msgstr "Gönder'i göster"
+
+msgid "Show Receive"
+msgstr "Al'ı göster"
+
+msgid "something no longer installed"
+msgstr "artık yüklü olmayan bir şey"
+
+msgid "Downloading the update…"
+msgstr "Güncelleme indiriliyor…"
+
+msgid "Putting the update in place…"
+msgstr "Güncelleme yerine konuyor…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "Güncelleme yerinde. Yeniden başlatmadan sonra çalışır."
+
+msgid "Restarting…"
+msgstr "Yeniden başlatılıyor…"
+
+msgid "The update could not be completed."
+msgstr "Güncelleme tamamlanamadı."
+
+msgid "Accept TOS"
+msgstr "TOS’u kabul et"
+
+msgid "Next"
+msgstr "İleri"
+
+msgid "Hold to confirm"
+msgstr "Onaylamak için basılı tut"
+
+msgid "Keep holding"
+msgstr "Basılı tutmaya devam et"
+
+msgid "Read to the end to go on"
+msgstr "Devam etmek için sonuna kadar oku"
+
+msgid "Step {number} of {total}"
+msgstr "Adım {number} / {total}"
+
+msgid "WHAT THIS IS"
+msgstr "BU NEDİR"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "SENİN İÇİN NE DEĞİŞİR"
+
+msgid "READ THE FULL TEXT"
+msgstr "TAM METNİ OKU"
+
+msgid "LICENCE"
+msgstr "LİSANS"
+
+msgid "NOTICE"
+msgstr "BİLDİRİM"
+
+msgid "TERMS"
+msgstr "ŞARTLAR"
+
+msgid "OUTSIDE THE STORE"
+msgstr "MAĞAZA DIŞI"
+
+msgid "This extension did not come through the store"
+msgstr "Bu eklenti mağazadan gelmedi"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Peersus’taki hiç kimse onu incelemedi, imzalamadı ya da güvenli olduğunu vaat etmedi. Bu cihazda senin erişiminle çalışır ve ulaşmasına izin verdiğin her şeyi okuyup gönderebilir."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Peersus projesi, mağazası dışından gelen bir eklentinin riskini üstlenemez ve onun sana, dosyalarına ya da cihazlarına yaptıklarından sorumlu değildir. Risk sana aittir."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Mağazayı tercih et: orada listelenenler sunulmadan önce incelendi. Bu paketi kimin yaptığını bilmiyorsan kurma."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Sonuna kadar oku, sonra bunu anladığını ve riski kabul ettiğini onaylamak için düğmeyi basılı tut."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} dosya"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} dakika"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} saat"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} gün"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} ay"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} yıl"
+
+msgid "The language file could not be read."
+msgstr "Dil dosyası okunamadı."
+
+msgid "The language file was imported."
+msgstr "Dil dosyası içe aktarıldı."
+
+msgid "The template was saved."
+msgstr "Şablon kaydedildi."
+
+msgid "The template could not be saved."
+msgstr "Şablon kaydedilemedi."
+
+msgid "Could not open a browser."
+msgstr "Tarayıcı açılamadı."
+
+msgid "This device is set to {language}."
+msgstr "Bu cihaz {language} olarak ayarlı."
+
+msgid "This device names no language, so English is used."
+msgstr "Bu cihaz bir dil belirtmiyor, bu yüzden İngilizce kullanılıyor."
+
+msgid "LANGUAGE"
+msgstr "DİL"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "İngilizce yerleşiktir. Diğer her dil bu sürüm için indirilen bir dosyadır; çevirmediği şeyler İngilizce gösterilir."
+
+msgid "Use the device's language"
+msgstr "Cihazın dilini kullan"
+
+msgid "Looking for languages…"
+msgstr "Diller aranıyor…"
+
+msgid "The languages could not be fetched"
+msgstr "Diller alınamadı"
+
+msgid "No other language is offered for this version yet."
+msgstr "Bu sürüm için henüz başka dil sunulmuyor."
+
+msgid "TRANSLATE"
+msgstr "ÇEVİRİ"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Şablonu kaydedin, herhangi bir PO düzenleyicide çevirin, hemen görmek için buraya içe aktarın, sonra herkese sunulabilmesi için paylaşın."
+
+msgid "{percent}% translated"
+msgstr "%{percent} çevrildi"
+
+msgid "{about} · imported"
+msgstr "{about} · içe aktarıldı"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · seçilince indirilir"
+
+msgid "IN USE"
+msgstr "KULLANIMDA"
+
+msgid "Use"
+msgstr "Kullan"
+
+msgid "Check again"
+msgstr "Yeniden denetle"
+
+msgid "Language file"
+msgstr "Dil dosyası"
+
+msgid "Import a language file…"
+msgstr "Dil dosyası içe aktar…"
+
+msgid "Language template"
+msgstr "Dil şablonu"
+
+msgid "Save the template…"
+msgstr "Şablonu kaydet…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Çeviri paylaş (tarayıcıyı açar)"
+
+msgid "Languages"
+msgstr "Diller"
+
+msgid "English is the application's own language and needs no file"
+msgstr "İngilizce uygulamanın kendi dilidir ve dosyaya ihtiyaç duymaz"
+
+msgid "No languages are offered for this release yet"
+msgstr "Bu sürüm için henüz dil sunulmuyor"
+
+msgid "That language file is not held"
+msgstr "Bu dil dosyası burada yok"
+
+msgid "The language file could not be read"
+msgstr "Dil dosyası okunamadı"
+
+msgid "The language file could not be removed"
+msgstr "Dil dosyası kaldırılamadı"
+
+msgid "The language file could not be saved"
+msgstr "Dil dosyası kaydedilemedi"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Dil dosyası hangi dil olduğunu söylemiyor (başlığında Language yok)"
+
+msgid "The language file is too large"
+msgstr "Dil dosyası çok büyük"
+
+msgid "The languages could not be saved"
+msgstr "Diller kaydedilemedi"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "Pencereler, dosyaya ihtiyaç duymayan İngilizce ile gösteriliyor"
+
+msgid "This is not a language file the application can read"
+msgstr "Bu, uygulamanın okuyabileceği bir dil dosyası değil"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "Dil dalının gönderdiği doğrulanamadı"
+
+msgid "Languages are not available here"
+msgstr "Diller burada kullanılamıyor"
+
+msgid "The plugin picker could not be opened"
+msgstr "Eklenti seçici açılamadı"
+
+msgid "The file picker could not be opened"
+msgstr "Dosya seçici açılamadı"
+
+msgid "Another language file is being imported"
+msgstr "Başka bir dil dosyası zaten içe aktarılıyor"
+
+msgid "The application is not ready to import a language file"
+msgstr "Uygulama bir dil dosyasını içe aktarmaya hazır değil"
+
+msgid "The application is not ready to open plugins"
+msgstr "Uygulama eklenti açmaya hazır değil"
+
+msgid "Another plugin archive is being opened"
+msgstr "Başka bir eklenti arşivi zaten açılıyor"
+
+msgid "The selected archive could not be staged"
+msgstr "Seçilen arşiv hazırlanamadı"
+
+msgid "The selected archive could not be read"
+msgstr "Seçilen arşiv okunamadı"
+
+msgid "The embedded metadata is not valid"
+msgstr "Gömülü meta veri geçerli değil"
+
+msgid "The program carries no embedded metadata"
+msgstr "Program gömülü meta veri içermiyor"
+
+msgid "The program is not a recognised binary"
+msgstr "Program tanınan bir ikili dosya değil"
+
+msgid "Input capabilities are unavailable"
+msgstr "Giriş özellikleri kullanılamıyor"
+
+msgid "Input is unavailable"
+msgstr "Giriş kullanılamıyor"
+
+msgid "The input was not understood"
+msgstr "Giriş anlaşılamadı"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Bu bilgisayar kontrol edilemiyor: hiçbir giriş aygıtı oluşturulamadı"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Bu bilgisayar o cihaza ayrı bir işaretçi veremiyor"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Bu uzantı aynı anda çok fazla cihaz için girişi yeniden oynatıyor"
+
+msgid "Unknown input method"
+msgstr "Bilinmeyen giriş yöntemi"
+
+msgid "An installed native module must be read-only"
+msgstr "Yüklü bir yerel modül salt okunur olmalıdır"
+
+msgid "Another plugin already has this name"
+msgstr "Bu ada sahip başka bir eklenti zaten var"
+
+msgid "It could not be read"
+msgstr "Okunamadı"
+
+msgid "It has no manifest"
+msgstr "Manifestosu yok"
+
+msgid "It has no program"
+msgstr "Programı yok"
+
+msgid "It has two manifests"
+msgstr "İki manifestosu var"
+
+msgid "It is not a directory"
+msgstr "Bu bir dizin değil"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Başka bir eklentinin zaten sunduğu bir hizmeti sunuyor"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Bir şeyleri koruyacak bir izin olmadan içeri alıyor"
+
+msgid "Its directory belongs to someone else"
+msgstr "Dizini başka birine ait"
+
+msgid "Its directory can be changed by others"
+msgstr "Dizini başkaları tarafından değiştirilebilir"
+
+msgid "Its manifest could not be read"
+msgstr "Manifestosu okunamadı"
+
+msgid "Its manifest is not a file"
+msgstr "Manifestosu bir dosya değil"
+
+msgid "Its manifest is not valid"
+msgstr "Bildirim dosyası geçerli değil"
+
+msgid "Its manifest is too large"
+msgstr "Manifestosu çok büyük"
+
+msgid "Its name is not usable"
+msgstr "Adı kullanılamaz"
+
+msgid "Its program belongs to someone else"
+msgstr "Programı başka birine ait"
+
+msgid "Its program can be changed by others"
+msgstr "Programı başkaları tarafından değiştirilebilir"
+
+msgid "Its program cannot be run"
+msgstr "Programı çalıştırılamıyor"
+
+msgid "Its program is not a file"
+msgstr "Programı bir dosya değil"
+
+msgid "One of its actions could never be reached"
+msgstr "Eylemlerinden birine hiçbir zaman ulaşılamaz"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Eklentiler bu sistemde çalıştırılamaz"
+
+msgid "Cannot create application directory"
+msgstr "Uygulama dizini oluşturulamıyor"
+
+msgid "Cannot open identity lock"
+msgstr "Kimlik kilidi açılamıyor"
+
+msgid "Identity is being opened by another process"
+msgstr "Kimlik başka bir işlem tarafından açılıyor"
+
+msgid "System credential store is unavailable"
+msgstr "Sistem kimlik bilgisi deposu kullanılamıyor"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Sistem anahtarlığına erişim başlatılamıyor; mevcut kimlik değiştirilmedi"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Sistem anahtarlığının kilidinin açıldığı doğrulanamıyor; mevcut kimlik değiştirilmedi"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığı hâlâ kilitli; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığı kullanılamıyor; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığının kilidini açma zaman aşımına uğradı; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığının kilidini açma iptal edildi; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığı kilitli ve hizmeti parola istemini göstermedi; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "Could not read local application state"
+msgstr "Yerel uygulama durumu okunamadı"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "Yerel bağlantı başarısız oldu; komutun sonucu bilinmiyor olabilir"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "Yerel istek zaman aşımına uğradı; komutun sonucu bilinmiyor olabilir"
+
+msgid "Too many windows are attached"
+msgstr "Çok fazla pencere bağlı"
+
+msgid "The window program is not beside the owner"
+msgstr "Pencere programı sahibinin yanında değil"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Bu oturumda panel yerleştirilecek bir X ekranı yok"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Bu uzantı biçimi bu dağıtımda kullanılamıyor"
+
+msgid "It clashes with another plugin"
+msgstr "Başka bir eklentiyle çakışıyor"
+
+msgid "It could not be loaded"
+msgstr "Yüklenemedi"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Bu pakette lisans ve bildirim yok, bu yüzden yüklenemiyor"
+
+msgid "It has no manifest the application can use"
+msgstr "Uygulamanın kullanabileceği bir bildirim dosyası yok"
+
+msgid "It has no program the application can run"
+msgstr "Uygulamanın çalıştırabileceği bir program yok"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "Klasörü başkaları tarafından değiştirilebildiği için çalıştırılmıyor"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Özel katalog yapılandırması kodlanamıyor"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Özel katalog yardımcısı bulunamıyor"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Özel katalog durumu hazırlanamıyor"
+
+msgid "Cannot protect private catalog state"
+msgstr "Özel katalog durumu korunamıyor"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Özel katalog yapılandırması okunamıyor"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Özel katalog yapılandırması güvenli şekilde kaydedilemiyor"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Kaydedilen özel katalog yapılandırması doğrulanamıyor"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "Özel katalog yapılandırması kaydedilirken değişti"
+
+msgid "The private catalog signing key is not valid"
+msgstr "Özel katalog imzalama anahtarı geçerli değil"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "Kayıtlı özel katalog yapılandırması kullanılamıyor"
+
+msgid "The system credential store is unavailable"
+msgstr "Sistem kimlik bilgisi deposu kullanılamıyor"
+
+msgid "Cannot forget the relay token"
+msgstr "Aktarıcı belirteci unutulamıyor"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Aktarıcı belirteci okunamıyor; kayıtlı belirteç değiştirilmedi"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Aktarıcı belirteci sistem kimlik bilgisi deposuna kaydedilemiyor"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Kaydedilen aktarıcı belirteci doğrulanamıyor"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Kayıtlı aktarıcı belirteci kaydedilirken değişti"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Kayıtlı aktarıcı belirteci kullanılamıyor; değiştirilmedi"
+
+msgid "Action arguments are invalid"
+msgstr "Eylem bağımsız değişkenleri geçersiz"
+
+msgid "Action context is invalid"
+msgstr "Eylem bağlamı geçersiz"
+
+msgid "Action is not permitted for this device"
+msgstr "Bu cihaz için işleme izin verilmiyor"
+
+msgid "An action can have up to three key bindings"
+msgstr "Bir eylemin en fazla üç tuş ataması olabilir"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "Bir uzantı çok kısa sürede çok fazla istekte bulundu ve kısa bir süreliğine duraklatıldı"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "Bir uzantının lisansını ve bildirimini okuyup kabul etmen gerekiyor; Uzantılar'ı aç"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Harici bir paket, paketle gelen bir eklentinin yerini alamaz"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "Girişi cihazlar arasında zaten başka bir uzantı taşıyor. Bunu kullanmak için o uzantıyı kapat"
+
+msgid "Application updates are not available here"
+msgstr "Uygulama güncellemeleri burada kullanılamıyor"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Paketle gelen eklentiler kaldırılamaz"
+
+msgid "Choose a device for this action"
+msgstr "Bu işlem için bir cihaz seç"
+
+msgid "Choose a device for this setting"
+msgstr "Bu ayar için bir cihaz seç"
+
+msgid "Choose between one and sixteen files"
+msgstr "Bir ile on altı arasında dosya seç"
+
+msgid "Choose exactly one file for this action"
+msgstr "Bu işlem için tam olarak bir dosya seç"
+
+msgid "Could not change this permission"
+msgstr "Bu izin değiştirilemedi"
+
+msgid "Could not clear the history"
+msgstr "Geçmiş temizlenemedi"
+
+msgid "Could not forget device"
+msgstr "Cihaz unutulamadı"
+
+msgid "Could not forget what it was granted"
+msgstr "Verilen izinler unutulamadı"
+
+msgid "Could not keep the picture"
+msgstr "Resim saklanamadı"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Seçili klasör açılamadı veya cihaz çevrimdışı"
+
+msgid "Could not remove the picture"
+msgstr "Resim kaldırılamadı"
+
+msgid "Could not save permissions"
+msgstr "İzinler kaydedilemedi"
+
+msgid "Device is not paired"
+msgstr "Cihaz eşlenmemiş"
+
+msgid "Extension prompts unavailable"
+msgstr "Uzantı istemleri kullanılamıyor"
+
+msgid "Files selection is not fully accounted for"
+msgstr "Dosya seçiminin tamamı hesaba katılmamış"
+
+msgid "Input arguments are invalid"
+msgstr "Girdi bağımsız değişkenleri geçersiz"
+
+msgid "Invalid value for this setting"
+msgstr "Bu ayar için geçersiz değer"
+
+msgid "Key bindings are not available on this device"
+msgstr "Tuş atamaları bu cihazda kullanılamıyor"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Diller getiriliyor; bitince yeniden dene"
+
+msgid "No picture is held for that"
+msgstr "Bunun için tutulan bir resim yok"
+
+msgid "No plugin handles this request"
+msgstr "Bu isteği işleyen bir eklenti yok"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Bu eklenti için hiçbir şey gösterilmedi"
+
+msgid "Permissions could not be applied"
+msgstr "İzinler uygulanamadı"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Eklentinin bu cihazda çalışmasına izin verilmiyor"
+
+msgid "Plugin unavailable"
+msgstr "Eklenti kullanılamıyor"
+
+msgid "Plugins cannot be installed here"
+msgstr "Eklentiler buraya yüklenemez"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Özel katalog yapılandırması kaydedilemedi"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Bu cihazda özel kataloglar etkin değil"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Salt okunur demo: bu pencere bir sahibe bağlı değil"
+
+msgid "Selected input is unavailable"
+msgstr "Seçili giriş alanı kullanılamıyor"
+
+msgid "That action cannot be run by a key"
+msgstr "Bu eylem bir tuşla çalıştırılamaz"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Bu eylem, tuşu için bir cihaz gerektirir; yalnızca o zaman çalışır"
+
+msgid "That device cannot be sent to"
+msgstr "O cihaza gönderilemiyor"
+
+msgid "That extension action is not installed"
+msgstr "Bu uzantı işlemi yüklü değil"
+
+msgid "That input was not understood"
+msgstr "Bu girdi anlaşılamadı"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Bu izin bu eklentiye verilemez"
+
+msgid "The code was already used or is no longer shown"
+msgstr "Kod zaten kullanıldı veya artık gösterilmiyor"
+
+msgid "The extension store failed"
+msgstr "Uzantı mağazası başarısız oldu"
+
+msgid "The extension store is not available here"
+msgstr "Uzantı mağazası burada kullanılamıyor"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "Lisans ve bildirim kabul edilmedi, bu yüzden hiçbir şey yüklenmedi"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Paket gösterildikten sonra değişti; yeniden seç"
+
+msgid "The package has no valid name"
+msgstr "Paketin geçerli bir adı yok"
+
+msgid "The plugin could not be registered"
+msgstr "Eklenti kaydedilemedi"
+
+msgid "The plugin does not allow this action"
+msgstr "Eklenti bu eyleme izin vermiyor"
+
+msgid "The plugin does not offer this action"
+msgstr "Eklenti bu eylemi sunmuyor"
+
+msgid "The plugin is not running"
+msgstr "Eklenti çalışmıyor"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "Eklenti gösterilenle aynı değil; yeniden incele"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "Eklenti çok hızlı, çok fazla gönderiyor"
+
+msgid "The request could not be sent"
+msgstr "İstek gönderilemedi"
+
+msgid "The text to share is empty or too large"
+msgstr "Paylaşılacak metin boş veya çok büyük"
+
+msgid "The update failed"
+msgstr "Güncelleme başarısız oldu"
+
+msgid "This action does not accept selected input"
+msgstr "Bu işlem seçili girdiyi kabul etmiyor"
+
+msgid "This action does not accept shared text"
+msgstr "Bu eylem paylaşılan metni kabul etmiyor"
+
+msgid "This action does not use a device"
+msgstr "Bu işlem bir cihaz kullanmıyor"
+
+msgid "This action is not available now"
+msgstr "Bu işlem şu anda kullanılamıyor"
+
+msgid "This action requires its declared selected input"
+msgstr "Bu işlem, belirtilen seçili girdiyi gerektiriyor"
+
+msgid "This device cannot keep a relay token"
+msgstr "Bu cihaz bir aktarma belirtecini saklayamıyor"
+
+msgid "This extension declares no input transport"
+msgstr "Bu uzantı herhangi bir giriş aktarımı bildirmiyor"
+
+msgid "This is not permitted for this device"
+msgstr "Bu cihaz için buna izin verilmiyor"
+
+msgid "This page is not offered on this system"
+msgstr "Bu sayfa bu sistemde sunulmuyor"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Bu platform istenen özelliği sunmuyor"
+
+msgid "This setting is not per device"
+msgstr "Bu ayar cihaza özel değil"
+
+msgid "Too many calls"
+msgstr "Çok fazla çağrı"
+
+msgid "Too many operations are pending"
+msgstr "Bekleyen çok fazla işlem var"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "Eklentileri bekleyen çok fazla aktarım var"
+
+msgid "Unknown action"
+msgstr "Bilinmeyen eylem"
+
+msgid "Unknown device"
+msgstr "Bilinmeyen cihaz"
+
+msgid "Unknown page"
+msgstr "Bilinmeyen sayfa"
+
+msgid "Unknown plugin"
+msgstr "Bilinmeyen eklenti"
+
+msgid "Unknown setting"
+msgstr "Bilinmeyen ayar"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Mevcut katalog işleminin bitmesini bekle"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Onayın kaydedilemedi, bu yüzden hiçbir şey yüklenmedi"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "Bir AppImage kendini değiştirmez; yenisini indir"
+
+msgid "Kept by something else"
+msgstr "Başka bir şey tarafından tutuluyor"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "Uygulama bu sistemde henüz kendini değiştiremiyor"
+
+msgid "The update could not be unpacked"
+msgstr "Güncelleme açılamadı"
+
+msgid "The update could not be written beside the application"
+msgstr "Güncelleme uygulamanın yanına yazılamadı"
+
+msgid "The update is not a plain set of programs"
+msgstr "Güncelleme düz bir program kümesi değil"
+
+msgid "The update is not for this installation"
+msgstr "Güncelleme bu kurulum için değil"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "Güncelleme yalnızca kısmen uygulandı; uygulamayı yeniden yükle"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Bu kurulum sistem tarafından yönetiliyor ve sistemle birlikte güncelleniyor"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Bu kurulum Flatpak tarafından güncelleniyor"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Bu tür bir güncelleme bu kuruluma uygulanamaz"
+
+msgid "Loading…"
+msgstr "Yükleniyor…"
+
+msgid "Another device"
+msgstr "Başka bir cihaz"
+
+msgid "CANCELLED"
+msgstr "İPTAL EDİLDİ"
+
+msgid "CONNECTED"
+msgstr "BAĞLI"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Bir eklenti arşivi seç (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Bir profil resmi seç (PNG veya JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Bu cihazda klasör seçme kullanılamıyor."
+
+msgid "Clear"
+msgstr "Temizle"
+
+msgid "Clear them?"
+msgstr "Temizlensin mi?"
+
+msgid "FAILED · {reason}"
+msgstr "BAŞARISIZ · {reason}"
+
+msgid "FOR {device}"
+msgstr "{device} İÇİN"
+
+msgid "Folder for incoming files"
+msgstr "Gelen dosyalar için klasör"
+
+msgid "INCOMING"
+msgstr "GELEN"
+
+msgid "NOT RUNNING"
+msgstr "ÇALIŞMIYOR"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Klasör seçilmediği için dosya kabul edilmedi."
+
+msgid "OUTGOING"
+msgstr "GİDEN"
+
+msgid "OUTGOING · PREPARED"
+msgstr "GİDEN · HAZIRLANDI"
+
+msgid "Peersus could not be started again"
+msgstr "Peersus yeniden başlatılamadı"
+
+msgid "Save the file in"
+msgstr "Dosyayı şuraya kaydet"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "Gelen dosyalar için seçilen klasör artık yok. Başka bir klasör seç."
+
+msgid "The identity could not be reset"
+msgstr "Kimlik sıfırlanamadı"
+
+msgid "The plugin picker is unavailable"
+msgstr "Eklenti seçici kullanılamıyor"
+
+msgid "There is no data directory to look in"
+msgstr "Bakılacak bir veri dizini yok"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Ayarlar'ı yukarıdan aşağı indirmek için ekrana iki parmakla dokun. Ayarlar zaten açıkken bir şey yapmaz."
+
+msgid "Two fingers open Settings"
+msgstr "İki parmak Ayarlar'ı açar"
+
+msgid "Identity unavailable"
+msgstr "Kimlik kullanılamıyor"
+
+msgid "Nowhere to look"
+msgstr "Bakılacak yer yok"
+
+msgid "Peersus could not start"
+msgstr "Peersus başlatılamadı"
+
+msgid "Peersus stopped"
+msgstr "Peersus durdu"
+
+msgid "The action did not accept the value"
+msgstr "Eylem değeri kabul etmedi"
+
+msgid "The owner stopped"
+msgstr "Sahip durdu"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Peersus'un cihazlarını bağlı tutan bölümü başlamadı ve nedenini belirtmedi."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Peersus'un cihazlarını bağlı tutan bölümü başlamadı. Verdiği yanıt: {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Peersus'un cihazlarını bağlı tutan bölümü sona erdi ve kendiliğinden yeniden başlatılması onu çalışır durumda tutamadı."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Bu hesabın veri dizini yok, bu yüzden uygulama bulunamıyor."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Salt okunur GitHub token'ını gir. Burada başka ayar gerekmez; token güvenli cihaz depolamasında kalır."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "Depo Contents: read izinli GitHub token'ı"
+
+msgid "Private development catalog"
+msgstr "Özel geliştirme kataloğu"
+
+msgid "Save and apply"
+msgstr "Kaydet ve uygula"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "GitHub token'ı en fazla 512 baytlık tek bir satır olmalıdır"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Token güvenli şekilde kaydedildi ve uygulandı. Uzantı listesi arka planda güncelleniyor."
+
+msgid "OFFLINE"
+msgstr "ÇEVRİMDIŞI"
+
+msgid "ONLINE"
+msgstr "ÇEVRİMİÇİ"
+
+msgid "SLEEPING"
+msgstr "UYKUDA"
+
+msgid "An update is already being worked on"
+msgstr "Zaten bir güncelleme üzerinde çalışılıyor"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "Bir güncelleme yüklendi; kullanmak için uygulamayı yeniden başlat"
+
+msgid "Application updates are not set up in this build"
+msgstr "Bu derlemede uygulama güncellemeleri ayarlanmamış"
+
+msgid "No update is available"
+msgstr "Kullanılabilir güncelleme yok"
+
+msgid "No update is waiting for a restart"
+msgstr "Yeniden başlatma bekleyen bir güncelleme yok"
+
+msgid "The application update key is not valid"
+msgstr "Uygulama güncelleme anahtarı geçerli değil"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "İndirilen güncelleme yayımlanan güncelleme değil"
+
+msgid "The saved update state could not be read"
+msgstr "Kaydedilen güncelleme durumu okunamadı"
+
+msgid "The saved update state is damaged"
+msgstr "Kaydedilen güncelleme durumu bozuk"
+
+msgid "The update could not be checked"
+msgstr "Güncelleme denetlenemedi"
+
+msgid "The update is described in a way this version does not read"
+msgstr "Güncelleme, bu sürümün okuyamadığı bir biçimde tanımlanmış"
+
+msgid "The update is for another release channel"
+msgstr "Güncelleme başka bir sürüm kanalı için"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "Güncelleme bu uygulamanın yayıncısı tarafından imzalanmamış"
+
+msgid "The update is too large"
+msgstr "Güncelleme çok büyük"
+
+msgid "The update listing could not be checked"
+msgstr "Güncelleme listesi denetlenemedi"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "Sunulan güncelleme, bu sürüm altında daha önce görülen sürümle aynı değil"
+
+msgid "The update offered is older than one already seen"
+msgstr "Sunulan güncelleme, daha önce görülenden daha eski"
+
+msgid "The update state could not be saved"
+msgstr "Güncelleme durumu kaydedilemedi"
+
+msgid "The catalog could not be read"
+msgstr "Katalog okunamadı"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "Katalogda belirsiz veya geçersiz platform yapıtları var"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "Katalogda geçerli olmayan bir girdi var"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "Katalogda geçersiz platform yapıtları var"
+
+msgid "The catalog is a version this application does not read"
+msgstr "Katalog, bu uygulamanın okuyamadığı bir sürümde"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "Katalog bakımcı tarafından imzalanmamış"
+
+msgid "The catalog is older than one already seen"
+msgstr "Katalog, daha önce görülenden daha eski"
+
+msgid "The catalog is too large"
+msgstr "Katalog çok büyük"
+
+msgid "The catalog lists a name twice"
+msgstr "Katalog bir adı iki kez listeliyor"
+
+msgid "The catalog lists too many extensions"
+msgstr "Katalog çok fazla eklenti listeliyor"
+
+msgid "The catalog signature is not valid"
+msgstr "Katalog imzası geçerli değil"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Paket, kataloğun kendisi hakkında söylediğiyle uyuşmuyor"
+
+msgid "The package is not the one that was approved"
+msgstr "Paket onaylanan paket değil"
+
+msgid "The package name is not the approved name"
+msgstr "Paket adı onaylanan ad değil"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Program ve bildirimi, onu kimin yaptığı konusunda uyuşmuyor"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Dosya veya bağlantı değil, bir eklenti dizini seç"
+
+msgid "No data directory"
+msgstr "Veri dizini yok"
+
+msgid "No such plugin is installed"
+msgstr "Böyle bir eklenti yüklü değil"
+
+msgid "Nothing was retired under that name"
+msgstr "Bu ad altında kullanımdan kaldırılmış bir şey yok"
+
+msgid "Something is already installed under this name"
+msgstr "Bu ad altında zaten bir şey yüklü"
+
+msgid "That is not the name of a plugin"
+msgstr "Bu bir eklenti adı değil"
+
+msgid "The approval could not be written"
+msgstr "Onay yazılamadı"
+
+msgid "The installed plugin directory is not safe"
+msgstr "Yüklü eklenti dizini güvenli değil"
+
+msgid "The native module could not be made read-only"
+msgstr "Yerel modül salt okunur yapılamadı"
+
+msgid "The package could not be put back"
+msgstr "Paket geri konulamadı"
+
+msgid "The package could not be put in place"
+msgstr "Paket yerine konulamadı"
+
+msgid "The package could not be read"
+msgstr "Paket okunamadı"
+
+msgid "The package could not be staged"
+msgstr "Paket hazırlanamadı"
+
+msgid "The package could not be taken out of use"
+msgstr "Paket kullanımdan kaldırılamadı"
+
+msgid "The package has too many files"
+msgstr "Pakette çok fazla dosya var"
+
+msgid "The package is too large"
+msgstr "Paket çok büyük"
+
+msgid "The package names a file it does not have"
+msgstr "Paket, içinde olmayan bir dosyayı belirtiyor"
+
+msgid "The package needs a manifest and a program"
+msgstr "Paketin bir bildirime ve bir programa ihtiyacı var"
+
+msgid "The package's name is not usable"
+msgstr "Paketin adı kullanılamaz"
+
+msgid "The plugin could not be switched off"
+msgstr "Eklenti kapatılamadı"
+
+msgid "The plugin could not be switched on"
+msgstr "Eklenti açılamadı"
+
+msgid "The plugin store can be changed by others"
+msgstr "Eklenti deposu başkaları tarafından değiştirilebilir"
+
+msgid "The plugin store could not be locked"
+msgstr "Eklenti deposu kilitlenemedi"
+
+msgid "The plugin store could not be made"
+msgstr "Eklenti deposu oluşturulamadı"
+
+msgid "The plugin store could not be read"
+msgstr "Eklenti deposu okunamadı"
+
+msgid "The plugin store is a link"
+msgstr "Eklenti deposu bir bağlantı"
+
+msgid "The plugin store is being changed by another process"
+msgstr "Eklenti deposu başka bir işlem tarafından değiştiriliyor"
+
+msgid "The plugin store is not a directory"
+msgstr "Eklenti deposu bir dizin değil"
+
+msgid "The retired plugin directory is not safe"
+msgstr "Kullanımdan kaldırılan eklenti dizini güvenli değil"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "Bu eklenti için onaylanacak bir şey yok"
+
+msgid "Too many plugins are installed"
+msgstr "Çok fazla eklenti yüklü"
+
+msgid "The extension store could not be reached"
+msgstr "Eklenti mağazasına ulaşılamadı"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Mağazanın gönderdiği veri izin verilenden büyük"

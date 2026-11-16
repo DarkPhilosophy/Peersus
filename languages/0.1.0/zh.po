@@ -1,0 +1,2981 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh\n"
+"X-Language-Name: 中文\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "请你为此扩展选择文件；无默认文件系统访问权限。"
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "HTTPS 请求需你明确批准目标地址；凭据保留在主机中。"
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "分段有限度地读取或替换此设备的剪贴板文本，每项需单独授权。"
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "分段有限度地读取此设备的剪贴板文本；何时可读由平台决定，并排除敏感内容。"
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "用扩展分段提供的文本替换此设备的剪贴板文本。"
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "在此设备剪贴板变化时收到通知，但不获取其内容；读取仍需读取权限。"
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "以其名义向你显示通知，可自定文字和按钮，窗口内外均可显示。"
+
+msgid "Confirm {label}"
+msgstr "确认{label}"
+
+msgid "Working…"
+msgstr "正在处理…"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "已取消。重试前请检查外部结果。"
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "不允许。请检查此插件的权限。"
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "插件不可用。请启动后重试。"
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "操作超时。重试前请检查结果。"
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "另一项操作正在进行。请待其完成后重试。"
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "操作无法完成。请检查插件后重试。"
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "请启动插件，按需选择在线设备，并授予所需权限。"
+
+msgid "Enter a value within the declared limits."
+msgstr "请输入声明范围内的值。"
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "已保存的设置无效。请恢复为有效值。"
+
+msgid "Supported platforms: {platforms}"
+msgstr "支持的平台：{platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "此旧版插件未声明平台支持。"
+
+msgid "For {name}"
+msgstr "适用于 {name}"
+
+msgid "Install bundled {name}"
+msgstr "安装内置的 {name}"
+
+msgid "It does not support this operating system"
+msgstr "不支持此操作系统"
+
+msgid "Support Peersus — entirely optional"
+msgstr "支持 Peersus — 完全自愿"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "如果 Peersus 对你有用，可以自愿打赏。应用所有功能均保持免费，无广告、无付费功能、无优先权益。"
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "在 Ko-fi 提供的情况下，银行卡付款通过创作者关联的 Stripe 账户处理；支付方式可能不同。Peersus 不会处理你的银行卡信息。"
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "打赏不换取任何产品、服务、访问权限或回报。可能产生支付处理费用。不承诺可作为慈善捐赠抵税。公开致谢是网站上单独的可选项，绝非应用内权益。"
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "在 Ko-fi 上支持（打开浏览器）"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "无法打开浏览器。你可以手动打开 https://ko-fi.com/DarkPhilosophy。"
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "无法读取：它已不存在，或此程序无权打开。"
+
+msgid "That file is empty, so there is no package in it."
+msgstr "该文件为空，其中没有包。"
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "这既不是文件夹也不是文件，不可能是包。"
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "向你选择的已配对设备发送数据。它无法看到任何设备的密钥。"
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "中断并重启任意插件，包括并非为此安装的插件。它无法读取这些插件的数据，也无法更改其权限。"
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "在这台电脑上移动指针、按下按钮和按键、输入文字，如同接入了鼠标和键盘。"
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "更改这台电脑上已配对桌面的排列，以及指针在它们之间穿越的位置。"
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "在传输开始、进行、完成、取消或失败时收到通知：哪个传输及其进度。它无法看到文件名、设备名或保存位置，也无法接受、拒绝或取消传输。"
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "还可看到每个传输文件的名称，以及发送目标或来源设备的名称。文件名可能透露很多个人信息。"
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "创建自己的状态并为其命名。仅创建的状态在开启前不会透露你的任何信息。"
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "开启和关闭自己的状态。开启期间，状态会以插件所选的文字显示给你配对的所有设备。"
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "查看已配对设备显示的状态，并在其变化时收到通知。状态内容（正在观看某物、忙碌）可能涉及隐私。"
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "未选择文件夹。每个文件都会询问保存位置。"
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "已选择文件夹。文件将直接保存到其中。"
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "初始不授予任何权限。安装后由你决定它能做什么。"
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "已安装同名插件。此操作将替换它，且初始不授予任何权限。"
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "此插件未获批准，因此未运行。批准后，它将以下方列出的请求权限运行。"
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "此插件的程序与已批准的不同，因此未运行。再次批准将允许此程序运行，并清除之前授予的权限。"
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "此插件无法使用：已损坏或其程序无法运行。只能将其移除。"
+
+msgid "RUNNING"
+msgstr "运行中"
+
+msgid "STARTING"
+msgstr "正在启动"
+
+msgid "RESTARTING"
+msgstr "正在重启"
+
+msgid "OFF"
+msgstr "已关闭"
+
+msgid "FAILED"
+msgstr "失败"
+
+msgid "BROKEN"
+msgstr "已损坏"
+
+msgid "CHANGED"
+msgstr "已更改"
+
+msgid "NEEDS APPROVAL"
+msgstr "需要批准"
+
+msgid "Replace"
+msgstr "替换"
+
+msgid "Drop one package at a time."
+msgstr "请一次只拖入一个包。"
+
+msgid "No description was given for this permission."
+msgstr "此权限未提供说明。"
+
+msgid "The selection is too large"
+msgstr "所选内容过大"
+
+msgid "The file picker did not report its selection count"
+msgstr "文件选择器未报告所选数量"
+
+msgid "The application answered with something else than a code"
+msgstr "应用返回的内容不是代码"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "文件提供方在完成选择前已停止。"
+
+msgid "The file producer stopped before creating a code."
+msgstr "文件提供方在生成代码前已停止。"
+
+msgid "Could not create invitation"
+msgstr "无法创建邀请"
+
+msgid "Application stopped"
+msgstr "应用已停止"
+
+msgid "Left out: {items}."
+msgstr "已略过：{items}。"
+
+msgid "Not files: {count}"
+msgstr "非文件：{count}"
+
+msgid "Could not be read: {count}"
+msgstr "无法读取：{count}"
+
+msgid "Empty files: {count}"
+msgstr "空文件：{count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "超出 {limit} 个文件的选择上限：{count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "有 {refused} 个所选文件无法发送。"
+
+msgid "Restart"
+msgstr "重启"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "或选择已保存的设备"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "有来自其他设备的代码？"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "或粘贴另一台设备上的代码"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "或在另一台设备上粘贴此代码"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "连接到另一台设备"
+
+msgid "TRANSFERS"
+msgstr "传输"
+
+msgid "PAIRED PEERS"
+msgstr "已配对设备"
+
+msgid "MET BY CODE"
+msgstr "通过代码连接"
+
+msgid "{total} ({online} online)"
+msgstr "{total}（{online} 在线）"
+
+msgid "{total} ({running} running)"
+msgstr "{total}（{running} 运行中）"
+
+msgid "Goes straight to the device you picked"
+msgstr "直接发送到你选择的设备"
+
+msgid "Goes straight to the devices you picked"
+msgstr "直接发送到你选择的设备"
+
+msgid "No device picked: a code will be made"
+msgstr "未选择设备：将生成代码"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "你选择的某台设备不可用。请重新选择，或不选设备以使用代码"
+
+msgid "tap to choose files"
+msgstr "点按选择文件"
+
+msgid "click to browse your computer"
+msgstr "点击浏览电脑上的文件"
+
+msgid "SCAN"
+msgstr "扫描"
+
+msgid "tap to open the camera"
+msgstr "点按打开相机"
+
+msgid "starting the camera"
+msgstr "正在启动相机"
+
+msgid "NO CAMERA"
+msgstr "无相机"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "请在手机设置中允许 Peersus 使用相机，然后点按"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "配对：显示代码供另一台设备扫描。连接：扫描或粘贴另一台设备显示的代码。"
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "配对后会一直信任另一台设备，直到你将其移除。仅通过代码发送文件则不会建立信任。"
+
+msgid "CHOOSE FILES"
+msgstr "选择文件"
+
+msgid "TO SEND"
+msgstr "待发送"
+
+msgid "NO DEVICE PICKED"
+msgstr "未选择设备"
+
+msgid "TAP FOR"
+msgstr "点击获取"
+
+msgid "A QR CODE"
+msgstr "二维码"
+
+msgid "HOLD TO SEND"
+msgstr "按住发送"
+
+msgid "TAP TO SEND"
+msgstr "点击发送"
+
+msgid "1 DEVICE"
+msgstr "1 台设备"
+
+msgid "{count} DEVICES"
+msgstr "{count} 台设备"
+
+msgid "keep holding until it is full"
+msgstr "按住直到填满"
+
+msgid "it sends at once"
+msgstr "立即发送"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "有设备已离开"
+
+msgid "PICK AGAIN"
+msgstr "重新选择"
+
+msgid "nothing is sent until you do"
+msgstr "确认之前不会发送任何内容"
+
+msgid "READY TO RECEIVE"
+msgstr "准备接收"
+
+msgid "PASTE"
+msgstr "粘贴"
+
+msgid "THE CODE"
+msgstr "代码"
+
+msgid "from the other device"
+msgstr "来自另一台设备"
+
+msgid "CONNECT"
+msgstr "连接"
+
+msgid "{name} wants to pair"
+msgstr "{name} 请求配对"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "已应答，正在等待另一台设备"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "在两台设备上选择相同的数字"
+
+msgid "Send"
+msgstr "发送"
+
+msgid "Receive"
+msgstr "接收"
+
+msgid "Peers"
+msgstr "设备列表"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "Device"
+msgstr "设备"
+
+msgid "Appearance"
+msgstr "外观"
+
+msgid "Network"
+msgstr "网络"
+
+msgid "Extensions"
+msgstr "扩展"
+
+msgid "Permissions"
+msgstr "权限"
+
+msgid "History"
+msgstr "历史记录"
+
+msgid "About"
+msgstr "关于"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Accent colour"
+msgstr "强调色"
+
+msgid "Coral"
+msgstr "珊瑚色"
+
+msgid "Sky"
+msgstr "天蓝色"
+
+msgid "Moss"
+msgstr "苔绿色"
+
+msgid "Amber"
+msgstr "琥珀色"
+
+msgid "Violet"
+msgstr "紫罗兰色"
+
+msgid "Rose"
+msgstr "玫瑰色"
+
+msgid "Interface size"
+msgstr "界面大小"
+
+msgid "Compact"
+msgstr "紧凑"
+
+msgid "Normal"
+msgstr "标准"
+
+msgid "Large"
+msgstr "大"
+
+msgid "Larger"
+msgstr "较大"
+
+msgid "Largest"
+msgstr "最大"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "文字、图标和间距会一起缩放。按 Ctrl 加 + 或 − 仅调整当前窗口。"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "View files"
+msgstr "查看文件"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Request unlock"
+msgstr "请求解锁"
+
+msgid "Generate a new identity"
+msgstr "生成新身份"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "是，删除旧身份并生成新身份"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "此操作会删除系统保存的身份，并搁置现有配对。设备需要重新配对。此操作无法撤销。"
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "身份已重置。请关闭此窗口并重新打开 Peersus。"
+
+msgid "Turn on devices nearby"
+msgstr "开启附近设备"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "附近设备已关闭。开启后可查看身边可配对的设备。"
+
+msgid "Paste"
+msgstr "粘贴"
+
+msgid "Select all"
+msgstr "全选"
+
+msgid "Cut"
+msgstr "剪切"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Relays"
+msgstr "中继"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "New relay: relay.example.org"
+msgstr "新中继：relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "输入中继服务器，例如 relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "数据改经中继传输前，直连可尝试的时长。"
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "在优先级顺序模式下，使用备用中继多久后再重新尝试第一个中继。"
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "搜索中继"
+
+msgid "Position"
+msgstr "位置"
+
+msgid "New address"
+msgstr "新地址"
+
+msgid "This relay's own timings"
+msgstr "此中继的专属时间设置"
+
+msgid "Uses the list-wide timings"
+msgstr "使用列表通用时间设置"
+
+msgid "Use list-wide timings"
+msgstr "使用列表通用时间设置"
+
+msgid "Accept"
+msgstr "接受"
+
+msgid "Refuse"
+msgstr "拒绝"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Done"
+msgstr "完成"
+
+msgid "Connect"
+msgstr "连接"
+
+msgid "Pair"
+msgstr "配对"
+
+msgid "Install"
+msgstr "安装"
+
+msgid "Uninstall"
+msgstr "卸载"
+
+msgid "Retry"
+msgstr "重试"
+
+msgid "Open"
+msgstr "打开"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "System"
+msgstr "跟随系统"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Custom"
+msgstr "自定义"
+
+msgid "Device name"
+msgstr "设备名称"
+
+msgid "CODE SCANNED"
+msgstr "已扫码"
+
+msgid "SCANNED"
+msgstr "已扫描"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "对方设备已读取代码，正在等待其接受。"
+
+msgid "WAITING FOR APPROVAL"
+msgstr "等待批准"
+
+msgid "SENDING"
+msgstr "发送中"
+
+msgid "DONE"
+msgstr "已完成"
+
+msgid "STOPPED"
+msgstr "已停止"
+
+msgid "ENDS IN {time}"
+msgstr "{time}后结束"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} 想向你发送文件"
+
+msgid "A device wants to send you a file"
+msgstr "有设备想向你发送文件"
+
+msgid "{files} are waiting in all"
+msgstr "共有 {files} 等待处理"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "正在等待对方设备接受 {files}。"
+
+msgid "Sending 1 file."
+msgstr "正在发送 1 个文件。"
+
+msgid "Sending {files}."
+msgstr "正在发送 {files}。"
+
+msgid "1 file arrived."
+msgstr "已收到 1 个文件。"
+
+msgid "{files} arrived."
+msgstr "已收到 {files}。"
+
+msgid "1 SENT"
+msgstr "已发送 1 个"
+
+msgid "{count} SENT"
+msgstr "已发送 {count} 个"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "已收到 {done}/{files}。其余文件被拒绝、已取消或失败。"
+
+msgid "1 file selected"
+msgstr "已选择 1 个文件"
+
+msgid "{files} selected"
+msgstr "已选择 {files}"
+
+msgid "+ {count} more"
+msgstr "+ 另外 {count} 个"
+
+msgid "never seen"
+msgstr "从未见过"
+
+msgid "just now"
+msgstr "刚刚"
+
+msgid "{duration} ago"
+msgstr "{duration}前"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Join"
+msgstr "加入"
+
+msgid "Keep"
+msgstr "保留"
+
+msgid "Forget"
+msgstr "忘记"
+
+msgid "Not now"
+msgstr "以后再说"
+
+msgid "Choose folder"
+msgstr "选择文件夹"
+
+msgid "Use none"
+msgstr "不使用"
+
+msgid "Name this device"
+msgstr "为此设备命名"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "你的其他设备会以此名称显示它，请选一个容易认出的名称。"
+
+msgid "For example: Alex's laptop"
+msgstr "例如：小明的笔记本电脑"
+
+msgid "Paste the code"
+msgstr "粘贴代码"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "还没有已保存的设备。可通过代码发送，并在询问时保留该设备。"
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "一个操作，一个目的地。在你的设备之间传输文件，无需穿梭于层层菜单。"
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "接收什么由你决定，一切按你的规则来。未经你同意，任何内容都不会传入。"
+
+msgid "That is not a code from another device."
+msgstr "这不是来自其他设备的代码。"
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "还没有已配对的设备。请在上方配对设备。"
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "选择插件压缩包，或将文件夹或压缩包拖放到此处。"
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "这也会在所有设备上清除它获得的全部权限。再按一次即可移除。"
+
+msgid "No plugins installed."
+msgstr "未安装插件。"
+
+msgid "It cannot be granted anything."
+msgstr "无法向它授予任何权限。"
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "配对设备后，即可为该设备向此插件授予权限。"
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "未安装插件，因此无需授权。"
+
+msgid "Nothing has been sent or received yet."
+msgstr "尚未发送或接收任何内容。"
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "重要提示 — 数据与安全风险"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "传输门户"
+
+msgid "WELCOME"
+msgstr "欢迎"
+
+msgid "HISTORY"
+msgstr "历史记录"
+
+msgid "NOT PAIRED"
+msgstr "未配对"
+
+msgid "WAITING FOR YOU"
+msgstr "等待你处理"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "未绑定任何设备"
+
+msgid "Received"
+msgstr "已接收"
+
+msgid "Sent"
+msgstr "已发送"
+
+msgid "done"
+msgstr "已完成"
+
+msgid "cancelled"
+msgstr "已取消"
+
+msgid "failed"
+msgstr "失败"
+
+msgid "going"
+msgstr "进行中"
+
+msgid "SEND"
+msgstr "发送"
+
+msgid "RECEIVE"
+msgstr "接收"
+
+msgid "PEERS"
+msgstr "设备"
+
+msgid "Make files"
+msgstr "让文件"
+
+msgid "fly."
+msgstr "飞起来。"
+
+msgid "Ready when"
+msgstr "随时"
+
+msgid "you are."
+msgstr "可以开始。"
+
+msgid "HOW THINGS STAND"
+msgstr "当前状态"
+
+msgid "This device"
+msgstr "本设备"
+
+msgid "Internet relays"
+msgstr "互联网中继"
+
+msgid "Runs in the background"
+msgstr "后台运行"
+
+msgid "Paired devices"
+msgstr "已配对设备"
+
+msgid "Transfers in progress"
+msgstr "正在传输"
+
+msgid "on"
+msgstr "开"
+
+msgid "off"
+msgstr "关"
+
+msgid "yes"
+msgstr "是"
+
+msgid "no"
+msgstr "否"
+
+msgid "THIS DEVICE"
+msgstr "本设备"
+
+msgid "Run in the background"
+msgstr "在后台运行"
+
+msgid "Start without opening a window."
+msgstr "启动时不打开窗口。"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "Offers over other apps"
+msgstr "在其他应用上方显示请求"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "开启：请求中的文件列表会显示在当前界面上方，点“接受”不会打开 Peersus。"
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "关闭：请求中的文件列表会在 Peersus 中打开。允许后可在其他应用上方查看列表。"
+
+msgid "Where an offer appears"
+msgstr "请求显示位置"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "文件请求在当前界面上方显示时所在的屏幕边缘。"
+
+msgid "Top"
+msgstr "顶部"
+
+msgid "Bottom"
+msgstr "底部"
+
+msgid "Left"
+msgstr "左侧"
+
+msgid "Right"
+msgstr "右侧"
+
+msgid "Battery"
+msgstr "电池"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "开启：手机待机时后台服务的网络保持连接。"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "受限：手机待机时系统可能会切断后台服务的网络。请在电池设置中允许。"
+
+msgid "Trying to reach the device"
+msgstr "正在尝试连接设备"
+
+msgid "This can take up to half a minute."
+msgstr "最多可能需要半分钟。"
+
+msgid "It answers, and it knows this device"
+msgstr "设备有响应，且认识本设备"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "连接正常，无需任何操作。"
+
+msgid "It answers, but it no longer knows this device"
+msgstr "设备有响应，但已不再认识本设备"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "请在此处移除该设备，然后重新配对两台设备。没有其他问题。"
+
+msgid "It does not answer"
+msgstr "设备没有响应"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "它可能已关闭或不在范围内。请稍后重试。中继已开启，因此不是网络变化导致的。"
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "中继已关闭，因此不同网络中的设备无法互相发现。请在设置中开启“使用互联网中继”。"
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "开启：即使程序已关闭，也会显示文件请求。"
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "已阻止：在允许通知之前，不会显示文件请求。"
+
+msgid "Allow"
+msgstr "允许"
+
+msgid "Camera"
+msgstr "相机"
+
+msgid "Wide"
+msgstr "广角"
+
+msgid "Main"
+msgstr "主摄"
+
+msgid "Zoom"
+msgstr "长焦"
+
+msgid "Automatic"
+msgstr "自动"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "选择用于扫码的摄像头，然后点“测试”查看画面。"
+
+msgid "Test the camera"
+msgstr "测试摄像头"
+
+msgid "Test connection"
+msgstr "测试连接"
+
+msgid "Where is this device?"
+msgstr "此设备在哪里？"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 或 name.example.org:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "当配对时的地址已变更时，在此填写可找到此设备的位置。"
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "名称比数字更好：每次都会重新解析，因此数字变化后仍可使用。"
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "端口显示在另一台设备的“设置”中。未填端口时，使用上次发现它时的端口。"
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "仅当设备可通过该地址访问时才有用。使用移动网络的手机通常无法访问，此时只能通过中继连接。"
+
+msgid "Save and test"
+msgstr "保存并测试"
+
+msgid "Remove the address"
+msgstr "删除地址"
+
+msgid "Listening port"
+msgstr "监听端口"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "其他设备会在此设备地址后填写此端口来找到它。每次程序启动时都会变化。"
+
+msgid "Search settings"
+msgstr "搜索设置"
+
+msgid "Nothing in Settings looks like that."
+msgstr "“设置”中没有与此匹配的项。"
+
+msgid "Files sent"
+msgstr "已发送文件"
+
+msgid "Files received"
+msgstr "已接收文件"
+
+msgid "Files in all"
+msgstr "文件总数"
+
+msgid "Generate QR code"
+msgstr "生成二维码"
+
+msgid "Clear the list"
+msgstr "清空列表"
+
+msgid "+ Add more files"
+msgstr "+ 添加更多文件"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Active"
+msgstr "进行中"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Incoming"
+msgstr "传入"
+
+msgid "Outgoing"
+msgstr "传出"
+
+msgid "Search transfers"
+msgstr "搜索传输"
+
+msgid "No transfer matches."
+msgstr "没有匹配的传输。"
+
+msgid "Minimize"
+msgstr "最小化"
+
+msgid "Expand"
+msgstr "展开"
+
+msgid "OUTGOING FILES"
+msgstr "传出文件"
+
+msgid "EXPERIMENTAL"
+msgstr "实验性"
+
+msgid "Devices nearby"
+msgstr "附近设备"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "关闭：不广播也不监听。开启：此窗口打开期间，此设备会监听附近设备，也可被它们发现。打开“接收”时，它会表明可接收文件：紧挨着它的已配对设备上列出的文件会立即发送；未配对的设备靠近时可提供其文件，每个文件都会在此询问。打开“设备”时，它会表明可供配对，“设备”中会列出表明可配对的附近设备。使用蓝牙。"
+
+msgid "NEARBY"
+msgstr "附近"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "附近暂无设备。请在另一台设备上打开“设备”，并同样开启“附近设备”。"
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "此处的名称是该设备的自称。选择一个即开始配对：然后双方选择相同的数字。"
+
+msgid "That device is no longer nearby"
+msgstr "该设备已不在附近"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "已提供给靠近的设备。每个文件由对方决定是否接受。"
+
+msgid "That device does not take files this way"
+msgstr "该设备不支持以此方式接收文件"
+
+msgid "How near is near"
+msgstr "多近算靠近"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "将两台设备保持在发送时的距离，并在两台设备上都打开应用，然后测量并设置。信号略低于测得强度即算作靠近，这样手稍有晃动也不会断开。"
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "靠近起始值为 {dbm} dBm（由你设置）。"
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "靠近起始值为 {dbm} dBm（应用默认）。"
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "当前最强设备信号：{dbm} dBm。若以此设置，靠近起始值将为 {near} dBm。"
+
+msgid "No device with this application open is heard yet."
+msgstr "尚未检测到打开此应用的设备。"
+
+msgid "Measure"
+msgstr "测量"
+
+msgid "Stop measuring"
+msgstr "停止测量"
+
+msgid "Set near from here"
+msgstr "将当前距离设为“靠近”"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "此设备没有可用于发现靠近设备的蓝牙。"
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "蓝牙已关闭。请打开蓝牙以发现靠近的设备。"
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "系统不允许此程序使用蓝牙发现靠近的设备。"
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "蓝牙权限被拒绝。系统会自动再次请求。"
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "此系统允许本设备发现靠近的设备，但不允许被它们发现。"
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "已发送到靠近且打开了“接收”的设备。每个文件都由对方决定是否接受。"
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} 就在附近。在它上面打开“接收”，这些文件就会发送过去。"
+
+msgid "Send instantly"
+msgstr "即时发送"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "关闭：选择发送目标后，需按住圆圈直到填满，选错也不会有影响。开启：轻触圆圈即立即发送。"
+
+msgid "INCOMING FILES"
+msgstr "接收的文件"
+
+msgid "Save incoming files on their own"
+msgstr "自动保存接收的文件"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "关闭：每个文件都会询问保存位置。开启：文件直接存入下方文件夹，不再询问。"
+
+msgid "THEME"
+msgstr "主题"
+
+msgid "Keep icons when the bar is closed"
+msgstr "收起侧栏时保留图标"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "收起的侧栏仅显示图标。关闭后，收起的侧栏将完全隐藏。"
+
+msgid "Reduce motion"
+msgstr "减少动态效果"
+
+msgid "Turn off decorative animation."
+msgstr "关闭装饰性动画。"
+
+msgid "CONNECTIONS"
+msgstr "连接"
+
+msgid "Use internet relays"
+msgstr "使用互联网中继"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "允许设备跨网络连接。关闭后流量仅在本网络内传输。"
+
+msgid "INSTALLED"
+msgstr "已安装"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "各插件的权限"
+
+msgid "File"
+msgstr "文件"
+
+msgid "Direction"
+msgstr "方向"
+
+msgid "State"
+msgstr "状态"
+
+msgid "Move it. Don't store it."
+msgstr "只传输，不存储。"
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "在你自己的设备之间建立私密连接。文件直接从一台设备传到另一台，须经接收方同意，全程不经过云端文件夹。"
+
+msgid "INTERFACE"
+msgstr "界面"
+
+msgid "RENDERING"
+msgstr "渲染"
+
+msgid "NETWORK"
+msgstr "网络"
+
+msgid "ENGINE"
+msgstr "引擎"
+
+msgid "The windows, layout and components of this application."
+msgstr "本应用的窗口、布局和组件。"
+
+msgid "The file and folder choosers of the operating system."
+msgstr "操作系统的文件和文件夹选择器。"
+
+msgid "Makes the code that another device scans to join."
+msgstr "生成供其他设备扫描加入的二维码。"
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "绘制屏幕上的所有内容，包括文字和图形。"
+
+msgid "Shapes the letters of the text."
+msgstr "处理文字的字形排版。"
+
+msgid "A small drawing library used where Skia is not."
+msgstr "在不使用 Skia 的地方使用的小型绘图库。"
+
+msgid "Encrypted connections between your devices."
+msgstr "设备之间的加密连接。"
+
+msgid "The encryption of those connections."
+msgstr "这些连接的加密。"
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "rustls 底层的密码学基础组件。"
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "通过 HTTPS 获取应用所需的内容。"
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "同时运行多个传输，互不等待。"
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "读写应用保存的文件和消息。"
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "将本设备的身份保存在系统密钥环中。本地兼容性补丁去除了未使用的异步后端及其旧版通信依赖，保留了原生后端和现有的凭据查找行为。验证状态和来源已随补丁记录。"
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "用于校验文件和配对的哈希与消息认证码。"
+
+msgid "That file could not be read."
+msgstr "无法读取该文件。"
+
+msgid "That file is too large to be a profile picture."
+msgstr "该文件太大，无法用作头像。"
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "请选择 PNG 或 JPEG 图片。"
+
+msgid "That picture is too large to use."
+msgstr "该图片太大，无法使用。"
+
+msgid "That picture could not be read."
+msgstr "无法读取该图片。"
+
+msgid "That picture could not be kept; try again."
+msgstr "无法保存该图片，请重试。"
+
+msgid "This phone has no way to choose a picture here."
+msgstr "此手机无法在此处选择图片。"
+
+msgid "NOTICES"
+msgstr "声明"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "请保留独立备份，并在传输后核对重要文件。本应用是传输工具，而非备份服务。您需自行对所选文件、所信任的设备和所授予的权限负责。"
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "安全措施可以降低风险，但无法保证永远不会出现漏洞、未经授权的访问或数据泄露。设备被入侵、不安全的插件、配置错误以及未来出现的漏洞都可能影响您的数据。"
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "本应用依赖第三方库、操作系统、插件，以及（启用时的）网络中继服务。这些依赖项会带来作者无法控制的风险。第三方组件适用其各自的许可证、条款和声明。"
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "本声明中的任何内容均不排除适用法律不允许排除的责任，也不限制依法不可放弃的权利。"
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "本软件按“原样”提供，不附带任何形式的保证或条件，详见 Apache License 2.0 第 7 条和第 8 条。在适用法律允许的范围内，作者和贡献者不对因使用本软件造成的损失承担责任，包括数据丢失、损坏或泄露。"
+
+msgid "Device is offline"
+msgstr "设备离线"
+
+msgid "Could not open selected file"
+msgstr "无法打开所选文件"
+
+msgid "Could not offer selected files"
+msgstr "无法发送所选文件"
+
+msgid "Could not accept transfer"
+msgstr "无法接受传输"
+
+msgid "Could not cancel transfer"
+msgstr "无法取消传输"
+
+msgid "Files selection is no longer active"
+msgstr "文件选择已失效"
+
+msgid "Could not queue selected files"
+msgstr "无法将所选文件加入队列"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "偏好设置已在别处更改，请重新加载后再保存"
+
+msgid "Invalid or expired invitation"
+msgstr "邀请无效或已过期"
+
+msgid "Connection queue is full"
+msgstr "连接队列已满"
+
+msgid "Pairing request is no longer active"
+msgstr "配对请求已失效"
+
+msgid "The owner answered with something else."
+msgstr "所有者给出了其他答复。"
+
+msgid "Unexpected file handoff reply"
+msgstr "文件交接回复异常"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "收到的文件无法放入您选择的文件夹，已保存在应用自身的文件夹中。"
+
+msgid "STORE"
+msgstr "商店"
+
+msgid "Search extensions"
+msgstr "搜索扩展"
+
+msgid "Install from file"
+msgstr "从文件安装"
+
+msgid "Before you choose a file"
+msgstr "选择文件之前"
+
+msgid "I understand and accept the risk"
+msgstr "我了解并接受此风险"
+
+msgid "Search the store"
+msgstr "搜索商店"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Refresh the list"
+msgstr "刷新列表"
+
+msgid "by {author} · version {version}"
+msgstr "作者：{author} · 版本 {version}"
+
+msgid "Installed: version {version}"
+msgstr "已安装：版本 {version}"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "更新后，已安装版本的权限将被清除，之后需要您重新决定。"
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "已安装的版本比获批版本更新。请先移除它，再安装获批版本。"
+
+msgid "The extension store is not set up in this build."
+msgstr "此版本未配置扩展商店。"
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "点按“刷新”查看维护者已批准的扩展。"
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "商店无法完成该操作，未做任何更改。"
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "维护者尚未批准任何扩展。"
+
+msgid "No extension matches your search."
+msgstr "没有与搜索匹配的扩展。"
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "手动安装并不代表获得官方批准。请审查扩展及其源代码；您需对在商店之外安装的代码负责。"
+
+msgid "Remove for good?"
+msgstr "要永久移除吗？"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "已损坏或已过期：请重新安装以修复"
+
+msgid "Stopped working: update or install it again"
+msgstr "已停止工作：请更新或重新安装"
+
+msgid "Update available:"
+msgstr "有可用更新："
+
+msgid "Automatic updates"
+msgstr "自动更新"
+
+msgid "Approve"
+msgstr "批准"
+
+msgid "Reinstall"
+msgstr "重新安装"
+
+msgid "Background clipboard access"
+msgstr "后台剪贴板访问"
+
+msgid "On"
+msgstr "开"
+
+msgid "Off"
+msgstr "关"
+
+msgid "Remote input accessibility"
+msgstr "远程输入无障碍服务"
+
+msgid "Relay"
+msgstr "中继"
+
+msgid "Advanced relay options"
+msgstr "高级中继选项"
+
+msgid "Direct wait (ms)"
+msgstr "直连等待时间（毫秒）"
+
+msgid "Relay timeout (ms)"
+msgstr "中继超时（毫秒）"
+
+msgid "Retry preferred relay (ms)"
+msgstr "重试首选中继间隔（毫秒）"
+
+msgid "Enter valid relay timings"
+msgstr "请输入有效的中继时间设置"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Connecting to home relay"
+msgstr "正在连接家庭中继"
+
+msgid "Home relay connected"
+msgstr "家庭中继已连接"
+
+msgid "Home relay unavailable"
+msgstr "家庭中继不可用"
+
+msgid "Home relay refused access"
+msgstr "家庭中继拒绝访问"
+
+msgid "Direct connection is always tried first."
+msgstr "始终优先尝试直接连接。"
+
+msgid "Project relay"
+msgstr "项目中继"
+
+msgid "Public relays (n0)"
+msgstr "公共中继（n0）"
+
+msgid "Enable public relays (n0)"
+msgstr "启用公共中继（n0）"
+
+msgid "Move up"
+msgstr "上移"
+
+msgid "Move down"
+msgstr "下移"
+
+msgid "Save and enable relay"
+msgstr "保存并启用中继"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "令牌只会发送给你的自定义中继，绝不会发送给项目中继或公共中继。"
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "应用流量会先等待直连路径，再按此顺序使用备用中继。中继信令可能会更早开始。备用流量经过端到端加密，但连接元数据可见。不发送任何应用遥测数据。"
+
+msgid "Public relays"
+msgstr "公共中继"
+
+msgid "No relay"
+msgstr "不使用中继"
+
+msgid "My own relay"
+msgstr "我自己的中继"
+
+msgid "Priority"
+msgstr "优先级"
+
+msgid "Sequential"
+msgstr "顺序"
+
+msgid "Latency"
+msgstr "延迟"
+
+msgid "Order"
+msgstr "排序"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "同时提供所有已启用的中继，使用最近且有响应的那个。"
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "列表顺序即优先顺序；回退后会重新尝试第一个中继。"
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "按列表顺序依次尝试；可用的中继会一直使用，直到失效。"
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "测量所有已启用的中继，使用响应最快的那个。"
+
+msgid "No answer"
+msgstr "无响应"
+
+msgid "Remove this relay?"
+msgstr "要移除此中继吗？"
+
+msgid "Change address"
+msgstr "更改地址"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "令牌只会发送给此中继，绝不会发送给其他中继。"
+
+msgid "Test relays"
+msgstr "测试中继"
+
+msgid "Add a relay"
+msgstr "添加中继"
+
+msgid "Add relay"
+msgstr "添加中继"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "所有人都可以使用的中继。它们只传输加密流量，无法读取内容。"
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "不使用中继：位于不同网络的设备将无法互相发现。流量仅限于当前网络。"
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "由你自己运行的中继，用于替代公共中继。"
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "使用此中继"
+
+msgid "Access token (kept on this device only)"
+msgstr "访问令牌（仅保存在此设备上）"
+
+msgid "Save token"
+msgstr "保存令牌"
+
+msgid "Forget token"
+msgstr "忘记令牌"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "令牌保存在本设备的安全存储中，不会再次显示，也不会发送到其他设备。"
+
+msgid "Token saved"
+msgstr "令牌已保存"
+
+msgid "Token forgotten"
+msgstr "令牌已忘记"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "中继地址必须以 https:// 开头，且为不含空格的单个地址"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "中继令牌必须为一行，最多 512 个字符"
+
+msgid "Page background"
+msgstr "页面背景"
+
+msgid "Cards and panels"
+msgstr "卡片和面板"
+
+msgid "Raised controls and hover"
+msgstr "凸起控件和悬停"
+
+msgid "Top header background"
+msgstr "顶部标题栏背景"
+
+msgid "Sidebar background"
+msgstr "侧边栏背景"
+
+msgid "Borders and separators"
+msgstr "边框和分隔线"
+
+msgid "Primary text"
+msgstr "主要文字"
+
+msgid "Secondary text"
+msgstr "次要文字"
+
+msgid "Portal disc"
+msgstr "传送门圆盘"
+
+msgid "Portal text"
+msgstr "传送门文字"
+
+msgid "Send indicators"
+msgstr "发送指示"
+
+msgid "Receive indicators"
+msgstr "接收指示"
+
+msgid "Connected and successful"
+msgstr "已连接和成功"
+
+msgid "Offline and failed"
+msgstr "离线和失败"
+
+msgid "Warning text"
+msgstr "警告文字"
+
+msgid "Warning background"
+msgstr "警告背景"
+
+msgid "Primary button background"
+msgstr "主按钮背景"
+
+msgid "Primary button text"
+msgstr "主按钮文字"
+
+msgid "Minimise window control"
+msgstr "最小化窗口按钮"
+
+msgid "Maximise window control"
+msgstr "最大化窗口按钮"
+
+msgid "Close window control"
+msgstr "关闭窗口按钮"
+
+msgid "Navigation icons"
+msgstr "导航图标"
+
+msgid "Selected navigation icon"
+msgstr "选中的导航图标"
+
+msgid "Camera detection outline"
+msgstr "相机检测轮廓"
+
+msgid "CUSTOM THEME"
+msgstr "自定义主题"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "选择一个元素并输入其颜色。预览和整个界面会随输入实时变化；在保存主题之前不会保存任何内容。"
+
+msgid "Dark base"
+msgstr "深色基础"
+
+msgid "Light base"
+msgstr "浅色基础"
+
+msgid "Editing: {element}"
+msgstr "正在编辑：{element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "请输入六位十六进制 RGB 数字，例如 #708090。"
+
+msgid "Discard changes"
+msgstr "放弃更改"
+
+msgid "Reset selected element"
+msgstr "重置所选元素"
+
+msgid "Your theme name"
+msgstr "你的主题名称"
+
+msgid "Confirm replace existing theme"
+msgstr "确认替换现有主题"
+
+msgid "Save named theme"
+msgstr "保存命名主题"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "已保存的主题库"
+
+msgid "Load {name}"
+msgstr "加载 {name}"
+
+msgid "Confirm removal"
+msgstr "确认移除"
+
+msgid "IMPORT / EXPORT"
+msgstr "导入 / 导出"
+
+msgid "Export / copy theme JSON"
+msgstr "导出 / 复制主题 JSON"
+
+msgid "Paste exported theme JSON here"
+msgstr "在此粘贴导出的主题 JSON"
+
+msgid "Import JSON for preview"
+msgstr "导入 JSON 以预览"
+
+msgid "Import theme file…"
+msgstr "导入主题文件…"
+
+msgid "Export theme file…"
+msgstr "导出主题文件…"
+
+msgid "Theme JSON"
+msgstr "主题 JSON"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "对比度低：“{surface}”上的“{text}”可能难以阅读。"
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "请输入 1–64 个字符的主题名称，首尾不能有空格。"
+
+msgid "The theme could not be exported."
+msgstr "无法导出主题。"
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "主题文件不能超过 64 KiB。"
+
+msgid "This is not a valid theme file."
+msgstr "这不是有效的主题文件。"
+
+msgid "This theme format version is not supported."
+msgstr "不支持此主题格式版本。"
+
+msgid "The theme name is invalid."
+msgstr "主题名称无效。"
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "此名称已存在。请在下方确认替换，或使用其他名称。"
+
+msgid "Theme saved in your library."
+msgstr "主题已保存到你的主题库。"
+
+msgid "The theme could not be saved."
+msgstr "无法保存主题。"
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "主题已复制。可粘贴到文件或其他安装中。"
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "主题 JSON 位于下方的交换框中，可选中并复制。"
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "已导入以供预览。保存后即可将此主题加入你的主题库。"
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "已放弃更改，已保存的偏好设置未变。"
+
+msgid "The theme file could not be opened."
+msgstr "无法打开主题文件。"
+
+msgid "The theme file could not be read."
+msgstr "无法读取主题文件。"
+
+msgid "Theme exported."
+msgstr "主题已导出。"
+
+msgid "Theme removed from your library."
+msgstr "已从你的主题库中移除主题。"
+
+msgid "The theme could not be removed."
+msgstr "无法移除主题。"
+
+msgid "Top header"
+msgstr "顶部标题栏"
+
+msgid "Header · navigation and window controls"
+msgstr "标题栏 · 导航和窗口控件"
+
+msgid "Sidebar"
+msgstr "侧边栏"
+
+msgid "Navigation icon"
+msgstr "导航图标"
+
+msgid "Window control (preview only)"
+msgstr "窗口控件（仅预览）"
+
+msgid "Portal disc and its text"
+msgstr "传送盘及其文字"
+
+msgid "PORTAL"
+msgstr "传送门"
+
+msgid "Primary button"
+msgstr "主要按钮"
+
+msgid "Primary action"
+msgstr "主要操作"
+
+msgid "Warning notice"
+msgstr "警告提示"
+
+msgid "Warning: verify received files."
+msgstr "警告：请核实收到的文件。"
+
+msgid "Camera detection marker"
+msgstr "相机检测标记"
+
+msgid "Sending →"
+msgstr "发送中 →"
+
+msgid "← Receiving"
+msgstr "← 接收中"
+
+msgid "● Connected · Complete"
+msgstr "● 已连接 · 已完成"
+
+msgid "● Offline · Failed"
+msgstr "● 离线 · 失败"
+
+msgid "Transfer or connection indicator"
+msgstr "传输或连接指示"
+
+msgid "Text on the page"
+msgstr "页面文字"
+
+msgid "Primary text — names and headings"
+msgstr "主要文字 — 名称和标题"
+
+msgid "Secondary text — descriptions and details"
+msgstr "次要文字 — 描述和详情"
+
+msgid "Surface and border"
+msgstr "表面和边框"
+
+msgid "Panel / page content"
+msgstr "面板 / 页面内容"
+
+msgid "PREVIEW — {element}"
+msgstr "预览 — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "导入主题文件 · 导出主题文件 · JSON"
+
+msgid "UPDATES"
+msgstr "更新"
+
+msgid "Update automatically"
+msgstr "自动更新"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "开启：自动下载并安装经过验证的 Peersus 更新，无需询问。"
+
+msgid "Restart after an update"
+msgstr "更新后重新启动"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "开启：更新安装完成后，若没有正在发送或接收的内容，Peersus 将自动重新启动。"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Update now"
+msgstr "立即更新"
+
+msgid "Restart now"
+msgstr "立即重启"
+
+msgid "This installation does not update itself."
+msgstr "此安装不会自动更新。"
+
+msgid "Updates have not been looked for yet."
+msgstr "尚未检查更新。"
+
+msgid "Looking for an update…"
+msgstr "正在检查更新…"
+
+msgid "This version is up to date."
+msgstr "当前已是最新版本。"
+
+msgid "Version {version} is available."
+msgstr "有新版本 {version} 可用。"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "Updates"
+msgstr "更新"
+
+msgid "not in this build"
+msgstr "此版本不支持"
+
+msgid "not automatic"
+msgstr "非自动"
+
+msgid "not checked yet"
+msgstr "尚未检查"
+
+msgid "checking…"
+msgstr "正在检查…"
+
+msgid "up to date"
+msgstr "已是最新"
+
+msgid "update available"
+msgstr "有可用更新"
+
+msgid "updating…"
+msgstr "正在更新…"
+
+msgid "restart to finish"
+msgstr "重启以完成"
+
+msgid "Binds"
+msgstr "快捷键"
+
+msgid "KEY BINDINGS"
+msgstr "快捷键"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "窗口位于前台时，按下某个快捷键即执行该行所示的操作。按 + 后同时按下按键即可添加，最多三个；按某个快捷键可进行更改，然后按 Backspace 删除，或按 Escape 保持不变。"
+
+msgid "press the keys…"
+msgstr "请按键…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · 按 Backspace 删除"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} 已有三个快捷键。"
+
+msgid "Also while the window is not in front"
+msgstr "窗口不在前台时也生效"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "桌面系统会请你批准这些按键；如果某个按键已被占用，可能会分配另一个按键。"
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} 已用于{what}。"
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "接受最新一次等待接收的文件，并按你的接收文件规则保存。"
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "拒绝最新一次等待接收的文件。"
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "打开“发送”页面，选择文件和目标设备。"
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "打开“接收”页面，显示配对码和已接收的文件。"
+
+msgid "Accept incoming files"
+msgstr "接受传入文件"
+
+msgid "Decline incoming files"
+msgstr "拒绝传入文件"
+
+msgid "Show Send"
+msgstr "显示“发送”"
+
+msgid "Show Receive"
+msgstr "显示“接收”"
+
+msgid "something no longer installed"
+msgstr "已卸载的项目"
+
+msgid "Downloading the update…"
+msgstr "正在下载更新…"
+
+msgid "Putting the update in place…"
+msgstr "正在安装更新…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "更新已安装，重启后生效。"
+
+msgid "Restarting…"
+msgstr "正在重启…"
+
+msgid "The update could not be completed."
+msgstr "无法完成更新。"
+
+msgid "Accept TOS"
+msgstr "接受服务条款"
+
+msgid "Next"
+msgstr "下一步"
+
+msgid "Hold to confirm"
+msgstr "长按以确认"
+
+msgid "Keep holding"
+msgstr "请继续按住"
+
+msgid "Read to the end to go on"
+msgstr "阅读至末尾以继续"
+
+msgid "Step {number} of {total}"
+msgstr "第 {number} 步，共 {total} 步"
+
+msgid "WHAT THIS IS"
+msgstr "简介"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "对你的影响"
+
+msgid "READ THE FULL TEXT"
+msgstr "阅读全文"
+
+msgid "LICENCE"
+msgstr "许可协议"
+
+msgid "NOTICE"
+msgstr "注意"
+
+msgid "TERMS"
+msgstr "条款"
+
+msgid "OUTSIDE THE STORE"
+msgstr "商店外"
+
+msgid "This extension did not come through the store"
+msgstr "此扩展并非来自商店"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Peersus 未对其进行审核或签名，也不保证其安全。它在此设备上以你的权限运行，可以读取并发送你允许它访问的任何内容。"
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Peersus 项目无法承担商店外扩展的风险，对其给你、你的文件或设备造成的任何影响概不负责。风险由你自行承担。"
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "建议使用商店：商店上架的内容在提供前均经过审核。如果你不知道此软件包的作者，请勿安装。"
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "请读完全文，然后按住按钮，确认你已了解并接受风险。"
+
+msgid "The language file could not be read."
+msgstr "无法读取语言文件。"
+
+msgid "The language file was imported."
+msgstr "已导入语言文件。"
+
+msgid "The template was saved."
+msgstr "已保存模板。"
+
+msgid "The template could not be saved."
+msgstr "无法保存模板。"
+
+msgid "Could not open a browser."
+msgstr "无法打开浏览器。"
+
+msgid "This device is set to {language}."
+msgstr "此设备的语言设置为{language}。"
+
+msgid "This device names no language, so English is used."
+msgstr "此设备未指定语言，因此使用英语。"
+
+msgid "LANGUAGE"
+msgstr "语言"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "英语为内置语言。其他语言均为针对此版本下载的文件；未翻译的内容将以英语显示。"
+
+msgid "Use the device's language"
+msgstr "使用设备语言"
+
+msgid "Looking for languages…"
+msgstr "正在查找语言…"
+
+msgid "The languages could not be fetched"
+msgstr "无法获取语言列表"
+
+msgid "No other language is offered for this version yet."
+msgstr "此版本暂无其他可用语言。"
+
+msgid "TRANSLATE"
+msgstr "翻译"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "保存模板，用任意 PO 编辑器翻译，然后在此导入即可立即查看效果，再分享出去，以便提供给所有人。"
+
+msgid "{percent}% translated"
+msgstr "已翻译 {percent}%"
+
+msgid "{about} · imported"
+msgstr "{about} · 已导入"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · 选择后下载"
+
+msgid "IN USE"
+msgstr "使用中"
+
+msgid "Use"
+msgstr "使用"
+
+msgid "Check again"
+msgstr "重新检查"
+
+msgid "Language file"
+msgstr "语言文件"
+
+msgid "Import a language file…"
+msgstr "导入语言文件…"
+
+msgid "Language template"
+msgstr "语言模板"
+
+msgid "Save the template…"
+msgstr "保存模板…"
+
+msgid "Share a translation (opens browser)"
+msgstr "分享翻译（打开浏览器）"
+
+msgid "Languages"
+msgstr "语言"
+
+msgid "English is the application's own language and needs no file"
+msgstr "英语是应用的原生语言，无需语言文件"
+
+msgid "No languages are offered for this release yet"
+msgstr "此版本暂无可用语言"
+
+msgid "That language file is not held"
+msgstr "未保存该语言文件"
+
+msgid "The language file could not be read"
+msgstr "无法读取语言文件"
+
+msgid "The language file could not be removed"
+msgstr "无法删除语言文件"
+
+msgid "The language file could not be saved"
+msgstr "无法保存语言文件"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "语言文件未注明其语言（文件头中缺少 Language）"
+
+msgid "The language file is too large"
+msgstr "语言文件过大"
+
+msgid "The languages could not be saved"
+msgstr "无法保存语言设置"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "窗口以英文显示，无需语言文件"
+
+msgid "This is not a language file the application can read"
+msgstr "这不是应用可读取的语言文件"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "无法校验语言分支发送的内容"
+
+msgid "Languages are not available here"
+msgstr "此处不提供语言"
+
+msgid "The plugin picker could not be opened"
+msgstr "无法打开插件选择器"
+
+msgid "The file picker could not be opened"
+msgstr "无法打开文件选择器"
+
+msgid "Another language file is being imported"
+msgstr "正在导入另一个语言文件"
+
+msgid "The application is not ready to import a language file"
+msgstr "应用尚未准备好导入语言文件"
+
+msgid "The application is not ready to open plugins"
+msgstr "应用尚未准备好打开插件"
+
+msgid "Another plugin archive is being opened"
+msgstr "正在打开另一个插件归档"
+
+msgid "The selected archive could not be staged"
+msgstr "无法暂存所选归档"
+
+msgid "The selected archive could not be read"
+msgstr "无法读取所选归档"
+
+msgid "The embedded metadata is not valid"
+msgstr "内嵌元数据无效"
+
+msgid "The program carries no embedded metadata"
+msgstr "该程序没有内嵌元数据"
+
+msgid "The program is not a recognised binary"
+msgstr "该程序不是可识别的二进制文件"
+
+msgid "Input capabilities are unavailable"
+msgstr "输入功能不可用"
+
+msgid "Input is unavailable"
+msgstr "输入不可用"
+
+msgid "The input was not understood"
+msgstr "无法理解该输入"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "无法控制此电脑：无法创建输入设备"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "此电脑无法为该设备提供独立指针"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "此扩展同时为过多设备回放输入"
+
+msgid "Unknown input method"
+msgstr "未知输入法"
+
+msgid "An installed native module must be read-only"
+msgstr "已安装的原生模块必须为只读"
+
+msgid "Another plugin already has this name"
+msgstr "已有其他插件使用此名称"
+
+msgid "It could not be read"
+msgstr "无法读取"
+
+msgid "It has no manifest"
+msgstr "缺少清单"
+
+msgid "It has no program"
+msgstr "缺少程序"
+
+msgid "It has two manifests"
+msgstr "有两个清单"
+
+msgid "It is not a directory"
+msgstr "不是目录"
+
+msgid "It offers a service another plugin already offers"
+msgstr "提供的服务已由其他插件提供"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "接收输入但没有相应权限加以保护"
+
+msgid "Its directory belongs to someone else"
+msgstr "其目录属于其他用户"
+
+msgid "Its directory can be changed by others"
+msgstr "其目录可被他人修改"
+
+msgid "Its manifest could not be read"
+msgstr "无法读取其清单"
+
+msgid "Its manifest is not a file"
+msgstr "其清单不是文件"
+
+msgid "Its manifest is not valid"
+msgstr "其清单无效"
+
+msgid "Its manifest is too large"
+msgstr "其清单过大"
+
+msgid "Its name is not usable"
+msgstr "其名称不可用"
+
+msgid "Its program belongs to someone else"
+msgstr "其程序属于其他用户"
+
+msgid "Its program can be changed by others"
+msgstr "其程序可被他人修改"
+
+msgid "Its program cannot be run"
+msgstr "其程序无法运行"
+
+msgid "Its program is not a file"
+msgstr "其程序不是文件"
+
+msgid "One of its actions could never be reached"
+msgstr "其中一个操作永远无法触发"
+
+msgid "Plugins cannot be run on this system"
+msgstr "此系统无法运行插件"
+
+msgid "Cannot create application directory"
+msgstr "无法创建应用目录"
+
+msgid "Cannot open identity lock"
+msgstr "无法打开身份锁"
+
+msgid "Identity is being opened by another process"
+msgstr "身份正被另一个进程打开"
+
+msgid "System credential store is unavailable"
+msgstr "系统凭据存储不可用"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "无法访问系统密钥环；现有身份未更改"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "无法验证系统密钥环已解锁；现有身份未更改"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "系统密钥环仍处于锁定状态；现有身份和配对未更改"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "系统密钥环不可用；现有身份和配对未更改"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "系统密钥环解锁超时；现有身份和配对未更改"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "系统密钥环解锁已取消；现有身份和配对未更改"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "系统密钥环已锁定，且其服务未显示密码提示；现有身份和配对未更改"
+
+msgid "Could not read local application state"
+msgstr "无法读取本地应用状态"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "本地连接失败；命令结果可能未知"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "本地请求超时；命令结果可能未知"
+
+msgid "Too many windows are attached"
+msgstr "附加的窗口过多"
+
+msgid "The window program is not beside the owner"
+msgstr "窗口程序不在所有者旁边"
+
+msgid "This session has no X display to place a panel on"
+msgstr "此会话没有可放置面板的 X 显示"
+
+msgid "This extension format is not available in this distribution"
+msgstr "此发行版不支持该扩展格式"
+
+msgid "It clashes with another plugin"
+msgstr "它与另一个插件冲突"
+
+msgid "It could not be loaded"
+msgstr "无法加载它"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "此软件包未附带许可证和声明，因此无法安装"
+
+msgid "It has no manifest the application can use"
+msgstr "它没有应用可用的清单"
+
+msgid "It has no program the application can run"
+msgstr "它没有应用可运行的程序"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "其文件夹可被他人修改，因此不会运行"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "无法编码私有目录配置"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "找不到私有目录辅助程序"
+
+msgid "Cannot prepare private catalog state"
+msgstr "无法准备私有目录状态"
+
+msgid "Cannot protect private catalog state"
+msgstr "无法保护私有目录状态"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "无法读取私有目录配置"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "无法安全保存私有目录配置"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "无法验证已保存的私有目录配置"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "保存期间私有目录配置发生了变化"
+
+msgid "The private catalog signing key is not valid"
+msgstr "私有目录签名密钥无效"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "已保存的私有目录配置不可用"
+
+msgid "The system credential store is unavailable"
+msgstr "系统凭据存储不可用"
+
+msgid "Cannot forget the relay token"
+msgstr "无法清除中继令牌"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "无法读取中继令牌；已保存的令牌未更改"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "无法将中继令牌保存到系统凭据存储"
+
+msgid "Cannot verify the saved relay token"
+msgstr "无法验证已保存的中继令牌"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "保存期间已保存的中继令牌发生了变化"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "已保存的中继令牌不可用；未作更改"
+
+msgid "Action arguments are invalid"
+msgstr "操作参数无效"
+
+msgid "Action context is invalid"
+msgstr "操作上下文无效"
+
+msgid "Action is not permitted for this device"
+msgstr "此设备不允许执行该操作"
+
+msgid "An action can have up to three key bindings"
+msgstr "一个操作最多可设置三个快捷键"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "某个扩展请求过多过快，已暂停片刻"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "某个扩展需要你阅读并接受其许可证和声明；请打开“扩展”"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "外部软件包不能替换内置插件"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "另一个扩展已在设备间传递输入。请先关闭它才能使用此扩展"
+
+msgid "Application updates are not available here"
+msgstr "此处不支持应用更新"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "内置插件无法移除"
+
+msgid "Choose a device for this action"
+msgstr "请为此操作选择设备"
+
+msgid "Choose a device for this setting"
+msgstr "请为此设置选择设备"
+
+msgid "Choose between one and sixteen files"
+msgstr "请选择 1 到 16 个文件"
+
+msgid "Choose exactly one file for this action"
+msgstr "请为此操作选择一个文件"
+
+msgid "Could not change this permission"
+msgstr "无法更改此权限"
+
+msgid "Could not clear the history"
+msgstr "无法清除历史记录"
+
+msgid "Could not forget device"
+msgstr "无法移除设备"
+
+msgid "Could not forget what it was granted"
+msgstr "无法撤销已授予的权限"
+
+msgid "Could not keep the picture"
+msgstr "无法保留图片"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "无法打开所选文件夹，或设备已离线"
+
+msgid "Could not remove the picture"
+msgstr "无法移除图片"
+
+msgid "Could not save permissions"
+msgstr "无法保存权限"
+
+msgid "Device is not paired"
+msgstr "设备未配对"
+
+msgid "Extension prompts unavailable"
+msgstr "扩展提示不可用"
+
+msgid "Files selection is not fully accounted for"
+msgstr "所选文件未全部计入"
+
+msgid "Input arguments are invalid"
+msgstr "输入参数无效"
+
+msgid "Invalid value for this setting"
+msgstr "此设置的值无效"
+
+msgid "Key bindings are not available on this device"
+msgstr "此设备不支持快捷键"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "正在获取语言列表，请稍后再试"
+
+msgid "No picture is held for that"
+msgstr "没有为此保留图片"
+
+msgid "No plugin handles this request"
+msgstr "没有插件可处理此请求"
+
+msgid "Nothing was shown for that plugin"
+msgstr "该插件没有显示任何内容"
+
+msgid "Permissions could not be applied"
+msgstr "无法应用权限"
+
+msgid "Plugin is not permitted for this device"
+msgstr "此设备不允许使用该插件"
+
+msgid "Plugin unavailable"
+msgstr "插件不可用"
+
+msgid "Plugins cannot be installed here"
+msgstr "此处无法安装插件"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "无法保存私有目录配置"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "此设备未启用私有目录"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "只读演示：此窗口未连接到所有者"
+
+msgid "Selected input is unavailable"
+msgstr "所选输入不可用"
+
+msgid "That action cannot be run by a key"
+msgstr "该操作无法通过快捷键运行"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "该操作的快捷键需要指定设备，且仅限此情况"
+
+msgid "That device cannot be sent to"
+msgstr "无法发送到该设备"
+
+msgid "That extension action is not installed"
+msgstr "未安装该扩展操作"
+
+msgid "That input was not understood"
+msgstr "无法识别该输入"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "无法向此插件授予该权限"
+
+msgid "The code was already used or is no longer shown"
+msgstr "该代码已被使用或已不再显示"
+
+msgid "The extension store failed"
+msgstr "扩展商店出错"
+
+msgid "The extension store is not available here"
+msgstr "此处无法使用扩展商店"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "未接受许可协议和声明，因此未安装任何内容"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "软件包在显示后已更改，请重新选择"
+
+msgid "The package has no valid name"
+msgstr "软件包名称无效"
+
+msgid "The plugin could not be registered"
+msgstr "无法注册插件"
+
+msgid "The plugin does not allow this action"
+msgstr "插件不允许此操作"
+
+msgid "The plugin does not offer this action"
+msgstr "插件不提供此操作"
+
+msgid "The plugin is not running"
+msgstr "插件未运行"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "插件与显示的不一致，请重新查看"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "插件发送的数据过多过快"
+
+msgid "The request could not be sent"
+msgstr "无法发送请求"
+
+msgid "The text to share is empty or too large"
+msgstr "要分享的文本为空或过长"
+
+msgid "The update failed"
+msgstr "更新失败"
+
+msgid "This action does not accept selected input"
+msgstr "此操作不接受所选输入"
+
+msgid "This action does not accept shared text"
+msgstr "此操作不接受分享的文本"
+
+msgid "This action does not use a device"
+msgstr "此操作不使用设备"
+
+msgid "This action is not available now"
+msgstr "此操作当前不可用"
+
+msgid "This action requires its declared selected input"
+msgstr "此操作需要其声明的选定输入"
+
+msgid "This device cannot keep a relay token"
+msgstr "此设备无法保存中继令牌"
+
+msgid "This extension declares no input transport"
+msgstr "此扩展未声明输入传输方式"
+
+msgid "This is not permitted for this device"
+msgstr "此设备不允许执行此操作"
+
+msgid "This page is not offered on this system"
+msgstr "此系统不提供此页面"
+
+msgid "This platform does not offer the requested facility"
+msgstr "此平台不提供所请求的功能"
+
+msgid "This setting is not per device"
+msgstr "此设置不按设备区分"
+
+msgid "Too many calls"
+msgstr "调用次数过多"
+
+msgid "Too many operations are pending"
+msgstr "待处理的操作过多"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "等待插件处理的传输过多"
+
+msgid "Unknown action"
+msgstr "未知操作"
+
+msgid "Unknown device"
+msgstr "未知设备"
+
+msgid "Unknown page"
+msgstr "未知页面"
+
+msgid "Unknown plugin"
+msgstr "未知插件"
+
+msgid "Unknown setting"
+msgstr "未知设置"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "请等待当前目录操作完成"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "无法记录你的同意，因此未安装任何内容"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "AppImage 不会自行替换，请下载新版本"
+
+msgid "Kept by something else"
+msgstr "被其他程序占用"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "此系统上应用暂时无法自行替换"
+
+msgid "The update could not be unpacked"
+msgstr "无法解压更新"
+
+msgid "The update could not be written beside the application"
+msgstr "无法将更新写入应用所在位置"
+
+msgid "The update is not a plain set of programs"
+msgstr "此更新不是单纯的程序集合"
+
+msgid "The update is not for this installation"
+msgstr "此更新不适用于此安装"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "更新仅部分完成，请重新安装应用"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "此安装由系统管理，并随系统一起更新"
+
+msgid "This installation is updated by Flatpak"
+msgstr "此安装通过 Flatpak 更新"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "此类更新无法应用于此安装"
+
+msgid "Loading…"
+msgstr "正在加载…"
+
+msgid "Another device"
+msgstr "其他设备"
+
+msgid "CANCELLED"
+msgstr "已取消"
+
+msgid "CONNECTED"
+msgstr "已连接"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "选择插件压缩包（.tar、.tar.gz、.tgz）"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "选择头像（PNG 或 JPEG）"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "此设备不支持选择文件夹。"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Clear them?"
+msgstr "要清除吗？"
+
+msgid "FAILED · {reason}"
+msgstr "失败 · {reason}"
+
+msgid "FOR {device}"
+msgstr "用于 {device}"
+
+msgid "Folder for incoming files"
+msgstr "接收文件的文件夹"
+
+msgid "INCOMING"
+msgstr "接收"
+
+msgid "NOT RUNNING"
+msgstr "未运行"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "未选择文件夹，因此未接收该文件。"
+
+msgid "OUTGOING"
+msgstr "发送"
+
+msgid "OUTGOING · PREPARED"
+msgstr "发送 · 已准备"
+
+msgid "Peersus could not be started again"
+msgstr "无法重新启动 Peersus"
+
+msgid "Save the file in"
+msgstr "将文件保存到"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "用于接收文件的文件夹已不存在，请另选一个。"
+
+msgid "The identity could not be reset"
+msgstr "无法重置身份"
+
+msgid "The plugin picker is unavailable"
+msgstr "插件选择器不可用"
+
+msgid "There is no data directory to look in"
+msgstr "没有可供查找的数据目录"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "用两根手指触摸屏幕，即可从顶部拉下设置。设置已打开时此操作无效。"
+
+msgid "Two fingers open Settings"
+msgstr "双指打开设置"
+
+msgid "Identity unavailable"
+msgstr "身份不可用"
+
+msgid "Nowhere to look"
+msgstr "无处可查"
+
+msgid "Peersus could not start"
+msgstr "Peersus 无法启动"
+
+msgid "Peersus stopped"
+msgstr "Peersus 已停止"
+
+msgid "The action did not accept the value"
+msgstr "该操作未接受此值"
+
+msgid "The owner stopped"
+msgstr "所有者已停止"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Peersus 中负责保持设备连接的部分未能启动，且未说明原因。"
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Peersus 中负责保持设备连接的部分未能启动。原因：{reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Peersus 中负责保持设备连接的部分已结束，自动重启后也未能保持运行。"
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "此帐户没有数据目录，因此找不到该应用。"
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "请输入你的只读 GitHub 令牌。此处无需其他设置；令牌保存在设备的安全存储中。"
+
+msgid "GitHub token with repository Contents: read"
+msgstr "具有仓库 Contents: read 权限的 GitHub 令牌"
+
+msgid "Private development catalog"
+msgstr "私有开发目录"
+
+msgid "Save and apply"
+msgstr "保存并应用"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "GitHub 令牌必须为单行，且不超过 512 字节"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "令牌已安全保存并应用。扩展列表正在后台更新。"
+
+msgid "OFFLINE"
+msgstr "离线"
+
+msgid "ONLINE"
+msgstr "在线"
+
+msgid "SLEEPING"
+msgstr "休眠"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} 个文件"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} 分钟"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} 小时"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} 天"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} 个月"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} 年"
+
+msgid "An update is already being worked on"
+msgstr "已有更新正在处理中"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "更新已安装，请重启应用以使用新版本"
+
+msgid "Application updates are not set up in this build"
+msgstr "此版本未设置应用更新"
+
+msgid "No update is available"
+msgstr "没有可用的更新"
+
+msgid "No update is waiting for a restart"
+msgstr "没有等待重启的更新"
+
+msgid "The application update key is not valid"
+msgstr "应用更新密钥无效"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "下载的更新与发布的版本不一致"
+
+msgid "The saved update state could not be read"
+msgstr "无法读取已保存的更新状态"
+
+msgid "The saved update state is damaged"
+msgstr "已保存的更新状态已损坏"
+
+msgid "The update could not be checked"
+msgstr "无法检查更新"
+
+msgid "The update is described in a way this version does not read"
+msgstr "此版本无法读取该更新的描述格式"
+
+msgid "The update is for another release channel"
+msgstr "此更新属于其他发布渠道"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "此更新未由本应用的发布者签名"
+
+msgid "The update is too large"
+msgstr "更新过大"
+
+msgid "The update listing could not be checked"
+msgstr "无法检查更新列表"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "提供的更新与此前在该版本号下看到的发布不一致"
+
+msgid "The update offered is older than one already seen"
+msgstr "提供的更新比已见过的更新更旧"
+
+msgid "The update state could not be saved"
+msgstr "无法保存更新状态"
+
+msgid "The catalog could not be read"
+msgstr "无法读取目录"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "目录中的平台构件有歧义或无效"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "目录中有一个无效条目"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "目录中的平台构件无效"
+
+msgid "The catalog is a version this application does not read"
+msgstr "此应用无法读取该版本的目录"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "目录未由维护者签名"
+
+msgid "The catalog is older than one already seen"
+msgstr "目录比已见过的目录更旧"
+
+msgid "The catalog is too large"
+msgstr "目录过大"
+
+msgid "The catalog lists a name twice"
+msgstr "目录中有名称重复列出"
+
+msgid "The catalog lists too many extensions"
+msgstr "目录列出的扩展过多"
+
+msgid "The catalog signature is not valid"
+msgstr "目录签名无效"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "软件包与目录中的描述不符"
+
+msgid "The package is not the one that was approved"
+msgstr "软件包不是已批准的那个"
+
+msgid "The package name is not the approved name"
+msgstr "软件包名称与已批准的名称不符"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "程序与其清单中的作者信息不一致"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "请选择插件目录，而不是文件或链接"
+
+msgid "No data directory"
+msgstr "没有数据目录"
+
+msgid "No such plugin is installed"
+msgstr "未安装此插件"
+
+msgid "Nothing was retired under that name"
+msgstr "该名称下没有已停用的内容"
+
+msgid "Something is already installed under this name"
+msgstr "此名称下已安装了内容"
+
+msgid "That is not the name of a plugin"
+msgstr "这不是插件名称"
+
+msgid "The approval could not be written"
+msgstr "无法写入批准信息"
+
+msgid "The installed plugin directory is not safe"
+msgstr "已安装的插件目录不安全"
+
+msgid "The native module could not be made read-only"
+msgstr "无法将原生模块设为只读"
+
+msgid "The package could not be put back"
+msgstr "无法恢复软件包"
+
+msgid "The package could not be put in place"
+msgstr "无法放置软件包"
+
+msgid "The package could not be read"
+msgstr "无法读取软件包"
+
+msgid "The package could not be staged"
+msgstr "无法暂存软件包"
+
+msgid "The package could not be taken out of use"
+msgstr "无法停用软件包"
+
+msgid "The package has too many files"
+msgstr "软件包包含的文件过多"
+
+msgid "The package is too large"
+msgstr "软件包过大"
+
+msgid "The package names a file it does not have"
+msgstr "软件包引用了其中不存在的文件"
+
+msgid "The package needs a manifest and a program"
+msgstr "软件包需要包含清单和程序"
+
+msgid "The package's name is not usable"
+msgstr "软件包名称不可用"
+
+msgid "The plugin could not be switched off"
+msgstr "无法关闭插件"
+
+msgid "The plugin could not be switched on"
+msgstr "无法开启插件"
+
+msgid "The plugin store can be changed by others"
+msgstr "插件存储可被他人修改"
+
+msgid "The plugin store could not be locked"
+msgstr "无法锁定插件存储"
+
+msgid "The plugin store could not be made"
+msgstr "无法创建插件存储"
+
+msgid "The plugin store could not be read"
+msgstr "无法读取插件存储"
+
+msgid "The plugin store is a link"
+msgstr "插件存储是一个链接"
+
+msgid "The plugin store is being changed by another process"
+msgstr "插件存储正被另一个进程修改"
+
+msgid "The plugin store is not a directory"
+msgstr "插件存储不是目录"
+
+msgid "The retired plugin directory is not safe"
+msgstr "已停用的插件目录不安全"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "此插件没有需要批准的内容"
+
+msgid "Too many plugins are installed"
+msgstr "已安装的插件过多"
+
+msgid "The extension store could not be reached"
+msgstr "无法连接扩展商店"
+
+msgid "What the store sent is larger than allowed"
+msgstr "商店发送的内容超出允许大小"

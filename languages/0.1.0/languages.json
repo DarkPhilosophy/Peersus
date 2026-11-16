@@ -1,0 +1,66 @@
+{
+  "languages": [
+    {
+      "language": "cs",
+      "name": "Čeština",
+      "translated": 988
+    },
+    {
+      "language": "de",
+      "name": "Deutsch",
+      "translated": 988
+    },
+    {
+      "language": "es",
+      "name": "Español",
+      "translated": 988
+    },
+    {
+      "language": "fr",
+      "name": "Français",
+      "translated": 988
+    },
+    {
+      "language": "it",
+      "name": "Italiano",
+      "translated": 988
+    },
+    {
+      "language": "nl",
+      "name": "Nederlands",
+      "translated": 988
+    },
+    {
+      "language": "pl",
+      "name": "Polski",
+      "translated": 988
+    },
+    {
+      "language": "pt",
+      "name": "Português",
+      "translated": 988
+    },
+    {
+      "language": "ro",
+      "name": "Română",
+      "translated": 988
+    },
+    {
+      "language": "sv",
+      "name": "Svenska",
+      "translated": 988
+    },
+    {
+      "language": "tr",
+      "name": "Türkçe",
+      "translated": 988
+    },
+    {
+      "language": "zh",
+      "name": "中文",
+      "translated": 988
+    }
+  ],
+  "messages": 988,
+  "release": "0.1.0"
+}

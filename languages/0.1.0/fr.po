@@ -1,0 +1,2992 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+"X-Language-Name: Français\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Vous demande de sélectionner un fichier pour cette extension ; aucun accès implicite au système de fichiers."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "Demande une autorisation explicite de la destination des requêtes HTTPS ; les identifiants restent dans l’application hôte."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Lit ou remplace le texte du presse-papiers de cet appareil par morceaux limités, chacun sous sa propre autorisation."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Lit le texte du presse-papiers de cet appareil par morceaux limités ; la plateforme décide quand il est lisible et exclut les contenus sensibles."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Remplace le texte du presse-papiers de cet appareil par le texte fourni par l’extension, par morceaux limités."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Est averti quand le presse-papiers de cet appareil change, sans en recevoir le contenu ; la lecture exige toujours l’autorisation de lecture."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Vous montre des notifications sous son nom, avec ses propres mots et boutons, dans la fenêtre et en dehors."
+
+msgid "Confirm {label}"
+msgstr "Confirm {label}"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "Annulé. Vérifiez tout résultat externe avant de réessayer."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "Non autorisé. Vérifiez les autorisations de ce plugin."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Plugin indisponible. Démarrez-le et réessayez."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "L'action a expiré. Vérifiez son résultat avant de réessayer."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "Une autre opération est en cours. Réessayez quand elle sera terminée."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "L'action n'a pas pu aboutir. Vérifiez le plugin et réessayez."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Démarrez le plugin, choisissez un appareil en ligne si nécessaire et accordez ses autorisations."
+
+msgid "Enter a value within the declared limits."
+msgstr "Saisissez une valeur dans les limites déclarées."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Réglage enregistré non valide. Rétablissez une valeur valide."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Plateformes prises en charge : {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Cet ancien plugin ne déclare pas les plateformes prises en charge."
+
+msgid "For {name}"
+msgstr "For {name}"
+
+msgid "Install bundled {name}"
+msgstr "Installer {name} fourni"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Il ne prend pas en charge ce système d'exploitation"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Soutenir Peersus — entièrement facultatif"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Si Peersus vous est utile, vous pouvez laisser un pourboire volontaire. Toutes les fonctions restent gratuites, sans publicité, fonctions payantes ni accès prioritaire."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Les paiements par carte passent par le compte Stripe lié du créateur, lorsque Ko-fi le propose ; les moyens de paiement varient. Peersus ne traite pas les données de votre carte."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "Un pourboire n'achète aucun produit, service, accès ni récompense. Des frais de traitement peuvent s'appliquer. Aucune déductibilité fiscale n'est promise. Les remerciements publics sont un choix distinct et facultatif sur le site, jamais un avantage dans l'application."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Soutenir sur Ko-fi (ouvre le navigateur)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Impossible d'ouvrir un navigateur. Vous pouvez ouvrir https://ko-fi.com/DarkPhilosophy vous-même."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Impossible de le lire : il n’existe plus ou cette application ne peut pas l’ouvrir."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Ce fichier est vide et ne contient donc aucun paquet."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Ce n’est ni un dossier ni un fichier, donc ce ne peut pas être un paquet."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Envoyer des données à un appareil associé de votre choix. Elle ne peut voir la clé d’aucun appareil."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "Interrompre et redémarrer N’IMPORTE QUELLE extension, y compris celles que vous n’avez pas installées à cette fin. Elle ne peut ni lire leurs données ni modifier leurs autorisations."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "Déplacer le pointeur, appuyer sur des boutons et des touches et saisir du texte sur cet ordinateur, comme depuis une souris et un clavier qui y seraient branchés."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "Modifier la disposition des bureaux associés de cet ordinateur et l’endroit où son pointeur passe de l’un à l’autre."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Être avertie quand un transfert commence, avance, se termine, est annulé ou échoue : quel transfert, et où il en est. Elle ne peut voir ni le nom d’un fichier, ni le nom d’un appareil, ni l’endroit où quoi que ce soit est enregistré, et ne peut ni accepter, ni refuser, ni annuler un transfert."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Voir aussi le NOM de chaque fichier transféré et le nom de l’appareil vers lequel il va ou dont il vient. Les noms de fichiers peuvent en dire long sur une personne."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Créer ses propres statuts et choisir les mots qui les nomment. Un statut seulement créé ne dit rien de vous tant qu’il n’est pas activé."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Activer et désactiver ses propres statuts. Ce qui est activé est MONTRÉ à chaque appareil associé, dans les mots choisis par l’extension, tant que cela reste activé."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Voir quels statuts vos appareils associés affichent et être avertie quand ils changent. Ce que dit un statut (regarder quelque chose, être occupé) peut être personnel."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Aucun dossier choisi. Chaque fichier demandera où l’enregistrer."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "Un dossier est choisi. Les fichiers y vont directement."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "Au départ, rien n’est autorisé. Vous décidez de ce qu’elle peut faire après l’installation."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Une extension de ce nom est installée. Elle sera remplacée, sans aucune autorisation au départ."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Cette extension n’a pas été approuvée et ne s’exécute pas. L’approuver lui permet de s’exécuter avec les demandes indiquées ci-dessous."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Le programme de cette extension diffère de celui approuvé et ne s’exécute pas. Une nouvelle approbation permet son exécution et efface les autorisations précédentes."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Cette extension est endommagée ou son programme ne peut pas s’exécuter. Elle peut seulement être supprimée."
+
+msgid "RUNNING"
+msgstr "EN COURS"
+
+msgid "STARTING"
+msgstr "DÉMARRAGE"
+
+msgid "RESTARTING"
+msgstr "REDÉMARRAGE"
+
+msgid "OFF"
+msgstr "DÉSACTIVÉE"
+
+msgid "FAILED"
+msgstr "ÉCHEC"
+
+msgid "BROKEN"
+msgstr "ENDOMMAGÉE"
+
+msgid "CHANGED"
+msgstr "MODIFIÉE"
+
+msgid "NEEDS APPROVAL"
+msgstr "APPROBATION REQUISE"
+
+msgid "Replace"
+msgstr "Remplacer"
+
+msgid "Drop one package at a time."
+msgstr "Déposez un seul paquet à la fois."
+
+msgid "No description was given for this permission."
+msgstr "Aucune description n’a été fournie pour cette autorisation."
+
+msgid "The selection is too large"
+msgstr "La sélection est trop volumineuse"
+
+msgid "The file picker did not report its selection count"
+msgstr "Le sélecteur de fichiers n’a pas indiqué le nombre de fichiers sélectionnés"
+
+msgid "The application answered with something else than a code"
+msgstr "L’application a renvoyé autre chose qu’un code"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "La préparation des fichiers s’est arrêtée avant la fin de la sélection."
+
+msgid "The file producer stopped before creating a code."
+msgstr "La préparation des fichiers s’est arrêtée avant la création d’un code."
+
+msgid "Could not create invitation"
+msgstr "Impossible de créer l’invitation"
+
+msgid "Application stopped"
+msgstr "L’application s’est arrêtée"
+
+msgid "Left out: {items}."
+msgstr "Exclus : {items}."
+
+msgid "Not files: {count}"
+msgstr "Ne sont pas des fichiers : {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Illisibles : {count}"
+
+msgid "Empty files: {count}"
+msgstr "Fichiers vides : {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "Au-delà de la limite de sélection de {limit} fichiers : {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Fichiers sélectionnés qui n’ont pas pu être proposés : {refused}."
+
+msgid "Restart"
+msgstr "Redémarrer"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "OU CHOISISSEZ UN APPAREIL ENREGISTRÉ"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "UN CODE PROVENANT D’UN AUTRE APPAREIL ?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "OU COLLEZ LE CODE DE L’AUTRE APPAREIL"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "OU COLLEZ CE CODE SUR L’AUTRE APPAREIL"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "CONNECTEZ-VOUS À L’AUTRE APPAREIL"
+
+msgid "TRANSFERS"
+msgstr "TRANSFERTS"
+
+msgid "PAIRED PEERS"
+msgstr "APPAREILS ASSOCIÉS"
+
+msgid "MET BY CODE"
+msgstr "RENCONTRÉS PAR CODE"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} en ligne)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} en cours)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Envoi direct vers l’appareil choisi"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Envoi direct vers les appareils choisis"
+
+msgid "No device picked: a code will be made"
+msgstr "Aucun appareil choisi : un code sera créé"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "Un appareil choisi est indisponible. Choisissez à nouveau, ou aucun pour utiliser un code"
+
+msgid "tap to choose files"
+msgstr "touchez pour choisir des fichiers"
+
+msgid "click to browse your computer"
+msgstr "cliquez pour parcourir votre ordinateur"
+
+msgid "SCAN"
+msgstr "SCANNEZ"
+
+msgid "tap to open the camera"
+msgstr "touchez pour ouvrir la caméra"
+
+msgid "starting the camera"
+msgstr "démarrage de la caméra"
+
+msgid "NO CAMERA"
+msgstr "CAMÉRA INDISPONIBLE"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "autorisez-la pour Peersus dans les réglages du téléphone, puis touchez"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Associer : affichez un code à scanner sur l’autre appareil. Connecter : scannez ou collez le code de l’autre appareil."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "L’association fait confiance à l’autre appareil jusqu’à sa suppression. L’envoi d’un fichier par code seul ne le fait jamais."
+
+msgid "CHOOSE FILES"
+msgstr "CHOISISSEZ DES FICHIERS"
+
+msgid "TO SEND"
+msgstr "À ENVOYER"
+
+msgid "NO DEVICE PICKED"
+msgstr "AUCUN APPAREIL CHOISI"
+
+msgid "TAP FOR"
+msgstr "TOUCHEZ POUR"
+
+msgid "A QR CODE"
+msgstr "UN CODE QR"
+
+msgid "HOLD TO SEND"
+msgstr "MAINTENEZ POUR ENVOYER"
+
+msgid "TAP TO SEND"
+msgstr "TOUCHEZ POUR ENVOYER"
+
+msgid "1 DEVICE"
+msgstr "1 APPAREIL"
+
+msgid "{count} DEVICES"
+msgstr "{count} APPAREILS"
+
+msgid "keep holding until it is full"
+msgstr "maintenez jusqu’à ce qu’il soit plein"
+
+msgid "it sends at once"
+msgstr "envoie immédiatement"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "UN APPAREIL A DISPARU"
+
+msgid "PICK AGAIN"
+msgstr "CHOISISSEZ À NOUVEAU"
+
+msgid "nothing is sent until you do"
+msgstr "rien n’est envoyé tant que vous ne le faites pas"
+
+msgid "READY TO RECEIVE"
+msgstr "PRÊT À RECEVOIR"
+
+msgid "PASTE"
+msgstr "COLLEZ"
+
+msgid "THE CODE"
+msgstr "LE CODE"
+
+msgid "from the other device"
+msgstr "depuis l’autre appareil"
+
+msgid "CONNECT"
+msgstr "CONNECTEZ"
+
+msgid "{name} wants to pair"
+msgstr "{name} souhaite s’associer"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "RÉPONSE ENVOYÉE, EN ATTENTE DE L’AUTRE APPAREIL"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "CHOISISSEZ LE MÊME NUMÉRO SUR LES DEUX APPAREILS"
+
+msgid "Send"
+msgstr "Envoyer"
+
+msgid "Receive"
+msgstr "Recevoir"
+
+msgid "Peers"
+msgstr "Appareils"
+
+msgid "Settings"
+msgstr "Paramètres"
+
+msgid "Overview"
+msgstr "Vue d’ensemble"
+
+msgid "Device"
+msgstr "Appareil"
+
+msgid "Appearance"
+msgstr "Apparence"
+
+msgid "Network"
+msgstr "Réseau"
+
+msgid "Extensions"
+msgstr "Extensions"
+
+msgid "Permissions"
+msgstr "Autorisations"
+
+msgid "History"
+msgstr "Historique"
+
+msgid "About"
+msgstr "À propos"
+
+msgid "Language"
+msgstr "Langue"
+
+msgid "Reset"
+msgstr "Réinitialiser"
+
+msgid "Accent colour"
+msgstr "Couleur d'accent"
+
+msgid "Coral"
+msgstr "Corail"
+
+msgid "Sky"
+msgstr "Ciel"
+
+msgid "Moss"
+msgstr "Mousse"
+
+msgid "Amber"
+msgstr "Ambre"
+
+msgid "Violet"
+msgstr "Violet"
+
+msgid "Rose"
+msgstr "Rose"
+
+msgid "Interface size"
+msgstr "Taille de l'interface"
+
+msgid "Compact"
+msgstr "Compact"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Large"
+msgstr "Grand"
+
+msgid "Larger"
+msgstr "Plus grand"
+
+msgid "Largest"
+msgstr "Le plus grand"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Le texte, les icônes et les espaces grandissent ensemble. Ctrl et + ou − ne le change que pour cette fenêtre."
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "View files"
+msgstr "Voir les fichiers"
+
+msgid "Close"
+msgstr "Fermer"
+
+msgid "Copy"
+msgstr "Copier"
+
+msgid "Request unlock"
+msgstr "Demander le déverrouillage"
+
+msgid "Generate a new identity"
+msgstr "Générer une nouvelle identité"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Oui, supprimer l’identité précédente et en générer une nouvelle"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Cela supprime l’identité conservée par le système et met les associations de côté. Les appareils doivent être associés de nouveau. Action irréversible."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "L’identité a été réinitialisée. Fermez cette fenêtre et rouvrez Peersus."
+
+msgid "Turn on devices nearby"
+msgstr "Activer les appareils à proximité"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Les appareils à proximité sont désactivés. Activez-les pour voir les appareils proches qui peuvent être associés."
+
+msgid "Paste"
+msgstr "Coller"
+
+msgid "Select all"
+msgstr "Tout sélectionner"
+
+msgid "Cut"
+msgstr "Couper"
+
+msgid "Remove"
+msgstr "Supprimer"
+
+msgid "Relays"
+msgstr "Relais"
+
+msgid "Edit"
+msgstr "Modifier"
+
+msgid "New relay: relay.example.org"
+msgstr "Nouveau relais : relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Saisissez le serveur du relais, par exemple relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Durée accordée à la connexion directe avant que les données puissent passer par un relais."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "En ordre Priorité, durée d’utilisation d’un repli avant de réessayer le premier relais."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Rechercher des relais"
+
+msgid "Position"
+msgstr "Position"
+
+msgid "New address"
+msgstr "Nouvelle adresse"
+
+msgid "This relay's own timings"
+msgstr "Délais propres à ce relais"
+
+msgid "Uses the list-wide timings"
+msgstr "Utilise les délais de la liste"
+
+msgid "Use list-wide timings"
+msgstr "Utiliser les délais de la liste"
+
+msgid "Accept"
+msgstr "Accepter"
+
+msgid "Refuse"
+msgstr "Refuser"
+
+msgid "Stop"
+msgstr "Arrêter"
+
+msgid "Done"
+msgstr "Terminé"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Pair"
+msgstr "Associer"
+
+msgid "Install"
+msgstr "Installer"
+
+msgid "Uninstall"
+msgstr "Désinstaller"
+
+msgid "Retry"
+msgstr "Réessayer"
+
+msgid "Open"
+msgstr "Ouvrir"
+
+msgid "Back"
+msgstr "Retour"
+
+msgid "System"
+msgstr "Système"
+
+msgid "Light"
+msgstr "Clair"
+
+msgid "Dark"
+msgstr "Sombre"
+
+msgid "Custom"
+msgstr "Personnalisé"
+
+msgid "Device name"
+msgstr "Nom de l’appareil"
+
+msgid "CODE SCANNED"
+msgstr "CODE SCANNÉ"
+
+msgid "SCANNED"
+msgstr "SCANNÉ"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "L’autre appareil a lu le code. En attente de son acceptation."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "EN ATTENTE D’ACCEPTATION"
+
+msgid "SENDING"
+msgstr "ENVOI EN COURS"
+
+msgid "DONE"
+msgstr "TERMINÉ"
+
+msgid "STOPPED"
+msgstr "ARRÊTÉ"
+
+msgid "ENDS IN {time}"
+msgstr "EXPIRE DANS {time}"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} souhaite vous envoyer un fichier"
+
+msgid "A device wants to send you a file"
+msgstr "Un appareil souhaite vous envoyer un fichier"
+
+msgid "{files} are waiting in all"
+msgstr "{files} en attente au total"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "En attendant que l’autre appareil accepte {files}."
+
+msgid "Sending 1 file."
+msgstr "Envoi de 1 fichier."
+
+msgid "Sending {files}."
+msgstr "Envoi de {files}."
+
+msgid "1 file arrived."
+msgstr "1 fichier est arrivé."
+
+msgid "{files} arrived."
+msgstr "{files} sont arrivés."
+
+msgid "1 SENT"
+msgstr "1 ENVOYÉ"
+
+msgid "{count} SENT"
+msgstr "{count} ENVOYÉS"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "{done} sur {files} sont arrivés. Les autres ont été refusés, annulés ou ont échoué."
+
+msgid "1 file selected"
+msgstr "1 fichier sélectionné"
+
+msgid "{files} selected"
+msgstr "{files} sélectionnés"
+
+msgid "+ {count} more"
+msgstr "+ {count} autres"
+
+msgid "never seen"
+msgstr "jamais vu"
+
+msgid "just now"
+msgstr "à l’instant"
+
+msgid "{duration} ago"
+msgstr "il y a {duration}"
+
+msgid "Continue"
+msgstr "Continuer"
+
+msgid "Join"
+msgstr "Rejoindre"
+
+msgid "Keep"
+msgstr "Conserver"
+
+msgid "Forget"
+msgstr "Oublier"
+
+msgid "Not now"
+msgstr "Pas maintenant"
+
+msgid "Choose folder"
+msgstr "Choisir un dossier"
+
+msgid "Use none"
+msgstr "N’en utiliser aucun"
+
+msgid "Name this device"
+msgstr "Nommez cet appareil"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Vos autres appareils afficheront ce nom. Choisissez-en un facile à reconnaître."
+
+msgid "For example: Alex's laptop"
+msgstr "Par exemple : le portable d’Alex"
+
+msgid "Paste the code"
+msgstr "Coller le code"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Aucun appareil enregistré. Envoyez par code et conservez l’appareil lorsque cela est proposé."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "Une action. Une destination. Transférez des fichiers entre vos appareils sans labyrinthe de menus."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Choisissez ce que vous acceptez. Vous gardez le contrôle. Rien n’arrive sans votre accord."
+
+msgid "That is not a code from another device."
+msgstr "Ce n’est pas un code provenant d’un autre appareil."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Aucun appareil associé. Associez-en un ci-dessus."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Choisissez une archive d’extension ou déposez un dossier ou une archive ici."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Toutes ses autorisations sur chaque appareil seront aussi oubliées. Appuyez à nouveau pour supprimer."
+
+msgid "No plugins installed."
+msgstr "Aucune extension installée."
+
+msgid "It cannot be granted anything."
+msgstr "Aucune autorisation ne peut lui être accordée."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Associez un appareil pour accorder à cette extension des autorisations le concernant."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Aucune extension installée, donc aucune autorisation à accorder."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Rien n’a encore été envoyé ou reçu."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "IMPORTANT — RISQUES POUR LES DONNÉES ET LA SÉCURITÉ"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "LE PORTAIL DE TRANSFERT"
+
+msgid "WELCOME"
+msgstr "BIENVENUE"
+
+msgid "HISTORY"
+msgstr "HISTORIQUE"
+
+msgid "NOT PAIRED"
+msgstr "NON ASSOCIÉ"
+
+msgid "WAITING FOR YOU"
+msgstr "EN ATTENTE DE VOUS"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "SANS LIEN AVEC UN APPAREIL"
+
+msgid "Received"
+msgstr "Reçu"
+
+msgid "Sent"
+msgstr "Envoyé"
+
+msgid "done"
+msgstr "terminé"
+
+msgid "cancelled"
+msgstr "annulé"
+
+msgid "failed"
+msgstr "échoué"
+
+msgid "going"
+msgstr "en cours"
+
+msgid "SEND"
+msgstr "ENVOYER"
+
+msgid "RECEIVE"
+msgstr "RECEVOIR"
+
+msgid "PEERS"
+msgstr "APPAREILS"
+
+msgid "Make files"
+msgstr "Faites voler"
+
+msgid "fly."
+msgstr "vos fichiers."
+
+msgid "Ready when"
+msgstr "Prêt quand"
+
+msgid "you are."
+msgstr "vous l’êtes."
+
+msgid "HOW THINGS STAND"
+msgstr "ÉTAT ACTUEL"
+
+msgid "This device"
+msgstr "Cet appareil"
+
+msgid "Internet relays"
+msgstr "Relais Internet"
+
+msgid "Runs in the background"
+msgstr "Fonctionne en arrière-plan"
+
+msgid "Paired devices"
+msgstr "Appareils associés"
+
+msgid "Transfers in progress"
+msgstr "Transferts en cours"
+
+msgid "on"
+msgstr "activés"
+
+msgid "off"
+msgstr "désactivés"
+
+msgid "yes"
+msgstr "oui"
+
+msgid "no"
+msgstr "non"
+
+msgid "THIS DEVICE"
+msgstr "CET APPAREIL"
+
+msgid "Run in the background"
+msgstr "Fonctionner en arrière-plan"
+
+msgid "Start without opening a window."
+msgstr "Démarrer sans ouvrir de fenêtre."
+
+msgid "Notifications"
+msgstr "Notifications"
+
+msgid "Offers over other apps"
+msgstr "Offres au-dessus des autres applications"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "Activé : la liste des fichiers d’une offre s’ouvre par-dessus ce que vous faites, et Accepter n’ouvre pas Peersus."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Désactivé : la liste des fichiers d’une offre s’ouvre dans Peersus. Autorisez-le pour voir la liste par-dessus les autres applications."
+
+msgid "Where an offer appears"
+msgstr "Où une offre apparaît"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "Le bord de l’écran où l’offre d’un fichier s’affiche par-dessus ce que vous faites."
+
+msgid "Top"
+msgstr "Haut"
+
+msgid "Bottom"
+msgstr "Bas"
+
+msgid "Left"
+msgstr "Gauche"
+
+msgid "Right"
+msgstr "Droite"
+
+msgid "Battery"
+msgstr "Batterie"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "Activé : le réseau du service en arrière-plan continue de fonctionner pendant que le téléphone est inactif."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Limité : lorsque le téléphone est inactif, le système peut couper le réseau du service en arrière-plan. Autorisez-le dans les réglages de la batterie."
+
+msgid "Trying to reach the device"
+msgstr "Tentative de connexion à l'appareil"
+
+msgid "This can take up to half a minute."
+msgstr "Cela peut prendre jusqu'à une demi-minute."
+
+msgid "It answers, and it knows this device"
+msgstr "Il répond et reconnaît cet appareil"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "La connexion fonctionne. Il n'y a rien à faire."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Il répond, mais ne reconnaît plus cet appareil"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Oubliez-le ici et associez de nouveau les deux appareils. Rien d'autre ne cloche."
+
+msgid "It does not answer"
+msgstr "Il ne répond pas"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Il est peut-être éteint ou hors de portée. Réessayez dans un instant. Les relais sont activés, ce n'est donc pas un changement de réseau."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "Les relais sont désactivés, donc des appareils sur des réseaux différents ne peuvent pas se trouver. Activez « Utiliser les relais Internet » dans les réglages."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "Activées : une offre de fichier s’affiche même quand le programme est fermé."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Bloquées : une offre de fichier ne s’affiche pas tant que vous n’autorisez pas les notifications."
+
+msgid "Allow"
+msgstr "Autoriser"
+
+msgid "Camera"
+msgstr "Caméra"
+
+msgid "Wide"
+msgstr "Ultra grand-angle"
+
+msgid "Main"
+msgstr "Principale"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Automatique"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Choisissez la caméra qui lit un code et appuyez sur Tester pour voir ce qu’elle montre."
+
+msgid "Test the camera"
+msgstr "Tester la caméra"
+
+msgid "Test connection"
+msgstr "Tester la connexion"
+
+msgid "Where is this device?"
+msgstr "Où se trouve cet appareil ?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 ou nom.exemple.fr:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Indiquez où trouver cet appareil quand l'adresse de l'association a changé."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Un nom vaut mieux qu'un numéro : il est cherché à nouveau à chaque fois, donc il continue de marcher quand le numéro change."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "Le port est affiché sur l'autre appareil, dans les réglages. Sans port, celui où il a été vu en dernier est utilisé."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Cela n'aide que si l'appareil est joignable à cette adresse. Un téléphone sur réseau mobile ne l'est généralement pas, et seuls les relais le connectent."
+
+msgid "Save and test"
+msgstr "Enregistrer et tester"
+
+msgid "Remove the address"
+msgstr "Supprimer l'adresse"
+
+msgid "Listening port"
+msgstr "Port d'écoute"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "Un autre appareil écrit ce port après l'adresse de celui-ci pour le trouver. Il change à chaque démarrage du programme."
+
+msgid "Search settings"
+msgstr "Rechercher dans les paramètres"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Rien dans les paramètres ne ressemble à cela."
+
+msgid "Files sent"
+msgstr "Fichiers envoyés"
+
+msgid "Files received"
+msgstr "Fichiers reçus"
+
+msgid "Files in all"
+msgstr "Fichiers au total"
+
+msgid "Generate QR code"
+msgstr "Générer un code QR"
+
+msgid "Clear the list"
+msgstr "Vider la liste"
+
+msgid "+ Add more files"
+msgstr "+ Ajouter d’autres fichiers"
+
+msgid "All"
+msgstr "Tous"
+
+msgid "Active"
+msgstr "En cours"
+
+msgid "Stopped"
+msgstr "Arrêtés"
+
+msgid "Incoming"
+msgstr "Entrants"
+
+msgid "Outgoing"
+msgstr "Sortants"
+
+msgid "Search transfers"
+msgstr "Rechercher des transferts"
+
+msgid "No transfer matches."
+msgstr "Aucun transfert ne correspond."
+
+msgid "Minimize"
+msgstr "Réduire"
+
+msgid "Expand"
+msgstr "Développer"
+
+msgid "OUTGOING FILES"
+msgstr "FICHIERS SORTANTS"
+
+msgid "EXPERIMENTAL"
+msgstr "EXPÉRIMENTAL"
+
+msgid "Devices nearby"
+msgstr "Appareils à proximité"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Désactivé : rien n’est annoncé et rien n’est écouté. Activé : tant que cette fenêtre est ouverte, cet appareil écoute les appareils à proximité et peut être trouvé par eux. Avec Receive ouvert, il dit qu’il accepte des fichiers : les fichiers listés sur un appareil associé tenu tout près de lui sont envoyés aussitôt, et un appareil non associé peut proposer les siens lorsqu’il est approché ; chaque fichier fait l’objet d’une demande ici. Avec Peers ouvert, il dit qu’il est là pour être associé, et Peers liste les appareils à proximité qui le disent aussi. Utilise le Bluetooth."
+
+msgid "NEARBY"
+msgstr "À PROXIMITÉ"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Aucun appareil à proximité pour l’instant. Ouvrez Peers sur l’autre appareil, avec « Appareils à proximité » activé là aussi."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Un nom ici est ce que cet appareil dit de lui-même. En choisir un lance l’association : vous choisissez ensuite tous deux le même numéro."
+
+msgid "That device is no longer nearby"
+msgstr "Cet appareil n’est plus à proximité"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Proposés à l’appareil approché. Chaque fichier doit être accepté par la personne en face."
+
+msgid "That device does not take files this way"
+msgstr "Cet appareil ne reçoit pas de fichiers de cette façon"
+
+msgid "How near is near"
+msgstr "À quelle distance est « près »"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "Tenez les deux appareils aussi près que vous le ferez pour envoyer, l’application ouverte sur les deux, puis mesurez et définissez. Un appareil compte comme approché un peu en dessous de la puissance mesurée, pour qu’une main pas tout à fait immobile ne le perde pas."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "« Près » commence à {dbm} dBm, comme vous l’avez défini."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "« Près » commence à {dbm} dBm, la valeur de l’application."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Appareil le plus fort entendu maintenant : {dbm} dBm. Défini d’ici, « près » commencerait à {near} dBm."
+
+msgid "No device with this application open is heard yet."
+msgstr "Aucun appareil avec cette application ouverte n’est entendu pour l’instant."
+
+msgid "Measure"
+msgstr "Mesurer"
+
+msgid "Stop measuring"
+msgstr "Arrêter la mesure"
+
+msgid "Set near from here"
+msgstr "Définir « près » d’ici"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Cet appareil n’a pas de Bluetooth utilisable pour trouver les appareils approchés."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Le Bluetooth est désactivé. Activez-le pour trouver les appareils approchés."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Le système ne permet pas à ce programme d’utiliser le Bluetooth pour trouver les appareils approchés."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Le Bluetooth a refusé. Une nouvelle tentative est faite automatiquement."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Le système permet à cet appareil de trouver les appareils approchés, mais pas d’être trouvé par eux."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Envoyés à l’appareil tenu tout près, avec Receive ouvert. Chaque fichier doit être accepté par la personne en face."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} est tout près. Ouvrez Receive dessus et ces fichiers lui seront envoyés."
+
+msgid "Send instantly"
+msgstr "Envoyer immédiatement"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Désactivé : après avoir choisi la destination, maintenez le cercle jusqu’à ce qu’il se remplisse, ainsi une erreur ne coûte rien. Activé : toucher le cercle envoie immédiatement."
+
+msgid "INCOMING FILES"
+msgstr "FICHIERS ENTRANTS"
+
+msgid "Save incoming files on their own"
+msgstr "Enregistrer automatiquement les fichiers entrants"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Désactivé : la destination de chaque fichier est demandée. Activé : les fichiers vont directement dans le dossier ci-dessous."
+
+msgid "THEME"
+msgstr "THÈME"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Garder les icônes quand la barre est fermée"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Une barre fermée n’affiche que ses icônes. Sinon, elle est entièrement masquée."
+
+msgid "Reduce motion"
+msgstr "Réduire les animations"
+
+msgid "Turn off decorative animation."
+msgstr "Désactiver les animations décoratives."
+
+msgid "CONNECTIONS"
+msgstr "CONNEXIONS"
+
+msgid "Use internet relays"
+msgstr "Utiliser les relais Internet"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Permet la connexion entre réseaux. Désactivé : le trafic reste sur ce réseau."
+
+msgid "INSTALLED"
+msgstr "INSTALLÉES"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "AUTORISATIONS DE CHAQUE EXTENSION"
+
+msgid "File"
+msgstr "Fichier"
+
+msgid "Direction"
+msgstr "Direction"
+
+msgid "State"
+msgstr "État"
+
+msgid "Move it. Don't store it."
+msgstr "Transférez, ne stockez pas."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Des connexions privées entre vos appareils. Les fichiers passent directement d’un appareil à l’autre, uniquement après l’accord du destinataire, sans dossier cloud."
+
+msgid "INTERFACE"
+msgstr "INTERFACE"
+
+msgid "RENDERING"
+msgstr "RENDU"
+
+msgid "NETWORK"
+msgstr "RÉSEAU"
+
+msgid "ENGINE"
+msgstr "MOTEUR"
+
+msgid "The windows, layout and components of this application."
+msgstr "Les fenêtres, la disposition et les composants de l’application."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "Les sélecteurs de fichiers et dossiers du système."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Crée le code qu’un autre appareil scanne pour se connecter."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Dessine tout à l’écran, textes comme formes."
+
+msgid "Shapes the letters of the text."
+msgstr "Dessine les lettres du texte."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "Une petite bibliothèque de dessin utilisée sans Skia."
+
+msgid "Encrypted connections between your devices."
+msgstr "Connexions chiffrées entre vos appareils."
+
+msgid "The encryption of those connections."
+msgstr "Le chiffrement de ces connexions."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "Les composants cryptographiques de rustls."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Récupère les ressources nécessaires via HTTPS."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Exécute plusieurs transferts simultanément, sans attente mutuelle."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Lit et écrit les fichiers et messages enregistrés de l’application."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Conserve l’identité de l’appareil dans le trousseau du système. Un correctif local de compatibilité retire le backend asynchrone inutilisé et ses anciennes dépendances de sérialisation, sans changer les backends natifs ni la recherche des identifiants existants. L’état des vérifications et la provenance sont documentés avec le correctif."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Empreintes et codes d’authentification pour vérifier fichiers et association."
+
+msgid "That file could not be read."
+msgstr "Impossible de lire ce fichier."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Ce fichier est trop volumineux pour une photo de profil."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "Choisissez une image PNG ou JPEG."
+
+msgid "That picture is too large to use."
+msgstr "Cette image est trop grande pour être utilisée."
+
+msgid "That picture could not be read."
+msgstr "Impossible de lire cette image."
+
+msgid "That picture could not be kept; try again."
+msgstr "Impossible de conserver cette image ; réessayez."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Ce téléphone ne permet pas de choisir une image ici."
+
+msgid "NOTICES"
+msgstr "AVIS"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Conservez des sauvegardes indépendantes et vérifiez les fichiers importants après transfert. Cette application sert au transfert, pas à la sauvegarde. Vous restez responsable des fichiers choisis, des appareils auxquels vous faites confiance et des autorisations accordées."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Les mesures de sécurité réduisent les risques sans garantir l’absence de vulnérabilités, d’accès non autorisés ou de divulgation de données. Des appareils compromis, extensions dangereuses, erreurs de configuration et vulnérabilités futures peuvent affecter vos données."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Cette application dépend de bibliothèques tierces, systèmes d’exploitation, extensions et, si activés, services de relais réseau. Ces dépendances comportent des risques hors du contrôle des auteurs. Les composants tiers conservent leurs propres licences, conditions et avis."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Cet avis n’exclut aucune responsabilité dont l’exclusion est interdite par la loi applicable et ne limite aucun droit auquel il ne peut légalement être renoncé."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Ce logiciel est fourni EN L’ÉTAT, sans garantie ni condition d’aucune sorte, conformément aux sections 7 et 8 de la licence Apache 2.0. Dans la mesure permise par la loi applicable, les auteurs et contributeurs ne sont pas responsables des pertes liées à son utilisation, notamment de données perdues, corrompues ou divulguées."
+
+msgid "Device is offline"
+msgstr "L’appareil est hors ligne"
+
+msgid "Could not open selected file"
+msgstr "Impossible d’ouvrir le fichier choisi"
+
+msgid "Could not offer selected files"
+msgstr "Impossible de proposer les fichiers choisis"
+
+msgid "Could not accept transfer"
+msgstr "Impossible d’accepter le transfert"
+
+msgid "Could not cancel transfer"
+msgstr "Impossible d’annuler le transfert"
+
+msgid "Files selection is no longer active"
+msgstr "La sélection de fichiers n’est plus active"
+
+msgid "Could not queue selected files"
+msgstr "Impossible de mettre les fichiers choisis en attente"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Les préférences ont changé ailleurs ; rechargez avant d’enregistrer"
+
+msgid "Invalid or expired invitation"
+msgstr "Invitation invalide ou expirée"
+
+msgid "Connection queue is full"
+msgstr "La file de connexions est pleine"
+
+msgid "Pairing request is no longer active"
+msgstr "La demande d’association n’est plus active"
+
+msgid "The owner answered with something else."
+msgstr "Le service a fourni une réponse inattendue."
+
+msgid "Unexpected file handoff reply"
+msgstr "Réponse inattendue lors de la remise des fichiers"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "Un fichier reçu n’a pas pu être placé dans le dossier choisi. Il est conservé dans le dossier propre à l’application."
+
+msgid "STORE"
+msgstr "BOUTIQUE"
+
+msgid "Search extensions"
+msgstr "Rechercher des extensions"
+
+msgid "Install from file"
+msgstr "Installer depuis un fichier"
+
+msgid "Before you choose a file"
+msgstr "Avant de choisir un fichier"
+
+msgid "I understand and accept the risk"
+msgstr "Je comprends et j’accepte le risque"
+
+msgid "Search the store"
+msgstr "Rechercher dans la boutique"
+
+msgid "Refresh"
+msgstr "Actualiser"
+
+msgid "Refresh the list"
+msgstr "Actualiser la liste"
+
+msgid "by {author} · version {version}"
+msgstr "par {author} · version {version}"
+
+msgid "Installed: version {version}"
+msgstr "Installé : version {version}"
+
+msgid "Update"
+msgstr "Mettre à jour"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "La mise à jour oublie ce que la version installée était autorisée à faire. Vous déciderez à nouveau ensuite."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "Une version plus récente que celle approuvée est installée. Supprimez-la pour installer la version approuvée."
+
+msgid "The extension store is not set up in this build."
+msgstr "La boutique d’extensions n’est pas configurée dans cette version."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Appuyez sur Actualiser pour voir les extensions approuvées par le mainteneur."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "La boutique n’a pas pu terminer l’opération. Rien n’a été modifié."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "Le mainteneur n’a pas encore approuvé d’extension."
+
+msgid "No extension matches your search."
+msgstr "Aucune extension ne correspond à votre recherche."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "L’installation manuelle n’implique aucune approbation officielle. Vérifiez l’extension et sa source ; vous êtes responsable du code installé hors de la boutique."
+
+msgid "Remove for good?"
+msgstr "Supprimer définitivement ?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Endommagée ou obsolète : réinstallez-la pour la réparer"
+
+msgid "Stopped working: update or install it again"
+msgstr "Ne fonctionne plus : mettez-la à jour ou réinstallez-la"
+
+msgid "Update available:"
+msgstr "Mise à jour disponible :"
+
+msgid "Automatic updates"
+msgstr "Mises à jour automatiques"
+
+msgid "Approve"
+msgstr "Approuver"
+
+msgid "Reinstall"
+msgstr "Réinstaller"
+
+msgid "Background clipboard access"
+msgstr "Accès au presse-papiers en arrière-plan"
+
+msgid "On"
+msgstr "Activé"
+
+msgid "Off"
+msgstr "Désactivé"
+
+msgid "Remote input accessibility"
+msgstr "Accessibilité pour le contrôle à distance"
+
+msgid "Relay"
+msgstr "Relais"
+
+msgid "Advanced relay options"
+msgstr "Options avancées des relais"
+
+msgid "Direct wait (ms)"
+msgstr "Attente de connexion directe (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Délai du relais (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Réessayer le relais préféré (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Plages en ms : direct 100–30000 ; secours 500–60000 ; nouvel essai 5000–3600000."
+
+msgid "Not installed"
+msgstr "Non installée"
+
+msgid "Connecting to home relay"
+msgstr "Connexion au relais principal"
+
+msgid "Home relay connected"
+msgstr "Relais principal connecté"
+
+msgid "Home relay unavailable"
+msgstr "Relais principal indisponible"
+
+msgid "Home relay refused access"
+msgstr "Le relais principal a refusé l’accès"
+
+msgid "Direct connection is always tried first."
+msgstr "La connexion directe est toujours essayée en premier."
+
+msgid "Project relay"
+msgstr "Relais du projet"
+
+msgid "Public relays (n0)"
+msgstr "Relais publics (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Activer les relais publics (n0)"
+
+msgid "Move up"
+msgstr "Monter"
+
+msgid "Move down"
+msgstr "Descendre"
+
+msgid "Save and enable relay"
+msgstr "Enregistrer et activer le relais"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Le jeton est envoyé uniquement à votre relais personnalisé, jamais aux relais du projet ou publics."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Le trafic applicatif attend un chemin direct avant d’utiliser les relais dans cet ordre. La signalisation peut commencer plus tôt. Le trafic relayé est chiffré de bout en bout, mais les métadonnées de connexion restent visibles. Aucune télémétrie applicative n’est envoyée."
+
+msgid "Public relays"
+msgstr "Relais publics"
+
+msgid "No relay"
+msgstr "Aucun relais"
+
+msgid "My own relay"
+msgstr "Mon propre relais"
+
+msgid "Priority"
+msgstr "Priorité"
+
+msgid "Sequential"
+msgstr "Séquentiel"
+
+msgid "Latency"
+msgstr "Latence"
+
+msgid "Order"
+msgstr "Ordre"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Tous les relais activés sont proposés ensemble ; le plus proche qui répond est utilisé."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "L’ordre de la liste est la préférence ; le premier relais est réessayé après un repli."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "Dans l’ordre de la liste ; un relais qui fonctionne est gardé jusqu’à sa panne."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "Les relais activés sont mesurés et le plus rapide qui répond est utilisé."
+
+msgid "No answer"
+msgstr "Pas de réponse"
+
+msgid "Remove this relay?"
+msgstr "Supprimer ce relais ?"
+
+msgid "Change address"
+msgstr "Changer l’adresse"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Le jeton est envoyé uniquement à ce relais, jamais aux autres."
+
+msgid "Test relays"
+msgstr "Tester les relais"
+
+msgid "Add a relay"
+msgstr "Ajouter un relais"
+
+msgid "Add relay"
+msgstr "Ajouter le relais"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "Les relais que tout le monde peut utiliser. Ils ne transportent que du trafic chiffré et ne peuvent pas le lire."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Aucun relais : les appareils de réseaux différents ne peuvent pas se trouver. Le trafic reste sur ce réseau."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Un relais que vous exploitez vous-même, à la place des relais publics."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Utiliser ce relais"
+
+msgid "Access token (kept on this device only)"
+msgstr "Jeton d’accès (conservé uniquement sur cet appareil)"
+
+msgid "Save token"
+msgstr "Enregistrer le jeton"
+
+msgid "Forget token"
+msgstr "Oublier le jeton"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Le jeton est conservé dans le stockage sécurisé de cet appareil. Il n’est plus jamais affiché ni envoyé à d’autres appareils."
+
+msgid "Token saved"
+msgstr "Jeton enregistré"
+
+msgid "Token forgotten"
+msgstr "Jeton oublié"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "L’adresse du relais doit commencer par https:// et être une adresse unique, sans espaces"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Le jeton du relais doit tenir sur une ligne de 512 caractères au plus"
+
+msgid "Page background"
+msgstr "Arrière-plan de la page"
+
+msgid "Cards and panels"
+msgstr "Cartes et panneaux"
+
+msgid "Raised controls and hover"
+msgstr "Contrôles en relief et survol"
+
+msgid "Top header background"
+msgstr "Arrière-plan de l’en-tête"
+
+msgid "Sidebar background"
+msgstr "Arrière-plan de la barre latérale"
+
+msgid "Borders and separators"
+msgstr "Bordures et séparateurs"
+
+msgid "Primary text"
+msgstr "Texte principal"
+
+msgid "Secondary text"
+msgstr "Texte secondaire"
+
+msgid "Portal disc"
+msgstr "Disque du portail"
+
+msgid "Portal text"
+msgstr "Texte du portail"
+
+msgid "Send indicators"
+msgstr "Indicateurs d’envoi"
+
+msgid "Receive indicators"
+msgstr "Indicateurs de réception"
+
+msgid "Connected and successful"
+msgstr "Connecté et réussi"
+
+msgid "Offline and failed"
+msgstr "Hors ligne et échec"
+
+msgid "Warning text"
+msgstr "Texte d’avertissement"
+
+msgid "Warning background"
+msgstr "Arrière-plan d’avertissement"
+
+msgid "Primary button background"
+msgstr "Arrière-plan du bouton principal"
+
+msgid "Primary button text"
+msgstr "Texte du bouton principal"
+
+msgid "Minimise window control"
+msgstr "Bouton de réduction de la fenêtre"
+
+msgid "Maximise window control"
+msgstr "Bouton d’agrandissement de la fenêtre"
+
+msgid "Close window control"
+msgstr "Bouton de fermeture de la fenêtre"
+
+msgid "Navigation icons"
+msgstr "Icônes de navigation"
+
+msgid "Selected navigation icon"
+msgstr "Icône de navigation sélectionnée"
+
+msgid "Camera detection outline"
+msgstr "Contour de détection de la caméra"
+
+msgid "CUSTOM THEME"
+msgstr "THÈME PERSONNALISÉ"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Choisissez un élément et saisissez sa couleur. L’aperçu et toute l’interface suivent pendant la saisie ; rien n’est enregistré tant que vous n’enregistrez pas le thème."
+
+msgid "Dark base"
+msgstr "Base sombre"
+
+msgid "Light base"
+msgstr "Base claire"
+
+msgid "Editing: {element}"
+msgstr "Modification : {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Saisissez six chiffres hexadécimaux RVB, par exemple #708090."
+
+msgid "Discard changes"
+msgstr "Annuler les modifications"
+
+msgid "Reset selected element"
+msgstr "Réinitialiser l’élément sélectionné"
+
+msgid "Your theme name"
+msgstr "Nom de votre thème"
+
+msgid "Confirm replace existing theme"
+msgstr "Confirmer le remplacement du thème existant"
+
+msgid "Save named theme"
+msgstr "Enregistrer le thème sous ce nom"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "BIBLIOTHÈQUE DE THÈMES ENREGISTRÉS"
+
+msgid "Load {name}"
+msgstr "Charger {name}"
+
+msgid "Confirm removal"
+msgstr "Confirmer la suppression"
+
+msgid "IMPORT / EXPORT"
+msgstr "IMPORT / EXPORT"
+
+msgid "Export / copy theme JSON"
+msgstr "Exporter / copier le JSON du thème"
+
+msgid "Paste exported theme JSON here"
+msgstr "Collez ici le JSON d’un thème exporté"
+
+msgid "Import JSON for preview"
+msgstr "Importer le JSON pour l’aperçu"
+
+msgid "Import theme file…"
+msgstr "Importer un fichier de thème…"
+
+msgid "Export theme file…"
+msgstr "Exporter un fichier de thème…"
+
+msgid "Theme JSON"
+msgstr "JSON de thème"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Contraste faible : « {text} » sur « {surface} » peut être difficile à lire."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Choisissez un nom de thème de 1 à 64 caractères, sans espaces au début ni à la fin."
+
+msgid "The theme could not be exported."
+msgstr "Le thème n’a pas pu être exporté."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Les fichiers de thème ne doivent pas dépasser 64 Kio."
+
+msgid "This is not a valid theme file."
+msgstr "Ce n’est pas un fichier de thème valide."
+
+msgid "This theme format version is not supported."
+msgstr "Cette version du format de thème n’est pas prise en charge."
+
+msgid "The theme name is invalid."
+msgstr "Le nom du thème n’est pas valide."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Ce nom existe déjà. Confirmez le remplacement ci-dessous ou utilisez un autre nom."
+
+msgid "Theme saved in your library."
+msgstr "Thème enregistré dans votre bibliothèque."
+
+msgid "The theme could not be saved."
+msgstr "Le thème n’a pas pu être enregistré."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Thème copié. Collez-le dans un fichier ou une autre installation."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "Le JSON du thème se trouve dans le champ d’échange ci-dessous ; il peut être sélectionné et copié."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Importé pour l’aperçu. Enregistrez pour ajouter ce thème à votre bibliothèque."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Modifications annulées ; les préférences enregistrées restent inchangées."
+
+msgid "The theme file could not be opened."
+msgstr "Le fichier de thème n’a pas pu être ouvert."
+
+msgid "The theme file could not be read."
+msgstr "Le fichier de thème n’a pas pu être lu."
+
+msgid "Theme exported."
+msgstr "Thème exporté."
+
+msgid "Theme removed from your library."
+msgstr "Thème supprimé de votre bibliothèque."
+
+msgid "The theme could not be removed."
+msgstr "Le thème n’a pas pu être supprimé."
+
+msgid "Top header"
+msgstr "En-tête"
+
+msgid "Header · navigation and window controls"
+msgstr "En-tête · navigation et boutons de fenêtre"
+
+msgid "Sidebar"
+msgstr "Barre latérale"
+
+msgid "Navigation icon"
+msgstr "Icône de navigation"
+
+msgid "Window control (preview only)"
+msgstr "Bouton de fenêtre (aperçu uniquement)"
+
+msgid "Portal disc and its text"
+msgstr "Disque du portail et son texte"
+
+msgid "PORTAL"
+msgstr "PORTAIL"
+
+msgid "Primary button"
+msgstr "Bouton principal"
+
+msgid "Primary action"
+msgstr "Action principale"
+
+msgid "Warning notice"
+msgstr "Avertissement"
+
+msgid "Warning: verify received files."
+msgstr "Attention : vérifiez les fichiers reçus."
+
+msgid "Camera detection marker"
+msgstr "Repère de détection de la caméra"
+
+msgid "Sending →"
+msgstr "Envoi →"
+
+msgid "← Receiving"
+msgstr "← Réception"
+
+msgid "● Connected · Complete"
+msgstr "● Connecté · Terminé"
+
+msgid "● Offline · Failed"
+msgstr "● Hors ligne · Échec"
+
+msgid "Transfer or connection indicator"
+msgstr "Indicateur de transfert ou de connexion"
+
+msgid "Text on the page"
+msgstr "Texte sur la page"
+
+msgid "Primary text — names and headings"
+msgstr "Texte principal — noms et titres"
+
+msgid "Secondary text — descriptions and details"
+msgstr "Texte secondaire — descriptions et détails"
+
+msgid "Surface and border"
+msgstr "Surface et bordure"
+
+msgid "Panel / page content"
+msgstr "Panneau / contenu de la page"
+
+msgid "PREVIEW — {element}"
+msgstr "APERÇU — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Importer un fichier de thème · Exporter un fichier de thème · JSON"
+
+msgid "UPDATES"
+msgstr "MISES À JOUR"
+
+msgid "Update automatically"
+msgstr "Mettre à jour automatiquement"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "Activé : une mise à jour vérifiée de Peersus est téléchargée et mise en place sans demander."
+
+msgid "Restart after an update"
+msgstr "Redémarrer après une mise à jour"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "Activé : Peersus redémarre de lui-même une fois la mise à jour en place, quand rien n’est envoyé ni reçu."
+
+msgid "Check for updates"
+msgstr "Rechercher des mises à jour"
+
+msgid "Update now"
+msgstr "Mettre à jour maintenant"
+
+msgid "Restart now"
+msgstr "Redémarrer maintenant"
+
+msgid "This installation does not update itself."
+msgstr "Cette installation ne se met pas à jour elle-même."
+
+msgid "Updates have not been looked for yet."
+msgstr "Aucune mise à jour n’a encore été recherchée."
+
+msgid "Looking for an update…"
+msgstr "Recherche d’une mise à jour…"
+
+msgid "This version is up to date."
+msgstr "Cette version est à jour."
+
+msgid "Version {version} is available."
+msgstr "La version {version} est disponible."
+
+msgid "Version"
+msgstr "Version"
+
+msgid "Updates"
+msgstr "Mises à jour"
+
+msgid "not in this build"
+msgstr "pas dans cette version"
+
+msgid "not automatic"
+msgstr "pas automatiques"
+
+msgid "not checked yet"
+msgstr "pas encore vérifiées"
+
+msgid "checking…"
+msgstr "vérification…"
+
+msgid "up to date"
+msgstr "à jour"
+
+msgid "update available"
+msgstr "mise à jour disponible"
+
+msgid "updating…"
+msgstr "mise à jour…"
+
+msgid "restart to finish"
+msgstr "redémarrer pour terminer"
+
+msgid "Binds"
+msgstr "Raccourcis"
+
+msgid "KEY BINDINGS"
+msgstr "RACCOURCIS CLAVIER"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "Un raccourci fait ce que dit sa ligne tant que la fenêtre est au premier plan. Appuyez sur + puis sur les touches ensemble pour en ajouter un, jusqu'à trois ; appuyez sur un raccourci pour le changer, puis Retour arrière pour le retirer ou Échap pour le garder."
+
+msgid "press the keys…"
+msgstr "appuyez sur les touches…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Retour arrière retire"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} a déjà trois raccourcis clavier."
+
+msgid "Also while the window is not in front"
+msgstr "Aussi quand la fenêtre n'est pas au premier plan"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Le bureau vous demande d'approuver les touches et peut en attribuer une autre si l'une est déjà prise."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} lance déjà : {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Accepte la dernière offre de fichiers en attente, enregistrés là où le dit votre règle pour les fichiers reçus."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Refuse la dernière offre de fichiers en attente."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Ouvre la page Envoyer, pour choisir les fichiers et l'appareil qui les reçoit."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Ouvre la page Recevoir, avec son code d'association et les fichiers reçus."
+
+msgid "Accept incoming files"
+msgstr "Accepter les fichiers entrants"
+
+msgid "Decline incoming files"
+msgstr "Refuser les fichiers entrants"
+
+msgid "Show Send"
+msgstr "Afficher Envoyer"
+
+msgid "Show Receive"
+msgstr "Afficher Recevoir"
+
+msgid "something no longer installed"
+msgstr "quelque chose qui n’est plus installé"
+
+msgid "Downloading the update…"
+msgstr "Téléchargement de la mise à jour…"
+
+msgid "Putting the update in place…"
+msgstr "Mise en place de la mise à jour…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "La mise à jour est en place. Elle s’exécute après un redémarrage."
+
+msgid "Restarting…"
+msgstr "Redémarrage…"
+
+msgid "The update could not be completed."
+msgstr "La mise à jour n’a pas pu être terminée."
+
+msgid "Accept TOS"
+msgstr "Accepter TOS"
+
+msgid "Next"
+msgstr "Suivant"
+
+msgid "Hold to confirm"
+msgstr "Maintenez pour confirmer"
+
+msgid "Keep holding"
+msgstr "Continuez à maintenir"
+
+msgid "Read to the end to go on"
+msgstr "Lisez jusqu’au bout pour continuer"
+
+msgid "Step {number} of {total}"
+msgstr "Étape {number} sur {total}"
+
+msgid "WHAT THIS IS"
+msgstr "DE QUOI IL S’AGIT"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "CE QUI CHANGE POUR VOUS"
+
+msgid "READ THE FULL TEXT"
+msgstr "LIRE LE TEXTE COMPLET"
+
+msgid "LICENCE"
+msgstr "LICENCE"
+
+msgid "NOTICE"
+msgstr "AVIS"
+
+msgid "TERMS"
+msgstr "CONDITIONS"
+
+msgid "OUTSIDE THE STORE"
+msgstr "HORS DE LA BOUTIQUE"
+
+msgid "This extension did not come through the store"
+msgstr "Cette extension ne vient pas de la boutique"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Personne chez Peersus ne l’a examinée, signée ni déclarée sûre. Elle s’exécute avec votre accès sur cet appareil et peut lire et envoyer tout ce que vous lui laissez atteindre."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Le projet Peersus ne peut pas assumer le risque d’une extension venue de l’extérieur de sa boutique et n’est pas responsable de ce qu’elle fait à vous, à vos fichiers ou à vos appareils. Le risque est le vôtre."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Préférez la boutique : ce qui y figure a été examiné avant d’être proposé. Si vous ne savez pas qui a fait ce paquet, ne l’installez pas."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Lisez jusqu’au bout, puis maintenez le bouton pour confirmer que vous avez compris et acceptez le risque."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} fichier"
+msgstr[1] "{count} fichiers"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minute"
+msgstr[1] "{count} minutes"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} heure"
+msgstr[1] "{count} heures"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} jour"
+msgstr[1] "{count} jours"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} mois"
+msgstr[1] "{count} mois"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} an"
+msgstr[1] "{count} ans"
+
+msgid "The language file could not be read."
+msgstr "Le fichier de langue n'a pas pu être lu."
+
+msgid "The language file was imported."
+msgstr "Le fichier de langue a été importé."
+
+msgid "The template was saved."
+msgstr "Le modèle a été enregistré."
+
+msgid "The template could not be saved."
+msgstr "Le modèle n'a pas pu être enregistré."
+
+msgid "Could not open a browser."
+msgstr "Impossible d'ouvrir un navigateur."
+
+msgid "This device is set to {language}."
+msgstr "Cet appareil est réglé sur {language}."
+
+msgid "This device names no language, so English is used."
+msgstr "Cet appareil n'indique aucune langue, l'anglais est donc utilisé."
+
+msgid "LANGUAGE"
+msgstr "LANGUE"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "L'anglais est intégré. Toute autre langue est un fichier téléchargé pour cette version ; ce qu'il ne traduit pas s'affiche en anglais."
+
+msgid "Use the device's language"
+msgstr "Utiliser la langue de l'appareil"
+
+msgid "Looking for languages…"
+msgstr "Recherche de langues…"
+
+msgid "The languages could not be fetched"
+msgstr "Les langues n'ont pas pu être récupérées"
+
+msgid "No other language is offered for this version yet."
+msgstr "Aucune autre langue n'est encore proposée pour cette version."
+
+msgid "TRANSLATE"
+msgstr "TRADUIRE"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Enregistrez le modèle, traduisez-le dans n'importe quel éditeur PO, importez-le ici pour le voir aussitôt, puis partagez-le pour qu'il soit proposé à tous."
+
+msgid "{percent}% translated"
+msgstr "{percent} % traduit"
+
+msgid "{about} · imported"
+msgstr "{about} · importé"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · téléchargé une fois choisi"
+
+msgid "IN USE"
+msgstr "UTILISÉE"
+
+msgid "Use"
+msgstr "Utiliser"
+
+msgid "Check again"
+msgstr "Vérifier à nouveau"
+
+msgid "Language file"
+msgstr "Fichier de langue"
+
+msgid "Import a language file…"
+msgstr "Importer un fichier de langue…"
+
+msgid "Language template"
+msgstr "Modèle de langue"
+
+msgid "Save the template…"
+msgstr "Enregistrer le modèle…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Partager une traduction (ouvre le navigateur)"
+
+msgid "Languages"
+msgstr "Langues"
+
+msgid "English is the application's own language and needs no file"
+msgstr "L'anglais est la langue propre de l'application et n'a besoin d'aucun fichier"
+
+msgid "No languages are offered for this release yet"
+msgstr "Aucune langue n'est encore proposée pour cette version"
+
+msgid "That language file is not held"
+msgstr "Ce fichier de langue n'est pas présent"
+
+msgid "The language file could not be read"
+msgstr "Le fichier de langue n'a pas pu être lu"
+
+msgid "The language file could not be removed"
+msgstr "Le fichier de langue n'a pas pu être supprimé"
+
+msgid "The language file could not be saved"
+msgstr "Le fichier de langue n'a pas pu être enregistré"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Le fichier de langue ne dit pas de quelle langue il s'agit (son en-tête n'a pas de Language)"
+
+msgid "The language file is too large"
+msgstr "Le fichier de langue est trop volumineux"
+
+msgid "The languages could not be saved"
+msgstr "Les langues n'ont pas pu être enregistrées"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "Les fenêtres s'affichent en anglais, qui n'a besoin d'aucun fichier"
+
+msgid "This is not a language file the application can read"
+msgstr "Ce n'est pas un fichier de langue que l'application peut lire"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "Ce qu'a envoyé la branche des langues n'a pas pu être vérifié"
+
+msgid "Languages are not available here"
+msgstr "Les langues ne sont pas disponibles ici"
+
+msgid "The plugin picker could not be opened"
+msgstr "Le sélecteur de plugins n'a pas pu être ouvert"
+
+msgid "The file picker could not be opened"
+msgstr "Le sélecteur de fichiers n'a pas pu être ouvert"
+
+msgid "Another language file is being imported"
+msgstr "Un autre fichier de langue est en cours d'importation"
+
+msgid "The application is not ready to import a language file"
+msgstr "L'application n'est pas prête à importer un fichier de langue"
+
+msgid "The application is not ready to open plugins"
+msgstr "L'application n'est pas prête à ouvrir des plugins"
+
+msgid "Another plugin archive is being opened"
+msgstr "Une autre archive de plugin est en cours d'ouverture"
+
+msgid "The selected archive could not be staged"
+msgstr "L'archive choisie n'a pas pu être préparée"
+
+msgid "The selected archive could not be read"
+msgstr "L'archive choisie n'a pas pu être lue"
+
+msgid "The embedded metadata is not valid"
+msgstr "Les métadonnées intégrées ne sont pas valides"
+
+msgid "The program carries no embedded metadata"
+msgstr "Le programme ne contient aucune métadonnée intégrée"
+
+msgid "The program is not a recognised binary"
+msgstr "Le programme n’est pas un binaire reconnu"
+
+msgid "Input capabilities are unavailable"
+msgstr "Les fonctions de saisie ne sont pas disponibles"
+
+msgid "Input is unavailable"
+msgstr "La saisie n'est pas disponible"
+
+msgid "The input was not understood"
+msgstr "La saisie n'a pas été comprise"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Impossible de contrôler cet ordinateur : aucun périphérique d'entrée n'a pu être créé"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Cet ordinateur ne peut pas attribuer un pointeur dédié à cet appareil"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Cette extension rejoue la saisie pour trop d'appareils à la fois"
+
+msgid "Unknown input method"
+msgstr "Méthode de saisie inconnue"
+
+msgid "An installed native module must be read-only"
+msgstr "Un module natif installé doit être en lecture seule"
+
+msgid "Another plugin already has this name"
+msgstr "Un autre plugin porte déjà ce nom"
+
+msgid "It could not be read"
+msgstr "Impossible de le lire"
+
+msgid "It has no manifest"
+msgstr "Il n'a pas de manifeste"
+
+msgid "It has no program"
+msgstr "Il n'a pas de programme"
+
+msgid "It has two manifests"
+msgstr "Il a deux manifestes"
+
+msgid "It is not a directory"
+msgstr "Ce n'est pas un dossier"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Il propose un service déjà proposé par un autre plugin"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Il reçoit des données sans autorisation pour les protéger"
+
+msgid "Its directory belongs to someone else"
+msgstr "Son dossier appartient à quelqu'un d'autre"
+
+msgid "Its directory can be changed by others"
+msgstr "Son dossier peut être modifié par d'autres"
+
+msgid "Its manifest could not be read"
+msgstr "Impossible de lire son manifeste"
+
+msgid "Its manifest is not a file"
+msgstr "Son manifeste n'est pas un fichier"
+
+msgid "Its manifest is not valid"
+msgstr "Son manifeste n'est pas valide"
+
+msgid "Its manifest is too large"
+msgstr "Son manifeste est trop volumineux"
+
+msgid "Its name is not usable"
+msgstr "Son nom n'est pas utilisable"
+
+msgid "Its program belongs to someone else"
+msgstr "Son programme appartient à quelqu'un d'autre"
+
+msgid "Its program can be changed by others"
+msgstr "Son programme peut être modifié par d'autres"
+
+msgid "Its program cannot be run"
+msgstr "Son programme ne peut pas être exécuté"
+
+msgid "Its program is not a file"
+msgstr "Son programme n'est pas un fichier"
+
+msgid "One of its actions could never be reached"
+msgstr "L'une de ses actions ne pourrait jamais être atteinte"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Impossible d'exécuter des plugins sur ce système"
+
+msgid "Cannot create application directory"
+msgstr "Impossible de créer le dossier de l'application"
+
+msgid "Cannot open identity lock"
+msgstr "Impossible d'ouvrir le verrou de l'identité"
+
+msgid "Identity is being opened by another process"
+msgstr "L'identité est en cours d'ouverture par un autre processus"
+
+msgid "System credential store is unavailable"
+msgstr "Le magasin d'identifiants du système est indisponible"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Impossible de démarrer l'accès au trousseau système ; l'identité existante n'a pas été modifiée"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Impossible de vérifier le déverrouillage du trousseau système ; l'identité existante n'a pas été modifiée"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Le trousseau système est toujours verrouillé ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Le trousseau système est indisponible ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Le déverrouillage du trousseau système a expiré ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Le déverrouillage du trousseau système a été annulé ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "Le trousseau du système est verrouillé et son service n'a pas affiché la demande de mot de passe ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "Could not read local application state"
+msgstr "Impossible de lire l'état local de l'application"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "La connexion locale a échoué ; le résultat de la commande est peut-être inconnu"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "La requête locale a expiré ; le résultat de la commande est peut-être inconnu"
+
+msgid "Too many windows are attached"
+msgstr "Trop de fenêtres sont rattachées"
+
+msgid "The window program is not beside the owner"
+msgstr "Le programme de fenêtre ne se trouve pas à côté du propriétaire"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Cette session n'a pas d'affichage X où placer un panneau"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Ce format d'extension n'est pas disponible dans cette distribution"
+
+msgid "It clashes with another plugin"
+msgstr "Il entre en conflit avec un autre plugin"
+
+msgid "It could not be loaded"
+msgstr "Impossible de le charger"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Ce paquet n'a ni licence ni avis, il ne peut donc pas être installé"
+
+msgid "It has no manifest the application can use"
+msgstr "Il n'a aucun manifeste utilisable par l'application"
+
+msgid "It has no program the application can run"
+msgstr "Il n'a aucun programme exécutable par l'application"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "Son dossier peut être modifié par d'autres, il n'est donc pas exécuté"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Impossible d'encoder la configuration du catalogue privé"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Impossible de trouver l'assistant du catalogue privé"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Impossible de préparer l'état du catalogue privé"
+
+msgid "Cannot protect private catalog state"
+msgstr "Impossible de protéger l'état du catalogue privé"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Impossible de lire la configuration du catalogue privé"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Impossible d'enregistrer la configuration du catalogue privé de manière sécurisée"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Impossible de vérifier la configuration enregistrée du catalogue privé"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "La configuration du catalogue privé a été modifiée pendant l'enregistrement"
+
+msgid "The private catalog signing key is not valid"
+msgstr "La clé de signature du catalogue privé n'est pas valide"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "La configuration enregistrée du catalogue privé est inutilisable"
+
+msgid "The system credential store is unavailable"
+msgstr "Le magasin d'identifiants du système n'est pas disponible"
+
+msgid "Cannot forget the relay token"
+msgstr "Impossible d'oublier le jeton de relais"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Impossible de lire le jeton de relais ; celui qui était enregistré n'a pas été modifié"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Impossible d'enregistrer le jeton de relais dans le gestionnaire d'identifiants du système"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Impossible de vérifier le jeton de relais enregistré"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Le jeton de relais enregistré a changé pendant son enregistrement"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Le jeton de relais enregistré est inutilisable ; il n'a pas été modifié"
+
+msgid "Action arguments are invalid"
+msgstr "Les arguments de l’action ne sont pas valides"
+
+msgid "Action context is invalid"
+msgstr "Le contexte de l'action n'est pas valide"
+
+msgid "Action is not permitted for this device"
+msgstr "Action non autorisée pour cet appareil"
+
+msgid "An action can have up to three key bindings"
+msgstr "Une action peut avoir jusqu'à trois raccourcis clavier"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "Une extension a fait trop de demandes trop vite et est mise en pause un court instant"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "Une extension te demande de lire et d’accepter sa licence et sa notice ; ouvre Extensions"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Un paquet externe ne peut pas remplacer un plugin intégré"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "Une autre extension transmet déjà les entrées entre les appareils. Désactive-la pour utiliser celle-ci"
+
+msgid "Application updates are not available here"
+msgstr "Les mises à jour de l’application ne sont pas disponibles ici"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Les plugins intégrés ne peuvent pas être supprimés"
+
+msgid "Choose a device for this action"
+msgstr "Choisis un appareil pour cette action"
+
+msgid "Choose a device for this setting"
+msgstr "Choisis un appareil pour ce réglage"
+
+msgid "Choose between one and sixteen files"
+msgstr "Choisis entre un et seize fichiers"
+
+msgid "Choose exactly one file for this action"
+msgstr "Choisis un seul fichier pour cette action"
+
+msgid "Could not change this permission"
+msgstr "Impossible de modifier cette autorisation"
+
+msgid "Could not clear the history"
+msgstr "Impossible d'effacer l'historique"
+
+msgid "Could not forget device"
+msgstr "Impossible d'oublier l'appareil"
+
+msgid "Could not forget what it was granted"
+msgstr "Impossible d'oublier ce qui lui a été accordé"
+
+msgid "Could not keep the picture"
+msgstr "Impossible de conserver l'image"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Impossible d'ouvrir le dossier sélectionné ou l'appareil est hors ligne"
+
+msgid "Could not remove the picture"
+msgstr "Impossible de supprimer l'image"
+
+msgid "Could not save permissions"
+msgstr "Impossible d'enregistrer les autorisations"
+
+msgid "Device is not paired"
+msgstr "L'appareil n'est pas associé"
+
+msgid "Extension prompts unavailable"
+msgstr "Demandes d'extensions indisponibles"
+
+msgid "Files selection is not fully accounted for"
+msgstr "La sélection de fichiers n'est pas entièrement prise en compte"
+
+msgid "Input arguments are invalid"
+msgstr "Les arguments d'entrée ne sont pas valides"
+
+msgid "Invalid value for this setting"
+msgstr "Valeur non valide pour ce réglage"
+
+msgid "Key bindings are not available on this device"
+msgstr "Les raccourcis clavier ne sont pas disponibles sur cet appareil"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Les langues sont en cours de récupération ; réessaie quand ce sera terminé"
+
+msgid "No picture is held for that"
+msgstr "Aucune image n’est conservée pour cela"
+
+msgid "No plugin handles this request"
+msgstr "Aucun plugin ne gère cette demande"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Rien n’a été affiché pour ce plugin"
+
+msgid "Permissions could not be applied"
+msgstr "Les autorisations n’ont pas pu être appliquées"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Le plugin n'est pas autorisé pour cet appareil"
+
+msgid "Plugin unavailable"
+msgstr "Plugin indisponible"
+
+msgid "Plugins cannot be installed here"
+msgstr "Impossible d'installer des plugins ici"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Impossible d'enregistrer la configuration du catalogue privé"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Les catalogues privés ne sont pas activés sur cet appareil"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Démo en lecture seule : cette fenêtre n’est pas connectée à un propriétaire"
+
+msgid "Selected input is unavailable"
+msgstr "Le champ sélectionné n'est pas disponible"
+
+msgid "That action cannot be run by a key"
+msgstr "Cette action ne peut pas être lancée par une touche"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Cette action a besoin d'un appareil pour sa touche, et seulement dans ce cas"
+
+msgid "That device cannot be sent to"
+msgstr "Impossible d’envoyer à cet appareil"
+
+msgid "That extension action is not installed"
+msgstr "Cette action d'extension n'est pas installée"
+
+msgid "That input was not understood"
+msgstr "Cette entrée n'a pas été comprise"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Cette autorisation ne peut pas être accordée à ce plugin"
+
+msgid "The code was already used or is no longer shown"
+msgstr "Le code a déjà été utilisé ou n'est plus affiché"
+
+msgid "The extension store failed"
+msgstr "La boutique d’extensions a échoué"
+
+msgid "The extension store is not available here"
+msgstr "La boutique d’extensions n’est pas disponible ici"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "La licence et l'avis n'ont pas été acceptés, donc rien n'a été installé"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Le paquet a changé après avoir été affiché ; choisis-le à nouveau"
+
+msgid "The package has no valid name"
+msgstr "Le paquet n'a pas de nom valide"
+
+msgid "The plugin could not be registered"
+msgstr "Impossible d'enregistrer le plugin"
+
+msgid "The plugin does not allow this action"
+msgstr "Le plugin n'autorise pas cette action"
+
+msgid "The plugin does not offer this action"
+msgstr "Le plugin ne propose pas cette action"
+
+msgid "The plugin is not running"
+msgstr "Le plugin n'est pas en cours d'exécution"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "Le plugin ne correspond pas à ce qui a été affiché ; vérifie-le à nouveau"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "Le plugin envoie trop de données, trop vite"
+
+msgid "The request could not be sent"
+msgstr "La requête n'a pas pu être envoyée"
+
+msgid "The text to share is empty or too large"
+msgstr "Le texte à partager est vide ou trop long"
+
+msgid "The update failed"
+msgstr "La mise à jour a échoué"
+
+msgid "This action does not accept selected input"
+msgstr "Cette action n'accepte pas de sélection en entrée"
+
+msgid "This action does not accept shared text"
+msgstr "Cette action n'accepte pas de texte partagé"
+
+msgid "This action does not use a device"
+msgstr "Cette action n'utilise pas d'appareil"
+
+msgid "This action is not available now"
+msgstr "Cette action n'est pas disponible pour le moment"
+
+msgid "This action requires its declared selected input"
+msgstr "Cette action nécessite la sélection en entrée qu'elle a déclarée"
+
+msgid "This device cannot keep a relay token"
+msgstr "Cet appareil ne peut pas conserver de jeton de relais"
+
+msgid "This extension declares no input transport"
+msgstr "Cette extension ne déclare aucun transport d’entrée"
+
+msgid "This is not permitted for this device"
+msgstr "Ce n'est pas autorisé pour cet appareil"
+
+msgid "This page is not offered on this system"
+msgstr "Cette page n'est pas proposée sur ce système"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Cette plateforme ne propose pas la fonctionnalité demandée"
+
+msgid "This setting is not per device"
+msgstr "Ce réglage ne dépend pas de l'appareil"
+
+msgid "Too many calls"
+msgstr "Trop d’appels"
+
+msgid "Too many operations are pending"
+msgstr "Trop d'opérations sont en attente"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "Trop de transferts sont en attente de plugins"
+
+msgid "Unknown action"
+msgstr "Action inconnue"
+
+msgid "Unknown device"
+msgstr "Appareil inconnu"
+
+msgid "Unknown page"
+msgstr "Page inconnue"
+
+msgid "Unknown plugin"
+msgstr "Plugin inconnu"
+
+msgid "Unknown setting"
+msgstr "Paramètre inconnu"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Attends la fin de l'opération en cours sur le catalogue"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Ton acceptation n'a pas pu être enregistrée, donc rien n'a été installé"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "Une AppImage ne se remplace pas elle-même ; télécharge la nouvelle"
+
+msgid "Kept by something else"
+msgstr "Conservé par autre chose"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "L’application ne peut pas encore se remplacer elle-même sur ce système"
+
+msgid "The update could not be unpacked"
+msgstr "Impossible de décompresser la mise à jour"
+
+msgid "The update could not be written beside the application"
+msgstr "Impossible d’écrire la mise à jour à côté de l’application"
+
+msgid "The update is not a plain set of programs"
+msgstr "La mise à jour n’est pas un simple ensemble de programmes"
+
+msgid "The update is not for this installation"
+msgstr "La mise à jour n’est pas destinée à cette installation"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "La mise à jour n'a été que partiellement appliquée ; réinstalle l'application"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Cette installation est gérée par le système et mise à jour avec lui"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Cette installation est mise à jour par Flatpak"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Ce type de mise à jour ne peut pas être appliqué à cette installation"
+
+msgid "Loading…"
+msgstr "Chargement…"
+
+msgid "Another device"
+msgstr "Autre appareil"
+
+msgid "CANCELLED"
+msgstr "ANNULÉ"
+
+msgid "CONNECTED"
+msgstr "CONNECTÉ"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Choisis une archive de plugin (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Choisis une photo de profil (PNG ou JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Le choix d’un dossier n’est pas disponible sur cet appareil."
+
+msgid "Clear"
+msgstr "Effacer"
+
+msgid "Clear them?"
+msgstr "Les effacer ?"
+
+msgid "FAILED · {reason}"
+msgstr "ÉCHEC · {reason}"
+
+msgid "FOR {device}"
+msgstr "POUR {device}"
+
+msgid "Folder for incoming files"
+msgstr "Dossier des fichiers reçus"
+
+msgid "INCOMING"
+msgstr "ENTRANT"
+
+msgid "NOT RUNNING"
+msgstr "ARRÊTÉ"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Aucun dossier n’a été choisi, le fichier n’a donc pas été accepté."
+
+msgid "OUTGOING"
+msgstr "SORTANT"
+
+msgid "OUTGOING · PREPARED"
+msgstr "SORTANT · PRÉPARÉ"
+
+msgid "Peersus could not be started again"
+msgstr "Impossible de redémarrer Peersus"
+
+msgid "Save the file in"
+msgstr "Enregistrer le fichier dans"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "Le dossier choisi pour les fichiers reçus n'existe plus. Choisis-en un autre."
+
+msgid "The identity could not be reset"
+msgstr "Impossible de réinitialiser l'identité"
+
+msgid "The plugin picker is unavailable"
+msgstr "Le sélecteur d'extensions n'est pas disponible"
+
+msgid "There is no data directory to look in"
+msgstr "Il n'y a aucun répertoire de données à consulter"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Touche l'écran avec deux doigts pour faire descendre les Réglages depuis le haut. Sans effet si les Réglages sont déjà ouverts."
+
+msgid "Two fingers open Settings"
+msgstr "Deux doigts ouvrent les Réglages"
+
+msgid "Identity unavailable"
+msgstr "Identité indisponible"
+
+msgid "Nowhere to look"
+msgstr "Rien à consulter"
+
+msgid "Peersus could not start"
+msgstr "Peersus n'a pas pu démarrer"
+
+msgid "Peersus stopped"
+msgstr "Peersus s'est arrêté"
+
+msgid "The action did not accept the value"
+msgstr "L'action n'a pas accepté la valeur"
+
+msgid "The owner stopped"
+msgstr "Le propriétaire s'est arrêté"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "La partie de Peersus qui maintient tes appareils connectés n’a pas démarré, sans indiquer pourquoi."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "La partie de Peersus qui garde tes appareils connectés n'a pas démarré. Message : {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "La partie de Peersus qui garde tes appareils connectés s'est arrêtée, et son redémarrage automatique n'a pas suffi à la maintenir en marche."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Ce compte n'a pas de répertoire de données, l'application est donc introuvable."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Saisis ton jeton GitHub en lecture seule. Aucun autre réglage n’est nécessaire ici ; le jeton reste dans le stockage sécurisé de l’appareil."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "Jeton GitHub avec accès Contents du dépôt : lecture"
+
+msgid "Private development catalog"
+msgstr "Catalogue de développement privé"
+
+msgid "Save and apply"
+msgstr "Enregistrer et appliquer"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "Le jeton GitHub doit tenir sur une seule ligne de 512 octets maximum"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Jeton enregistré de façon sécurisée et appliqué. La liste des extensions se met à jour en arrière-plan."
+
+msgid "OFFLINE"
+msgstr "HORS LIGNE"
+
+msgid "ONLINE"
+msgstr "EN LIGNE"
+
+msgid "SLEEPING"
+msgstr "EN VEILLE"
+
+msgid "An update is already being worked on"
+msgstr "Une mise à jour est déjà en cours"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "Une mise à jour a été installée ; redémarre l'application pour l'utiliser"
+
+msgid "Application updates are not set up in this build"
+msgstr "Les mises à jour de l'application ne sont pas configurées dans cette version"
+
+msgid "No update is available"
+msgstr "Aucune mise à jour disponible"
+
+msgid "No update is waiting for a restart"
+msgstr "Aucune mise à jour n'attend de redémarrage"
+
+msgid "The application update key is not valid"
+msgstr "La clé de mise à jour de l'application n'est pas valide"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "La mise à jour téléchargée n'est pas celle qui a été publiée"
+
+msgid "The saved update state could not be read"
+msgstr "L'état de mise à jour enregistré n'a pas pu être lu"
+
+msgid "The saved update state is damaged"
+msgstr "L'état de mise à jour enregistré est endommagé"
+
+msgid "The update could not be checked"
+msgstr "La mise à jour n'a pas pu être vérifiée"
+
+msgid "The update is described in a way this version does not read"
+msgstr "La mise à jour est décrite dans un format que cette version ne sait pas lire"
+
+msgid "The update is for another release channel"
+msgstr "La mise à jour est destinée à un autre canal de publication"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "La mise à jour n'est pas signée par l'éditeur de cette application"
+
+msgid "The update is too large"
+msgstr "La mise à jour est trop volumineuse"
+
+msgid "The update listing could not be checked"
+msgstr "La liste des mises à jour n'a pas pu être vérifiée"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "La mise à jour proposée ne correspond pas à la version déjà vue sous ce numéro"
+
+msgid "The update offered is older than one already seen"
+msgstr "La mise à jour proposée est plus ancienne qu'une version déjà vue"
+
+msgid "The update state could not be saved"
+msgstr "L'état de mise à jour n'a pas pu être enregistré"
+
+msgid "The catalog could not be read"
+msgstr "Le catalogue n'a pas pu être lu"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "Le catalogue contient des artefacts de plateforme ambigus ou non valides"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "Le catalogue contient une entrée non valide"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "Le catalogue contient des artefacts de plateforme non valides"
+
+msgid "The catalog is a version this application does not read"
+msgstr "Le catalogue est dans une version que cette application ne sait pas lire"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "Le catalogue n'est pas signé par le mainteneur"
+
+msgid "The catalog is older than one already seen"
+msgstr "Le catalogue est plus ancien qu'un catalogue déjà vu"
+
+msgid "The catalog is too large"
+msgstr "Le catalogue est trop volumineux"
+
+msgid "The catalog lists a name twice"
+msgstr "Le catalogue contient deux fois le même nom"
+
+msgid "The catalog lists too many extensions"
+msgstr "Le catalogue contient trop d'extensions"
+
+msgid "The catalog signature is not valid"
+msgstr "La signature du catalogue n'est pas valide"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Le paquet ne correspond pas à ce qu'en dit le catalogue"
+
+msgid "The package is not the one that was approved"
+msgstr "Le paquet n'est pas celui qui a été approuvé"
+
+msgid "The package name is not the approved name"
+msgstr "Le nom du paquet n'est pas le nom approuvé"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Le programme et son manifeste ne s'accordent pas sur son auteur"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Choisis un dossier de plugin, pas un fichier ni un lien"
+
+msgid "No data directory"
+msgstr "Aucun dossier de données"
+
+msgid "No such plugin is installed"
+msgstr "Aucun plugin de ce nom n'est installé"
+
+msgid "Nothing was retired under that name"
+msgstr "Rien n'a été retiré sous ce nom"
+
+msgid "Something is already installed under this name"
+msgstr "Un élément est déjà installé sous ce nom"
+
+msgid "That is not the name of a plugin"
+msgstr "Ce n'est pas un nom de plugin"
+
+msgid "The approval could not be written"
+msgstr "L'approbation n'a pas pu être enregistrée"
+
+msgid "The installed plugin directory is not safe"
+msgstr "Le dossier du plugin installé n'est pas sûr"
+
+msgid "The native module could not be made read-only"
+msgstr "Le module natif n'a pas pu être mis en lecture seule"
+
+msgid "The package could not be put back"
+msgstr "Le paquet n'a pas pu être restauré"
+
+msgid "The package could not be put in place"
+msgstr "Le paquet n'a pas pu être mis en place"
+
+msgid "The package could not be read"
+msgstr "Le paquet n'a pas pu être lu"
+
+msgid "The package could not be staged"
+msgstr "Le paquet n'a pas pu être préparé"
+
+msgid "The package could not be taken out of use"
+msgstr "Le paquet n'a pas pu être mis hors service"
+
+msgid "The package has too many files"
+msgstr "Le paquet contient trop de fichiers"
+
+msgid "The package is too large"
+msgstr "Le paquet est trop volumineux"
+
+msgid "The package names a file it does not have"
+msgstr "Le paquet mentionne un fichier qu'il ne contient pas"
+
+msgid "The package needs a manifest and a program"
+msgstr "Le paquet doit contenir un manifeste et un programme"
+
+msgid "The package's name is not usable"
+msgstr "Le nom du paquet n'est pas utilisable"
+
+msgid "The plugin could not be switched off"
+msgstr "Le plugin n'a pas pu être désactivé"
+
+msgid "The plugin could not be switched on"
+msgstr "Le plugin n'a pas pu être activé"
+
+msgid "The plugin store can be changed by others"
+msgstr "Le magasin de plugins peut être modifié par d'autres"
+
+msgid "The plugin store could not be locked"
+msgstr "Le magasin de plugins n'a pas pu être verrouillé"
+
+msgid "The plugin store could not be made"
+msgstr "Le magasin de plugins n'a pas pu être créé"
+
+msgid "The plugin store could not be read"
+msgstr "Le magasin de plugins n'a pas pu être lu"
+
+msgid "The plugin store is a link"
+msgstr "Le magasin de plugins est un lien"
+
+msgid "The plugin store is being changed by another process"
+msgstr "Le magasin de plugins est en cours de modification par un autre processus"
+
+msgid "The plugin store is not a directory"
+msgstr "Le magasin de plugins n'est pas un dossier"
+
+msgid "The retired plugin directory is not safe"
+msgstr "Le dossier du plugin retiré n'est pas sûr"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "Il n'y a rien à approuver pour ce plugin"
+
+msgid "Too many plugins are installed"
+msgstr "Trop de plugins sont installés"
+
+msgid "The extension store could not be reached"
+msgstr "Impossible de joindre le magasin d'extensions"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Les données envoyées par le magasin dépassent la taille autorisée"

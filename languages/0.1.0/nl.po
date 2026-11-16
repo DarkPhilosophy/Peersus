@@ -1,0 +1,2992 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: nl\n"
+"X-Language-Name: Nederlands\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr "Vraagt je een bestand voor deze extensie te kiezen; geen algemene toegang tot het bestandssysteem."
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr "Vraagt expliciete toestemming voor de bestemming van HTTPS-verzoeken; inloggegevens blijven in de hosttoepassing."
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr "Leest of vervangt de klembordtekst van dit apparaat in beperkte stukken, elk met een eigen toestemming."
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr "Leest de klembordtekst van dit apparaat in beperkte stukken; het platform bepaalt wanneer die leesbaar is en sluit gevoelige inhoud uit."
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr "Vervangt de klembordtekst van dit apparaat door tekst die de extensie in beperkte stukken aanlevert."
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr "Krijgt een melding wanneer het klembord van dit apparaat verandert, zonder de inhoud; voor lezen is nog steeds de leestoestemming nodig."
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr "Toont je meldingen onder zijn naam, met eigen woorden en knoppen, in het venster en daarbuiten."
+
+msgid "Confirm {label}"
+msgstr "Confirm {label}"
+
+msgid "Working…"
+msgstr "Working…"
+
+msgid "Completed"
+msgstr "Completed"
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr "Geannuleerd. Controleer een eventueel extern resultaat voordat je het opnieuw probeert."
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr "Niet toegestaan. Controleer de machtigingen van deze plugin."
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr "Plugin niet beschikbaar. Start hem en probeer het opnieuw."
+
+msgid "The action timed out. Check its result before retrying."
+msgstr "De actie duurde te lang. Controleer het resultaat voordat je het opnieuw probeert."
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr "Er loopt een andere bewerking. Probeer het opnieuw als die klaar is."
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr "De actie kon niet worden voltooid. Controleer de plugin en probeer het opnieuw."
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr "Start de plugin, kies indien nodig een online apparaat en sta de machtigingen toe."
+
+msgid "Enter a value within the declared limits."
+msgstr "Voer een waarde binnen de opgegeven grenzen in."
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr "Ongeldige opgeslagen instelling. Herstel een geldige waarde."
+
+msgid "Supported platforms: {platforms}"
+msgstr "Ondersteunde platforms: {platforms}"
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr "Deze oudere plugin geeft niet aan welke platforms hij ondersteunt."
+
+msgid "For {name}"
+msgstr "For {name}"
+
+msgid "Install bundled {name}"
+msgstr "Meegeleverde {name} installeren"
+
+
+
+
+msgid "It does not support this operating system"
+msgstr "Het ondersteunt dit besturingssysteem niet"
+
+msgid "Support Peersus — entirely optional"
+msgstr "Steun Peersus — helemaal vrijblijvend"
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr "Als Peersus je helpt, kun je een vrijwillige fooi geven. Alle functies blijven gratis, zonder advertenties, betaalde functies of voorrang."
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr "Kaartbetalingen lopen via het gekoppelde Stripe-account van de maker, waar Ko-fi dat aanbiedt; betaalmethoden verschillen. Peersus verwerkt je kaartgegevens niet."
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr "Een fooi koopt geen product, dienst, toegang of beloning. Er kunnen kosten gelden. Fiscale aftrekbaarheid wordt niet beloofd. Een openbaar bedankje is een aparte, vrijwillige keuze op de website, nooit een voordeel in de app."
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr "Steunen op Ko-fi (opent de browser)"
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr "Kon geen browser openen. Je kunt https://ko-fi.com/DarkPhilosophy zelf openen."
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr "Niet leesbaar: het is verdwenen of de toepassing mag het niet openen."
+
+msgid "That file is empty, so there is no package in it."
+msgstr "Dit bestand is leeg en bevat dus geen pakket."
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr "Dit is geen map of bestand en kan dus geen pakket zijn."
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr "Gegevens versturen naar een gekoppeld apparaat dat je kiest. Het kan geen apparaatsleutels zien."
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr "ELKE plug-in onderbreken en herstarten, ook plug-ins die je niet voor dit doel hebt geïnstalleerd. Het kan hun gegevens niet lezen of hun toestemmingen wijzigen."
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr "De aanwijzer bewegen, knoppen en toetsen indrukken en tekst typen op deze computer, alsof het van een aangesloten muis en toetsenbord komt."
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr "De indeling van de gekoppelde bureaubladen van deze computer wijzigen en bepalen waar de aanwijzer ertussen oversteekt."
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr "Bericht krijgen wanneer een overdracht begint, vordert, eindigt, wordt geannuleerd of mislukt: welke overdracht en hoe ver. Het kan de naam van een bestand, de naam van een apparaat of de opslaglocatie niet zien en kan geen overdracht accepteren, weigeren of annuleren."
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr "Ook de NAAM van elk overgedragen bestand zien en de naam van het apparaat waar het naartoe gaat of vandaan komt. Bestandsnamen kunnen veel over iemand zeggen."
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr "Eigen statussen aanmaken en de woorden kiezen die ze benoemen. Een status die alleen is aangemaakt zegt niets over jou totdat hij wordt ingeschakeld."
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr "Eigen statussen in- en uitschakelen. Wat aan staat wordt GETOOND aan elk gekoppeld apparaat, in de woorden die de plug-in koos, zolang het aan staat."
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr "Zien welke statussen je gekoppelde apparaten tonen en bericht krijgen wanneer ze veranderen. Wat een status zegt (iets bekijken, bezig zijn) kan persoonlijk zijn."
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr "Geen map gekozen. Voor elk bestand wordt gevraagd waar het moet worden opgeslagen."
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr "Er is een map gekozen. Bestanden gaan er rechtstreeks in."
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr "Het begint zonder toestemmingen. Na de installatie bepaal je wat het mag doen."
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr "Er is al een plug-in met deze naam geïnstalleerd. Deze wordt vervangen en begint zonder toestemmingen."
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr "Deze plug-in is niet goedgekeurd en wordt daarom niet uitgevoerd. Goedkeuren staat uitvoering toe met de hieronder vermelde verzoeken."
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr "Het programma van deze plug-in verschilt van het goedgekeurde programma en wordt daarom niet uitgevoerd. Opnieuw goedkeuren staat uitvoering toe en vergeet de eerdere toestemmingen."
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr "Deze plug-in is beschadigd of het programma kan niet worden uitgevoerd. Deze kan alleen worden verwijderd."
+
+msgid "RUNNING"
+msgstr "ACTIEF"
+
+msgid "STARTING"
+msgstr "STARTEN"
+
+msgid "RESTARTING"
+msgstr "HERSTARTEN"
+
+msgid "OFF"
+msgstr "UIT"
+
+msgid "FAILED"
+msgstr "MISLUKT"
+
+msgid "BROKEN"
+msgstr "BESCHADIGD"
+
+msgid "CHANGED"
+msgstr "GEWIJZIGD"
+
+msgid "NEEDS APPROVAL"
+msgstr "GOEDKEURING NODIG"
+
+msgid "Replace"
+msgstr "Vervangen"
+
+msgid "Drop one package at a time."
+msgstr "Sleep één pakket tegelijk."
+
+msgid "No description was given for this permission."
+msgstr "Er is geen beschrijving voor deze toestemming opgegeven."
+
+msgid "The selection is too large"
+msgstr "De selectie is te groot"
+
+msgid "The file picker did not report its selection count"
+msgstr "De bestandskiezer heeft het aantal geselecteerde bestanden niet gemeld"
+
+msgid "The application answered with something else than a code"
+msgstr "De toepassing antwoordde met iets anders dan een code"
+
+msgid "The file producer stopped before finishing the selection."
+msgstr "De bestandsvoorbereiding stopte voordat de selectie was voltooid."
+
+msgid "The file producer stopped before creating a code."
+msgstr "De bestandsvoorbereiding stopte voordat een code werd gemaakt."
+
+msgid "Could not create invitation"
+msgstr "Uitnodiging kon niet worden gemaakt"
+
+msgid "Application stopped"
+msgstr "Toepassing is gestopt"
+
+msgid "Left out: {items}."
+msgstr "Overgeslagen: {items}."
+
+msgid "Not files: {count}"
+msgstr "Geen bestanden: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Niet leesbaar: {count}"
+
+msgid "Empty files: {count}"
+msgstr "Lege bestanden: {count}"
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr "Boven de selectielimiet van {limit} bestanden: {count}"
+
+msgid "{refused} selected files could not be offered."
+msgstr "Geselecteerde bestanden die niet aangeboden konden worden: {refused}."
+
+msgid "Restart"
+msgstr "Herstarten"
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr "OF KIES EEN OPGESLAGEN APPARAAT"
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr "HEB JE EEN CODE VAN EEN ANDER APPARAAT?"
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr "OF PLAK DE CODE VAN HET ANDERE APPARAAT"
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr "OF PLAK DEZE CODE OP HET ANDERE APPARAAT"
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr "VERBIND MET HET ANDERE APPARAAT"
+
+msgid "TRANSFERS"
+msgstr "OVERDRACHTEN"
+
+msgid "PAIRED PEERS"
+msgstr "GEKOPPELDE APPARATEN"
+
+msgid "MET BY CODE"
+msgstr "VIA CODE ONTMOET"
+
+msgid "{total} ({online} online)"
+msgstr "{total} ({online} online)"
+
+msgid "{total} ({running} running)"
+msgstr "{total} ({running} actief)"
+
+msgid "Goes straight to the device you picked"
+msgstr "Gaat rechtstreeks naar het gekozen apparaat"
+
+msgid "Goes straight to the devices you picked"
+msgstr "Gaat rechtstreeks naar de gekozen apparaten"
+
+msgid "No device picked: a code will be made"
+msgstr "Geen apparaat gekozen: er wordt een code gemaakt"
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr "Een gekozen apparaat is niet beschikbaar. Kies opnieuw, of geen om een code te gebruiken"
+
+msgid "tap to choose files"
+msgstr "tik om bestanden te kiezen"
+
+msgid "click to browse your computer"
+msgstr "klik om je computer te doorzoeken"
+
+msgid "SCAN"
+msgstr "SCANNEN"
+
+msgid "tap to open the camera"
+msgstr "tik om de camera te openen"
+
+msgid "starting the camera"
+msgstr "camera wordt gestart"
+
+msgid "NO CAMERA"
+msgstr "GEEN CAMERA"
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr "sta toegang toe voor Peersus in de telefooninstellingen en tik"
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr "Koppelen: toon een code om op het andere apparaat te scannen. Verbinden: scan of plak de code van het andere apparaat."
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr "Koppelen vertrouwt het andere apparaat totdat je het vergeet. Alleen een bestand via een code sturen doet dat nooit."
+
+msgid "CHOOSE FILES"
+msgstr "KIES BESTANDEN"
+
+msgid "TO SEND"
+msgstr "OM TE VERZENDEN"
+
+msgid "NO DEVICE PICKED"
+msgstr "GEEN APPARAAT GEKOZEN"
+
+msgid "TAP FOR"
+msgstr "TIK VOOR"
+
+msgid "A QR CODE"
+msgstr "EEN QR-CODE"
+
+msgid "HOLD TO SEND"
+msgstr "HOUD VAST OM TE VERZENDEN"
+
+msgid "TAP TO SEND"
+msgstr "TIK OM TE VERZENDEN"
+
+msgid "1 DEVICE"
+msgstr "1 APPARAAT"
+
+msgid "{count} DEVICES"
+msgstr "{count} APPARATEN"
+
+msgid "keep holding until it is full"
+msgstr "houd vast tot hij vol is"
+
+msgid "it sends at once"
+msgstr "verzendt meteen"
+
+msgid "A DEVICE WENT AWAY"
+msgstr "EEN APPARAAT IS WEG"
+
+msgid "PICK AGAIN"
+msgstr "KIES OPNIEUW"
+
+msgid "nothing is sent until you do"
+msgstr "er wordt niets verzonden totdat je dat doet"
+
+msgid "READY TO RECEIVE"
+msgstr "KLAAR OM TE ONTVANGEN"
+
+msgid "PASTE"
+msgstr "PLAK"
+
+msgid "THE CODE"
+msgstr "DE CODE"
+
+msgid "from the other device"
+msgstr "van het andere apparaat"
+
+msgid "CONNECT"
+msgstr "VERBINDEN"
+
+msgid "{name} wants to pair"
+msgstr "{name} wil koppelen"
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr "BEANTWOORD, WACHTEN OP HET ANDERE APPARAAT"
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr "KIES OP BEIDE APPARATEN HETZELFDE NUMMER"
+
+msgid "Send"
+msgstr "Verzenden"
+
+msgid "Receive"
+msgstr "Ontvangen"
+
+msgid "Peers"
+msgstr "Apparaten"
+
+msgid "Settings"
+msgstr "Instellingen"
+
+msgid "Overview"
+msgstr "Overzicht"
+
+msgid "Device"
+msgstr "Apparaat"
+
+msgid "Appearance"
+msgstr "Uiterlijk"
+
+msgid "Network"
+msgstr "Netwerk"
+
+msgid "Extensions"
+msgstr "Uitbreidingen"
+
+msgid "Permissions"
+msgstr "Machtigingen"
+
+msgid "History"
+msgstr "Geschiedenis"
+
+msgid "About"
+msgstr "Over"
+
+msgid "Language"
+msgstr "Taal"
+
+msgid "Reset"
+msgstr "Herstellen"
+
+msgid "Accent colour"
+msgstr "Accentkleur"
+
+msgid "Coral"
+msgstr "Koraal"
+
+msgid "Sky"
+msgstr "Hemel"
+
+msgid "Moss"
+msgstr "Mos"
+
+msgid "Amber"
+msgstr "Amber"
+
+msgid "Violet"
+msgstr "Violet"
+
+msgid "Rose"
+msgstr "Roze"
+
+msgid "Interface size"
+msgstr "Grootte van de interface"
+
+msgid "Compact"
+msgstr "Compact"
+
+msgid "Normal"
+msgstr "Normaal"
+
+msgid "Large"
+msgstr "Groot"
+
+msgid "Larger"
+msgstr "Groter"
+
+msgid "Largest"
+msgstr "Grootst"
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr "Tekst, pictogrammen en witruimte worden samen groter. Ctrl en + of − verandert het alleen voor dit venster."
+
+msgid "Save"
+msgstr "Opslaan"
+
+msgid "Cancel"
+msgstr "Annuleren"
+
+msgid "View files"
+msgstr "Bestanden bekijken"
+
+msgid "Close"
+msgstr "Sluiten"
+
+msgid "Copy"
+msgstr "Kopiëren"
+
+msgid "Request unlock"
+msgstr "Ontgrendeling aanvragen"
+
+msgid "Generate a new identity"
+msgstr "Nieuwe identiteit aanmaken"
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr "Ja, verwijder de vorige identiteit en maak een nieuwe"
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr "Dit verwijdert de door het systeem bewaarde identiteit en zet de koppelingen apart. Apparaten moeten opnieuw worden gekoppeld. Dit kan niet ongedaan worden gemaakt."
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr "De identiteit is teruggezet. Sluit dit venster en open Peersus opnieuw."
+
+msgid "Turn on devices nearby"
+msgstr "Apparaten in de buurt inschakelen"
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr "Apparaten in de buurt staan uit. Zet ze aan om apparaten in je buurt te zien die gekoppeld kunnen worden."
+
+msgid "Paste"
+msgstr "Plakken"
+
+msgid "Select all"
+msgstr "Alles selecteren"
+
+msgid "Cut"
+msgstr "Knippen"
+
+msgid "Remove"
+msgstr "Verwijderen"
+
+msgid "Relays"
+msgstr "Relays"
+
+msgid "Edit"
+msgstr "Bewerken"
+
+msgid "New relay: relay.example.org"
+msgstr "Nieuwe relay: relay.example.org"
+
+msgid "relay.example.org"
+msgstr "relay.example.org"
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr "Voer de relayserver in, bijvoorbeeld relay.example.org"
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr "Hoe lang een directe verbinding krijgt voordat gegevens via een relay mogen gaan."
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr "In volgorde Prioriteit: hoe lang een uitwijk wordt gebruikt voordat de eerste relay opnieuw wordt geprobeerd."
+
+msgid "Ping"
+msgstr "Ping"
+
+msgid "Search relays"
+msgstr "Relays zoeken"
+
+msgid "Position"
+msgstr "Positie"
+
+msgid "New address"
+msgstr "Nieuw adres"
+
+msgid "This relay's own timings"
+msgstr "Eigen tijden van deze relay"
+
+msgid "Uses the list-wide timings"
+msgstr "Gebruikt de tijden van de lijst"
+
+msgid "Use list-wide timings"
+msgstr "Tijden van de lijst gebruiken"
+
+msgid "Accept"
+msgstr "Accepteren"
+
+msgid "Refuse"
+msgstr "Weigeren"
+
+msgid "Stop"
+msgstr "Stoppen"
+
+msgid "Done"
+msgstr "Klaar"
+
+msgid "Connect"
+msgstr "Verbinden"
+
+msgid "Pair"
+msgstr "Koppelen"
+
+msgid "Install"
+msgstr "Installeren"
+
+msgid "Uninstall"
+msgstr "Verwijderen"
+
+msgid "Retry"
+msgstr "Opnieuw proberen"
+
+msgid "Open"
+msgstr "Openen"
+
+msgid "Back"
+msgstr "Terug"
+
+msgid "System"
+msgstr "Systeem"
+
+msgid "Light"
+msgstr "Licht"
+
+msgid "Dark"
+msgstr "Donker"
+
+msgid "Custom"
+msgstr "Aangepast"
+
+msgid "Device name"
+msgstr "Apparaatnaam"
+
+msgid "CODE SCANNED"
+msgstr "CODE GESCAND"
+
+msgid "SCANNED"
+msgstr "GESCAND"
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr "Het andere apparaat heeft de code gelezen. Wachten op acceptatie."
+
+msgid "WAITING FOR APPROVAL"
+msgstr "WACHTEN OP GOEDKEURING"
+
+msgid "SENDING"
+msgstr "VERZENDEN"
+
+msgid "DONE"
+msgstr "KLAAR"
+
+msgid "STOPPED"
+msgstr "GESTOPT"
+
+msgid "ENDS IN {time}"
+msgstr "VERLOOPT OVER {time}"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} wil je een bestand sturen"
+
+msgid "A device wants to send you a file"
+msgstr "Een apparaat wil je een bestand sturen"
+
+msgid "{files} are waiting in all"
+msgstr "Er wachten in totaal {files}"
+
+msgid "Waiting for the other device to accept {files}."
+msgstr "Wachten tot het andere apparaat {files} accepteert."
+
+msgid "Sending 1 file."
+msgstr "1 bestand wordt verzonden."
+
+msgid "Sending {files}."
+msgstr "{files} worden verzonden."
+
+msgid "1 file arrived."
+msgstr "1 bestand is aangekomen."
+
+msgid "{files} arrived."
+msgstr "{files} zijn aangekomen."
+
+msgid "1 SENT"
+msgstr "1 VERZONDEN"
+
+msgid "{count} SENT"
+msgstr "{count} VERZONDEN"
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr "{done} van {files} zijn aangekomen. De rest is geweigerd, geannuleerd of mislukt."
+
+msgid "1 file selected"
+msgstr "1 bestand geselecteerd"
+
+msgid "{files} selected"
+msgstr "{files} geselecteerd"
+
+msgid "+ {count} more"
+msgstr "+ nog {count}"
+
+msgid "never seen"
+msgstr "nooit gezien"
+
+msgid "just now"
+msgstr "zojuist"
+
+msgid "{duration} ago"
+msgstr "{duration} geleden"
+
+msgid "Continue"
+msgstr "Doorgaan"
+
+msgid "Join"
+msgstr "Deelnemen"
+
+msgid "Keep"
+msgstr "Bewaren"
+
+msgid "Forget"
+msgstr "Vergeten"
+
+msgid "Not now"
+msgstr "Niet nu"
+
+msgid "Choose folder"
+msgstr "Map kiezen"
+
+msgid "Use none"
+msgstr "Geen gebruiken"
+
+msgid "Name this device"
+msgstr "Geef dit apparaat een naam"
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr "Je andere apparaten tonen deze naam. Kies er een die je herkent."
+
+msgid "For example: Alex's laptop"
+msgstr "Bijvoorbeeld: laptop van Alex"
+
+msgid "Paste the code"
+msgstr "Plak de code"
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr "Nog geen opgeslagen apparaten. Verzend via een code en bewaar het apparaat wanneer daarom wordt gevraagd."
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr "Eén actie. Eén bestemming. Verplaats bestanden tussen je apparaten zonder een doolhof aan menu’s."
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr "Kies wat je accepteert. Jij bepaalt de regels. Er komt niets binnen zonder jouw toestemming."
+
+msgid "That is not a code from another device."
+msgstr "Dat is geen code van een ander apparaat."
+
+msgid "No paired peers yet. Pair a device above."
+msgstr "Nog geen gekoppelde apparaten. Koppel hierboven een apparaat."
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr "Kies een plug-inarchief of sleep hier een map of archief naartoe."
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr "Ook alle machtigingen op elk apparaat worden vergeten. Druk nogmaals om te verwijderen."
+
+msgid "No plugins installed."
+msgstr "Geen plug-ins geïnstalleerd."
+
+msgid "It cannot be granted anything."
+msgstr "Er kunnen geen machtigingen worden verleend."
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr "Koppel een apparaat om deze plug-in daarvoor machtigingen te geven."
+
+msgid "No plugins installed, so nothing to allow."
+msgstr "Geen plug-ins geïnstalleerd, dus niets om toe te staan."
+
+msgid "Nothing has been sent or received yet."
+msgstr "Er is nog niets verzonden of ontvangen."
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr "BELANGRIJK — GEGEVENS- EN BEVEILIGINGSRISICO’S"
+
+msgid "THE TRANSFER PORTAL"
+msgstr "HET OVERDRACHTSPORTAAL"
+
+msgid "WELCOME"
+msgstr "WELKOM"
+
+msgid "HISTORY"
+msgstr "GESCHIEDENIS"
+
+msgid "NOT PAIRED"
+msgstr "NIET GEKOPPELD"
+
+msgid "WAITING FOR YOU"
+msgstr "WACHT OP JOU"
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr "NIET AAN EEN APPARAAT GEKOPPELD"
+
+msgid "Received"
+msgstr "Ontvangen"
+
+msgid "Sent"
+msgstr "Verzonden"
+
+msgid "done"
+msgstr "voltooid"
+
+msgid "cancelled"
+msgstr "geannuleerd"
+
+msgid "failed"
+msgstr "mislukt"
+
+msgid "going"
+msgstr "bezig"
+
+msgid "SEND"
+msgstr "VERZENDEN"
+
+msgid "RECEIVE"
+msgstr "ONTVANGEN"
+
+msgid "PEERS"
+msgstr "APPARATEN"
+
+msgid "Make files"
+msgstr "Laat bestanden"
+
+msgid "fly."
+msgstr "vliegen."
+
+msgid "Ready when"
+msgstr "Klaar wanneer"
+
+msgid "you are."
+msgstr "jij dat bent."
+
+msgid "HOW THINGS STAND"
+msgstr "HUIDIGE STATUS"
+
+msgid "This device"
+msgstr "Dit apparaat"
+
+msgid "Internet relays"
+msgstr "Internetrelays"
+
+msgid "Runs in the background"
+msgstr "Draait op de achtergrond"
+
+msgid "Paired devices"
+msgstr "Gekoppelde apparaten"
+
+msgid "Transfers in progress"
+msgstr "Actieve overdrachten"
+
+msgid "on"
+msgstr "aan"
+
+msgid "off"
+msgstr "uit"
+
+msgid "yes"
+msgstr "ja"
+
+msgid "no"
+msgstr "nee"
+
+msgid "THIS DEVICE"
+msgstr "DIT APPARAAT"
+
+msgid "Run in the background"
+msgstr "Op de achtergrond uitvoeren"
+
+msgid "Start without opening a window."
+msgstr "Starten zonder een venster te openen."
+
+msgid "Notifications"
+msgstr "Meldingen"
+
+msgid "Offers over other apps"
+msgstr "Aanbiedingen boven andere apps"
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr "Aan: de lijst met bestanden van een aanbieding opent boven wat je doet, en Accepteren opent Peersus niet."
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr "Uit: de lijst met bestanden van een aanbieding opent in Peersus. Sta het toe om de lijst boven andere apps te zien."
+
+msgid "Where an offer appears"
+msgstr "Waar een aanbieding verschijnt"
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr "De schermrand waar een aanbieding van een bestand wordt getoond boven wat je aan het doen bent."
+
+msgid "Top"
+msgstr "Boven"
+
+msgid "Bottom"
+msgstr "Onder"
+
+msgid "Left"
+msgstr "Links"
+
+msgid "Right"
+msgstr "Rechts"
+
+msgid "Battery"
+msgstr "Batterij"
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr "Aan: het netwerk van de achtergronddienst blijft werken terwijl de telefoon inactief is."
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Beperkt: als de telefoon inactief is, kan het systeem het netwerk van de achtergronddienst afsluiten. Sta het toe in de batterij-instellingen."
+
+msgid "Trying to reach the device"
+msgstr "Verbinding met het apparaat wordt geprobeerd"
+
+msgid "This can take up to half a minute."
+msgstr "Dit kan tot een halve minuut duren."
+
+msgid "It answers, and it knows this device"
+msgstr "Het antwoordt en kent dit apparaat"
+
+msgid "The connection works. Nothing needs to be done."
+msgstr "De verbinding werkt. Er hoeft niets te gebeuren."
+
+msgid "It answers, but it no longer knows this device"
+msgstr "Het antwoordt, maar kent dit apparaat niet meer"
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr "Vergeet het hier en koppel de twee apparaten opnieuw. Er is verder niets mis."
+
+msgid "It does not answer"
+msgstr "Het antwoordt niet"
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr "Het staat misschien uit of buiten bereik. Probeer het zo opnieuw. De relays staan aan, dus een netwerkwissel is niet de oorzaak."
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr "De relays staan uit, dus apparaten op verschillende netwerken kunnen elkaar niet vinden. Zet „Internetrelays gebruiken” aan in de instellingen."
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr "Aan: een aanbod voor een bestand wordt ook getoond als het programma gesloten is."
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr "Geblokkeerd: een aanbod voor een bestand wordt niet getoond totdat je meldingen toestaat."
+
+msgid "Allow"
+msgstr "Toestaan"
+
+msgid "Camera"
+msgstr "Camera"
+
+msgid "Wide"
+msgstr "Groothoek"
+
+msgid "Main"
+msgstr "Hoofd"
+
+msgid "Zoom"
+msgstr "Zoom"
+
+msgid "Automatic"
+msgstr "Automatisch"
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr "Kies de camera die een code leest en druk op Testen om te zien wat ze toont."
+
+msgid "Test the camera"
+msgstr "Camera testen"
+
+msgid "Test connection"
+msgstr "Verbinding testen"
+
+msgid "Where is this device?"
+msgstr "Waar is dit apparaat?"
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr "192.168.1.20:5000 of naam.voorbeeld.nl:5000"
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr "Schrijf waar dit apparaat te vinden is als het adres van de koppeling is veranderd."
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr "Een naam is beter dan een getal: hij wordt elke keer opnieuw opgezocht en blijft dus werken als het getal verandert."
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr "De poort staat op het andere apparaat, in de instellingen. Zonder poort wordt de laatst geziene gebruikt."
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr "Dit helpt alleen als het apparaat op dat adres bereikbaar is. Een telefoon op een mobiel netwerk is dat meestal niet, en dan verbinden alleen de relays."
+
+msgid "Save and test"
+msgstr "Opslaan en testen"
+
+msgid "Remove the address"
+msgstr "Adres verwijderen"
+
+msgid "Listening port"
+msgstr "Luisterpoort"
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr "Een ander apparaat schrijft deze poort achter het adres van dit apparaat om het te vinden. Hij verandert bij elke start van het programma."
+
+msgid "Search settings"
+msgstr "Instellingen doorzoeken"
+
+msgid "Nothing in Settings looks like that."
+msgstr "Niets in de instellingen lijkt hierop."
+
+msgid "Files sent"
+msgstr "Verzonden bestanden"
+
+msgid "Files received"
+msgstr "Ontvangen bestanden"
+
+msgid "Files in all"
+msgstr "Bestanden in totaal"
+
+msgid "Generate QR code"
+msgstr "QR-code genereren"
+
+msgid "Clear the list"
+msgstr "Lijst wissen"
+
+msgid "+ Add more files"
+msgstr "+ Meer bestanden toevoegen"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "Active"
+msgstr "Actief"
+
+msgid "Stopped"
+msgstr "Gestopt"
+
+msgid "Incoming"
+msgstr "Inkomend"
+
+msgid "Outgoing"
+msgstr "Uitgaand"
+
+msgid "Search transfers"
+msgstr "Overdrachten zoeken"
+
+msgid "No transfer matches."
+msgstr "Geen overdracht komt overeen."
+
+msgid "Minimize"
+msgstr "Minimaliseren"
+
+msgid "Expand"
+msgstr "Uitvouwen"
+
+msgid "OUTGOING FILES"
+msgstr "UITGAANDE BESTANDEN"
+
+msgid "EXPERIMENTAL"
+msgstr "EXPERIMENTEEL"
+
+msgid "Devices nearby"
+msgstr "Apparaten in de buurt"
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr "Uit: er wordt niets aangekondigd en nergens naar geluisterd. Aan: zolang dit venster open is, luistert dit apparaat naar apparaten in de buurt en kan het door hen worden gevonden. Met Receive open zegt het dat het bestanden aanneemt: bestanden die op een gekoppeld apparaat vlak ernaast zijn vermeld, worden meteen verzonden, en een niet-gekoppeld apparaat kan de zijne aanbieden wanneer het dichtbij wordt gebracht; bij elk bestand wordt hier gevraagd. Met Peers open zegt het dat het er is om gekoppeld te worden, en Peers toont de apparaten in de buurt die dat ook zeggen. Gebruikt Bluetooth."
+
+msgid "NEARBY"
+msgstr "IN DE BUURT"
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr "Nog geen apparaat in de buurt. Open Peers op het andere apparaat, waar ‘Apparaten in de buurt’ ook aan staat."
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr "Een naam hier is wat dat apparaat over zichzelf zegt. Er een kiezen start het koppelen: daarna kiezen jullie allebei hetzelfde nummer."
+
+msgid "That device is no longer nearby"
+msgstr "Dat apparaat is niet meer in de buurt"
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr "Aangeboden aan het apparaat dat dichtbij werd gebracht. Elk bestand moet door de persoon daar worden geaccepteerd."
+
+msgid "That device does not take files this way"
+msgstr "Dat apparaat neemt op deze manier geen bestanden aan"
+
+msgid "How near is near"
+msgstr "Hoe dichtbij is dichtbij"
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr "Houd de twee apparaten zo dicht bij elkaar als je bij het verzenden zult doen, met de toepassing op beide geopend, meet dan en stel in. Een apparaat telt als dichtbij gebracht iets onder de gemeten sterkte, zodat een hand die niet helemaal stil is het niet kwijtraakt."
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr "Dichtbij begint bij {dbm} dBm, zoals je hebt ingesteld."
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr "Dichtbij begint bij {dbm} dBm, de waarde van de toepassing."
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr "Sterkste apparaat dat nu wordt gehoord: {dbm} dBm. Vanaf hier ingesteld zou dichtbij bij {near} dBm beginnen."
+
+msgid "No device with this application open is heard yet."
+msgstr "Er wordt nog geen apparaat met deze toepassing geopend gehoord."
+
+msgid "Measure"
+msgstr "Meten"
+
+msgid "Stop measuring"
+msgstr "Meten stoppen"
+
+msgid "Set near from here"
+msgstr "Dichtbij vanaf hier instellen"
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr "Dit apparaat heeft geen Bluetooth waarmee apparaten die dichtbij worden gehouden te vinden zijn."
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr "Bluetooth staat uit. Zet het aan om apparaten te vinden die dichtbij worden gehouden."
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr "Het systeem staat dit programma niet toe Bluetooth te gebruiken om apparaten te vinden die dichtbij worden gehouden."
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr "Bluetooth weigerde. Het wordt vanzelf opnieuw geprobeerd."
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr "Het systeem laat dit apparaat apparaten in de buurt vinden, maar niet door hen gevonden worden."
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr "Verzonden naar het apparaat dat dichtbij wordt gehouden, met Receive open. Elk bestand moet door de persoon daar worden geaccepteerd."
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr "{device} is dichtbij. Open daar Receive en deze bestanden gaan ernaartoe."
+
+msgid "Send instantly"
+msgstr "Direct verzenden"
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr "Uit: na het kiezen van de bestemming houd je de cirkel ingedrukt tot hij vol is, zodat een verkeerde keuze niets kost. Aan: de cirkel aanraken verzendt direct."
+
+msgid "INCOMING FILES"
+msgstr "INKOMENDE BESTANDEN"
+
+msgid "Save incoming files on their own"
+msgstr "Inkomende bestanden automatisch opslaan"
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr "Uit: je kiest voor elk bestand een bestemming. Aan: bestanden gaan zonder te vragen naar de map hieronder."
+
+msgid "THEME"
+msgstr "THEMA"
+
+msgid "Keep icons when the bar is closed"
+msgstr "Pictogrammen behouden als de balk gesloten is"
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr "Een gesloten balk toont alleen pictogrammen. Uitgeschakeld is de gesloten balk volledig verborgen."
+
+msgid "Reduce motion"
+msgstr "Beweging verminderen"
+
+msgid "Turn off decorative animation."
+msgstr "Decoratieve animaties uitschakelen."
+
+msgid "CONNECTIONS"
+msgstr "VERBINDINGEN"
+
+msgid "Use internet relays"
+msgstr "Internetrelays gebruiken"
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr "Verbindt apparaten op verschillende netwerken. Uit: verkeer blijft binnen dit netwerk."
+
+msgid "INSTALLED"
+msgstr "GEÏNSTALLEERD"
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr "WAT ELKE PLUG-IN MAG DOEN"
+
+msgid "File"
+msgstr "Bestand"
+
+msgid "Direction"
+msgstr "Richting"
+
+msgid "State"
+msgstr "Status"
+
+msgid "Move it. Don't store it."
+msgstr "Verplaatsen, niet opslaan."
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr "Privéverbindingen tussen je eigen apparaten. Bestanden gaan rechtstreeks van apparaat naar apparaat, alleen na toestemming van de ontvanger en zonder cloudmap."
+
+msgid "INTERFACE"
+msgstr "INTERFACE"
+
+msgid "RENDERING"
+msgstr "WEERGAVE"
+
+msgid "NETWORK"
+msgstr "NETWERK"
+
+msgid "ENGINE"
+msgstr "KERN"
+
+msgid "The windows, layout and components of this application."
+msgstr "De vensters, indeling en onderdelen van de toepassing."
+
+msgid "The file and folder choosers of the operating system."
+msgstr "De bestands- en mapkiezers van het besturingssysteem."
+
+msgid "Makes the code that another device scans to join."
+msgstr "Maakt de code die een ander apparaat scant om te verbinden."
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr "Tekent alles op het scherm, tekst en vormen."
+
+msgid "Shapes the letters of the text."
+msgstr "Geeft de letters hun vorm."
+
+msgid "A small drawing library used where Skia is not."
+msgstr "Een kleine tekenbibliotheek voor waar Skia niet wordt gebruikt."
+
+msgid "Encrypted connections between your devices."
+msgstr "Versleutelde verbindingen tussen je apparaten."
+
+msgid "The encryption of those connections."
+msgstr "De versleuteling van die verbindingen."
+
+msgid "The cryptographic building blocks under rustls."
+msgstr "De cryptografische bouwstenen onder rustls."
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr "Haalt via HTTPS op wat de toepassing nodig heeft."
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr "Voert meerdere overdrachten tegelijk uit zonder onderling wachten."
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr "Leest en schrijft opgeslagen bestanden en berichten van de toepassing."
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr "Bewaart de identiteit van het apparaat in de systeemsleutelbos. Een lokale compatibiliteitspatch verwijdert de ongebruikte asynchrone backend en de verouderde serialisatieafhankelijkheden, met behoud van de native backends en het bestaande zoekgedrag voor inloggegevens. Verificatiestatus en herkomst zijn bij de patch gedocumenteerd."
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr "Hashes en berichtcodes die bestanden en koppelingen controleren."
+
+msgid "That file could not be read."
+msgstr "Het bestand kon niet worden gelezen."
+
+msgid "That file is too large to be a profile picture."
+msgstr "Het bestand is te groot voor een profielfoto."
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr "Kies een PNG- of JPEG-afbeelding."
+
+msgid "That picture is too large to use."
+msgstr "De afbeelding is te groot om te gebruiken."
+
+msgid "That picture could not be read."
+msgstr "De afbeelding kon niet worden gelezen."
+
+msgid "That picture could not be kept; try again."
+msgstr "De afbeelding kon niet worden bewaard; probeer opnieuw."
+
+msgid "This phone has no way to choose a picture here."
+msgstr "Op deze telefoon kan hier geen afbeelding worden gekozen."
+
+msgid "NOTICES"
+msgstr "KENNISGEVINGEN"
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr "Bewaar onafhankelijke reservekopieën en controleer belangrijke bestanden na overdracht. Deze toepassing is een overdrachtshulpmiddel, geen back-updienst. Je blijft verantwoordelijk voor gekozen bestanden, vertrouwde apparaten en verleende rechten."
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr "Beveiligingsmaatregelen verminderen risico’s, maar garanderen niet dat kwetsbaarheden, onbevoegde toegang of openbaarmaking van gegevens nooit optreden. Gecompromitteerde apparaten, onveilige plug-ins, configuratiefouten en toekomstige kwetsbaarheden kunnen je gegevens beïnvloeden."
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr "Deze toepassing gebruikt bibliotheken van derden, besturingssystemen, plug-ins en, indien ingeschakeld, netwerkrelaydiensten. Deze afhankelijkheden brengen risico’s mee buiten de controle van de auteurs. Onderdelen van derden behouden hun eigen licenties, voorwaarden en kennisgevingen."
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr "Deze kennisgeving sluit geen aansprakelijkheid uit die volgens toepasselijk recht niet mag worden uitgesloten en beperkt geen rechten waarvan wettelijk geen afstand kan worden gedaan."
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr "Deze software wordt geleverd ZOALS DEZE IS, zonder garanties of voorwaarden van welke aard dan ook, zoals beschreven in secties 7 en 8 van de Apache-licentie 2.0. Voor zover wettelijk toegestaan zijn auteurs en bijdragers niet aansprakelijk voor verliezen door gebruik, waaronder verloren, beschadigde of openbaar gemaakte gegevens."
+
+msgid "Device is offline"
+msgstr "Apparaat is offline"
+
+msgid "Could not open selected file"
+msgstr "Geselecteerd bestand kon niet worden geopend"
+
+msgid "Could not offer selected files"
+msgstr "Geselecteerde bestanden konden niet worden aangeboden"
+
+msgid "Could not accept transfer"
+msgstr "Overdracht kon niet worden geaccepteerd"
+
+msgid "Could not cancel transfer"
+msgstr "Overdracht kon niet worden geannuleerd"
+
+msgid "Files selection is no longer active"
+msgstr "Bestandsselectie is niet meer actief"
+
+msgid "Could not queue selected files"
+msgstr "Geselecteerde bestanden konden niet in de wachtrij worden gezet"
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr "Voorkeuren zijn elders gewijzigd; herlaad voordat je opslaat"
+
+msgid "Invalid or expired invitation"
+msgstr "Ongeldige of verlopen uitnodiging"
+
+msgid "Connection queue is full"
+msgstr "Verbindingswachtrij is vol"
+
+msgid "Pairing request is no longer active"
+msgstr "Koppelverzoek is niet meer actief"
+
+msgid "The owner answered with something else."
+msgstr "De dienst gaf een onverwacht antwoord."
+
+msgid "Unexpected file handoff reply"
+msgstr "Onverwacht antwoord bij bestandsoverdracht"
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr "Een ontvangen bestand kon niet in de gekozen map worden geplaatst. Het blijft in de eigen map van de toepassing."
+
+msgid "STORE"
+msgstr "STORE"
+
+msgid "Search extensions"
+msgstr "Extensies zoeken"
+
+msgid "Install from file"
+msgstr "Installeren uit bestand"
+
+msgid "Before you choose a file"
+msgstr "Voordat je een bestand kiest"
+
+msgid "I understand and accept the risk"
+msgstr "Ik begrijp het en accepteer het risico"
+
+msgid "Search the store"
+msgstr "Zoeken in de store"
+
+msgid "Refresh"
+msgstr "Vernieuwen"
+
+msgid "Refresh the list"
+msgstr "Lijst vernieuwen"
+
+msgid "by {author} · version {version}"
+msgstr "door {author} · versie {version}"
+
+msgid "Installed: version {version}"
+msgstr "Geïnstalleerd: versie {version}"
+
+msgid "Update"
+msgstr "Bijwerken"
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr "Bijwerken vergeet wat de geïnstalleerde versie mocht doen. Daarna beslis je opnieuw."
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr "Er is een nieuwere versie geïnstalleerd dan de goedgekeurde. Verwijder die om de goedgekeurde versie te installeren."
+
+msgid "The extension store is not set up in this build."
+msgstr "De extensiestore is in deze versie niet ingesteld."
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr "Druk op Vernieuwen om de door de maintainer goedgekeurde extensies te zien."
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr "De store kon dit niet voltooien. Er is niets gewijzigd."
+
+msgid "The maintainer has not approved any extension yet."
+msgstr "De maintainer heeft nog geen extensie goedgekeurd."
+
+msgid "No extension matches your search."
+msgstr "Geen extensie komt overeen met je zoekopdracht."
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr "Handmatig installeren betekent geen officiële goedkeuring. Controleer de extensie en de bron; je bent zelf verantwoordelijk voor code die buiten de store is geïnstalleerd."
+
+msgid "Remove for good?"
+msgstr "Definitief verwijderen?"
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr "Beschadigd of verouderd: installeer opnieuw om te herstellen"
+
+msgid "Stopped working: update or install it again"
+msgstr "Werkt niet meer: bijwerken of opnieuw installeren"
+
+msgid "Update available:"
+msgstr "Update beschikbaar:"
+
+msgid "Automatic updates"
+msgstr "Automatische updates"
+
+msgid "Approve"
+msgstr "Goedkeuren"
+
+msgid "Reinstall"
+msgstr "Opnieuw installeren"
+
+msgid "Background clipboard access"
+msgstr "Toegang tot het klembord op de achtergrond"
+
+msgid "On"
+msgstr "Aan"
+
+msgid "Off"
+msgstr "Uit"
+
+msgid "Remote input accessibility"
+msgstr "Toegankelijkheid voor bediening op afstand"
+
+msgid "Relay"
+msgstr "Relay"
+
+msgid "Advanced relay options"
+msgstr "Geavanceerde relayopties"
+
+msgid "Direct wait (ms)"
+msgstr "Wachttijd directe verbinding (ms)"
+
+msgid "Relay timeout (ms)"
+msgstr "Relaytime-out (ms)"
+
+msgid "Retry preferred relay (ms)"
+msgstr "Voorkeursrelay opnieuw proberen (ms)"
+
+msgid "Enter valid relay timings"
+msgstr "Bereiken in ms: direct 100–30000; terugval 500–60000; opnieuw 5000–3600000."
+
+msgid "Not installed"
+msgstr "Niet geïnstalleerd"
+
+msgid "Connecting to home relay"
+msgstr "Verbinden met thuisrelay"
+
+msgid "Home relay connected"
+msgstr "Thuisrelay verbonden"
+
+msgid "Home relay unavailable"
+msgstr "Thuisrelay niet beschikbaar"
+
+msgid "Home relay refused access"
+msgstr "Thuisrelay heeft toegang geweigerd"
+
+msgid "Direct connection is always tried first."
+msgstr "Een directe verbinding wordt altijd eerst geprobeerd."
+
+msgid "Project relay"
+msgstr "Projectrelay"
+
+msgid "Public relays (n0)"
+msgstr "Openbare relays (n0)"
+
+msgid "Enable public relays (n0)"
+msgstr "Openbare relays inschakelen (n0)"
+
+msgid "Move up"
+msgstr "Omhoog"
+
+msgid "Move down"
+msgstr "Omlaag"
+
+msgid "Save and enable relay"
+msgstr "Relay opslaan en inschakelen"
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr "Het token wordt alleen naar je eigen relay gestuurd, nooit naar projectrelays of openbare relays."
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr "Applicatieverkeer wacht op een direct pad voordat relays in deze volgorde worden gebruikt. Signalering kan eerder beginnen. Doorgestuurd verkeer is end-to-end versleuteld, maar verbindingsmetadata is zichtbaar. Er wordt geen applicatietelemetrie verstuurd."
+
+msgid "Public relays"
+msgstr "Openbare relays"
+
+msgid "No relay"
+msgstr "Geen relay"
+
+msgid "My own relay"
+msgstr "Mijn eigen relay"
+
+msgid "Priority"
+msgstr "Prioriteit"
+
+msgid "Sequential"
+msgstr "Op volgorde"
+
+msgid "Latency"
+msgstr "Latentie"
+
+msgid "Order"
+msgstr "Volgorde"
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr "Alle ingeschakelde relays worden samen aangeboden; de dichtstbijzijnde die antwoordt wordt gebruikt."
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr "De volgorde van de lijst is de voorkeur; de eerste relay wordt na een uitwijk opnieuw geprobeerd."
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr "Op volgorde van de lijst; een werkende relay blijft tot hij uitvalt."
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr "De ingeschakelde relays worden gemeten en de snelste die antwoordt wordt gebruikt."
+
+msgid "No answer"
+msgstr "Geen antwoord"
+
+msgid "Remove this relay?"
+msgstr "Deze relay verwijderen?"
+
+msgid "Change address"
+msgstr "Adres wijzigen"
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr "Het token wordt alleen naar deze relay gestuurd, nooit naar de andere."
+
+msgid "Test relays"
+msgstr "Relays testen"
+
+msgid "Add a relay"
+msgstr "Relay toevoegen"
+
+msgid "Add relay"
+msgstr "Relay toevoegen"
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr "De relays die iedereen kan gebruiken. Ze vervoeren alleen versleuteld verkeer en kunnen het niet lezen."
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr "Geen relay: apparaten in verschillende netwerken kunnen elkaar niet vinden. Het verkeer blijft in dit netwerk."
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr "Een relay die je zelf beheert, in plaats van de openbare."
+
+msgid "https://relay.example.org"
+msgstr "https://relay.example.org"
+
+msgid "Use this relay"
+msgstr "Deze relay gebruiken"
+
+msgid "Access token (kept on this device only)"
+msgstr "Toegangstoken (alleen op dit apparaat bewaard)"
+
+msgid "Save token"
+msgstr "Token opslaan"
+
+msgid "Forget token"
+msgstr "Token vergeten"
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr "Het token staat in de beveiligde opslag van dit apparaat. Het wordt nooit meer getoond en nooit naar andere apparaten gestuurd."
+
+msgid "Token saved"
+msgstr "Token opgeslagen"
+
+msgid "Token forgotten"
+msgstr "Token vergeten"
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr "Het relayadres moet met https:// beginnen en één adres zonder spaties zijn"
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr "Het relaytoken moet één regel van hooguit 512 tekens zijn"
+
+msgid "Page background"
+msgstr "Pagina-achtergrond"
+
+msgid "Cards and panels"
+msgstr "Kaarten en panelen"
+
+msgid "Raised controls and hover"
+msgstr "Verhoogde bedieningselementen en hover"
+
+msgid "Top header background"
+msgstr "Achtergrond van de kopbalk"
+
+msgid "Sidebar background"
+msgstr "Achtergrond van de zijbalk"
+
+msgid "Borders and separators"
+msgstr "Randen en scheidingslijnen"
+
+msgid "Primary text"
+msgstr "Primaire tekst"
+
+msgid "Secondary text"
+msgstr "Secundaire tekst"
+
+msgid "Portal disc"
+msgstr "Portaalschijf"
+
+msgid "Portal text"
+msgstr "Portaaltekst"
+
+msgid "Send indicators"
+msgstr "Verzendindicatoren"
+
+msgid "Receive indicators"
+msgstr "Ontvangstindicatoren"
+
+msgid "Connected and successful"
+msgstr "Verbonden en geslaagd"
+
+msgid "Offline and failed"
+msgstr "Offline en mislukt"
+
+msgid "Warning text"
+msgstr "Waarschuwingstekst"
+
+msgid "Warning background"
+msgstr "Waarschuwingsachtergrond"
+
+msgid "Primary button background"
+msgstr "Achtergrond van de hoofdknop"
+
+msgid "Primary button text"
+msgstr "Tekst van de hoofdknop"
+
+msgid "Minimise window control"
+msgstr "Vensterknop minimaliseren"
+
+msgid "Maximise window control"
+msgstr "Vensterknop maximaliseren"
+
+msgid "Close window control"
+msgstr "Vensterknop sluiten"
+
+msgid "Navigation icons"
+msgstr "Navigatiepictogrammen"
+
+msgid "Selected navigation icon"
+msgstr "Geselecteerd navigatiepictogram"
+
+msgid "Camera detection outline"
+msgstr "Omtrek van cameradetectie"
+
+msgid "CUSTOM THEME"
+msgstr "AANGEPAST THEMA"
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr "Kies een element en typ de kleur. Het voorbeeld en de hele interface volgen terwijl je typt; er wordt niets opgeslagen totdat je het thema opslaat."
+
+msgid "Dark base"
+msgstr "Donkere basis"
+
+msgid "Light base"
+msgstr "Lichte basis"
+
+msgid "Editing: {element}"
+msgstr "Bewerken: {element}"
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr "Voer zes hexadecimale RGB-cijfers in, bijvoorbeeld #708090."
+
+msgid "Discard changes"
+msgstr "Wijzigingen negeren"
+
+msgid "Reset selected element"
+msgstr "Geselecteerd element herstellen"
+
+msgid "Your theme name"
+msgstr "Naam van je thema"
+
+msgid "Confirm replace existing theme"
+msgstr "Vervangen van bestaand thema bevestigen"
+
+msgid "Save named theme"
+msgstr "Thema onder deze naam opslaan"
+
+msgid "SAVED THEME LIBRARY"
+msgstr "BIBLIOTHEEK MET OPGESLAGEN THEMA’S"
+
+msgid "Load {name}"
+msgstr "{name} laden"
+
+msgid "Confirm removal"
+msgstr "Verwijderen bevestigen"
+
+msgid "IMPORT / EXPORT"
+msgstr "IMPORTEREN / EXPORTEREN"
+
+msgid "Export / copy theme JSON"
+msgstr "Thema-JSON exporteren / kopiëren"
+
+msgid "Paste exported theme JSON here"
+msgstr "Plak hier geëxporteerde thema-JSON"
+
+msgid "Import JSON for preview"
+msgstr "JSON importeren voor voorbeeld"
+
+msgid "Import theme file…"
+msgstr "Themabestand importeren…"
+
+msgid "Export theme file…"
+msgstr "Themabestand exporteren…"
+
+msgid "Theme JSON"
+msgstr "Thema-JSON"
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr "Laag contrast: ‘{text}’ op ‘{surface}’ is mogelijk moeilijk leesbaar."
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr "Kies een themanaam van 1–64 tekens, zonder spaties aan het begin of einde."
+
+msgid "The theme could not be exported."
+msgstr "Het thema kon niet worden geëxporteerd."
+
+msgid "Theme files must be at most 64 KiB."
+msgstr "Themabestanden mogen maximaal 64 KiB groot zijn."
+
+msgid "This is not a valid theme file."
+msgstr "Dit is geen geldig themabestand."
+
+msgid "This theme format version is not supported."
+msgstr "Deze versie van de thema-indeling wordt niet ondersteund."
+
+msgid "The theme name is invalid."
+msgstr "De themanaam is ongeldig."
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr "Deze naam bestaat al. Bevestig hieronder het vervangen of gebruik een andere naam."
+
+msgid "Theme saved in your library."
+msgstr "Thema opgeslagen in je bibliotheek."
+
+msgid "The theme could not be saved."
+msgstr "Het thema kon niet worden opgeslagen."
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr "Thema gekopieerd. Plak het in een bestand of een andere installatie."
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr "De thema-JSON staat in het uitwisselveld hieronder; je kunt deze selecteren en kopiëren."
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr "Geïmporteerd voor voorbeeld. Sla op om dit thema aan je bibliotheek toe te voegen."
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr "Wijzigingen genegeerd; opgeslagen voorkeuren blijven ongewijzigd."
+
+msgid "The theme file could not be opened."
+msgstr "Het themabestand kon niet worden geopend."
+
+msgid "The theme file could not be read."
+msgstr "Het themabestand kon niet worden gelezen."
+
+msgid "Theme exported."
+msgstr "Thema geëxporteerd."
+
+msgid "Theme removed from your library."
+msgstr "Thema verwijderd uit je bibliotheek."
+
+msgid "The theme could not be removed."
+msgstr "Het thema kon niet worden verwijderd."
+
+msgid "Top header"
+msgstr "Kopbalk"
+
+msgid "Header · navigation and window controls"
+msgstr "Kopbalk · navigatie en vensterknoppen"
+
+msgid "Sidebar"
+msgstr "Zijbalk"
+
+msgid "Navigation icon"
+msgstr "Navigatiepictogram"
+
+msgid "Window control (preview only)"
+msgstr "Vensterknop (alleen voorbeeld)"
+
+msgid "Portal disc and its text"
+msgstr "Portaalschijf en de tekst ervan"
+
+msgid "PORTAL"
+msgstr "PORTAAL"
+
+msgid "Primary button"
+msgstr "Hoofdknop"
+
+msgid "Primary action"
+msgstr "Hoofdactie"
+
+msgid "Warning notice"
+msgstr "Waarschuwing"
+
+msgid "Warning: verify received files."
+msgstr "Waarschuwing: controleer ontvangen bestanden."
+
+msgid "Camera detection marker"
+msgstr "Markering van cameradetectie"
+
+msgid "Sending →"
+msgstr "Verzenden →"
+
+msgid "← Receiving"
+msgstr "← Ontvangen"
+
+msgid "● Connected · Complete"
+msgstr "● Verbonden · Voltooid"
+
+msgid "● Offline · Failed"
+msgstr "● Offline · Mislukt"
+
+msgid "Transfer or connection indicator"
+msgstr "Overdrachts- of verbindingsindicator"
+
+msgid "Text on the page"
+msgstr "Tekst op de pagina"
+
+msgid "Primary text — names and headings"
+msgstr "Primaire tekst — namen en koppen"
+
+msgid "Secondary text — descriptions and details"
+msgstr "Secundaire tekst — beschrijvingen en details"
+
+msgid "Surface and border"
+msgstr "Oppervlak en rand"
+
+msgid "Panel / page content"
+msgstr "Paneel / pagina-inhoud"
+
+msgid "PREVIEW — {element}"
+msgstr "VOORBEELD — {element}"
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr "Themabestand importeren · Themabestand exporteren · JSON"
+
+msgid "UPDATES"
+msgstr "UPDATES"
+
+msgid "Update automatically"
+msgstr "Automatisch bijwerken"
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr "Aan: een geverifieerde update van Peersus wordt zonder vragen gedownload en geplaatst."
+
+msgid "Restart after an update"
+msgstr "Opnieuw starten na een update"
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr "Aan: Peersus start vanzelf opnieuw zodra een update is geplaatst en er niets wordt verzonden of ontvangen."
+
+msgid "Check for updates"
+msgstr "Zoeken naar updates"
+
+msgid "Update now"
+msgstr "Nu bijwerken"
+
+msgid "Restart now"
+msgstr "Nu opnieuw starten"
+
+msgid "This installation does not update itself."
+msgstr "Deze installatie werkt zichzelf niet bij."
+
+msgid "Updates have not been looked for yet."
+msgstr "Er is nog niet naar updates gezocht."
+
+msgid "Looking for an update…"
+msgstr "Zoeken naar een update…"
+
+msgid "This version is up to date."
+msgstr "Deze versie is up-to-date."
+
+msgid "Version {version} is available."
+msgstr "Versie {version} is beschikbaar."
+
+msgid "Version"
+msgstr "Versie"
+
+msgid "Updates"
+msgstr "Updates"
+
+msgid "not in this build"
+msgstr "niet in deze build"
+
+msgid "not automatic"
+msgstr "niet automatisch"
+
+msgid "not checked yet"
+msgstr "nog niet gecontroleerd"
+
+msgid "checking…"
+msgstr "controleren…"
+
+msgid "up to date"
+msgstr "up-to-date"
+
+msgid "update available"
+msgstr "update beschikbaar"
+
+msgid "updating…"
+msgstr "bijwerken…"
+
+msgid "restart to finish"
+msgstr "herstart om te voltooien"
+
+msgid "Binds"
+msgstr "Sneltoetsen"
+
+msgid "KEY BINDINGS"
+msgstr "SNELTOETSEN"
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr "Een sneltoets doet wat zijn regel zegt zolang het venster vooraan staat. Druk op + en dan de toetsen samen om er een toe te voegen, tot drie; druk op een sneltoets om hem te wijzigen, dan Backspace om hem te verwijderen of Escape om hem te laten."
+
+msgid "press the keys…"
+msgstr "druk op de toetsen…"
+
+msgid "{held} · Backspace removes"
+msgstr "{held} · Backspace verwijdert"
+
+msgid "{what} has three key bindings already."
+msgstr "{what} heeft al drie sneltoetsen."
+
+msgid "Also while the window is not in front"
+msgstr "Ook als het venster niet vooraan staat"
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr "Het bureaublad vraagt je de toetsen goed te keuren en kan een andere toets geven waar er een bezet is."
+
+msgid "{chord} already runs {what}."
+msgstr "{chord} voert al uit: {what}."
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr "Accepteert het nieuwste wachtende aanbod van bestanden, opgeslagen waar je regel voor ontvangen bestanden zegt."
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr "Weigert het nieuwste wachtende aanbod van bestanden."
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr "Opent de pagina Verzenden, om bestanden en het doelapparaat te kiezen."
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr "Opent de pagina Ontvangen, met de koppelcode en de ontvangen bestanden."
+
+msgid "Accept incoming files"
+msgstr "Inkomende bestanden accepteren"
+
+msgid "Decline incoming files"
+msgstr "Inkomende bestanden weigeren"
+
+msgid "Show Send"
+msgstr "Verzenden tonen"
+
+msgid "Show Receive"
+msgstr "Ontvangen tonen"
+
+msgid "something no longer installed"
+msgstr "iets dat niet meer geïnstalleerd is"
+
+msgid "Downloading the update…"
+msgstr "Update wordt gedownload…"
+
+msgid "Putting the update in place…"
+msgstr "Update wordt geplaatst…"
+
+msgid "The update is in place. It runs after a restart."
+msgstr "De update is geplaatst. Hij draait na een herstart."
+
+msgid "Restarting…"
+msgstr "Opnieuw starten…"
+
+msgid "The update could not be completed."
+msgstr "De update kon niet worden voltooid."
+
+msgid "Accept TOS"
+msgstr "TOS accepteren"
+
+msgid "Next"
+msgstr "Volgende"
+
+msgid "Hold to confirm"
+msgstr "Houd vast om te bevestigen"
+
+msgid "Keep holding"
+msgstr "Blijf vasthouden"
+
+msgid "Read to the end to go on"
+msgstr "Lees tot het einde om door te gaan"
+
+msgid "Step {number} of {total}"
+msgstr "Stap {number} van {total}"
+
+msgid "WHAT THIS IS"
+msgstr "WAT HET IS"
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr "WAT ER VOOR JOU VERANDERT"
+
+msgid "READ THE FULL TEXT"
+msgstr "LEES DE VOLLEDIGE TEKST"
+
+msgid "LICENCE"
+msgstr "LICENTIE"
+
+msgid "NOTICE"
+msgstr "KENNISGEVING"
+
+msgid "TERMS"
+msgstr "VOORWAARDEN"
+
+msgid "OUTSIDE THE STORE"
+msgstr "BUITEN DE STORE"
+
+msgid "This extension did not come through the store"
+msgstr "Deze extensie komt niet uit de store"
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr "Niemand bij Peersus heeft haar beoordeeld, ondertekend of beloofd dat ze veilig is. Ze draait met jouw toegang op dit apparaat en kan alles lezen en verzenden waar je haar bij laat."
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr "Het Peersus-project kan het risico van een extensie van buiten zijn store niet dragen en is niet verantwoordelijk voor wat ze met jou, je bestanden of je apparaten doet. Het risico is van jou."
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr "Kies liever de store: wat daar staat, is beoordeeld voordat het werd aangeboden. Als je niet weet wie dit pakket heeft gemaakt, installeer het dan niet."
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr "Lees tot het einde en houd dan de knop vast om te bevestigen dat je dit begrijpt en het risico aanvaardt."
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} bestand"
+msgstr[1] "{count} bestanden"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minuut"
+msgstr[1] "{count} minuten"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} uur"
+msgstr[1] "{count} uur"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dag"
+msgstr[1] "{count} dagen"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} maand"
+msgstr[1] "{count} maanden"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} jaar"
+msgstr[1] "{count} jaar"
+
+msgid "The language file could not be read."
+msgstr "Het taalbestand kon niet worden gelezen."
+
+msgid "The language file was imported."
+msgstr "Het taalbestand is geïmporteerd."
+
+msgid "The template was saved."
+msgstr "Het sjabloon is opgeslagen."
+
+msgid "The template could not be saved."
+msgstr "Het sjabloon kon niet worden opgeslagen."
+
+msgid "Could not open a browser."
+msgstr "Kon geen browser openen."
+
+msgid "This device is set to {language}."
+msgstr "Dit apparaat staat op {language}."
+
+msgid "This device names no language, so English is used."
+msgstr "Dit apparaat noemt geen taal, dus wordt Engels gebruikt."
+
+msgid "LANGUAGE"
+msgstr "TAAL"
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr "Engels is ingebouwd. Elke andere taal is een bestand dat voor deze versie is gedownload; wat het niet vertaalt, wordt in het Engels getoond."
+
+msgid "Use the device's language"
+msgstr "De taal van het apparaat gebruiken"
+
+msgid "Looking for languages…"
+msgstr "Talen zoeken…"
+
+msgid "The languages could not be fetched"
+msgstr "De talen konden niet worden opgehaald"
+
+msgid "No other language is offered for this version yet."
+msgstr "Er wordt voor deze versie nog geen andere taal aangeboden."
+
+msgid "TRANSLATE"
+msgstr "VERTALEN"
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr "Sla het sjabloon op, vertaal het in een PO-editor, importeer het hier om het meteen te zien en deel het dan zodat het aan iedereen kan worden aangeboden."
+
+msgid "{percent}% translated"
+msgstr "{percent}% vertaald"
+
+msgid "{about} · imported"
+msgstr "{about} · geïmporteerd"
+
+msgid "{about} · downloaded when chosen"
+msgstr "{about} · gedownload bij kiezen"
+
+msgid "IN USE"
+msgstr "IN GEBRUIK"
+
+msgid "Use"
+msgstr "Gebruiken"
+
+msgid "Check again"
+msgstr "Opnieuw controleren"
+
+msgid "Language file"
+msgstr "Taalbestand"
+
+msgid "Import a language file…"
+msgstr "Een taalbestand importeren…"
+
+msgid "Language template"
+msgstr "Taalsjabloon"
+
+msgid "Save the template…"
+msgstr "Sjabloon opslaan…"
+
+msgid "Share a translation (opens browser)"
+msgstr "Een vertaling delen (opent browser)"
+
+msgid "Languages"
+msgstr "Talen"
+
+msgid "English is the application's own language and needs no file"
+msgstr "Engels is de eigen taal van de toepassing en heeft geen bestand nodig"
+
+msgid "No languages are offered for this release yet"
+msgstr "Er worden voor deze versie nog geen talen aangeboden"
+
+msgid "That language file is not held"
+msgstr "Dat taalbestand is niet aanwezig"
+
+msgid "The language file could not be read"
+msgstr "Het taalbestand kon niet worden gelezen"
+
+msgid "The language file could not be removed"
+msgstr "Het taalbestand kon niet worden verwijderd"
+
+msgid "The language file could not be saved"
+msgstr "Het taalbestand kon niet worden opgeslagen"
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr "Het taalbestand zegt niet welke taal het is (de kop heeft geen Language)"
+
+msgid "The language file is too large"
+msgstr "Het taalbestand is te groot"
+
+msgid "The languages could not be saved"
+msgstr "De talen konden niet worden opgeslagen"
+
+msgid "The windows are shown in English, which needs no file"
+msgstr "De vensters worden in het Engels getoond, dat geen bestand nodig heeft"
+
+msgid "This is not a language file the application can read"
+msgstr "Dit is geen taalbestand dat de toepassing kan lezen"
+
+msgid "What the languages branch sent could not be checked"
+msgstr "Wat de talen-branch stuurde, kon niet worden gecontroleerd"
+
+msgid "Languages are not available here"
+msgstr "Talen zijn hier niet beschikbaar"
+
+msgid "The plugin picker could not be opened"
+msgstr "De pluginkiezer kon niet worden geopend"
+
+msgid "The file picker could not be opened"
+msgstr "De bestandskiezer kon niet worden geopend"
+
+msgid "Another language file is being imported"
+msgstr "Er wordt al een ander taalbestand geïmporteerd"
+
+msgid "The application is not ready to import a language file"
+msgstr "De toepassing is nog niet klaar om een taalbestand te importeren"
+
+msgid "The application is not ready to open plugins"
+msgstr "De toepassing is nog niet klaar om plugins te openen"
+
+msgid "Another plugin archive is being opened"
+msgstr "Er wordt al een ander pluginarchief geopend"
+
+msgid "The selected archive could not be staged"
+msgstr "Het gekozen archief kon niet worden voorbereid"
+
+msgid "The selected archive could not be read"
+msgstr "Het gekozen archief kon niet worden gelezen"
+
+msgid "The embedded metadata is not valid"
+msgstr "De ingebedde metadata is ongeldig"
+
+msgid "The program carries no embedded metadata"
+msgstr "Het programma bevat geen ingebedde metadata"
+
+msgid "The program is not a recognised binary"
+msgstr "Het programma is geen herkend binair bestand"
+
+msgid "Input capabilities are unavailable"
+msgstr "Invoermogelijkheden zijn niet beschikbaar"
+
+msgid "Input is unavailable"
+msgstr "Invoer is niet beschikbaar"
+
+msgid "The input was not understood"
+msgstr "De invoer werd niet begrepen"
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr "Deze computer kan niet worden bediend: er kon geen invoerapparaat worden gemaakt"
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr "Deze computer kan dat apparaat geen eigen aanwijzer geven"
+
+msgid "This extension replays input for too many devices at once"
+msgstr "Deze extensie speelt invoer af voor te veel apparaten tegelijk"
+
+msgid "Unknown input method"
+msgstr "Onbekende invoermethode"
+
+msgid "An installed native module must be read-only"
+msgstr "Een geïnstalleerde native module moet alleen-lezen zijn"
+
+msgid "Another plugin already has this name"
+msgstr "Een andere plug-in heeft al deze naam"
+
+msgid "It could not be read"
+msgstr "Het kon niet worden gelezen"
+
+msgid "It has no manifest"
+msgstr "Het heeft geen manifest"
+
+msgid "It has no program"
+msgstr "Het heeft geen programma"
+
+msgid "It has two manifests"
+msgstr "Het heeft twee manifesten"
+
+msgid "It is not a directory"
+msgstr "Het is geen map"
+
+msgid "It offers a service another plugin already offers"
+msgstr "Het biedt een dienst die een andere plug-in al biedt"
+
+msgid "It takes things in without a permission to guard them"
+msgstr "Het neemt gegevens aan zonder toestemming om die te beschermen"
+
+msgid "Its directory belongs to someone else"
+msgstr "De map ervan is van iemand anders"
+
+msgid "Its directory can be changed by others"
+msgstr "De map ervan kan door anderen worden gewijzigd"
+
+msgid "Its manifest could not be read"
+msgstr "Het manifest ervan kon niet worden gelezen"
+
+msgid "Its manifest is not a file"
+msgstr "Het manifest ervan is geen bestand"
+
+msgid "Its manifest is not valid"
+msgstr "Het manifest is ongeldig"
+
+msgid "Its manifest is too large"
+msgstr "Het manifest ervan is te groot"
+
+msgid "Its name is not usable"
+msgstr "De naam ervan is niet bruikbaar"
+
+msgid "Its program belongs to someone else"
+msgstr "Het programma ervan is van iemand anders"
+
+msgid "Its program can be changed by others"
+msgstr "Het programma ervan kan door anderen worden gewijzigd"
+
+msgid "Its program cannot be run"
+msgstr "Het programma ervan kan niet worden uitgevoerd"
+
+msgid "Its program is not a file"
+msgstr "Het programma ervan is geen bestand"
+
+msgid "One of its actions could never be reached"
+msgstr "Een van de acties kan nooit worden bereikt"
+
+msgid "Plugins cannot be run on this system"
+msgstr "Plug-ins kunnen op dit systeem niet worden uitgevoerd"
+
+msgid "Cannot create application directory"
+msgstr "Kan app-map niet aanmaken"
+
+msgid "Cannot open identity lock"
+msgstr "Kan identiteitsvergrendeling niet openen"
+
+msgid "Identity is being opened by another process"
+msgstr "Identiteit wordt door een ander proces geopend"
+
+msgid "System credential store is unavailable"
+msgstr "Systeemopslag voor inloggegevens is niet beschikbaar"
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr "Kan toegang tot de systeemsleutelbos niet starten; bestaande identiteit is niet gewijzigd"
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr "Kan ontgrendeling van de systeemsleutelbos niet controleren; bestaande identiteit is niet gewijzigd"
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr "Systeemsleutelbos is nog vergrendeld; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr "Systeemsleutelbos is niet beschikbaar; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr "Ontgrendelen van de systeemsleutelbos duurde te lang; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr "Ontgrendelen van de systeemsleutelbos is geannuleerd; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr "De systeemsleutelbos is vergrendeld en de dienst toonde geen wachtwoordvraag; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "Could not read local application state"
+msgstr "Kan lokale app-status niet lezen"
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr "Lokale verbinding mislukt; de uitkomst van de opdracht is mogelijk onbekend"
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr "Lokaal verzoek verlopen; de uitkomst van de opdracht is mogelijk onbekend"
+
+msgid "Too many windows are attached"
+msgstr "Er zijn te veel vensters gekoppeld"
+
+msgid "The window program is not beside the owner"
+msgstr "Het vensterprogramma staat niet naast de eigenaar"
+
+msgid "This session has no X display to place a panel on"
+msgstr "Deze sessie heeft geen X-display om een paneel op te plaatsen"
+
+msgid "This extension format is not available in this distribution"
+msgstr "Dit extensieformaat is niet beschikbaar in deze distributie"
+
+msgid "It clashes with another plugin"
+msgstr "Het conflicteert met een andere plug-in"
+
+msgid "It could not be loaded"
+msgstr "Het kon niet worden geladen"
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr "Dit pakket heeft geen licentie en kennisgeving, dus het kan niet worden geïnstalleerd"
+
+msgid "It has no manifest the application can use"
+msgstr "Het heeft geen manifest dat de app kan gebruiken"
+
+msgid "It has no program the application can run"
+msgstr "Het heeft geen programma dat de app kan uitvoeren"
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr "De map kan door anderen worden gewijzigd, dus het wordt niet uitgevoerd"
+
+msgid "Cannot encode private catalog configuration"
+msgstr "Kan de configuratie van de privécatalogus niet coderen"
+
+msgid "Cannot locate the private catalog helper"
+msgstr "Kan de helper van de privécatalogus niet vinden"
+
+msgid "Cannot prepare private catalog state"
+msgstr "Kan de status van de privécatalogus niet voorbereiden"
+
+msgid "Cannot protect private catalog state"
+msgstr "Kan de status van de privécatalogus niet beveiligen"
+
+msgid "Cannot read the private catalog configuration"
+msgstr "Kan de configuratie van de privécatalogus niet lezen"
+
+msgid "Cannot save private catalog configuration securely"
+msgstr "Kan de configuratie van de privécatalogus niet veilig opslaan"
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr "Kan de opgeslagen configuratie van de privécatalogus niet verifiëren"
+
+msgid "The private catalog configuration changed while saving"
+msgstr "De configuratie van de privécatalogus is tijdens het opslaan gewijzigd"
+
+msgid "The private catalog signing key is not valid"
+msgstr "De ondertekeningssleutel van de privécatalogus is ongeldig"
+
+msgid "The saved private catalog configuration is not usable"
+msgstr "De opgeslagen configuratie van de privécatalogus is niet bruikbaar"
+
+msgid "The system credential store is unavailable"
+msgstr "De systeemopslag voor inloggegevens is niet beschikbaar"
+
+msgid "Cannot forget the relay token"
+msgstr "Kan het relaytoken niet vergeten"
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr "Kan het relaytoken niet lezen; het opgeslagen token is niet gewijzigd"
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr "Kan het relaytoken niet opslaan in de referentieopslag van het systeem"
+
+msgid "Cannot verify the saved relay token"
+msgstr "Kan het opgeslagen relaytoken niet verifiëren"
+
+msgid "The saved relay token changed while it was being saved"
+msgstr "Het opgeslagen relaytoken is gewijzigd tijdens het opslaan"
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr "Het opgeslagen relaytoken is niet bruikbaar; het is niet gewijzigd"
+
+msgid "Action arguments are invalid"
+msgstr "Actieargumenten zijn ongeldig"
+
+msgid "Action context is invalid"
+msgstr "Actiecontext is ongeldig"
+
+msgid "Action is not permitted for this device"
+msgstr "Actie is niet toegestaan voor dit apparaat"
+
+msgid "An action can have up to three key bindings"
+msgstr "Een actie kan maximaal drie toetskoppelingen hebben"
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr "Een extensie vroeg te veel in te korte tijd en is even gepauzeerd"
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr "Een extensie vraagt je de licentie en kennisgeving te lezen en te accepteren; open Extensies"
+
+msgid "An external package cannot replace a bundled plugin"
+msgstr "Een extern pakket kan een meegeleverde plug-in niet vervangen"
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr "Een andere extensie verzorgt al invoer tussen apparaten. Schakel die uit om deze te gebruiken"
+
+msgid "Application updates are not available here"
+msgstr "Applicatie-updates zijn hier niet beschikbaar"
+
+msgid "Bundled plugins cannot be removed"
+msgstr "Meegeleverde plug-ins kunnen niet worden verwijderd"
+
+msgid "Choose a device for this action"
+msgstr "Kies een apparaat voor deze actie"
+
+msgid "Choose a device for this setting"
+msgstr "Kies een apparaat voor deze instelling"
+
+msgid "Choose between one and sixteen files"
+msgstr "Kies tussen één en zestien bestanden"
+
+msgid "Choose exactly one file for this action"
+msgstr "Kies precies één bestand voor deze actie"
+
+msgid "Could not change this permission"
+msgstr "Kon deze machtiging niet wijzigen"
+
+msgid "Could not clear the history"
+msgstr "Kon de geschiedenis niet wissen"
+
+msgid "Could not forget device"
+msgstr "Kon apparaat niet vergeten"
+
+msgid "Could not forget what it was granted"
+msgstr "Kon niet vergeten wat eraan was toegekend"
+
+msgid "Could not keep the picture"
+msgstr "Kon de afbeelding niet bewaren"
+
+msgid "Could not open selected folder or device is offline"
+msgstr "Kon geselecteerde map niet openen of apparaat is offline"
+
+msgid "Could not remove the picture"
+msgstr "Kon de afbeelding niet verwijderen"
+
+msgid "Could not save permissions"
+msgstr "Kon machtigingen niet opslaan"
+
+msgid "Device is not paired"
+msgstr "Apparaat is niet gekoppeld"
+
+msgid "Extension prompts unavailable"
+msgstr "Extensievragen niet beschikbaar"
+
+msgid "Files selection is not fully accounted for"
+msgstr "Bestandsselectie is niet volledig verantwoord"
+
+msgid "Input arguments are invalid"
+msgstr "Invoerargumenten zijn ongeldig"
+
+msgid "Invalid value for this setting"
+msgstr "Ongeldige waarde voor deze instelling"
+
+msgid "Key bindings are not available on this device"
+msgstr "Toetskoppelingen zijn niet beschikbaar op dit apparaat"
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr "Talen worden opgehaald; probeer het opnieuw als dat klaar is"
+
+msgid "No picture is held for that"
+msgstr "Daarvoor wordt geen afbeelding bewaard"
+
+msgid "No plugin handles this request"
+msgstr "Geen plug-in verwerkt dit verzoek"
+
+msgid "Nothing was shown for that plugin"
+msgstr "Er is niets weergegeven voor die plug-in"
+
+msgid "Permissions could not be applied"
+msgstr "Machtigingen konden niet worden toegepast"
+
+msgid "Plugin is not permitted for this device"
+msgstr "Plug-in is niet toegestaan voor dit apparaat"
+
+msgid "Plugin unavailable"
+msgstr "Plug-in niet beschikbaar"
+
+msgid "Plugins cannot be installed here"
+msgstr "Plug-ins kunnen hier niet worden geïnstalleerd"
+
+msgid "Private catalog configuration could not be saved"
+msgstr "Configuratie van privécatalogus kon niet worden opgeslagen"
+
+msgid "Private catalogs are not enabled on this device"
+msgstr "Privécatalogi zijn niet ingeschakeld op dit apparaat"
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr "Alleen-lezen demo: dit venster is niet verbonden met een eigenaar"
+
+msgid "Selected input is unavailable"
+msgstr "Geselecteerde invoer is niet beschikbaar"
+
+msgid "That action cannot be run by a key"
+msgstr "Die actie kan niet via een toets worden uitgevoerd"
+
+msgid "That action needs a device for its key, and only then"
+msgstr "Die actie heeft een apparaat nodig voor de toets, en alleen dan"
+
+msgid "That device cannot be sent to"
+msgstr "Naar dat apparaat kan niet worden verzonden"
+
+msgid "That extension action is not installed"
+msgstr "Die extensieactie is niet geïnstalleerd"
+
+msgid "That input was not understood"
+msgstr "Die invoer werd niet begrepen"
+
+msgid "That permission cannot be granted to this plugin"
+msgstr "Die machtiging kan niet aan deze plug-in worden verleend"
+
+msgid "The code was already used or is no longer shown"
+msgstr "De code is al gebruikt of wordt niet meer getoond"
+
+msgid "The extension store failed"
+msgstr "De extensiewinkel is mislukt"
+
+msgid "The extension store is not available here"
+msgstr "De extensiewinkel is hier niet beschikbaar"
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr "De licentie en vermelding zijn niet geaccepteerd, dus er is niets geïnstalleerd"
+
+msgid "The package changed after it was shown; choose it again"
+msgstr "Het pakket is gewijzigd nadat het werd getoond; kies het opnieuw"
+
+msgid "The package has no valid name"
+msgstr "Het pakket heeft geen geldige naam"
+
+msgid "The plugin could not be registered"
+msgstr "De plug-in kon niet worden geregistreerd"
+
+msgid "The plugin does not allow this action"
+msgstr "De plug-in staat deze actie niet toe"
+
+msgid "The plugin does not offer this action"
+msgstr "De plug-in biedt deze actie niet"
+
+msgid "The plugin is not running"
+msgstr "De plug-in draait niet"
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr "De plug-in is niet wat er werd getoond; bekijk hem opnieuw"
+
+msgid "The plugin is sending too much, too fast"
+msgstr "De plug-in verstuurt te veel, te snel"
+
+msgid "The request could not be sent"
+msgstr "Het verzoek kon niet worden verzonden"
+
+msgid "The text to share is empty or too large"
+msgstr "De te delen tekst is leeg of te groot"
+
+msgid "The update failed"
+msgstr "De update is mislukt"
+
+msgid "This action does not accept selected input"
+msgstr "Deze actie accepteert geen geselecteerde invoer"
+
+msgid "This action does not accept shared text"
+msgstr "Deze actie accepteert geen gedeelde tekst"
+
+msgid "This action does not use a device"
+msgstr "Deze actie gebruikt geen apparaat"
+
+msgid "This action is not available now"
+msgstr "Deze actie is nu niet beschikbaar"
+
+msgid "This action requires its declared selected input"
+msgstr "Deze actie vereist de opgegeven geselecteerde invoer"
+
+msgid "This device cannot keep a relay token"
+msgstr "Dit apparaat kan geen relaytoken bewaren"
+
+msgid "This extension declares no input transport"
+msgstr "Deze extensie geeft geen invoertransport op"
+
+msgid "This is not permitted for this device"
+msgstr "Dit is niet toegestaan voor dit apparaat"
+
+msgid "This page is not offered on this system"
+msgstr "Deze pagina wordt niet aangeboden op dit systeem"
+
+msgid "This platform does not offer the requested facility"
+msgstr "Dit platform biedt de gevraagde functie niet"
+
+msgid "This setting is not per device"
+msgstr "Deze instelling geldt niet per apparaat"
+
+msgid "Too many calls"
+msgstr "Te veel aanroepen"
+
+msgid "Too many operations are pending"
+msgstr "Er staan te veel bewerkingen open"
+
+msgid "Too many transfers are waiting for plugins"
+msgstr "Te veel overdrachten wachten op plug-ins"
+
+msgid "Unknown action"
+msgstr "Onbekende actie"
+
+msgid "Unknown device"
+msgstr "Onbekend apparaat"
+
+msgid "Unknown page"
+msgstr "Onbekende pagina"
+
+msgid "Unknown plugin"
+msgstr "Onbekende plug-in"
+
+msgid "Unknown setting"
+msgstr "Onbekende instelling"
+
+msgid "Wait for the current catalog operation to finish"
+msgstr "Wacht tot de huidige catalogusbewerking klaar is"
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr "Je akkoord kon niet worden vastgelegd, dus er is niets geïnstalleerd"
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr "Een AppImage vervangt zichzelf niet; download de nieuwe"
+
+msgid "Kept by something else"
+msgstr "In gebruik door iets anders"
+
+msgid "The application cannot replace itself on this system yet"
+msgstr "De applicatie kan zichzelf op dit systeem nog niet vervangen"
+
+msgid "The update could not be unpacked"
+msgstr "De update kon niet worden uitgepakt"
+
+msgid "The update could not be written beside the application"
+msgstr "De update kon niet naast de applicatie worden weggeschreven"
+
+msgid "The update is not a plain set of programs"
+msgstr "De update is geen gewone set programma's"
+
+msgid "The update is not for this installation"
+msgstr "De update is niet voor deze installatie"
+
+msgid "The update was only partly put in place; install the application again"
+msgstr "De update is maar gedeeltelijk geïnstalleerd; installeer de app opnieuw"
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr "Deze installatie wordt door het systeem beheerd en daarmee bijgewerkt"
+
+msgid "This installation is updated by Flatpak"
+msgstr "Deze installatie wordt bijgewerkt door Flatpak"
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr "Dit soort update kan niet op deze installatie worden toegepast"
+
+msgid "Loading…"
+msgstr "Laden…"
+
+msgid "Another device"
+msgstr "Ander apparaat"
+
+msgid "CANCELLED"
+msgstr "GEANNULEERD"
+
+msgid "CONNECTED"
+msgstr "VERBONDEN"
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr "Kies een plug-inarchief (.tar, .tar.gz, .tgz)"
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr "Kies een profielfoto (PNG of JPEG)"
+
+msgid "Choosing a folder is not available on this device."
+msgstr "Een map kiezen is niet beschikbaar op dit apparaat."
+
+msgid "Clear"
+msgstr "Wissen"
+
+msgid "Clear them?"
+msgstr "Wissen?"
+
+msgid "FAILED · {reason}"
+msgstr "MISLUKT · {reason}"
+
+msgid "FOR {device}"
+msgstr "VOOR {device}"
+
+msgid "Folder for incoming files"
+msgstr "Map voor binnenkomende bestanden"
+
+msgid "INCOMING"
+msgstr "INKOMEND"
+
+msgid "NOT RUNNING"
+msgstr "NIET ACTIEF"
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr "Er is geen map gekozen, dus het bestand is niet geaccepteerd."
+
+msgid "OUTGOING"
+msgstr "UITGAAND"
+
+msgid "OUTGOING · PREPARED"
+msgstr "UITGAAND · VOORBEREID"
+
+msgid "Peersus could not be started again"
+msgstr "Peersus kon niet opnieuw worden gestart"
+
+msgid "Save the file in"
+msgstr "Sla het bestand op in"
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr "De map voor inkomende bestanden bestaat niet meer. Kies een andere."
+
+msgid "The identity could not be reset"
+msgstr "De identiteit kon niet worden gereset"
+
+msgid "The plugin picker is unavailable"
+msgstr "De pluginkiezer is niet beschikbaar"
+
+msgid "There is no data directory to look in"
+msgstr "Er is geen datamap om in te kijken"
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr "Raak het scherm aan met twee vingers om Instellingen van boven naar beneden te halen. Dit doet niets als Instellingen al open is."
+
+msgid "Two fingers open Settings"
+msgstr "Twee vingers openen Instellingen"
+
+msgid "Identity unavailable"
+msgstr "Identiteit niet beschikbaar"
+
+msgid "Nowhere to look"
+msgstr "Nergens om te kijken"
+
+msgid "Peersus could not start"
+msgstr "Peersus kon niet starten"
+
+msgid "Peersus stopped"
+msgstr "Peersus is gestopt"
+
+msgid "The action did not accept the value"
+msgstr "De actie accepteerde de waarde niet"
+
+msgid "The owner stopped"
+msgstr "De eigenaar is gestopt"
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr "Het deel van Peersus dat je apparaten verbonden houdt, is niet gestart en heeft niet gezegd waarom."
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr "Het deel van Peersus dat je apparaten verbonden houdt, is niet gestart. Melding: {reason}"
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr "Het deel van Peersus dat je apparaten verbonden houdt, is gestopt, en het automatisch opnieuw starten hield het niet draaiende."
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr "Dit account heeft geen datamap, dus de app kan niet worden gevonden."
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr "Voer je alleen-lezen GitHub-token in. Andere instellingen zijn hier niet nodig; het token blijft in de beveiligde opslag van het apparaat."
+
+msgid "GitHub token with repository Contents: read"
+msgstr "GitHub-token met repository Contents: read"
+
+msgid "Private development catalog"
+msgstr "Privé-ontwikkelcatalogus"
+
+msgid "Save and apply"
+msgstr "Opslaan en toepassen"
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr "Het GitHub-token moet één regel van maximaal 512 bytes zijn"
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr "Token veilig opgeslagen en toegepast. De lijst met extensies wordt op de achtergrond bijgewerkt."
+
+msgid "OFFLINE"
+msgstr "OFFLINE"
+
+msgid "ONLINE"
+msgstr "ONLINE"
+
+msgid "SLEEPING"
+msgstr "SLAAPSTAND"
+
+msgid "An update is already being worked on"
+msgstr "Er wordt al aan een update gewerkt"
+
+msgid "An update was installed; restart the application to use it"
+msgstr "Er is een update geïnstalleerd; start de app opnieuw om deze te gebruiken"
+
+msgid "Application updates are not set up in this build"
+msgstr "App-updates zijn in deze build niet ingesteld"
+
+msgid "No update is available"
+msgstr "Er is geen update beschikbaar"
+
+msgid "No update is waiting for a restart"
+msgstr "Er wacht geen update op een herstart"
+
+msgid "The application update key is not valid"
+msgstr "De sleutel voor app-updates is niet geldig"
+
+msgid "The downloaded update is not the one that was published"
+msgstr "De gedownloade update is niet de update die is gepubliceerd"
+
+msgid "The saved update state could not be read"
+msgstr "De opgeslagen updatestatus kan niet worden gelezen"
+
+msgid "The saved update state is damaged"
+msgstr "De opgeslagen updatestatus is beschadigd"
+
+msgid "The update could not be checked"
+msgstr "De update kan niet worden gecontroleerd"
+
+msgid "The update is described in a way this version does not read"
+msgstr "De update is beschreven op een manier die deze versie niet kan lezen"
+
+msgid "The update is for another release channel"
+msgstr "De update is voor een ander releasekanaal"
+
+msgid "The update is not signed by this application's publisher"
+msgstr "De update is niet ondertekend door de uitgever van deze app"
+
+msgid "The update is too large"
+msgstr "De update is te groot"
+
+msgid "The update listing could not be checked"
+msgstr "De lijst met updates kan niet worden gecontroleerd"
+
+msgid "The update offered is not the release already seen under that version"
+msgstr "De aangeboden update is niet de release die eerder onder die versie is gezien"
+
+msgid "The update offered is older than one already seen"
+msgstr "De aangeboden update is ouder dan een update die al is gezien"
+
+msgid "The update state could not be saved"
+msgstr "De updatestatus kan niet worden opgeslagen"
+
+msgid "The catalog could not be read"
+msgstr "De catalogus kan niet worden gelezen"
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr "De catalogus bevat dubbelzinnige of ongeldige platformbestanden"
+
+msgid "The catalog has an entry that is not valid"
+msgstr "De catalogus bevat een ongeldig item"
+
+msgid "The catalog has invalid platform artifacts"
+msgstr "De catalogus bevat ongeldige platformbestanden"
+
+msgid "The catalog is a version this application does not read"
+msgstr "De catalogus heeft een versie die deze app niet kan lezen"
+
+msgid "The catalog is not signed by the maintainer"
+msgstr "De catalogus is niet ondertekend door de beheerder"
+
+msgid "The catalog is older than one already seen"
+msgstr "De catalogus is ouder dan een catalogus die al is gezien"
+
+msgid "The catalog is too large"
+msgstr "De catalogus is te groot"
+
+msgid "The catalog lists a name twice"
+msgstr "De catalogus vermeldt een naam twee keer"
+
+msgid "The catalog lists too many extensions"
+msgstr "De catalogus vermeldt te veel extensies"
+
+msgid "The catalog signature is not valid"
+msgstr "De handtekening van de catalogus is niet geldig"
+
+msgid "The package does not say what the catalog says about it"
+msgstr "Het pakket komt niet overeen met wat de catalogus erover zegt"
+
+msgid "The package is not the one that was approved"
+msgstr "Het pakket is niet het pakket dat is goedgekeurd"
+
+msgid "The package name is not the approved name"
+msgstr "De pakketnaam is niet de goedgekeurde naam"
+
+msgid "The program and its manifest disagree about who made it"
+msgstr "Het programma en het manifest zijn het niet eens over wie het heeft gemaakt"
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr "Kies een pluginmap, geen bestand of link"
+
+msgid "No data directory"
+msgstr "Geen gegevensmap"
+
+msgid "No such plugin is installed"
+msgstr "Deze plugin is niet geïnstalleerd"
+
+msgid "Nothing was retired under that name"
+msgstr "Er is niets buiten gebruik gesteld onder die naam"
+
+msgid "Something is already installed under this name"
+msgstr "Er is al iets geïnstalleerd onder deze naam"
+
+msgid "That is not the name of a plugin"
+msgstr "Dat is geen naam van een plugin"
+
+msgid "The approval could not be written"
+msgstr "De goedkeuring kan niet worden opgeslagen"
+
+msgid "The installed plugin directory is not safe"
+msgstr "De map van de geïnstalleerde plugin is niet veilig"
+
+msgid "The native module could not be made read-only"
+msgstr "De native module kan niet alleen-lezen worden gemaakt"
+
+msgid "The package could not be put back"
+msgstr "Het pakket kan niet worden teruggezet"
+
+msgid "The package could not be put in place"
+msgstr "Het pakket kan niet op zijn plaats worden gezet"
+
+msgid "The package could not be read"
+msgstr "Het pakket kan niet worden gelezen"
+
+msgid "The package could not be staged"
+msgstr "Het pakket kan niet worden klaargezet"
+
+msgid "The package could not be taken out of use"
+msgstr "Het pakket kan niet buiten gebruik worden gesteld"
+
+msgid "The package has too many files"
+msgstr "Het pakket bevat te veel bestanden"
+
+msgid "The package is too large"
+msgstr "Het pakket is te groot"
+
+msgid "The package names a file it does not have"
+msgstr "Het pakket noemt een bestand dat het niet bevat"
+
+msgid "The package needs a manifest and a program"
+msgstr "Het pakket heeft een manifest en een programma nodig"
+
+msgid "The package's name is not usable"
+msgstr "De naam van het pakket is niet bruikbaar"
+
+msgid "The plugin could not be switched off"
+msgstr "De plugin kan niet worden uitgeschakeld"
+
+msgid "The plugin could not be switched on"
+msgstr "De plugin kan niet worden ingeschakeld"
+
+msgid "The plugin store can be changed by others"
+msgstr "De pluginopslag kan door anderen worden gewijzigd"
+
+msgid "The plugin store could not be locked"
+msgstr "De pluginopslag kan niet worden vergrendeld"
+
+msgid "The plugin store could not be made"
+msgstr "De pluginopslag kan niet worden aangemaakt"
+
+msgid "The plugin store could not be read"
+msgstr "De pluginopslag kan niet worden gelezen"
+
+msgid "The plugin store is a link"
+msgstr "De pluginopslag is een link"
+
+msgid "The plugin store is being changed by another process"
+msgstr "De pluginopslag wordt door een ander proces gewijzigd"
+
+msgid "The plugin store is not a directory"
+msgstr "De pluginopslag is geen map"
+
+msgid "The retired plugin directory is not safe"
+msgstr "De map van de buiten gebruik gestelde plugin is niet veilig"
+
+msgid "There is nothing to approve for this plugin"
+msgstr "Er is niets goed te keuren voor deze plugin"
+
+msgid "Too many plugins are installed"
+msgstr "Er zijn te veel plugins geïnstalleerd"
+
+msgid "The extension store could not be reached"
+msgstr "De extensiewinkel is niet bereikbaar"
+
+msgid "What the store sent is larger than allowed"
+msgstr "Wat de winkel heeft gestuurd is groter dan toegestaan"
