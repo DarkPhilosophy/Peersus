@@ -32,11 +32,16 @@ const CALL_MS: u32 = 4_000;
 const ACK_MS: i32 = 3_000;
 /// Longest line one input may take on the connection: an input is small, a longer line is not one.
 pub const MOST_LINE: usize = 1024;
+/// Most characters one typed input carries: the application's input service refuses more.
+const MOST_TYPED: usize = 256;
 /// Most inputs replayed in one call to the application: its own bound.
 const MOST_BATCH: usize = 64;
 /// A connection is closed and a new one opened after this many batches, so no one connection
 /// outlives the time the other side gives a call.
 pub const ROTATE_AFTER: u32 = 200;
+/// ...or once it is this old, by the application's clock, or has been silent this long: the other
+/// side gives the call that reads it fifteen seconds, and a held key sends nothing while it is held.
+pub const ROTATE_MS: u64 = 5_000;
 /// The last line of a rotated connection: the same gesture goes on in the next one, so what the
 /// receiver holds (a pressed button, the pen near the screen) must not be let go between them.
 pub const CONTINUES: &str = r#"{"continues":true}"#;
@@ -44,6 +49,35 @@ pub const CONTINUES: &str = r#"{"continues":true}"#;
 /// the pointer stays where it is (the controlled computer hides it once it has been still). The
 /// connection is not kept open between gestures.
 pub const RESTS: &str = r#"{"rests":true}"#;
+
+/// Text as typed inputs, in order, each within [`MOST_TYPED`] characters and, as one line, within
+/// [`MOST_LINE`] bytes, so text a field accepts is never refused whole by either bound.
+pub fn typed(text: &str) -> Vec<Value> {
+    // `{"t":"text","text":""}`: what a typed input costs around its text.
+    const FRAME: usize = 22;
+    // What the text costs as JSON: serde_json escapes quotes, backslashes and control characters.
+    let cost = |character: char| match character {
+        '"' | '\\' | '\u{8}' | '\u{c}' | '\n' | '\r' | '\t' => 2,
+        character if u32::from(character) < 0x20 => 6,
+        character => character.len_utf8(),
+    };
+    let mut inputs = Vec::new();
+    let mut chunk = String::new();
+    let (mut characters, mut bytes) = (0, FRAME);
+    for character in text.chars() {
+        if characters == MOST_TYPED || bytes + cost(character) > MOST_LINE {
+            inputs.push(json!({"t":"text","text":std::mem::take(&mut chunk)}));
+            (characters, bytes) = (0, FRAME);
+        }
+        chunk.push(character);
+        characters += 1;
+        bytes += cost(character);
+    }
+    if !chunk.is_empty() {
+        inputs.push(json!({"t":"text","text":chunk}));
+    }
+    inputs
+}
 
 /// How a connection that was replayed ended.
 #[derive(Debug, PartialEq)]
@@ -88,6 +122,8 @@ pub struct Outgoing {
     pub batches: u32,
     /// Every byte written on this connection, end marker included: what its acknowledgement must count.
     pub sent: u64,
+    /// When its first batch was written, by the application's clock (`at`), where the caller sends one.
+    pub opened_at: Option<u64>,
 }
 
 impl State {
@@ -195,6 +231,7 @@ impl State {
             handle,
             batches: 0,
             sent: 0,
+            opened_at: None,
         })
     }
 
@@ -346,7 +383,11 @@ impl State {
             }
             outgoing.sent += lines.len() as u64;
             outgoing.batches += 1;
-            if outgoing.batches >= ROTATE_AFTER && !end {
+            // The application's clock, where it sends one: forwarded desktop input has no page clock to rotate by.
+            let aged = args["at"].as_u64().is_some_and(|at| {
+                at.saturating_sub(*outgoing.opened_at.get_or_insert(at)) >= ROTATE_MS
+            });
+            if (outgoing.batches >= ROTATE_AFTER || aged) && !end {
                 // Said before the end, so the other side keeps a held drag held across the rotation.
                 return self.rotate(host);
             }
@@ -416,14 +457,23 @@ impl State {
                 handles.push(handle);
             }
         }
-        if handles.is_empty() {
-            return if self.waiting.is_empty() {
-                host.receive().map(Some)
-            } else {
-                Ok(Some(self.waiting.remove(0)))
-            };
+        // A connection left open rotates after a silence, since nothing else would: a key held on this computer and
+        // forwarded to the other sends nothing while it is held, and the other side's call would end and let it go.
+        let open = self.outgoing.is_some();
+        if handles.is_empty() && !self.waiting.is_empty() {
+            return Ok(Some(self.waiting.remove(0)));
         }
-        let ready = host.poll(&handles, if self.waiting.is_empty() { -1 } else { 0 })?;
+        if handles.is_empty() && !open {
+            return host.receive().map(Some);
+        }
+        let timeout = if !self.waiting.is_empty() {
+            0
+        } else if open {
+            ROTATE_MS as i32
+        } else {
+            -1
+        };
+        let ready = host.poll(&handles, timeout)?;
         if let Some(handle) = ready.filter(|&handle| handle > 0) {
             if let Some(reply) = self.advance(host, handle) {
                 host.send(reply)?;
@@ -435,6 +485,11 @@ impl State {
         }
         match ready {
             Some(0) => host.receive().map(Some),
+            None if open && timeout > 0 => {
+                // A rotation that fails abandoned the connection; the next input opens another.
+                let _ = self.rotate(host);
+                Ok(None)
+            }
             _ => Ok(None),
         }
     }
@@ -793,6 +848,85 @@ mod tests {
         assert_eq!(host.opened, vec![(true, 1), (true, 2)]);
         assert_eq!((host.shutdowns, host.closed), (2, 2));
         assert_eq!(host.sent.last().unwrap()["args"]["device"], "pc");
+    }
+
+    #[test]
+    fn submitted_text_is_split_within_the_services_and_the_connections_bounds() {
+        let check = |text: &str| {
+            let inputs = typed(text);
+            let mut whole = String::new();
+            for input in &inputs {
+                let piece = input["text"].as_str().unwrap();
+                assert!(piece.chars().count() <= MOST_TYPED);
+                assert!(serde_json::to_vec(input).unwrap().len() <= MOST_LINE);
+                whole.push_str(piece);
+            }
+            assert_eq!(whole, text, "nothing lost, nothing reordered");
+            inputs.len()
+        };
+        // 256 four-byte emoji: one input of them would be 1,046 bytes, over the line bound.
+        assert_eq!(check(&"😀".repeat(256)), 2);
+        // Plain text over the service's 256 characters.
+        assert_eq!(check(&"a".repeat(600)), 3);
+        // Characters JSON escapes count at their escaped size.
+        assert!(check(&"\"\\".repeat(500)) >= 2);
+        assert_eq!(check("short"), 1);
+        assert_eq!(typed("").len(), 0);
+    }
+
+    #[test]
+    fn forwarded_input_rotates_its_connection_by_the_applications_clock() {
+        let mut host = Script {
+            acks: true,
+            ..Script::default()
+        };
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"claim":1})));
+        let batch = |at: u64| json!({"peer":"pc","events":[{"t":"key","key":"a"}],"at":at});
+        state.input(&mut host, &batch(1_000)).unwrap();
+        state.input(&mut host, &batch(1_000 + ROTATE_MS - 1)).unwrap();
+        assert_eq!(host.shutdowns, 0, "younger than the rotation age: kept open");
+        state.input(&mut host, &batch(1_000 + ROTATE_MS)).unwrap();
+        assert_eq!(host.shutdowns, 1, "old enough: rotated after this batch");
+        assert!(state.outgoing.is_none());
+        assert!(
+            String::from_utf8(host.written.clone())
+                .unwrap()
+                .ends_with(&format!("{CONTINUES}\n")),
+            "rotated, not ended: what is held stays held"
+        );
+        // The next batch opens a new connection, aged from its own first batch.
+        host.results.push_back(ok(json!({"claim":2})));
+        state.input(&mut host, &batch(1_000 + ROTATE_MS + 10)).unwrap();
+        assert_eq!(host.opened, vec![(true, 1), (true, 2)]);
+        assert_eq!(state.outgoing.as_ref().unwrap().opened_at, Some(1_010 + ROTATE_MS));
+    }
+
+    #[test]
+    fn a_connection_left_open_through_a_silence_is_rotated_by_the_wait() {
+        let mut host = Script {
+            acks: true,
+            ..Script::default()
+        };
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"claim":1})));
+        // A key pressed on this computer and forwarded: nothing more comes while it is held.
+        state
+            .input(
+                &mut host,
+                &json!({"peer":"pc","events":[{"t":"key_code","code":42,"down":true}]}),
+            )
+            .unwrap();
+        host.silent = true;
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(host.waits[0], ROTATE_MS as i32, "the wait is bounded while it is open");
+        assert!(state.outgoing.is_none(), "rotated after the silence");
+        assert_eq!(state.retained.as_deref(), Some("pc"));
+        assert!(
+            String::from_utf8(host.written.clone())
+                .unwrap()
+                .ends_with(&format!("{CONTINUES}\n"))
+        );
     }
 
     #[test]

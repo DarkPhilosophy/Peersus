@@ -340,9 +340,16 @@ impl Ui {
                 } else if !self.holding() && idle {
                     let _ = self.end(state, host);
                 } else if let Some(next) = self.erasing.filter(|next| at >= *next) {
-                    // Backspace held repeats, at every tick of the page's clock.
+                    // Backspace held repeats, at every tick of the page's clock. A repeat is not the person
+                    // touching anything, so it does not move the stuck-input clock: a Backspace whose lift
+                    // was lost stops erasing after `STUCK_MS` like any other lost gesture.
                     self.erasing = Some(at.max(next));
-                    self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at)?;
+                    let touched = self.last_input;
+                    let sent = self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at);
+                    if self.last_input.is_some() {
+                        self.last_input = touched;
+                    }
+                    sent?;
                 }
                 if self
                     .opened
@@ -377,12 +384,13 @@ impl Ui {
                 let value = event["text"]
                     .as_str()
                     .ok_or(remote::answer::NOT_UNDERSTOOD)?;
-                let input = if value.is_empty() {
-                    json!({"t":"key","key":"enter"})
+                let inputs = if value.is_empty() {
+                    vec![json!({"t":"key","key":"enter"})]
                 } else {
-                    json!({"t":"text","text":value})
+                    // Split to the input service's and the connection's bounds, so a long text arrives whole.
+                    remote::typed(value)
                 };
-                self.send(state, host, vec![input], at)?;
+                self.send(state, host, inputs, at)?;
                 self.rest(state, host);
             }
             // The pad's measured bounds: which half of it a tap lands on says which button it is.
@@ -1647,6 +1655,31 @@ mod tests {
         event(&mut ui, &mut state, &mut host, "backspace", "up", 0, 0, 900);
         assert!(ui.erasing.is_none());
         assert!(state.outgoing.is_none(), "let go: the connection is closed");
+    }
+
+    #[test]
+    fn a_backspace_whose_lift_is_lost_stops_erasing_at_the_stuck_input_timeout() {
+        let (mut ui, mut state, mut host) = ready();
+        event(&mut ui, &mut state, &mut host, "backspace", "down", 0, 0, 100);
+        let key = json!({"t":"key","key":"backspace"});
+        let tick = |ui: &mut Ui, state: &mut State, host: &mut Script, at: u64| {
+            host.results.push_back(
+                json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
+            );
+            ui.event(state, host, &json!({"t":"tick","id":"idle","at":at}))
+                .unwrap();
+        };
+        // A repeat is sent, but it is not a touch: the clock still runs from the press at 100.
+        tick(&mut ui, &mut state, &mut host, 600);
+        assert_eq!(written(&host), vec![key.clone(), key.clone()]);
+        tick(&mut ui, &mut state, &mut host, 100 + STUCK_MS);
+        assert!(ui.erasing.is_none(), "the lost lift is let go");
+        assert!(state.outgoing.is_none(), "and the connection closed");
+        assert_eq!(
+            written(&host),
+            vec![key.clone(), key],
+            "no erasing after the timeout"
+        );
     }
 
     #[test]
