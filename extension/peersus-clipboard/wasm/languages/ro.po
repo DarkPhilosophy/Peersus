@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ro\n"
+"X-Language-Name: Română\n"
+
+msgid "Send clipboard text"
+msgstr "Trimite textul din clipboard"
+
+msgid "Send shared text"
+msgstr "Trimite textul partajat"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizează automat textul din clipboard"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Trimite automat textul din clipboard către acest dispozitiv"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
+msgstr "Necesită sincronizare automată și permisiunile clipboard și trimitere pentru acest dispozitiv."
+
+msgid "Send"
+msgstr "Trimite"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Activează aici și pentru fiecare dispozitiv. Copiile noi se trimit doar cât timp acest dispozitiv poate citi clipboardul, iar textul sensibil este exclus."

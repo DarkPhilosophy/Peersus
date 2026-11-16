@@ -1,0 +1,26 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: nl\n"
+"X-Language-Name: Nederlands\n"
+
+msgid "Send clipboard text"
+msgstr "Tekst van het klembord versturen"
+
+msgid "Send shared text"
+msgstr "Gedeelde tekst versturen"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Tekst van het klembord automatisch synchroniseren"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Tekst van het klembord automatisch naar dit apparaat versturen"
+
+msgid "Requires automatic synchronization, the clipboard permission and the send permission for this device."
+msgstr "Vereist automatische synchronisatie, de klembordmachtiging en de verzendmachtiging voor dit apparaat."
+
+msgid "Send"
+msgstr "Versturen"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Zet het hier en per apparaat aan. Nieuwe kopieën worden alleen verstuurd zolang dit apparaat het klembord kan lezen, en gevoelige inhoud wordt overgeslagen."
