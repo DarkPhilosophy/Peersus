@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: nl\n"
 "X-Language-Name: Nederlands\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2067,12 +2068,6 @@ msgstr "Sla het sjabloon op, vertaal het in een PO-editor, importeer het hier om
 msgid "{percent}% translated"
 msgstr "{percent}% vertaald"
 
-msgid "{about} · imported"
-msgstr "{about} · geïmporteerd"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · gedownload bij kiezen"
-
 msgid "IN USE"
 msgstr "IN GEBRUIK"
 
@@ -2592,6 +2587,9 @@ msgstr "Dit is niet toegestaan voor dit apparaat"
 msgid "This page is not offered on this system"
 msgstr "Deze pagina wordt niet aangeboden op dit systeem"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Deze uitbreiding mag die functie niet gebruiken"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Dit platform biedt de gevraagde functie niet"
 
@@ -2990,3 +2988,366 @@ msgstr "De extensiewinkel is niet bereikbaar"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Wat de winkel heeft gestuurd is groter dan toegestaan"
+
+msgid "Download and use"
+msgstr "Downloaden en gebruiken"
+
+msgid "Downloaded"
+msgstr "Gedownload"
+
+msgid "Not downloaded"
+msgstr "Niet gedownload"
+
+msgid "Imported"
+msgstr "Geïmporteerd"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Een bestandsnaam in het pakket is niet bruikbaar"
+
+msgid "A file of the package could not be read"
+msgstr "Een bestand van het pakket kon niet worden gelezen"
+
+msgid "A file of the package is not usable"
+msgstr "Een bestand van het pakket is niet bruikbaar"
+
+msgid "A file of the package is outside it"
+msgstr "Een bestand van het pakket staat erbuiten"
+
+msgid "A file of the package is too large"
+msgstr "Een bestand van het pakket is te groot"
+
+msgid "A plugin package cannot contain links"
+msgstr "Een pluginpakket mag geen koppelingen bevatten"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Een pluginpakket bevat alleen bestanden en mappen"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "Een apparaat stuurde meer dan een plugin mag ontvangen"
+
+msgid "A plugin tried to send more than it may"
+msgstr "Een plugin probeerde meer te versturen dan toegestaan"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "Een overdracht naar een apparaat komt niet meer verder"
+
+msgid "A transfer to a device was interrupted"
+msgstr "Een overdracht naar een apparaat is onderbroken"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "Een overdracht naar een plugin komt niet meer verder"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "Een overdracht naar een plugin is onderbroken"
+
+msgid "A chosen file is no longer available"
+msgstr "Een gekozen bestand is niet meer beschikbaar"
+
+msgid "A device could not be reached to send to it"
+msgstr "Een apparaat was niet bereikbaar om naar te versturen"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Een pakket met deze naam wacht op bevestiging; bevestig of annuleer het eerst"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Een pakket van buiten de winkel wordt pas geïnstalleerd nadat de waarschuwing tot het einde is gelezen en ingedrukt gehouden om te bevestigen"
+
+msgid "A plugin could not be started"
+msgstr "Een plugin kon niet worden gestart"
+
+msgid "A plugin could not complete the action"
+msgstr "Een plugin kon de actie niet voltooien"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "Een plugin kon de actie niet voltooien: hij is bezig"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "Een plugin kon de actie niet voltooien: wat hij nodig heeft is niet beschikbaar"
+
+msgid "A plugin did not complete the action in time"
+msgstr "Een plugin heeft de actie niet op tijd voltooid"
+
+msgid "A plugin did not start sending in time"
+msgstr "Een plugin begon niet op tijd met versturen"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "Een plugin werkte niet meer en is uitgeschakeld"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "Een plugin mocht de actie niet voltooien"
+
+msgid "A restart names one plugin"
+msgstr "Een herstart noemt één plugin"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "Er loopt een overdracht of koppeling; herstart wanneer die klaar is"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "Er loopt een overdracht of koppeling; werk bij wanneer die klaar is"
+
+msgid "A transfer to a plugin failed"
+msgstr "Een overdracht naar een plugin is mislukt"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "Er wordt een map gekozen voor een ander bestand. Rond dat eerst af en accepteer dan dit bestand."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "Een plugin stopte voordat de actie klaar was"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "De plugin stopte voordat hij klaar was. Probeer het opnieuw zodra hij weer draait."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "De processor van dit apparaat zien: de naam, hoeveel kernen hij heeft, hoe snel hij draait, hoe druk en hoe warm hij is."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "De grafische kaart van dit apparaat zien: wie hem maakte, hoe snel hij draait, hoeveel van zijn geheugen in gebruik is, hoe druk en hoe warm hij is."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Zien hoeveel geheugen dit apparaat heeft en hoeveel daarvan vrij is."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Zien hoe groot de opslag van de map voor ontvangen bestanden is, hoeveel ervan vrij is en welke naam het systeem de schijf geeft. Ziet geen bestanden of mapnamen."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Zien hoeveel bytes het netwerk van dit apparaat sinds het opstarten ontving en verstuurde. Het ziet geen netwerken, adressen of inhoud."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "De accu van dit apparaat zien: de lading, of hij laadt en hoe lang hij nog meegaat."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "De schermen van deze computer zien en hoe je gekoppelde computers eromheen staan."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Zien welke andere extensies hier geïnstalleerd zijn en of elk draait. Het kan hun gegevens of rechten niet lezen."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Zien welk besturingssysteem en welke processorarchitectuur dit apparaat heeft."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "De taal zien waarin je de app gebruikt, om er de eigen teksten in te tonen."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Dit gekoppelde apparaat zien: de naam en of het online is of slaapt. Het kan de apparaatsleutel niet zien en er niets naartoe sturen."
+
+msgid "AI translated"
+msgstr "Vertaald door AI"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "De indeling van de bureaubladen is elders gewijzigd; laad opnieuw voor het opslaan"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Schermen van bureaubladen overlappen of liggen buiten het bruikbare vlak"
+
+msgid "Invalid desktop arrangement"
+msgstr "Ongeldige indeling van bureaubladen"
+
+msgid "Too many desktops"
+msgstr "Te veel bureaubladen"
+
+msgid "Unknown desktop"
+msgstr "Onbekend bureaublad"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "Hoe het met dit apparaat gaat, deel voor deel, elk achter een eigen toestemming: processor, grafische kaart, geheugen, opslag, netwerk en batterij, zoals het besturingssysteem ze publiceert."
+
+msgid "EXTENSIONS"
+msgstr "UITBREIDINGEN"
+
+msgid "Extension pages in one place"
+msgstr "Uitbreidingspagina's op één plek"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "De pagina's die uitbreidingen toevoegen delen één plek in de navigatie, Uitbreidingen, die tussen hen wisselt. Uit: elke pagina heeft een eigen plek."
+
+msgid "Another extension dialog is already open"
+msgstr "Er is al een ander dialoogvenster van een extensie geopend"
+
+msgid "Authorization was cancelled"
+msgstr "De autorisatie is geannuleerd"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Stel eerst de API-sleutel in bij de instellingen van deze extensie"
+
+msgid "Could not remove the saved API key"
+msgstr "De opgeslagen API-sleutel kon niet worden verwijderd"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "De API-sleutel kon niet worden opgeslagen in de versleutelde opslag voor inloggegevens"
+
+msgid "Enter an API key"
+msgstr "Voer een API-sleutel in"
+
+msgid "Selected file is unavailable"
+msgstr "Het gekozen bestand is niet beschikbaar"
+
+msgid "Selection was cancelled"
+msgstr "De keuze is geannuleerd"
+
+msgid "The credential store is unavailable"
+msgstr "De opslag voor inloggegevens is niet beschikbaar"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "De versleutelde opslag voor inloggegevens is niet beschikbaar"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "De opgeslagen API-sleutel is ongeldig; stel hem opnieuw in"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "De nummers voor verzoeken van extensies zijn op"
+
+msgid "Extension prompt is no longer active"
+msgstr "Het verzoek van de extensie is niet meer actief"
+
+msgid "This extension already has a prompt pending"
+msgstr "Deze extensie heeft al een openstaand verzoek"
+
+msgid "Too many extension prompts are pending"
+msgstr "Er staan te veel verzoeken van extensies open"
+
+msgid "That notification has no such button"
+msgstr "Die melding heeft zo’n knop niet"
+
+msgid "That notification is no longer shown"
+msgstr "Die melding wordt niet meer getoond"
+
+msgid "That page is being used too fast"
+msgstr "Die pagina wordt te snel gebruikt"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "De goedkeuring van de extensie is ouder dan een al geaccepteerde"
+
+msgid "The extension source listing could not be checked"
+msgstr "De bronnenlijst van extensies kon niet worden gecontroleerd"
+
+msgid "The saved extension approvals are damaged"
+msgstr "De opgeslagen goedkeuringen van extensies zijn beschadigd"
+
+msgid "The saved extension approvals could not be read"
+msgstr "De opgeslagen goedkeuringen van extensies konden niet worden gelezen"
+
+msgid "The extension approvals are too large"
+msgstr "De goedkeuringen van extensies zijn te groot"
+
+msgid "The extension approvals could not be saved"
+msgstr "De goedkeuringen van extensies konden niet worden opgeslagen"
+
+msgid "The extension is not in the approved catalog"
+msgstr "De extensie staat niet in de goedgekeurde catalogus"
+
+msgid "The extension store is not set up in this build"
+msgstr "De extensiestore is in deze versie niet ingesteld"
+
+msgid "The native process is not a supported executable"
+msgstr "Het native proces is geen ondersteund uitvoerbaar bestand"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "Het platform van het native proces wordt niet ondersteund door de controle van de store"
+
+msgid "The package could not be checked"
+msgstr "Het pakket kon niet worden gecontroleerd"
+
+msgid "The package does not say who made it"
+msgstr "Het pakket zegt niet wie het heeft gemaakt"
+
+msgid "The store cache is not available"
+msgstr "De cache van de store is niet beschikbaar"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "De store is bezig; wacht tot hij klaar is"
+
+msgid "The extension is not keeping up with this input"
+msgstr "De extensie houdt deze invoer niet bij"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Hide details"
+msgstr "Details verbergen"
+
+msgid "Read the licence and notice"
+msgstr "Licentie en mededeling lezen"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Kan de systeemidentiteit niet lezen; bestaande inloggegevens zijn niet gewijzigd"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Kan de systeemsleutelbos niet lezen; er is niets gewijzigd"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Kan de keuze niet onthouden; er is niets gewijzigd"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Kan de identiteit niet opslaan in de systeemopslag voor inloggegevens"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Kan bestaande koppelingen niet controleren; identiteit is niet vervangen"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Kan de opgeslagen identiteit niet controleren; bij de volgende start wordt opnieuw gelezen"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Geef minstens de eerste vier tekens van de vermelding, zoals `identity-list` die toont"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "Opgeslagen identiteit is tijdens het aanmaken gewijzigd; starten geweigerd"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Opgeslagen identiteit is ongeldig; ze is niet vervangen. Voer `peersus identity-reset --yes` uit om met een nieuwe identiteit te beginnen"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "Toegang tot de systeemsleutelbos is geweigerd of geannuleerd; bestaande identiteit en koppelingen zijn niet gewijzigd"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "De systeemsleutelbos bevat meerdere overeenkomende identiteitsvermeldingen en geen enkele kon worden gelezen; er is geen identiteit gekozen of gewijzigd. Voer `peersus identity-list` uit en daarna `peersus identity-use <record>` om er een te kiezen, of `peersus identity-reset --yes` om met een nieuwe identiteit te beginnen"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "Dat is niet het begin van precies één vermelding; er is niets gewijzigd"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "De identiteit voor bestaande koppelingen is niet beschikbaar; ze is niet vervangen. Als ze definitief weg is, voer dan `peersus identity-reset --yes` uit om met een nieuwe identiteit te beginnen"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "De identiteit is verwijderd, maar de koppelingen konden niet apart worden gezet"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "De sleutelbos weigerde de identiteitsvermeldingen te verwijderen"
+
+msgid "Cannot start the interface's executor"
+msgstr "Kan de uitvoerder van de interface niet starten"
+
+msgid "The application is not running"
+msgstr "De applicatie draait niet"
+
+msgid "The application's directory cannot be found"
+msgstr "De map van de applicatie is niet gevonden"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Sleeping"
+msgstr "Slaapstand"
+
+msgid "Choose a device"
+msgstr "Kies een apparaat"
+
+msgid "No device is paired"
+msgstr "Er is geen apparaat gekoppeld"
+
+msgid "NOT ALLOWED"
+msgstr "NIET TOEGESTAAN"
+
+msgid "NOT READY THERE"
+msgstr "DAAR NIET GEREED"
+
+msgid "NO STATUS"
+msgstr "GEEN STATUS"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "STATUS NIET TOEGESTAAN"

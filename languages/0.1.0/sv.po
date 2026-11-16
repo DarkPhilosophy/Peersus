@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: sv\n"
 "X-Language-Name: Svenska\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2067,12 +2068,6 @@ msgstr "Spara mallen, översätt den i valfri PO-redigerare, importera den här 
 msgid "{percent}% translated"
 msgstr "{percent} % översatt"
 
-msgid "{about} · imported"
-msgstr "{about} · importerad"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · hämtas när det väljs"
-
 msgid "IN USE"
 msgstr "ANVÄNDS"
 
@@ -2592,6 +2587,9 @@ msgstr "Det här är inte tillåtet för den här enheten"
 msgid "This page is not offered on this system"
 msgstr "Den här sidan erbjuds inte på det här systemet"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Det här tillägget har inte fått använda den funktionen"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Den här plattformen erbjuder inte den begärda funktionen"
 
@@ -2990,3 +2988,366 @@ msgstr "Det gick inte att nå tilläggsbutiken"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Det som butiken skickade är större än tillåtet"
+
+msgid "Download and use"
+msgstr "Ladda ner och använd"
+
+msgid "Downloaded"
+msgstr "Nedladdat"
+
+msgid "Not downloaded"
+msgstr "Inte nedladdat"
+
+msgid "Imported"
+msgstr "Importerat"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Ett filnamn i paketet går inte att använda"
+
+msgid "A file of the package could not be read"
+msgstr "En fil i paketet kunde inte läsas"
+
+msgid "A file of the package is not usable"
+msgstr "En fil i paketet går inte att använda"
+
+msgid "A file of the package is outside it"
+msgstr "En fil i paketet ligger utanför det"
+
+msgid "A file of the package is too large"
+msgstr "En fil i paketet är för stor"
+
+msgid "A plugin package cannot contain links"
+msgstr "Ett tilläggspaket får inte innehålla länkar"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Ett tilläggspaket innehåller bara filer och mappar"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "En enhet skickade mer än ett tillägg får ta emot"
+
+msgid "A plugin tried to send more than it may"
+msgstr "Ett tillägg försökte skicka mer än det får"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "En överföring till en enhet kommer inte längre framåt"
+
+msgid "A transfer to a device was interrupted"
+msgstr "En överföring till en enhet avbröts"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "En överföring till ett tillägg kommer inte längre framåt"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "En överföring till ett tillägg avbröts"
+
+msgid "A chosen file is no longer available"
+msgstr "En vald fil är inte längre tillgänglig"
+
+msgid "A device could not be reached to send to it"
+msgstr "En enhet kunde inte nås för att skicka till den"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Ett paket med det här namnet väntar på bekräftelse; bekräfta eller avbryt det först"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Ett paket utanför butiken installeras först när dess varning har lästs till slutet och hållits nedtryckt för att bekräfta"
+
+msgid "A plugin could not be started"
+msgstr "Ett tillägg kunde inte startas"
+
+msgid "A plugin could not complete the action"
+msgstr "Ett tillägg kunde inte slutföra åtgärden"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "Ett tillägg kunde inte slutföra åtgärden: det är upptaget"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "Ett tillägg kunde inte slutföra åtgärden: det som behövs är inte tillgängligt"
+
+msgid "A plugin did not complete the action in time"
+msgstr "Ett tillägg slutförde inte åtgärden i tid"
+
+msgid "A plugin did not start sending in time"
+msgstr "Ett tillägg började inte skicka i tid"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "Ett tillägg slutade fungera och stängdes av"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "Ett tillägg fick inte slutföra åtgärden"
+
+msgid "A restart names one plugin"
+msgstr "En omstart anger ett enda tillägg"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "En överföring eller parkoppling pågår; starta om när den är klar"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "En överföring eller parkoppling pågår; uppdatera när den är klar"
+
+msgid "A transfer to a plugin failed"
+msgstr "En överföring till ett tillägg misslyckades"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "En mapp väljs just nu för en annan fil. Gör klart det först och ta sedan emot den här."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "Ett tillägg stannade innan det slutförde åtgärden"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "Tillägget stannade innan det blev klart. Försök igen när det körs igen."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "Se den här enhetens processor: dess namn, hur många kärnor den har, hur snabbt den går, hur upptagen och hur varm den är."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "Se den här enhetens grafik: vem som tillverkat den, hur snabbt den går, hur mycket av dess minne som används, hur upptagen och hur varm den är."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Se hur mycket minne den här enheten har och hur mycket som är ledigt."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Se hur stort lagringsutrymmet är för mappen dit mottagna filer går, hur mycket av det som är ledigt och vilket namn systemet ger dess disk. Det ser inga filer eller mappnamn."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Se hur många byte den här enhetens nätverk tagit emot och skickat sedan start. Den ser inga nätverk, adresser eller innehåll."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "Se den här enhetens batteri: laddningen, om det laddas och hur länge det bör räcka."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "Se den här datorns skärmar och hur dina parkopplade datorer är placerade runt dem."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Se vilka andra tillägg som är installerade här och om vart och ett körs. Den kan inte läsa deras data eller behörigheter."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Se vilket operativsystem och vilken processorarkitektur den här enheten har."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "Se språket du använder appen på, för att visa sina egna texter på det."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Se den här parkopplade enheten: dess namn och om den är online eller i viloläge. Det kan inte se enhetens nyckel eller skicka något till den."
+
+msgid "AI translated"
+msgstr "AI-översatt"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "Skrivbordens placering ändrades någon annanstans; läs in igen innan du sparar"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Skrivbordens skärmar överlappar eller ligger utanför det användbara planet"
+
+msgid "Invalid desktop arrangement"
+msgstr "Ogiltig placering av skrivbord"
+
+msgid "Too many desktops"
+msgstr "För många skrivbord"
+
+msgid "Unknown desktop"
+msgstr "Okänt skrivbord"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "Hur den här enheten mår, en del i taget, var och en bakom sin egen behörighet: processor, grafik, minne, lagring, nätverk och batteri, så som operativsystemet publicerar dem."
+
+msgid "EXTENSIONS"
+msgstr "TILLÄGG"
+
+msgid "Extension pages in one place"
+msgstr "Tilläggssidor på en plats"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "Sidorna som tillägg lägger till delar en plats i navigeringen, Tillägg, som växlar mellan dem. Av: varje sida har en egen plats."
+
+msgid "Another extension dialog is already open"
+msgstr "En annan tilläggsdialog är redan öppen"
+
+msgid "Authorization was cancelled"
+msgstr "Auktoriseringen avbröts"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Ställ först in API-nyckeln i det här tilläggets inställningar"
+
+msgid "Could not remove the saved API key"
+msgstr "Det gick inte att ta bort den sparade API-nyckeln"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "Det gick inte att spara API-nyckeln i det krypterade lagret för inloggningsuppgifter"
+
+msgid "Enter an API key"
+msgstr "Ange en API-nyckel"
+
+msgid "Selected file is unavailable"
+msgstr "Den valda filen är inte tillgänglig"
+
+msgid "Selection was cancelled"
+msgstr "Valet avbröts"
+
+msgid "The credential store is unavailable"
+msgstr "Lagret för inloggningsuppgifter är inte tillgängligt"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "Det krypterade lagret för inloggningsuppgifter är inte tillgängligt"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "Den sparade API-nyckeln är ogiltig; ställ in den igen"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "Identifierarna för tilläggens förfrågningar är slut"
+
+msgid "Extension prompt is no longer active"
+msgstr "Tilläggets förfrågan är inte längre aktiv"
+
+msgid "This extension already has a prompt pending"
+msgstr "Det här tillägget har redan en väntande förfrågan"
+
+msgid "Too many extension prompts are pending"
+msgstr "För många förfrågningar från tillägg väntar"
+
+msgid "That notification has no such button"
+msgstr "Den aviseringen har ingen sådan knapp"
+
+msgid "That notification is no longer shown"
+msgstr "Den aviseringen visas inte längre"
+
+msgid "That page is being used too fast"
+msgstr "Den sidan används för snabbt"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "Tilläggets godkännande är äldre än ett som redan har godtagits"
+
+msgid "The extension source listing could not be checked"
+msgstr "Det gick inte att kontrollera tilläggens källista"
+
+msgid "The saved extension approvals are damaged"
+msgstr "De sparade godkännandena av tillägg är skadade"
+
+msgid "The saved extension approvals could not be read"
+msgstr "Det gick inte att läsa de sparade godkännandena av tillägg"
+
+msgid "The extension approvals are too large"
+msgstr "Godkännandena av tillägg är för stora"
+
+msgid "The extension approvals could not be saved"
+msgstr "Det gick inte att spara godkännandena av tillägg"
+
+msgid "The extension is not in the approved catalog"
+msgstr "Tillägget finns inte i den godkända katalogen"
+
+msgid "The extension store is not set up in this build"
+msgstr "Tilläggsbutiken är inte konfigurerad i den här versionen"
+
+msgid "The native process is not a supported executable"
+msgstr "Den inbyggda processen är inte en körbar fil som stöds"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "Den inbyggda processens plattform stöds inte av butikens kontroll"
+
+msgid "The package could not be checked"
+msgstr "Det gick inte att kontrollera paketet"
+
+msgid "The package does not say who made it"
+msgstr "Paketet säger inte vem som har gjort det"
+
+msgid "The store cache is not available"
+msgstr "Butikens cache är inte tillgänglig"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "Butiken är upptagen; vänta tills den är klar"
+
+msgid "The extension is not keeping up with this input"
+msgstr "Tillägget hinner inte med den här inmatningen"
+
+msgid "Details"
+msgstr "Detaljer"
+
+msgid "Hide details"
+msgstr "Dölj detaljer"
+
+msgid "Read the licence and notice"
+msgstr "Läs licensen och meddelandet"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Kan inte läsa systemets identitet. Befintliga inloggningsuppgifter har inte ändrats"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Kan inte läsa systemets nyckelring. Inget har ändrats"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Kan inte komma ihåg valet. Inget har ändrats"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Kan inte spara identiteten i systemets lagring för inloggningsuppgifter"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Kan inte verifiera befintliga parkopplingar. Identiteten har inte ersatts"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Kan inte verifiera den sparade identiteten. Läsningen görs om vid nästa start"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Ange minst de fyra första tecknen i posten, så som `identity-list` visar den"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "Den sparade identiteten ändrades medan den skapades. Starten nekades"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Den sparade identiteten är ogiltig. Den har inte ersatts. Kör `peersus identity-reset --yes` för att börja med en ny identitet"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "Åtkomst till systemets nyckelring nekades eller avbröts. Befintlig identitet och parkopplingar har inte ändrats"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "Systemets nyckelring innehåller flera matchande identitetsposter och ingen kunde läsas. Ingen identitet har valts eller ändrats. Kör `peersus identity-list` och sedan `peersus identity-use <record>` för att välja en, eller `peersus identity-reset --yes` för att börja med en ny identitet"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "Det är inte början på exakt en post. Inget har ändrats"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Identiteten för befintliga parkopplingar är inte tillgänglig. Den har inte ersatts. Om den är borta för gott, kör `peersus identity-reset --yes` för att börja med en ny identitet"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "Identiteten raderades, men parkopplingarna kunde inte läggas åt sidan"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "Nyckelringen vägrade radera identitetsposterna"
+
+msgid "Cannot start the interface's executor"
+msgstr "Kan inte starta gränssnittets exekverare"
+
+msgid "The application is not running"
+msgstr "Programmet körs inte"
+
+msgid "The application's directory cannot be found"
+msgstr "Programmets mapp hittades inte"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Sleeping"
+msgstr "Viloläge"
+
+msgid "Choose a device"
+msgstr "Välj en enhet"
+
+msgid "No device is paired"
+msgstr "Ingen enhet är parkopplad"
+
+msgid "NOT ALLOWED"
+msgstr "INTE TILLÅTET"
+
+msgid "NOT READY THERE"
+msgstr "INTE REDO DÄR"
+
+msgid "NO STATUS"
+msgstr "INGEN STATUS"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "STATUS INTE TILLÅTEN"

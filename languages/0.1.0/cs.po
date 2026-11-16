@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: cs\n"
 "X-Language-Name: Čeština\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2073,12 +2074,6 @@ msgstr "Uložte šablonu, přeložte ji v libovolném editoru PO, importujte ji 
 msgid "{percent}% translated"
 msgstr "Přeloženo {percent} %"
 
-msgid "{about} · imported"
-msgstr "{about} · importováno"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · stáhne se po výběru"
-
 msgid "IN USE"
 msgstr "POUŽÍVÁ SE"
 
@@ -2598,6 +2593,9 @@ msgstr "Pro toto zařízení to není povoleno"
 msgid "This page is not offered on this system"
 msgstr "Tato stránka není v tomto systému k dispozici"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Toto rozšíření nemá povoleno tuto funkci používat"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Tato platforma požadovanou funkci nenabízí"
 
@@ -2996,3 +2994,366 @@ msgstr "Obchod s rozšířeními není dostupný"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Obchod poslal víc dat, než je povoleno"
+
+msgid "Download and use"
+msgstr "Stáhnout a použít"
+
+msgid "Downloaded"
+msgstr "Staženo"
+
+msgid "Not downloaded"
+msgstr "Nestaženo"
+
+msgid "Imported"
+msgstr "Importováno"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Název souboru v balíčku nelze použít"
+
+msgid "A file of the package could not be read"
+msgstr "Soubor balíčku nelze přečíst"
+
+msgid "A file of the package is not usable"
+msgstr "Soubor balíčku nelze použít"
+
+msgid "A file of the package is outside it"
+msgstr "Soubor balíčku leží mimo něj"
+
+msgid "A file of the package is too large"
+msgstr "Soubor balíčku je příliš velký"
+
+msgid "A plugin package cannot contain links"
+msgstr "Balíček pluginu nesmí obsahovat odkazy"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Balíček pluginu obsahuje jen soubory a složky"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "Zařízení poslalo víc, než smí plugin přijmout"
+
+msgid "A plugin tried to send more than it may"
+msgstr "Plugin se pokusil poslat víc, než smí"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "Přenos do zařízení přestal postupovat"
+
+msgid "A transfer to a device was interrupted"
+msgstr "Přenos do zařízení byl přerušen"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "Přenos do pluginu přestal postupovat"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "Přenos do pluginu byl přerušen"
+
+msgid "A chosen file is no longer available"
+msgstr "Vybraný soubor už není k dispozici"
+
+msgid "A device could not be reached to send to it"
+msgstr "Zařízení se nepodařilo zastihnout, aby mu šlo něco poslat"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Balíček s tímto názvem čeká na potvrzení; nejdřív ho potvrďte nebo zrušte"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Balíček mimo obchod se nainstaluje teprve poté, co bylo jeho varování dočteno do konce a potvrzeno podržením"
+
+msgid "A plugin could not be started"
+msgstr "Plugin nelze spustit"
+
+msgid "A plugin could not complete the action"
+msgstr "Plugin nemohl akci dokončit"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "Plugin nemohl akci dokončit: je zaneprázdněn"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "Plugin nemohl akci dokončit: to, co potřebuje, není k dispozici"
+
+msgid "A plugin did not complete the action in time"
+msgstr "Plugin nedokončil akci včas"
+
+msgid "A plugin did not start sending in time"
+msgstr "Plugin nezačal odesílat včas"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "Plugin přestal fungovat a byl vypnut"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "Plugin nesměl akci dokončit"
+
+msgid "A restart names one plugin"
+msgstr "Restart uvádí jeden plugin"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "Probíhá přenos nebo párování; restartujte, až skončí"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "Probíhá přenos nebo párování; aktualizujte, až skončí"
+
+msgid "A transfer to a plugin failed"
+msgstr "Přenos do pluginu selhal"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "Pro jiný soubor se právě vybírá složka. Nejdřív to dokončete, pak přijměte tento."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "Plugin se zastavil dřív, než akci dokončil"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "Plugin se zastavil před dokončením. Zkuste to znovu, až zase poběží."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "Vidět procesor tohoto zařízení: jeho název, počet jader, jak rychle běží, vytížení a teplotu."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "Vidět grafiku tohoto zařízení: kdo ji vyrobil, jak rychle běží, kolik její paměti je využito, její vytížení a teplotu."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Vidět, kolik paměti toto zařízení má a kolik je volné."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Vidět, jak velké je úložiště složky, do které jdou přijaté soubory, kolik z něj je volné a jak systém jmenuje jeho disk. Nevidí žádné soubory ani názvy složek."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Vidět, kolik bajtů síť tohoto zařízení přijala a odeslala od spuštění. Nevidí sítě, adresy ani přenesený obsah."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "Vidět baterii tohoto zařízení: nabití, zda se nabíjí a jak dlouho by měla vydržet."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "Vidět obrazovky tohoto počítače a jak jsou kolem nich uspořádány spárované počítače."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Vidět, která další rozšíření jsou zde nainstalována a zda každé běží. Nemůže číst jejich data ani oprávnění."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Vidět, jaký operační systém a jakou architekturu procesoru toto zařízení má."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "Vidět jazyk, ve kterém aplikaci používáte, aby v něm zobrazilo vlastní texty."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Vidět toto spárované zařízení: jeho název a zda je online nebo v režimu spánku. Nemůže zobrazit klíč zařízení ani mu nic poslat."
+
+msgid "AI translated"
+msgstr "Přeloženo pomocí AI"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "Uspořádání ploch se změnilo jinde; před uložením je načtěte znovu"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Obrazovky ploch se překrývají nebo leží mimo použitelnou plochu"
+
+msgid "Invalid desktop arrangement"
+msgstr "Neplatné uspořádání ploch"
+
+msgid "Too many desktops"
+msgstr "Příliš mnoho ploch"
+
+msgid "Unknown desktop"
+msgstr "Neznámá plocha"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "Jak se tomuto zařízení daří, po jednotlivých částech, každá za vlastním oprávněním: procesor, grafika, paměť, úložiště, síť a baterie, jak je zveřejňuje operační systém."
+
+msgid "EXTENSIONS"
+msgstr "ROZŠÍŘENÍ"
+
+msgid "Extension pages in one place"
+msgstr "Stránky rozšíření na jednom místě"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "Stránky přidané rozšířeními sdílejí jedno místo v navigaci, Rozšíření, které mezi nimi přepíná. Vypnuto: každá má vlastní místo."
+
+msgid "Another extension dialog is already open"
+msgstr "Jiné dialogové okno rozšíření je už otevřené"
+
+msgid "Authorization was cancelled"
+msgstr "Autorizace byla zrušena"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Nejprve nastavte klíč API v nastavení tohoto rozšíření"
+
+msgid "Could not remove the saved API key"
+msgstr "Uložený klíč API se nepodařilo odebrat"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "Klíč API se nepodařilo uložit do šifrovaného úložiště přihlašovacích údajů"
+
+msgid "Enter an API key"
+msgstr "Zadejte klíč API"
+
+msgid "Selected file is unavailable"
+msgstr "Vybraný soubor není dostupný"
+
+msgid "Selection was cancelled"
+msgstr "Výběr byl zrušen"
+
+msgid "The credential store is unavailable"
+msgstr "Úložiště přihlašovacích údajů není dostupné"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "Šifrované úložiště přihlašovacích údajů není dostupné"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "Uložený klíč API je neplatný; nastavte ho znovu"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "Identifikátory žádostí rozšíření jsou vyčerpány"
+
+msgid "Extension prompt is no longer active"
+msgstr "Žádost rozšíření už není aktivní"
+
+msgid "This extension already has a prompt pending"
+msgstr "Toto rozšíření už má čekající žádost"
+
+msgid "Too many extension prompts are pending"
+msgstr "Čeká příliš mnoho žádostí rozšíření"
+
+msgid "That notification has no such button"
+msgstr "Toto oznámení takové tlačítko nemá"
+
+msgid "That notification is no longer shown"
+msgstr "Toto oznámení se už nezobrazuje"
+
+msgid "That page is being used too fast"
+msgstr "Tato stránka se používá příliš rychle"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "Schválení rozšíření je starší než už přijaté"
+
+msgid "The extension source listing could not be checked"
+msgstr "Seznam zdrojů rozšíření se nepodařilo ověřit"
+
+msgid "The saved extension approvals are damaged"
+msgstr "Uložená schválení rozšíření jsou poškozená"
+
+msgid "The saved extension approvals could not be read"
+msgstr "Uložená schválení rozšíření se nepodařilo přečíst"
+
+msgid "The extension approvals are too large"
+msgstr "Schválení rozšíření jsou příliš velká"
+
+msgid "The extension approvals could not be saved"
+msgstr "Schválení rozšíření se nepodařilo uložit"
+
+msgid "The extension is not in the approved catalog"
+msgstr "Rozšíření není ve schváleném katalogu"
+
+msgid "The extension store is not set up in this build"
+msgstr "Obchod s rozšířeními není v této verzi nastaven"
+
+msgid "The native process is not a supported executable"
+msgstr "Nativní proces není podporovaný spustitelný soubor"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "Platforma nativního procesu není podporována ověřením obchodu"
+
+msgid "The package could not be checked"
+msgstr "Balíček se nepodařilo ověřit"
+
+msgid "The package does not say who made it"
+msgstr "Balíček neuvádí, kdo ho vytvořil"
+
+msgid "The store cache is not available"
+msgstr "Mezipaměť obchodu není dostupná"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "Obchod je zaneprázdněný; počkejte, až skončí"
+
+msgid "The extension is not keeping up with this input"
+msgstr "Rozšíření nestíhá tento vstup"
+
+msgid "Details"
+msgstr "Podrobnosti"
+
+msgid "Hide details"
+msgstr "Skrýt podrobnosti"
+
+msgid "Read the licence and notice"
+msgstr "Přečíst licenci a oznámení"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Nelze načíst identitu systému; stávající přihlašovací údaje se nezměnily"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Nelze načíst klíčenku systému; nic se nezměnilo"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Volbu nelze zapamatovat; nic se nezměnilo"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Identitu nelze uložit do systémového úložiště přihlašovacích údajů"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Stávající párování nelze ověřit; identita nebyla nahrazena"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Uloženou identitu nelze ověřit; načtení se zopakuje při příštím spuštění"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Zadej alespoň první čtyři znaky záznamu, jak je ukazuje `identity-list`"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "Uložená identita se během vytváření změnila; spuštění odmítnuto"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Uložená identita je neplatná; nebyla nahrazena. Spusť `peersus identity-reset --yes` a začni s novou identitou"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "Přístup ke klíčence systému byl odepřen nebo zrušen; stávající identita a párování se nezměnily"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "Klíčenka systému obsahuje více odpovídajících záznamů identity a žádný nešlo načíst; žádná identita nebyla vybrána ani změněna. Spusť `peersus identity-list`, potom `peersus identity-use <record>` a jeden vyber, nebo `peersus identity-reset --yes` a začni s novou identitou"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "To není začátek právě jednoho záznamu; nic se nezměnilo"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Identita pro stávající párování není dostupná; nebyla nahrazena. Pokud je nenávratně pryč, spusť `peersus identity-reset --yes` a začni s novou identitou"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "Identita byla smazána, ale párování se nepodařilo odložit stranou"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "Klíčenka odmítla smazat záznamy identity"
+
+msgid "Cannot start the interface's executor"
+msgstr "Nelze spustit vykonavatele rozhraní"
+
+msgid "The application is not running"
+msgstr "Aplikace neběží"
+
+msgid "The application's directory cannot be found"
+msgstr "Adresář aplikace nelze najít"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Sleeping"
+msgstr "Spí"
+
+msgid "Choose a device"
+msgstr "Vyber zařízení"
+
+msgid "No device is paired"
+msgstr "Žádné zařízení není spárováno"
+
+msgid "NOT ALLOWED"
+msgstr "NEPOVOLENO"
+
+msgid "NOT READY THERE"
+msgstr "TAM NENÍ PŘIPRAVENO"
+
+msgid "NO STATUS"
+msgstr "BEZ STAVU"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "STAV NEPOVOLEN"

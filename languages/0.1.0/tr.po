@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: tr\n"
 "X-Language-Name: Türkçe\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2061,12 +2062,6 @@ msgstr "Şablonu kaydedin, herhangi bir PO düzenleyicide çevirin, hemen görme
 msgid "{percent}% translated"
 msgstr "%{percent} çevrildi"
 
-msgid "{about} · imported"
-msgstr "{about} · içe aktarıldı"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · seçilince indirilir"
-
 msgid "IN USE"
 msgstr "KULLANIMDA"
 
@@ -2586,6 +2581,9 @@ msgstr "Bu cihaz için buna izin verilmiyor"
 msgid "This page is not offered on this system"
 msgstr "Bu sayfa bu sistemde sunulmuyor"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Bu uzantının o özelliği kullanmasına izin verilmedi"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Bu platform istenen özelliği sunmuyor"
 
@@ -2984,3 +2982,366 @@ msgstr "Eklenti mağazasına ulaşılamadı"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Mağazanın gönderdiği veri izin verilenden büyük"
+
+msgid "Download and use"
+msgstr "İndir ve kullan"
+
+msgid "Downloaded"
+msgstr "İndirildi"
+
+msgid "Not downloaded"
+msgstr "İndirilmedi"
+
+msgid "Imported"
+msgstr "İçe aktarıldı"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Paketteki bir dosya adı kullanılamıyor"
+
+msgid "A file of the package could not be read"
+msgstr "Paketteki bir dosya okunamadı"
+
+msgid "A file of the package is not usable"
+msgstr "Paketteki bir dosya kullanılamıyor"
+
+msgid "A file of the package is outside it"
+msgstr "Paketin bir dosyası paketin dışında"
+
+msgid "A file of the package is too large"
+msgstr "Paketteki bir dosya çok büyük"
+
+msgid "A plugin package cannot contain links"
+msgstr "Bir eklenti paketi bağlantı içeremez"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Bir eklenti paketi yalnızca dosya ve klasör içerir"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "Bir cihaz, bir eklentinin alabileceğinden fazlasını gönderdi"
+
+msgid "A plugin tried to send more than it may"
+msgstr "Bir eklenti izin verilenden fazlasını göndermeye çalıştı"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "Bir cihaza aktarım ilerlemeyi durdurdu"
+
+msgid "A transfer to a device was interrupted"
+msgstr "Bir cihaza aktarım kesildi"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "Bir eklentiye aktarım ilerlemeyi durdurdu"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "Bir eklentiye aktarım kesildi"
+
+msgid "A chosen file is no longer available"
+msgstr "Seçilen bir dosya artık kullanılamıyor"
+
+msgid "A device could not be reached to send to it"
+msgstr "Göndermek için bir cihaza ulaşılamadı"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Bu ada sahip bir paket onay bekliyor; önce onaylayın ya da iptal edin"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Mağaza dışından bir paket, ancak uyarısı sonuna kadar okunup onaylamak için basılı tutulduktan sonra yüklenir"
+
+msgid "A plugin could not be started"
+msgstr "Bir eklenti başlatılamadı"
+
+msgid "A plugin could not complete the action"
+msgstr "Bir eklenti işlemi tamamlayamadı"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "Bir eklenti işlemi tamamlayamadı: meşgul"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "Bir eklenti işlemi tamamlayamadı: ihtiyaç duyduğu şey kullanılamıyor"
+
+msgid "A plugin did not complete the action in time"
+msgstr "Bir eklenti işlemi zamanında tamamlamadı"
+
+msgid "A plugin did not start sending in time"
+msgstr "Bir eklenti göndermeye zamanında başlamadı"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "Bir eklenti çalışmayı durdurdu ve kapatıldı"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "Bir eklentinin işlemi tamamlamasına izin verilmedi"
+
+msgid "A restart names one plugin"
+msgstr "Bir yeniden başlatma tek bir eklentiyi belirtir"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "Bir aktarım ya da eşleştirme sürüyor; bittiğinde yeniden başlatın"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "Bir aktarım ya da eşleştirme sürüyor; bittiğinde güncelleyin"
+
+msgid "A transfer to a plugin failed"
+msgstr "Bir eklentiye aktarım başarısız oldu"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "Başka bir dosya için klasör seçiliyor. Önce onu bitirin, sonra bunu kabul edin."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "Bir eklenti işlemi bitirmeden durdu"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "Eklenti bitirmeden durdu. Yeniden çalıştığında tekrar deneyin."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "Bu cihazın işlemcisini görme: adı, kaç çekirdeği olduğu, ne kadar hızlı çalıştığı, ne kadar meşgul ve ne kadar sıcak olduğu."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "Bu cihazın grafik birimini görme: üreticisi, ne kadar hızlı çalıştığı, belleğinin ne kadarının kullanıldığı, ne kadar meşgul ve ne kadar sıcak olduğu."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Bu cihazın ne kadar belleği olduğunu ve ne kadarının boş olduğunu görme."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Alınan dosyaların gittiği klasörün depolama alanının ne kadar büyük olduğunu, ne kadarının boş olduğunu ve sistemin diskine verdiği adı görme. Hiçbir dosya veya klasör adı görmez."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Bu cihazın ağının açılıştan beri kaç bayt aldığını ve gönderdiğini görme. Ağları, adresleri veya taşınanı görmez."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "Bu cihazın pilini görme: şarjı, şarj olup olmadığı ve ne kadar dayanacağı."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "Bu bilgisayarın ekranlarını ve eşleştirilmiş bilgisayarlarının çevresinde nasıl dizildiğini görme."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Burada başka hangi uzantıların kurulu olduğunu ve her birinin çalışıp çalışmadığını görme. Verilerini veya izinlerini okuyamaz."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Bu cihazın hangi işletim sistemine ve işlemci mimarisine sahip olduğunu görme."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "Uygulamayı kullandığın dili görme, kendi sözcüklerini o dilde göstermek için."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Bu eşleştirilmiş cihazı görür: adını ve çevrimiçi mi yoksa uykuda mı olduğunu. Cihazın anahtarını göremez ve ona hiçbir şey gönderemez."
+
+msgid "AI translated"
+msgstr "Yapay zekâ ile çevrildi"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "Masaüstü düzeni başka bir yerde değişti; kaydetmeden önce yeniden yükle"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Masaüstü ekranları çakışıyor veya kullanılabilir düzlemin dışında"
+
+msgid "Invalid desktop arrangement"
+msgstr "Geçersiz masaüstü düzeni"
+
+msgid "Too many desktops"
+msgstr "Çok fazla masaüstü"
+
+msgid "Unknown desktop"
+msgstr "Bilinmeyen masaüstü"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "Bu cihazın durumu, her bölüm kendi izninin arkasında, teker teker: işlemci, grafik, bellek, depolama, ağ ve pil, işletim sisteminin yayımladığı şekliyle."
+
+msgid "EXTENSIONS"
+msgstr "UZANTILAR"
+
+msgid "Extension pages in one place"
+msgstr "Uzantı sayfaları tek yerde"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "Uzantıların eklediği sayfalar gezintide tek bir yeri, Uzantılar'ı paylaşır; bu yer aralarında geçiş yapar. Kapalıyken her birinin kendi yeri olur."
+
+msgid "Another extension dialog is already open"
+msgstr "Başka bir uzantı penceresi zaten açık"
+
+msgid "Authorization was cancelled"
+msgstr "Yetkilendirme iptal edildi"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Önce bu uzantının ayarlarında API anahtarını yapılandırın"
+
+msgid "Could not remove the saved API key"
+msgstr "Kayıtlı API anahtarı kaldırılamadı"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "API anahtarı şifreli kimlik bilgisi deposuna kaydedilemedi"
+
+msgid "Enter an API key"
+msgstr "Bir API anahtarı girin"
+
+msgid "Selected file is unavailable"
+msgstr "Seçilen dosya kullanılamıyor"
+
+msgid "Selection was cancelled"
+msgstr "Seçim iptal edildi"
+
+msgid "The credential store is unavailable"
+msgstr "Kimlik bilgisi deposu kullanılamıyor"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "Şifreli kimlik bilgisi deposu kullanılamıyor"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "Kayıtlı API anahtarı geçersiz; yeniden yapılandırın"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "Uzantı isteklerinin tanımlayıcıları tükendi"
+
+msgid "Extension prompt is no longer active"
+msgstr "Uzantının isteği artık etkin değil"
+
+msgid "This extension already has a prompt pending"
+msgstr "Bu uzantının zaten bekleyen bir isteği var"
+
+msgid "Too many extension prompts are pending"
+msgstr "Bekleyen uzantı isteği çok fazla"
+
+msgid "That notification has no such button"
+msgstr "Bu bildirimde böyle bir düğme yok"
+
+msgid "That notification is no longer shown"
+msgstr "Bu bildirim artık gösterilmiyor"
+
+msgid "That page is being used too fast"
+msgstr "Bu sayfa çok hızlı kullanılıyor"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "Uzantının onayı zaten kabul edilmiş bir onaydan daha eski"
+
+msgid "The extension source listing could not be checked"
+msgstr "Uzantı kaynak listesi denetlenemedi"
+
+msgid "The saved extension approvals are damaged"
+msgstr "Kayıtlı uzantı onayları bozuk"
+
+msgid "The saved extension approvals could not be read"
+msgstr "Kayıtlı uzantı onayları okunamadı"
+
+msgid "The extension approvals are too large"
+msgstr "Uzantı onayları çok büyük"
+
+msgid "The extension approvals could not be saved"
+msgstr "Uzantı onayları kaydedilemedi"
+
+msgid "The extension is not in the approved catalog"
+msgstr "Uzantı onaylı katalogda yok"
+
+msgid "The extension store is not set up in this build"
+msgstr "Uzantı mağazası bu sürümde kurulmamış"
+
+msgid "The native process is not a supported executable"
+msgstr "Yerel işlem desteklenen bir yürütülebilir dosya değil"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "Yerel işlemin platformu mağaza doğrulaması tarafından desteklenmiyor"
+
+msgid "The package could not be checked"
+msgstr "Paket denetlenemedi"
+
+msgid "The package does not say who made it"
+msgstr "Paket onu kimin yaptığını söylemiyor"
+
+msgid "The store cache is not available"
+msgstr "Mağaza önbelleği kullanılamıyor"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "Mağaza meşgul; bitirmesini bekleyin"
+
+msgid "The extension is not keeping up with this input"
+msgstr "Uzantı bu girdiye yetişemiyor"
+
+msgid "Details"
+msgstr "Ayrıntılar"
+
+msgid "Hide details"
+msgstr "Ayrıntıları gizle"
+
+msgid "Read the licence and notice"
+msgstr "Lisansı ve bildirimi oku"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Sistem kimliği okunamıyor; mevcut kimlik bilgileri değiştirilmedi"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Sistem anahtarlığı okunamıyor; hiçbir şey değiştirilmedi"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Seçim hatırlanamıyor; hiçbir şey değiştirilmedi"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Kimlik, sistem kimlik bilgisi deposuna kaydedilemiyor"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Mevcut eşleştirmeler doğrulanamıyor; kimlik değiştirilmedi"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Kayıtlı kimlik doğrulanamıyor; bir sonraki başlatmada yeniden okunacak"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Kaydın en az ilk dört karakterini `identity-list` komutunun gösterdiği gibi gir"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "Kayıtlı kimlik oluşturma sırasında değişti; başlatma reddedildi"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Kayıtlı kimlik geçersiz; değiştirilmedi. Yeni bir kimlikle başlamak için `peersus identity-reset --yes` komutunu çalıştır"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "Sistem anahtarlığına erişim reddedildi veya iptal edildi; mevcut kimlik ve eşleştirmeler değiştirilmedi"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "Sistem anahtarlığı birden fazla eşleşen kimlik kaydı içeriyor ve hiçbiri okunamadı; hiçbir kimlik seçilmedi veya değiştirilmedi. Birini seçmek için `peersus identity-list`, ardından `peersus identity-use <record>` komutunu, yeni bir kimlikle başlamak için ise `peersus identity-reset --yes` komutunu çalıştır"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "Bu, tam olarak tek bir kaydın başlangıcı değil; hiçbir şey değiştirilmedi"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Mevcut eşleştirmelerin kimliği kullanılamıyor; değiştirilmedi. Kalıcı olarak kaybolduysa, yeni bir kimlikle başlamak için `peersus identity-reset --yes` komutunu çalıştır"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "Kimlik silindi ancak eşleştirmeler kenara alınamadı"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "Anahtarlık kimlik kayıtlarını silmeyi reddetti"
+
+msgid "Cannot start the interface's executor"
+msgstr "Arayüzün yürütücüsü başlatılamıyor"
+
+msgid "The application is not running"
+msgstr "Uygulama çalışmıyor"
+
+msgid "The application's directory cannot be found"
+msgstr "Uygulamanın dizini bulunamıyor"
+
+msgid "Offline"
+msgstr "Çevrimdışı"
+
+msgid "Online"
+msgstr "Çevrimiçi"
+
+msgid "Sleeping"
+msgstr "Uykuda"
+
+msgid "Choose a device"
+msgstr "Bir cihaz seç"
+
+msgid "No device is paired"
+msgstr "Eşlenmiş cihaz yok"
+
+msgid "NOT ALLOWED"
+msgstr "İZİN VERİLMİYOR"
+
+msgid "NOT READY THERE"
+msgstr "ORADA HAZIR DEĞİL"
+
+msgid "NO STATUS"
+msgstr "DURUM YOK"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "DURUMA İZİN YOK"

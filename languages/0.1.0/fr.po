@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: fr\n"
 "X-Language-Name: Français\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2067,12 +2068,6 @@ msgstr "Enregistrez le modèle, traduisez-le dans n'importe quel éditeur PO, im
 msgid "{percent}% translated"
 msgstr "{percent} % traduit"
 
-msgid "{about} · imported"
-msgstr "{about} · importé"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · téléchargé une fois choisi"
-
 msgid "IN USE"
 msgstr "UTILISÉE"
 
@@ -2592,6 +2587,9 @@ msgstr "Ce n'est pas autorisé pour cet appareil"
 msgid "This page is not offered on this system"
 msgstr "Cette page n'est pas proposée sur ce système"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Cette extension n’a pas été autorisée à utiliser cette fonctionnalité"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Cette plateforme ne propose pas la fonctionnalité demandée"
 
@@ -2990,3 +2988,366 @@ msgstr "Impossible de joindre le magasin d'extensions"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Les données envoyées par le magasin dépassent la taille autorisée"
+
+msgid "Download and use"
+msgstr "Télécharger et utiliser"
+
+msgid "Downloaded"
+msgstr "Téléchargé"
+
+msgid "Not downloaded"
+msgstr "Non téléchargé"
+
+msgid "Imported"
+msgstr "Importé"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Un nom de fichier du paquet est inutilisable"
+
+msgid "A file of the package could not be read"
+msgstr "Un fichier du paquet n’a pas pu être lu"
+
+msgid "A file of the package is not usable"
+msgstr "Un fichier du paquet est inutilisable"
+
+msgid "A file of the package is outside it"
+msgstr "Un fichier du paquet se trouve en dehors de celui-ci"
+
+msgid "A file of the package is too large"
+msgstr "Un fichier du paquet est trop volumineux"
+
+msgid "A plugin package cannot contain links"
+msgstr "Un paquet de plugin ne peut pas contenir de liens"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Un paquet de plugin ne contient que des fichiers et des dossiers"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "Un appareil a envoyé plus qu’un plugin ne peut recevoir"
+
+msgid "A plugin tried to send more than it may"
+msgstr "Un plugin a tenté d’envoyer plus qu’il n’est autorisé"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "Un transfert vers un appareil n’avance plus"
+
+msgid "A transfer to a device was interrupted"
+msgstr "Un transfert vers un appareil a été interrompu"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "Un transfert vers un plugin n’avance plus"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "Un transfert vers un plugin a été interrompu"
+
+msgid "A chosen file is no longer available"
+msgstr "Un fichier choisi n’est plus disponible"
+
+msgid "A device could not be reached to send to it"
+msgstr "Un appareil n’a pas pu être joint pour lui envoyer"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Un paquet portant ce nom attend d’être confirmé ; confirmez-le ou annulez-le d’abord"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Un paquet venant d’ailleurs que la boutique n’est installé qu’après lecture de son avertissement jusqu’au bout et un appui maintenu pour confirmer"
+
+msgid "A plugin could not be started"
+msgstr "Un plugin n’a pas pu être démarré"
+
+msgid "A plugin could not complete the action"
+msgstr "Un plugin n’a pas pu terminer l’action"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "Un plugin n’a pas pu terminer l’action : il est occupé"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "Un plugin n’a pas pu terminer l’action : ce dont il a besoin n’est pas disponible"
+
+msgid "A plugin did not complete the action in time"
+msgstr "Un plugin n’a pas terminé l’action à temps"
+
+msgid "A plugin did not start sending in time"
+msgstr "Un plugin n’a pas commencé à envoyer à temps"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "Un plugin a cessé de fonctionner et a été désactivé"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "Un plugin n’a pas été autorisé à terminer l’action"
+
+msgid "A restart names one plugin"
+msgstr "Un redémarrage désigne un seul plugin"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "Un transfert ou un appairage est en cours ; redémarrez quand il sera terminé"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "Un transfert ou un appairage est en cours ; mettez à jour quand il sera terminé"
+
+msgid "A transfer to a plugin failed"
+msgstr "Un transfert vers un plugin a échoué"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "Un dossier est en cours de choix pour un autre fichier. Terminez cela d’abord, puis acceptez celui-ci."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "Un plugin s’est arrêté avant d’avoir terminé l’action"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "Le plugin s’est arrêté avant d’avoir terminé. Réessayez quand il fonctionnera de nouveau."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "Voir le processeur de cet appareil : son nom, son nombre de cœurs, sa vitesse, sa charge et sa température."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "Voir la carte graphique de cet appareil : son fabricant, sa vitesse, la part de sa mémoire utilisée, sa charge et sa température."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Voir combien de mémoire a cet appareil et combien est libre."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Voir la taille du stockage du dossier où vont les fichiers reçus, la place libre et le nom que le système donne à son disque. Aucun fichier ni nom de dossier n’est visible."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Voir combien d'octets le réseau de cet appareil a reçus et envoyés depuis son démarrage. Ne voit ni réseaux, ni adresses, ni contenu."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "Voir la batterie de cet appareil : sa charge, si elle se recharge et combien de temps elle devrait tenir."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "Voir les écrans de cet ordinateur et la disposition de vos ordinateurs associés autour d'eux."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Voir quelles autres extensions sont installées ici et si chacune fonctionne. Ne peut pas lire leurs données ni leurs autorisations."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Voir le système d'exploitation et l'architecture de processeur de cet appareil."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "Voir la langue dans laquelle vous utilisez l'application, pour y afficher ses propres textes."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Voir cet appareil associé : son nom, et s’il est en ligne ou en veille. Elle ne peut pas voir la clé de l’appareil ni lui envoyer quoi que ce soit."
+
+msgid "AI translated"
+msgstr "Traduit par IA"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "La disposition des bureaux a changé ailleurs ; rechargez avant d’enregistrer"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Les écrans des bureaux se chevauchent ou sortent du plan utilisable"
+
+msgid "Invalid desktop arrangement"
+msgstr "Disposition des bureaux non valide"
+
+msgid "Too many desktops"
+msgstr "Trop de bureaux"
+
+msgid "Unknown desktop"
+msgstr "Bureau inconnu"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "L’état de cet appareil, partie par partie, chacune derrière sa propre autorisation : processeur, graphisme, mémoire, stockage, réseau et batterie, tels que le système d’exploitation les publie."
+
+msgid "EXTENSIONS"
+msgstr "EXTENSIONS"
+
+msgid "Extension pages in one place"
+msgstr "Pages d'extensions au même endroit"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "Les pages ajoutées par les extensions partagent une seule place dans la navigation, Extensions, qui passe de l'une à l'autre. Désactivé, chacune a sa propre place."
+
+msgid "Another extension dialog is already open"
+msgstr "Une autre boîte de dialogue d’extension est déjà ouverte"
+
+msgid "Authorization was cancelled"
+msgstr "L’autorisation a été annulée"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Configurez d’abord la clé API dans les réglages de cette extension"
+
+msgid "Could not remove the saved API key"
+msgstr "Impossible de supprimer la clé API enregistrée"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "Impossible d’enregistrer la clé API dans le magasin d’identifiants chiffré"
+
+msgid "Enter an API key"
+msgstr "Saisissez une clé API"
+
+msgid "Selected file is unavailable"
+msgstr "Le fichier sélectionné n’est pas disponible"
+
+msgid "Selection was cancelled"
+msgstr "La sélection a été annulée"
+
+msgid "The credential store is unavailable"
+msgstr "Le magasin d’identifiants n’est pas disponible"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "Le magasin d’identifiants chiffré n’est pas disponible"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "La clé API enregistrée n’est pas valide ; configurez-la à nouveau"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "Les identifiants des demandes d’extension sont épuisés"
+
+msgid "Extension prompt is no longer active"
+msgstr "La demande de l’extension n’est plus active"
+
+msgid "This extension already has a prompt pending"
+msgstr "Cette extension a déjà une demande en attente"
+
+msgid "Too many extension prompts are pending"
+msgstr "Trop de demandes d’extensions sont en attente"
+
+msgid "That notification has no such button"
+msgstr "Cette notification n’a pas ce bouton"
+
+msgid "That notification is no longer shown"
+msgstr "Cette notification n’est plus affichée"
+
+msgid "That page is being used too fast"
+msgstr "Cette page est utilisée trop vite"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "L’approbation de l’extension est plus ancienne qu’une approbation déjà acceptée"
+
+msgid "The extension source listing could not be checked"
+msgstr "La liste des sources d’extensions n’a pas pu être vérifiée"
+
+msgid "The saved extension approvals are damaged"
+msgstr "Les approbations d’extensions enregistrées sont endommagées"
+
+msgid "The saved extension approvals could not be read"
+msgstr "Les approbations d’extensions enregistrées n’ont pas pu être lues"
+
+msgid "The extension approvals are too large"
+msgstr "Les approbations d’extensions sont trop volumineuses"
+
+msgid "The extension approvals could not be saved"
+msgstr "Les approbations d’extensions n’ont pas pu être enregistrées"
+
+msgid "The extension is not in the approved catalog"
+msgstr "L’extension ne figure pas dans le catalogue approuvé"
+
+msgid "The extension store is not set up in this build"
+msgstr "La boutique d’extensions n’est pas configurée dans cette version"
+
+msgid "The native process is not a supported executable"
+msgstr "Le processus natif n’est pas un exécutable pris en charge"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "La plateforme du processus natif n’est pas prise en charge par la validation de la boutique"
+
+msgid "The package could not be checked"
+msgstr "Le paquet n’a pas pu être vérifié"
+
+msgid "The package does not say who made it"
+msgstr "Le paquet n’indique pas qui l’a créé"
+
+msgid "The store cache is not available"
+msgstr "Le cache de la boutique n’est pas disponible"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "La boutique est occupée ; attendez qu’elle ait fini"
+
+msgid "The extension is not keeping up with this input"
+msgstr "L’extension ne suit pas le rythme de cette saisie"
+
+msgid "Details"
+msgstr "Détails"
+
+msgid "Hide details"
+msgstr "Masquer les détails"
+
+msgid "Read the licence and notice"
+msgstr "Lire la licence et l’avis"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Impossible de lire l'identité système ; les identifiants existants n'ont pas été modifiés"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Impossible de lire le trousseau système ; rien n'a été modifié"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Impossible de mémoriser le choix ; rien n'a été modifié"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Impossible d'enregistrer l'identité dans le magasin d'identifiants du système"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Impossible de vérifier les appairages existants ; l'identité n'a pas été remplacée"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Impossible de vérifier l'identité enregistrée ; nouvelle lecture au prochain démarrage"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Indique au moins les quatre premiers caractères de l'entrée, tels que `identity-list` les affiche"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "L'identité enregistrée a changé pendant sa création ; démarrage refusé"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "L'identité enregistrée n'est pas valide ; elle n'a pas été remplacée. Exécute `peersus identity-reset --yes` pour repartir avec une nouvelle identité"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "L'accès au trousseau système a été refusé ou annulé ; l'identité et les appairages existants n'ont pas été modifiés"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "Le trousseau système contient plusieurs entrées d'identité correspondantes et aucune n'a pu être lue ; aucune identité n'a été choisie ni modifiée. Exécute `peersus identity-list`, puis `peersus identity-use <record>` pour en choisir une, ou `peersus identity-reset --yes` pour repartir avec une nouvelle identité"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "Ce n'est pas le début d'une seule entrée ; rien n'a été modifié"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "L'identité des appairages existants n'est pas disponible ; elle n'a pas été remplacée. Si elle est définitivement perdue, exécute `peersus identity-reset --yes` pour repartir avec une nouvelle identité"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "L'identité a été supprimée, mais les appairages n'ont pas pu être mis de côté"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "Le trousseau a refusé de supprimer les entrées de l'identité"
+
+msgid "Cannot start the interface's executor"
+msgstr "Impossible de démarrer l'exécuteur de l'interface"
+
+msgid "The application is not running"
+msgstr "L'application n'est pas en cours d'exécution"
+
+msgid "The application's directory cannot be found"
+msgstr "Le dossier de l'application est introuvable"
+
+msgid "Offline"
+msgstr "Hors ligne"
+
+msgid "Online"
+msgstr "En ligne"
+
+msgid "Sleeping"
+msgstr "En veille"
+
+msgid "Choose a device"
+msgstr "Choisis un appareil"
+
+msgid "No device is paired"
+msgstr "Aucun appareil n'est associé"
+
+msgid "NOT ALLOWED"
+msgstr "NON AUTORISÉ"
+
+msgid "NOT READY THERE"
+msgstr "PAS PRÊT LÀ-BAS"
+
+msgid "NO STATUS"
+msgstr "AUCUN STATUT"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "STATUT NON AUTORISÉ"

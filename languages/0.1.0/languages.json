@@ -1,66 +1,90 @@
 {
   "languages": [
     {
+      "bytes": 113324,
       "language": "cs",
+      "machine": true,
       "name": "Čeština",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 117864,
       "language": "de",
+      "machine": true,
       "name": "Deutsch",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 115586,
       "language": "es",
+      "machine": true,
       "name": "Español",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 119436,
       "language": "fr",
+      "machine": true,
       "name": "Français",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 116270,
       "language": "it",
+      "machine": true,
       "name": "Italiano",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 114946,
       "language": "nl",
+      "machine": true,
       "name": "Nederlands",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 115489,
       "language": "pl",
+      "machine": true,
       "name": "Polski",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 116353,
       "language": "pt",
+      "machine": true,
       "name": "Português",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 116354,
       "language": "ro",
+      "machine": false,
       "name": "Română",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 112629,
       "language": "sv",
+      "machine": true,
       "name": "Svenska",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 111843,
       "language": "tr",
+      "machine": true,
       "name": "Türkçe",
-      "translated": 988
+      "translated": 1108
     },
     {
+      "bytes": 103331,
       "language": "zh",
+      "machine": true,
       "name": "中文",
-      "translated": 988
+      "translated": 1108
     }
   ],
-  "messages": 988,
+  "messages": 1108,
   "release": "0.1.0"
 }

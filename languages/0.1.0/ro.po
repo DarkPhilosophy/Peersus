@@ -2073,12 +2073,6 @@ msgstr "Salvează șablonul, tradu-l în orice editor PO, importă-l aici ca să
 msgid "{percent}% translated"
 msgstr "{percent}% tradus"
 
-msgid "{about} · imported"
-msgstr "{about} · importat"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · se descarcă la alegere"
-
 msgid "IN USE"
 msgstr "ÎN UZ"
 
@@ -2598,6 +2592,9 @@ msgstr "Acest lucru nu este permis pentru acest dispozitiv"
 msgid "This page is not offered on this system"
 msgstr "Această pagină nu este disponibilă pe acest sistem"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "Această extensie nu are voie să folosească funcția respectivă"
+
 msgid "This platform does not offer the requested facility"
 msgstr "Această platformă nu oferă funcția solicitată"
 
@@ -2996,3 +2993,366 @@ msgstr "Magazinul de extensii nu a putut fi accesat"
 
 msgid "What the store sent is larger than allowed"
 msgstr "Ce a trimis magazinul depășește limita permisă"
+
+msgid "Download and use"
+msgstr "Descarcă și folosește"
+
+msgid "Downloaded"
+msgstr "Descărcat"
+
+msgid "Not downloaded"
+msgstr "Nedescărcat"
+
+msgid "Imported"
+msgstr "Importat"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "Numele unui fișier din pachet nu poate fi folosit"
+
+msgid "A file of the package could not be read"
+msgstr "Un fișier din pachet nu a putut fi citit"
+
+msgid "A file of the package is not usable"
+msgstr "Un fișier din pachet nu poate fi folosit"
+
+msgid "A file of the package is outside it"
+msgstr "Un fișier al pachetului se află în afara lui"
+
+msgid "A file of the package is too large"
+msgstr "Un fișier din pachet este prea mare"
+
+msgid "A plugin package cannot contain links"
+msgstr "Pachetul unei extensii nu poate conține legături"
+
+msgid "A plugin package holds only files and directories"
+msgstr "Pachetul unei extensii conține doar fișiere și dosare"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "Un dispozitiv a trimis mai mult decât poate primi o extensie"
+
+msgid "A plugin tried to send more than it may"
+msgstr "O extensie a încercat să trimită mai mult decât îi este permis"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "Un transfer către un dispozitiv nu mai avansează"
+
+msgid "A transfer to a device was interrupted"
+msgstr "Un transfer către un dispozitiv a fost întrerupt"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "Un transfer către o extensie nu mai avansează"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "Un transfer către o extensie a fost întrerupt"
+
+msgid "A chosen file is no longer available"
+msgstr "Un fișier ales nu mai este disponibil"
+
+msgid "A device could not be reached to send to it"
+msgstr "Un dispozitiv nu a putut fi contactat pentru a-i trimite"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "Un pachet cu acest nume așteaptă confirmarea; confirmă-l sau anulează-l mai întâi"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "Un pachet din afara magazinului se instalează doar după ce avertismentul lui a fost citit până la capăt și ținut apăsat pentru confirmare"
+
+msgid "A plugin could not be started"
+msgstr "O extensie nu a putut fi pornită"
+
+msgid "A plugin could not complete the action"
+msgstr "O extensie nu a putut finaliza acțiunea"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "O extensie nu a putut finaliza acțiunea: este ocupată"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "O extensie nu a putut finaliza acțiunea: ce îi trebuie nu este disponibil"
+
+msgid "A plugin did not complete the action in time"
+msgstr "O extensie nu a finalizat acțiunea la timp"
+
+msgid "A plugin did not start sending in time"
+msgstr "O extensie nu a început să trimită la timp"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "O extensie a încetat să funcționeze și a fost oprită"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "O extensie nu a avut voie să finalizeze acțiunea"
+
+msgid "A restart names one plugin"
+msgstr "O repornire numește o singură extensie"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "Un transfer sau o asociere este în curs; repornește după ce se termină"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "Un transfer sau o asociere este în curs; actualizează după ce se termină"
+
+msgid "A transfer to a plugin failed"
+msgstr "Un transfer către o extensie a eșuat"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "Se alege un dosar pentru alt fișier. Termină mai întâi acolo, apoi acceptă-l pe acesta."
+
+msgid "A plugin stopped before it finished the action"
+msgstr "O extensie s-a oprit înainte să termine acțiunea"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "Extensia s-a oprit înainte să termine. Reîncearcă după ce pornește din nou."
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "Vede procesorul acestui dispozitiv: numele lui, câte nuclee are, cât de repede merge, cât de ocupat și cât de cald este."
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "Vede placa grafică a acestui dispozitiv: cine a făcut-o, cât de repede merge, câtă din memoria ei e folosită, cât de ocupată și cât de caldă este."
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "Vede câtă memorie are acest dispozitiv și cât din ea e liberă."
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "Vede cât de mare este spațiul dosarului în care ajung fișierele primite, cât e liber din el și numele pe care sistemul îl dă discului. Nu vede niciun fișier sau nume de dosar."
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "Vede câți octeți a primit și a trimis rețeaua acestui dispozitiv de la pornire. Nu vede rețele, adrese sau ce s-a transmis."
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "Vede bateria acestui dispozitiv: cât e încărcată, dacă se încarcă și cât ar trebui să mai țină."
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "Vede ecranele acestui calculator și cum sunt așezate în jurul lor calculatoarele asociate."
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "Vede ce alte extensii sunt instalate aici și dacă fiecare rulează. Nu le poate citi datele sau permisiunile."
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "Vede ce sistem de operare și ce arhitectură de procesor are acest dispozitiv."
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "Vede limba în care folosești aplicația, ca să-și arate propriile cuvinte în ea."
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "Vede acest dispozitiv asociat: numele lui și dacă este conectat sau în repaus. Nu poate vedea cheia dispozitivului și nu îi poate trimite nimic."
+
+msgid "AI translated"
+msgstr "Tradus cu AI"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "Aranjarea desktopurilor s-a schimbat în altă parte; reîncarcă înainte de a salva"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "Ecranele desktopurilor se suprapun sau ies din planul utilizabil"
+
+msgid "Invalid desktop arrangement"
+msgstr "Aranjare a desktopurilor nevalidă"
+
+msgid "Too many desktops"
+msgstr "Prea multe desktopuri"
+
+msgid "Unknown desktop"
+msgstr "Desktop necunoscut"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "Cum se descurcă acest dispozitiv, câte o parte pe rând, fiecare cu permisiunea ei: procesor, grafică, memorie, stocare, rețea și baterie, așa cum le publică sistemul de operare."
+
+msgid "EXTENSIONS"
+msgstr "EXTENSII"
+
+msgid "Extension pages in one place"
+msgstr "Paginile extensiilor într-un singur loc"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "Paginile adăugate de extensii împart un singur loc în navigare, Extensii, care comută între ele. Dezactivat, fiecare are locul ei."
+
+msgid "Another extension dialog is already open"
+msgstr "Este deja deschisă o altă fereastră de dialog a unei extensii"
+
+msgid "Authorization was cancelled"
+msgstr "Autorizarea a fost anulată"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "Configurează mai întâi cheia API în setările acestei extensii"
+
+msgid "Could not remove the saved API key"
+msgstr "Cheia API salvată nu a putut fi ștearsă"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "Cheia API nu a putut fi salvată în depozitul criptat de date de autentificare"
+
+msgid "Enter an API key"
+msgstr "Introdu o cheie API"
+
+msgid "Selected file is unavailable"
+msgstr "Fișierul ales nu este disponibil"
+
+msgid "Selection was cancelled"
+msgstr "Alegerea a fost anulată"
+
+msgid "The credential store is unavailable"
+msgstr "Depozitul de date de autentificare nu este disponibil"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "Depozitul criptat de date de autentificare nu este disponibil"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "Cheia API salvată nu este validă; configureaz-o din nou"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "Identificatorii cererilor extensiilor s-au epuizat"
+
+msgid "Extension prompt is no longer active"
+msgstr "Cererea extensiei nu mai este activă"
+
+msgid "This extension already has a prompt pending"
+msgstr "Această extensie are deja o cerere în așteptare"
+
+msgid "Too many extension prompts are pending"
+msgstr "Prea multe cereri ale extensiilor sunt în așteptare"
+
+msgid "That notification has no such button"
+msgstr "Notificarea nu are un astfel de buton"
+
+msgid "That notification is no longer shown"
+msgstr "Notificarea nu mai este afișată"
+
+msgid "That page is being used too fast"
+msgstr "Pagina este folosită prea repede"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "Aprobarea extensiei este mai veche decât una deja acceptată"
+
+msgid "The extension source listing could not be checked"
+msgstr "Lista surselor extensiilor nu a putut fi verificată"
+
+msgid "The saved extension approvals are damaged"
+msgstr "Aprobările salvate ale extensiilor sunt deteriorate"
+
+msgid "The saved extension approvals could not be read"
+msgstr "Aprobările salvate ale extensiilor nu au putut fi citite"
+
+msgid "The extension approvals are too large"
+msgstr "Aprobările extensiilor sunt prea mari"
+
+msgid "The extension approvals could not be saved"
+msgstr "Aprobările extensiilor nu au putut fi salvate"
+
+msgid "The extension is not in the approved catalog"
+msgstr "Extensia nu este în catalogul aprobat"
+
+msgid "The extension store is not set up in this build"
+msgstr "Magazinul de extensii nu este configurat în această versiune"
+
+msgid "The native process is not a supported executable"
+msgstr "Procesul nativ nu este un executabil acceptat"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "Platforma procesului nativ nu este acceptată de validarea magazinului"
+
+msgid "The package could not be checked"
+msgstr "Pachetul nu a putut fi verificat"
+
+msgid "The package does not say who made it"
+msgstr "Pachetul nu spune cine l-a făcut"
+
+msgid "The store cache is not available"
+msgstr "Memoria cache a magazinului nu este disponibilă"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "Magazinul este ocupat; așteaptă să termine"
+
+msgid "The extension is not keeping up with this input"
+msgstr "Extensia nu ține pasul cu această intrare"
+
+msgid "Details"
+msgstr "Detalii"
+
+msgid "Hide details"
+msgstr "Ascunde detaliile"
+
+msgid "Read the licence and notice"
+msgstr "Citește licența și notificarea"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "Nu se poate citi identitatea sistemului; credențialele existente nu au fost modificate"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "Nu se poate citi keyring-ul sistemului; nimic nu a fost modificat"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "Alegerea nu poate fi reținută; nimic nu a fost modificat"
+
+msgid "Cannot save identity in system credential store"
+msgstr "Nu se poate salva identitatea în depozitul de credențiale al sistemului"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "Asocierile existente nu pot fi verificate; identitatea nu a fost înlocuită"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "Identitatea salvată nu poate fi verificată; citirea se reîncearcă la următoarea pornire"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "Dă cel puțin primele patru caractere ale înregistrării, așa cum le arată `identity-list`"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "Identitatea stocată s-a schimbat în timpul creării; pornirea a fost refuzată"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Identitatea stocată nu este validă; nu a fost înlocuită. Rulează `peersus identity-reset --yes` pentru a începe cu o identitate nouă"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "Accesul la keyring-ul sistemului a fost refuzat sau anulat; identitatea și asocierile existente nu au fost modificate"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "Keyring-ul sistemului conține mai multe înregistrări de identitate potrivite și niciuna nu a putut fi citită; nicio identitate nu a fost aleasă sau modificată. Rulează `peersus identity-list`, apoi `peersus identity-use <record>` pentru a alege una, sau `peersus identity-reset --yes` pentru a începe cu o identitate nouă"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "Acesta nu este începutul unei singure înregistrări; nimic nu a fost modificat"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "Identitatea asocierilor existente nu este disponibilă; nu a fost înlocuită. Dacă s-a pierdut definitiv, rulează `peersus identity-reset --yes` pentru a începe cu o identitate nouă"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "Identitatea a fost ștearsă, dar asocierile nu au putut fi puse deoparte"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "Keyring-ul a refuzat să șteargă înregistrările identității"
+
+msgid "Cannot start the interface's executor"
+msgstr "Executorul interfeței nu poate porni"
+
+msgid "The application is not running"
+msgstr "Aplicația nu rulează"
+
+msgid "The application's directory cannot be found"
+msgstr "Directorul aplicației nu poate fi găsit"
+
+msgid "Offline"
+msgstr "Offline"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Sleeping"
+msgstr "În repaus"
+
+msgid "Choose a device"
+msgstr "Alege un dispozitiv"
+
+msgid "No device is paired"
+msgstr "Niciun dispozitiv nu este asociat"
+
+msgid "NOT ALLOWED"
+msgstr "NEPERMIS"
+
+msgid "NOT READY THERE"
+msgstr "NEPREGĂTIT ACOLO"
+
+msgid "NO STATUS"
+msgstr "FĂRĂ STARE"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "STARE NEPERMISĂ"

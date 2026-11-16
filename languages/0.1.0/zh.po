@@ -3,6 +3,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Language: zh\n"
 "X-Language-Name: 中文\n"
+"X-Translation: ai\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
 msgid "Ask you to select a file for this extension; no ambient filesystem access."
@@ -2027,12 +2028,6 @@ msgstr "保存模板，用任意 PO 编辑器翻译，然后在此导入即可�
 msgid "{percent}% translated"
 msgstr "已翻译 {percent}%"
 
-msgid "{about} · imported"
-msgstr "{about} · 已导入"
-
-msgid "{about} · downloaded when chosen"
-msgstr "{about} · 选择后下载"
-
 msgid "IN USE"
 msgstr "使用中"
 
@@ -2552,6 +2547,9 @@ msgstr "此设备不允许执行此操作"
 msgid "This page is not offered on this system"
 msgstr "此系统不提供此页面"
 
+msgid "This extension has not been allowed to use that facility"
+msgstr "此扩展未被允许使用该功能"
+
 msgid "This platform does not offer the requested facility"
 msgstr "此平台不提供所请求的功能"
 
@@ -2979,3 +2977,366 @@ msgstr "无法连接扩展商店"
 
 msgid "What the store sent is larger than allowed"
 msgstr "商店发送的内容超出允许大小"
+
+msgid "Download and use"
+msgstr "下载并使用"
+
+msgid "Downloaded"
+msgstr "已下载"
+
+msgid "Not downloaded"
+msgstr "未下载"
+
+msgid "Imported"
+msgstr "已导入"
+
+msgid "{first} · {second}"
+msgstr "{first} · {second}"
+
+msgid "A file name of the package is not usable"
+msgstr "软件包中的某个文件名无法使用"
+
+msgid "A file of the package could not be read"
+msgstr "无法读取软件包中的某个文件"
+
+msgid "A file of the package is not usable"
+msgstr "软件包中的某个文件无法使用"
+
+msgid "A file of the package is outside it"
+msgstr "软件包的某个文件位于包外"
+
+msgid "A file of the package is too large"
+msgstr "软件包中的某个文件过大"
+
+msgid "A plugin package cannot contain links"
+msgstr "插件包不能包含链接"
+
+msgid "A plugin package holds only files and directories"
+msgstr "插件包只能包含文件和文件夹"
+
+msgid "A device sent more than a plugin may receive"
+msgstr "某设备发送的内容超出了插件可接收的上限"
+
+msgid "A plugin tried to send more than it may"
+msgstr "某插件试图发送超出允许范围的内容"
+
+msgid "A transfer to a device stopped making progress"
+msgstr "向设备的传输已停止推进"
+
+msgid "A transfer to a device was interrupted"
+msgstr "向设备的传输已中断"
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr "向插件的传输已停止推进"
+
+msgid "A transfer to a plugin was interrupted"
+msgstr "向插件的传输已中断"
+
+msgid "A chosen file is no longer available"
+msgstr "所选文件已不可用"
+
+msgid "A device could not be reached to send to it"
+msgstr "无法连接设备以向其发送"
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr "同名软件包正在等待确认；请先确认或取消"
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr "来自商店以外的软件包，只有在其警告被读到最后并长按确认后才会安装"
+
+msgid "A plugin could not be started"
+msgstr "无法启动插件"
+
+msgid "A plugin could not complete the action"
+msgstr "插件无法完成该操作"
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr "插件无法完成该操作：它正忙"
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr "插件无法完成该操作：它所需的内容不可用"
+
+msgid "A plugin did not complete the action in time"
+msgstr "插件未能及时完成该操作"
+
+msgid "A plugin did not start sending in time"
+msgstr "插件未能及时开始发送"
+
+msgid "A plugin stopped working and was turned off"
+msgstr "插件停止工作，已被关闭"
+
+msgid "A plugin was not allowed to complete the action"
+msgstr "插件未被允许完成该操作"
+
+msgid "A restart names one plugin"
+msgstr "一次重启只能指定一个插件"
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr "正在进行传输或配对；请在完成后重启"
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr "正在进行传输或配对；请在完成后更新"
+
+msgid "A transfer to a plugin failed"
+msgstr "向插件的传输失败"
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr "正在为另一个文件选择文件夹。请先完成那边，再接受这个文件。"
+
+msgid "A plugin stopped before it finished the action"
+msgstr "插件在完成操作前停止了"
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr "插件在完成前停止了。请在它重新运行后重试。"
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr "查看此设备的处理器：名称、核心数量、运行速度、繁忙程度和温度。"
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr "查看此设备的显卡：制造商、运行速度、显存已用多少、繁忙程度和温度。"
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr "查看此设备有多少内存以及其中有多少可用。"
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr "查看接收文件所存放文件夹的存储空间有多大、剩余多少，以及系统给其磁盘的名称。看不到任何文件或文件夹名称。"
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr "查看此设备的网络自启动以来接收和发送了多少字节。看不到网络、地址或传输的内容。"
+
+msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
+msgstr "查看此设备的电池：电量、是否正在充电以及还能使用多久。"
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr "查看这台电脑的屏幕，以及已配对的电脑在其周围的排列方式。"
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr "查看此处安装了哪些其他扩展以及每个是否正在运行。无法读取它们的数据或权限。"
+
+msgid "See which operating system and processor architecture this device has."
+msgstr "查看此设备使用的操作系统和处理器架构。"
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr "查看你使用本应用的语言，以便用该语言显示扩展自己的文字。"
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr "查看此已配对设备：它的名称，以及它是在线还是休眠。它无法看到该设备的密钥，也无法向其发送任何内容。"
+
+msgid "AI translated"
+msgstr "AI 翻译"
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr "桌面排列已在别处更改；保存前请重新加载"
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr "桌面屏幕重叠或位于可用平面之外"
+
+msgid "Invalid desktop arrangement"
+msgstr "无效的桌面排列"
+
+msgid "Too many desktops"
+msgstr "桌面过多"
+
+msgid "Unknown desktop"
+msgstr "未知桌面"
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr "此设备的运行状况，逐项提供，每项都需要单独的权限：处理器、图形、内存、存储、网络和电池，按操作系统公布的内容。"
+
+msgid "EXTENSIONS"
+msgstr "扩展"
+
+msgid "Extension pages in one place"
+msgstr "扩展页面合并到一个位置"
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr "扩展添加的页面在导航中共用一个位置“扩展”，可在它们之间切换。关闭时，每个页面各占一个位置。"
+
+msgid "Another extension dialog is already open"
+msgstr "另一个扩展对话框已经打开"
+
+msgid "Authorization was cancelled"
+msgstr "授权已取消"
+
+msgid "Configure the API key in this extension's settings first"
+msgstr "请先在此扩展的设置中配置 API 密钥"
+
+msgid "Could not remove the saved API key"
+msgstr "无法删除已保存的 API 密钥"
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr "无法将 API 密钥保存到加密的凭据存储中"
+
+msgid "Enter an API key"
+msgstr "请输入 API 密钥"
+
+msgid "Selected file is unavailable"
+msgstr "所选文件不可用"
+
+msgid "Selection was cancelled"
+msgstr "选择已取消"
+
+msgid "The credential store is unavailable"
+msgstr "凭据存储不可用"
+
+msgid "The encrypted credential store is unavailable"
+msgstr "加密的凭据存储不可用"
+
+msgid "The stored API key is invalid; configure it again"
+msgstr "已保存的 API 密钥无效；请重新配置"
+
+msgid "Extension prompt identifiers exhausted"
+msgstr "扩展请求的标识符已用尽"
+
+msgid "Extension prompt is no longer active"
+msgstr "扩展的请求已不再有效"
+
+msgid "This extension already has a prompt pending"
+msgstr "此扩展已有一个待处理的请求"
+
+msgid "Too many extension prompts are pending"
+msgstr "待处理的扩展请求过多"
+
+msgid "That notification has no such button"
+msgstr "该通知没有这样的按钮"
+
+msgid "That notification is no longer shown"
+msgstr "该通知已不再显示"
+
+msgid "That page is being used too fast"
+msgstr "该页面使用得太快"
+
+msgid "The extension approval is older than one already accepted"
+msgstr "扩展的批准早于已接受的批准"
+
+msgid "The extension source listing could not be checked"
+msgstr "无法检查扩展的来源列表"
+
+msgid "The saved extension approvals are damaged"
+msgstr "已保存的扩展批准已损坏"
+
+msgid "The saved extension approvals could not be read"
+msgstr "无法读取已保存的扩展批准"
+
+msgid "The extension approvals are too large"
+msgstr "扩展批准过大"
+
+msgid "The extension approvals could not be saved"
+msgstr "无法保存扩展批准"
+
+msgid "The extension is not in the approved catalog"
+msgstr "该扩展不在已批准的目录中"
+
+msgid "The extension store is not set up in this build"
+msgstr "此版本未配置扩展商店"
+
+msgid "The native process is not a supported executable"
+msgstr "原生进程不是受支持的可执行文件"
+
+msgid "The native process platform is not supported by store validation"
+msgstr "商店验证不支持原生进程的平台"
+
+msgid "The package could not be checked"
+msgstr "无法检查该软件包"
+
+msgid "The package does not say who made it"
+msgstr "该软件包没有说明是谁制作的"
+
+msgid "The store cache is not available"
+msgstr "商店缓存不可用"
+
+msgid "The store is busy; wait for it to finish"
+msgstr "商店正忙；请等待它完成"
+
+msgid "The extension is not keeping up with this input"
+msgstr "扩展跟不上此输入"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Hide details"
+msgstr "隐藏详情"
+
+msgid "Read the licence and notice"
+msgstr "阅读许可证和声明"
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr "无法读取系统身份；现有凭据未更改"
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr "无法读取系统密钥环；未作任何更改"
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr "无法记住该选择；未作任何更改"
+
+msgid "Cannot save identity in system credential store"
+msgstr "无法将身份保存到系统凭据存储"
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr "无法验证现有配对；身份未被替换"
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr "无法验证已保存的身份；将在下次启动时重新读取"
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr "请至少输入记录的前四个字符，按 `identity-list` 显示的形式"
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr "已存储的身份在创建期间发生变化；已拒绝启动"
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr "已存储的身份无效；未被替换。运行 `peersus identity-reset --yes` 以使用新身份重新开始"
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr "系统密钥环访问被拒绝或取消；现有身份和配对未更改"
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr "系统密钥环包含多个匹配的身份记录，但均无法读取；未选择或更改任何身份。运行 `peersus identity-list`，然后运行 `peersus identity-use <record>` 选择其中一个，或运行 `peersus identity-reset --yes` 以使用新身份重新开始"
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr "这不是唯一一条记录的开头；未作任何更改"
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr "现有配对所用的身份不可用；未被替换。如果它已永久丢失，请运行 `peersus identity-reset --yes` 以使用新身份重新开始"
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr "身份已删除，但无法搁置现有配对"
+
+msgid "The keyring refused to delete the identity records"
+msgstr "密钥环拒绝删除身份记录"
+
+msgid "Cannot start the interface's executor"
+msgstr "无法启动界面的执行器"
+
+msgid "The application is not running"
+msgstr "应用程序未运行"
+
+msgid "The application's directory cannot be found"
+msgstr "找不到应用程序的目录"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Sleeping"
+msgstr "休眠"
+
+msgid "Choose a device"
+msgstr "选择设备"
+
+msgid "No device is paired"
+msgstr "没有已配对的设备"
+
+msgid "NOT ALLOWED"
+msgstr "不允许"
+
+msgid "NOT READY THERE"
+msgstr "那里未就绪"
+
+msgid "NO STATUS"
+msgstr "无状态"
+
+msgid "STATUS NOT ALLOWED"
+msgstr "状态不允许"
