@@ -350,6 +350,11 @@ impl State {
             json!({"device":peer,"service":wire::SERVICE,"version":wire::VERSION}),
         )?;
         let claim = opened["claim"].as_u64().ok_or(fail::REFUSED)?;
+        // Asking for the stream waits for the application, and a withdrawal can come meanwhile: looked at again here,
+        // so no reading leaves after it. The claim unused simply expires.
+        if self.withdrawn(ticket) {
+            return Err(fail::CANCELLED);
+        }
         self.transmit(host, claim, &bytes)
     }
 
@@ -1224,6 +1229,60 @@ mod tests {
         host.results.push_back(ok(json!({"claim":8})));
         assert!(state.receive(&mut host, &receive_call(3, "alex")).is_some());
         assert_eq!(state.waiting.len(), 1);
+    }
+
+    #[test]
+    fn a_question_cancelled_while_the_stream_is_asked_for_sends_no_reading() {
+        // The cancellation comes while the application is asked for the stream back, after every part was read.
+        struct CancelledAtSend {
+            script: Script,
+            told: bool,
+        }
+        impl Wire for CancelledAtSend {
+            fn send(&mut self, value: Value) -> Result<(), &'static str> {
+                self.script.send(value)
+            }
+            fn receive(&mut self) -> Result<Value, &'static str> {
+                if !self.told && self.script.sent.last().is_some_and(|call| call["method"] == "send") {
+                    self.told = true;
+                    return Ok(json!({"type":"cancelled","ticket":3}));
+                }
+                self.script.receive()
+            }
+        }
+        impl Data for CancelledAtSend {
+            fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
+                self.script.open(claim, number)
+            }
+            fn read(&mut self, handle: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
+                self.script.read(handle, into)
+            }
+            fn write(&mut self, handle: Handle, from: &[u8]) -> Result<usize, &'static str> {
+                self.script.write(handle, from)
+            }
+            fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str> {
+                self.script.shutdown(handle)
+            }
+            fn close(&mut self, handle: Handle) {
+                self.script.close(handle)
+            }
+            fn poll(&mut self, handles: &[Handle], timeout_ms: i32) -> Result<Option<Handle>, &'static str> {
+                self.script.poll(handles, timeout_ms)
+            }
+        }
+        let mut state = State::default();
+        let mut host = CancelledAtSend {
+            script: script(),
+            told: false,
+        };
+        host.script.incoming.push_back(wire::ask(7));
+        host.script.results.extend(said(1, 2, 3));
+        host.script.results.push_back(ok(json!({"claim":8})));
+        let written = host.script.written.len();
+        assert!(state.receive(&mut host, &receive_call(3, "alex")).is_none());
+        assert!(host.told, "the cancellation came during the stream request");
+        assert_eq!(host.script.written.len(), written, "no reading left after the withdrawal");
+        assert_eq!(host.script.opened.len(), 1, "only the question's stream was opened");
     }
 
     #[test]

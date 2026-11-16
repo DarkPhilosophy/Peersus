@@ -125,12 +125,19 @@ What the person sees, in Monitor's words:
 
 ## Execution format
 
-The WASM guest is the official build and is the only one: one module, byte-identical on every platform, in an isolated
-interpreter with no files, network, processes or OS calls of its own, reaching the application only through the services it
-imports (`peersus.peers` `list` and `send`, `peersus.system`, `peersus.config`, `peersus.pages`, `peersus.notify`). It needs a host with
-`peersus_v1.poll` and data connections, as Control does; an older host is not compatible, and host and guest are updated
-together. `src/host.rs` is the one copy of the shared guest glue (`templates/guest/`), compared byte for byte by
-`scripts/check-guest-glue.py`; there is no native build, so the `native` feature that glue names is declared and not enabled.
+The **WASM guest is the official build**: one module, byte-identical on every platform, in an isolated interpreter with no
+files, network, processes or OS calls of its own, reaching the application only through the services it imports
+(`peersus.peers` `list` and `send`, `peersus.system`, `peersus.config`, `peersus.pages`, `peersus.notify`). It is what the
+store installs. It needs a host with `peersus_v1.poll` and data connections, as Control does; an older host is not
+compatible, and host and guest are updated together. `src/host.rs` is the one copy of the shared guest glue
+(`templates/guest/`), compared byte for byte by `scripts/check-guest-glue.py`.
+
+The same source also builds, for validation and limited support, as a native library (`cargo build --release --features
+native` in `wasm/`, packaged with `--native-library libpeersus_monitor_wasm.so` as `monitor-linux-native_library.tar.gz`) and
+as a process (that library linked into the native host, `monitor-linux-process.tar.gz`). Both speak the same protocol and
+behave the same, but run with the application user's OS privileges: the store does not install them; they travel with the
+signed release for a person to install by hand ([support
+tiers](https://github.com/DarkPhilosophy/Peersus/blob/main/docs/api/manifests.md#support-tiers)).
 
 ## Build and test
 
@@ -140,17 +147,22 @@ From `wasm/` (`env -u CARGO_BUILD_TARGET` only where the environment exports a b
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 cargo build --offline --release --target wasm32-unknown-unknown
+cargo build --offline --release --features native
 ```
 
-From the root of the Peersus source:
+From the root of a Peersus source checkout, with `EXT` the path of this extension's source (`extension/peersus-monitor` in
+the `extension` branch):
 
 ```sh
-cargo run --offline -q -p xtask --target-dir target/ui/xtask -- check-manifest plugins/peersus-monitor/wasm/plugin.json
-python3 scripts/check-guest-glue.py plugins/peersus-monitor
-python3 scripts/module-cycles.py plugins/peersus-monitor/wasm
-python3 scripts/package-native-extension.py --source plugins/peersus-monitor/wasm --sdk . \
-  --target-dir plugins/peersus-monitor/wasm/target --out target/extension-preview --platform linux --id monitor
+cargo run --offline -q -p xtask --target-dir target/ui/xtask -- check-manifest "$EXT/wasm/plugin.json"
+python3 scripts/check-guest-glue.py "$EXT"
+python3 scripts/module-cycles.py "$EXT/wasm"
+python3 scripts/package-native-extension.py --source "$EXT/wasm" --sdk . \
+  --target-dir "$EXT/wasm/target" --out target/extension-preview --platform linux --id monitor
 ```
+
+`submission.toml` is the full recipe CI runs: the WASM build for Linux, Android, macOS and Windows, the native library and the
+process, each validated on its own.
 
 The tests cover the words of the wire, what is refused and cut at its size, what is kept of a part, asking and answering
 through a scripted host (and two Monitors answering each other), every refusal on the way, the bounds of the waits and of what

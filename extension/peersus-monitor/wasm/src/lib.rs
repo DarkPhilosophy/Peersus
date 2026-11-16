@@ -15,6 +15,8 @@
 
 mod gauges;
 mod host;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native;
 mod remote;
 mod wire;
 
@@ -128,6 +130,24 @@ impl Part {
     }
 }
 
+/// How long the application may take to answer a call of this extension (`timeout_ms`), by the page's clock.
+const CALL_MS: u64 = 5_000;
+
+/// One request out: its call's id (0: none) and when it was asked, by the page's clock. Its answer is taken until it
+/// came or the call's time ran out, so a slow answer is not dropped by asking again on every tick.
+#[derive(Clone, Copy, Default)]
+struct Pending {
+    id: u64,
+    at: u64,
+}
+
+impl Pending {
+    /// Whether a new request may be made: none is out, the one out had all its time, or the page's clock started over.
+    fn free(self, now: u64) -> bool {
+        self.id == 0 || now < self.at || now - self.at >= CALL_MS
+    }
+}
+
 #[derive(Default)]
 pub struct State {
     /// The paired devices as the application last listed them: only those the person let this extension see.
@@ -144,8 +164,8 @@ pub struct State {
     /// The page's width in pixels, as the application measured it.
     width: Option<u32>,
     /// The id of the last call of each kind; only its answer is taken.
-    asked_devices: u64,
-    asked_parts: [u64; 6],
+    asked_devices: Pending,
+    asked_parts: [Pending; 6],
     asked_config: u64,
     asked_pages: u64,
     /// The call that asked for a stream to the chosen device to write a question on.
@@ -164,8 +184,6 @@ pub struct State {
     seq: u64,
     /// The ticks of the page's clock so far.
     ticks: u64,
-    /// The moment (the page's clock) the last readings of this device were asked for.
-    asked_at: u64,
     /// This device's numbers.
     own: Gauges,
     /// What is said with the chosen paired device, and its numbers.
@@ -630,7 +648,7 @@ impl State {
     fn call(&mut self, service: &str, method: &str, args: Value) -> (u64, Value) {
         self.calls = self.calls.checked_add(1).unwrap_or(1);
         let call = json!({"op":"call","id":self.calls,"provider":"host","service":service,
-            "version":1,"method":method,"args":args,"timeout_ms":5000});
+            "version":1,"method":method,"args":args,"timeout_ms":CALL_MS});
         (self.calls, call)
     }
 
@@ -658,22 +676,25 @@ impl State {
         let at = event["at"].as_u64().unwrap_or(0);
         if self.chosen.is_none() {
             for (index, part) in PARTS.iter().enumerate() {
+                if !self.asked_parts[index].free(at) {
+                    continue;
+                }
                 let (id, call) = self.call("peersus.system", part.method(), json!({}));
-                self.asked_parts[index] = id;
+                self.asked_parts[index] = Pending { id, at };
                 calls.push(call);
             }
-            self.asked_at = at;
         } else if let Some(call) = self.ask_device(opened, at) {
             calls.push(call);
         }
         self.ticks = self.ticks.wrapping_add(1);
-        if opened
+        if (opened
             || !self.listed
             || self.ticks.is_multiple_of(DEVICES_EVERY)
-            || self.chosen.is_some()
+            || self.chosen.is_some())
+            && self.asked_devices.free(at)
         {
             let (id, call) = self.call("peersus.peers", "list", json!({}));
-            self.asked_devices = id;
+            self.asked_devices = Pending { id, at };
             calls.push(call);
         }
         if opened || self.ticks.is_multiple_of(CONFIG_EVERY) {
@@ -698,7 +719,8 @@ impl State {
         let result = &delivery["result"];
         let denied = result["status"] == "error" && result["code"] == "denied";
         let value = (result["status"] == "ok").then_some(&result["value"]);
-        if id == self.asked_devices {
+        if id == self.asked_devices.id {
+            self.asked_devices = Pending::default();
             if denied {
                 self.devices_denied = true;
                 self.listed = true;
@@ -708,11 +730,17 @@ impl State {
                 self.listed = true;
                 self.listed_devices(peers);
             }
-        } else if let Some(index) = self.asked_parts.iter().position(|asked| *asked == id) {
+        } else if let Some(index) = self.asked_parts.iter().position(|asked| asked.id == id) {
+            let asked = std::mem::take(&mut self.asked_parts[index]);
+            let part = PARTS[index];
             if denied {
-                self.own.deny(PARTS[index]);
+                self.own.deny(part);
             } else if let Some(value) = value.filter(|value| value.is_object()) {
-                self.own.read(PARTS[index], value.clone(), self.asked_at);
+                // Bounded as a reading from another device is: what the application says is data like any other.
+                self.own.read(part, wire::value(part, value), asked.at);
+            } else if result["status"] == "error" {
+                // Not read now: what was read before is not shown as if it were current.
+                self.own.unavailable(part);
             }
         } else if id == self.asked_send {
             self.sent(result);
@@ -1379,6 +1407,21 @@ fn run<H: Wire + Data>(host: &mut H) -> i32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn peersus_main() -> i32 {
     run(&mut host::Host)
+}
+
+/// The entry the native host calls, with its table of the same functions the interpreter offers.
+///
+/// # Safety
+/// `host` is the native host's table, valid for the whole call.
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32 {
+    if !native::enter(host) {
+        return 1;
+    }
+    let result = run(&mut host::Host);
+    native::leave();
+    result
 }
 
 #[cfg(test)]

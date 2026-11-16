@@ -151,36 +151,65 @@ fn the_page_is_placed_among_the_pages_only_while_its_setting_asks_and_is_asked_o
 }
 
 #[test]
-fn each_part_is_asked_on_its_own_and_only_the_last_answer_of_each_is_taken() {
+fn each_part_is_asked_on_its_own_and_not_again_while_its_answer_may_still_come() {
     let mut state = State::default();
-    let first = state.ask(&call(json!({"t":"open"})));
-    let methods: Vec<&str> = first
-        .iter()
-        .filter(|a| a["service"] == "peersus.system")
-        .map(|a| a["method"].as_str().unwrap())
-        .collect();
+    let first = state.ask(&call(json!({"t":"open","at":0})));
+    let asked = |calls: &[Value]| -> Vec<String> {
+        calls
+            .iter()
+            .filter(|a| a["service"] == "peersus.system")
+            .map(|a| a["method"].as_str().unwrap().to_owned())
+            .collect()
+    };
     assert_eq!(
-        methods,
-        [
-            "processor",
-            "graphics",
-            "memory",
-            "storage",
-            "network",
-            "battery"
-        ]
+        asked(&first),
+        ["processor", "graphics", "memory", "storage", "network", "battery"]
     );
     assert!(first.iter().any(|a| a["service"] == "peersus.peers"));
+    // A tick while every answer may still come asks no part again, nor the devices, so a slow answer is not dropped.
     let second = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
-    // An answer to a question asked again since is not taken.
-    let stale = first.iter().find(|a| a["method"] == "memory").unwrap();
-    state.told(&ok(&stale["id"], json!({"total":10,"available":0})));
-    assert_eq!(state.own.parts[Part::Memory as usize], Reading::Unknown);
-    let fresh = second.iter().find(|a| a["method"] == "memory").unwrap();
-    state.told(&ok(&fresh["id"], json!({"total":10,"available":5})));
+    assert!(asked(&second).is_empty());
+    assert!(second.iter().all(|a| a["method"] != "list"));
+    let memory = first.iter().find(|a| a["method"] == "memory").unwrap();
+    state.told(&ok(&memory["id"], json!({"total":10,"available":5})));
     assert!(page(&mut state).contains("5 / 10 B"));
+    // Answered: memory is asked at the next tick, the others still wait for theirs.
+    let third = state.ask(&call(json!({"t":"tick","id":"watch","at":2000})));
+    assert_eq!(asked(&third), ["memory"]);
+    // A call whose time ran out is asked again, and an answer to it after that is not taken.
+    let fourth = state.ask(&call(json!({"t":"tick","id":"watch","at":5000})));
+    assert!(asked(&fourth).contains(&"processor".to_owned()));
+    let late = first.iter().find(|a| a["method"] == "processor").unwrap();
+    state.told(&ok(&late["id"], json!({"name":"Late","cores":2})));
+    assert_eq!(state.own.parts[Part::Processor as usize], Reading::Unknown);
     // A delivery that is not a call of the page asks nothing.
     assert!(state.ask(&json!({"type":"result","id":1})).is_empty());
+}
+
+#[test]
+fn a_reading_the_system_cannot_give_any_more_stops_showing_the_last_one() {
+    let mut state = State::default();
+    let first = state.ask(&call(json!({"t":"open","at":0})));
+    let battery = first.iter().find(|a| a["method"] == "battery").unwrap();
+    state.told(&ok(&battery["id"], json!({"charge":8100,"charging":false,"minutes":120})));
+    assert!(page(&mut state).contains("81"));
+    let again = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
+    let battery = again.iter().find(|a| a["method"] == "battery").unwrap();
+    state.told(&json!({"type":"result","id":battery["id"],
+        "result":{"status":"error","code":"unavailable","message":"gone"}}));
+    assert_eq!(state.own.parts[Part::Battery as usize], Reading::Unavailable);
+}
+
+#[test]
+fn this_devices_numbers_are_bounded_like_another_devices() {
+    let mut state = State::default();
+    let first = state.ask(&call(json!({"t":"open","at":0})));
+    let graphics = first.iter().find(|a| a["method"] == "graphics").unwrap();
+    // A share past 100 % is not a share: dropped as it would be from a paired device, not overflowed.
+    state.told(&ok(&graphics["id"], json!({"name":"GPU","busy":65535})));
+    let page = page(&mut state);
+    assert!(page.contains("GPU"));
+    assert!(!page.contains("655"));
 }
 
 #[test]

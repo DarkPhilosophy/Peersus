@@ -7,11 +7,10 @@ license = "Apache-2.0"
 [workspace]
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "staticlib"]
 
 [features]
-# Named by the shared glue (`src/host.rs`, the one copy in `templates/guest/`). This guest is WebAssembly only and has no
-# native build, so it does not enable `native`.
+# The same guest as a native library (second tier, not recommended): `cargo build --release --features native`.
 native = []
 # Matching development hosts only; normal modules have no diagnostic import.
 development-diagnostics = []
