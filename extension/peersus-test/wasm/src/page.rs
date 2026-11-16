@@ -49,7 +49,7 @@ impl State {
             text("Test", "title"),
             text(
                 "Everything here is drawn by the application from what this extension answered, and every button asks \
-                 the application something through its contract. Version 0.1.2.",
+                 the application something through its contract. Version 0.1.3.",
                 "muted",
             ),
             self.elements(),
@@ -120,7 +120,10 @@ impl State {
             "Elements",
             "Texts in every tone, the controls, boxes in every colour and shape, the application's pictures and a drawing.",
             vec![
-                row(vec![text("Title", "title"), text("Body", "body"), text("Muted", "muted"), text("42%", "figure")]),
+                // Side by side and whole: a box that wraps moves what does not fit under the rest (a row would share the width out
+                // equally and break the figure inside its share on a phone).
+                bx(None, json!({"horizontal":true,"gap":12,"wrap":true}),
+                    vec![text("Title", "title"), text("Body", "body"), text("Muted", "muted"), text("42%", "figure")]),
                 json!({"k":"text","lines":2,"tone":"body","text":"A long text that may take at most two lines: whatever does not fit \
                     ends in an ellipsis, however wide the page is and however much more it would have to say about itself."}),
                 row(vec![button_node("count", "Press"), text(format!("Pressed {} times", self.pressed), "body")]),
@@ -136,7 +139,8 @@ impl State {
                 bx(None, json!({"horizontal":true,"gap":12,"wrap":true,"center":true}), icons),
                 self.drawing(),
                 bx(None, json!({"gap":8}), revealed),
-                row(vec![button_node("grow", "Add a row"), button_node("clear", "Clear rows"), button_node("flood", "Too large")]),
+                bx(None, json!({"horizontal":true,"gap":8,"wrap":true}),
+                    vec![button_node("grow", "Add a row"), button_node("clear", "Clear rows"), button_node("flood", "Too large")]),
             ],
         )
     }
