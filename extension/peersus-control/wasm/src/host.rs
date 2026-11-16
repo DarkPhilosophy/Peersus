@@ -1,5 +1,10 @@
 //! The only door a guest has to the application: `peersus_v1`. Control messages are JSON, data streams are raw bytes.
 //! Both are traits so every rule in the guest is tested against a script, with no device and no host.
+//!
+//! This file is the same in every extension that carries it (`templates/guest/host.rs` in the application's source is
+//! the one copy; `scripts/check-guest-glue.py` compares). It is changed there, never in an extension.
+// Not every guest goes through every door.
+#![allow(dead_code)]
 use serde_json::Value;
 
 /// Largest control message in either direction: the broker admits 48 KiB serialized.
@@ -23,7 +28,33 @@ pub trait Data {
     fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str>;
     fn close(&mut self, handle: Handle);
     /// Wait for control (0) or one selected readable stream; no bytes are consumed.
-    fn poll(&mut self, handles: &[Handle], timeout_ms: i32) -> Result<Option<Handle>, &'static str>;
+    fn poll(&mut self, handles: &[Handle], timeout_ms: i32)
+    -> Result<Option<Handle>, &'static str>;
+}
+
+/// Closed SDK vocabulary only: no text or input payloads cross this boundary.
+pub fn diagnostic(stage: i32, outcome: i32, correlation: u64, actual: u64, expected: u64) {
+    #[cfg(all(target_family = "wasm", feature = "development-diagnostics"))]
+    {
+        let Ok(correlation) = i64::try_from(correlation) else {
+            return;
+        };
+        let (Ok(actual), Ok(expected)) = (u32::try_from(actual), u32::try_from(expected)) else {
+            return;
+        };
+        // SAFETY: scalar-only SDK import with validated numeric bounds.
+        let _ = unsafe {
+            import::diagnostic(
+                stage,
+                outcome,
+                correlation,
+                i64::from(actual),
+                i64::from(expected),
+            )
+        };
+    }
+    #[cfg(not(all(target_family = "wasm", feature = "development-diagnostics")))]
+    let _ = (stage, outcome, correlation, actual, expected);
 }
 
 /// Write all of `bytes`, however the host splits it: a stream operation need not take the requested length.
@@ -40,6 +71,28 @@ pub fn write_all<D: Data>(
         bytes = &bytes[written..];
     }
     Ok(())
+}
+
+/// Read until the peer closes, taking at most `limit` bytes and one more, so that something longer is SEEN to be longer.
+pub fn read_limited<D: Data>(
+    data: &mut D,
+    handle: Handle,
+    limit: usize,
+) -> Result<Vec<u8>, &'static str> {
+    let mut out = Vec::new();
+    let mut buffer = [0u8; 8192];
+    while out.len() <= limit {
+        let room = buffer.len().min(limit + 1 - out.len());
+        let count = data.read(handle, &mut buffer[..room])?;
+        if count == 0 {
+            break;
+        }
+        if count > room {
+            return Err("The data connection returned more than was asked");
+        }
+        out.extend_from_slice(&buffer[..count]);
+    }
+    Ok(out)
 }
 
 /// The acknowledgement of a delivery: four bytes of length, then JSON holding one unsigned byte count.
@@ -93,6 +146,15 @@ mod import {
         pub fn data_shutdown(handle: i32) -> i32;
         #[link_name = "poll"]
         pub fn poll(handles: *const i32, count: usize, timeout_ms: i32) -> i32;
+        #[cfg(feature = "development-diagnostics")]
+        #[link_name = "diagnostic"]
+        pub fn diagnostic(
+            stage: i32,
+            outcome: i32,
+            correlation: i64,
+            actual: i64,
+            expected: i64,
+        ) -> i32;
     }
 }
 
@@ -153,7 +215,11 @@ impl Data for Host {
     fn close(&mut self, handle: Handle) {
         let _ = unsafe { import::data_close(handle) };
     }
-    fn poll(&mut self, handles: &[Handle], timeout_ms: i32) -> Result<Option<Handle>, &'static str> {
+    fn poll(
+        &mut self,
+        handles: &[Handle],
+        timeout_ms: i32,
+    ) -> Result<Option<Handle>, &'static str> {
         match unsafe { import::poll(handles.as_ptr(), handles.len(), timeout_ms) } {
             -1 => Ok(None),
             value if value >= 0 => Ok(Some(value)),
@@ -183,6 +249,10 @@ pub(crate) mod scripted {
         /// Acknowledge each stream with exactly the bytes written on it, as a well-behaved host does.
         pub acks: bool,
         pub stream_start: usize,
+        /// The other side says nothing more: no stream becomes readable, and a read would stand still.
+        pub silent: bool,
+        /// How long each readiness wait was allowed to take, in milliseconds.
+        pub waits: Vec<i32>,
     }
 
     impl Wire for Script {
@@ -215,6 +285,7 @@ pub(crate) mod scripted {
             Ok(7)
         }
         fn read(&mut self, _: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
+            assert!(!self.silent, "a read from a silent peer never returns");
             let Some(front) = self.incoming.front_mut() else {
                 return Ok(0);
             };
@@ -238,15 +309,27 @@ pub(crate) mod scripted {
         fn shutdown(&mut self, _: Handle) -> Result<(), &'static str> {
             self.shutdowns += 1;
             if self.acks {
-                self.incoming.push_front(ack((self.written.len() - self.stream_start) as u64));
+                self.incoming
+                    .push_front(ack((self.written.len() - self.stream_start) as u64));
             }
             Ok(())
         }
         fn close(&mut self, _: Handle) {
             self.closed += 1;
         }
-        fn poll(&mut self, handles: &[Handle], _: i32) -> Result<Option<Handle>, &'static str> {
-            Ok(Some(if self.deliveries.is_empty() { handles.first().copied().unwrap_or(0) } else { 0 }))
+        fn poll(
+            &mut self,
+            handles: &[Handle],
+            timeout_ms: i32,
+        ) -> Result<Option<Handle>, &'static str> {
+            self.waits.push(timeout_ms);
+            Ok(if !self.deliveries.is_empty() {
+                Some(0)
+            } else if self.silent {
+                None
+            } else {
+                Some(handles.first().copied().unwrap_or(0))
+            })
         }
     }
 
@@ -272,6 +355,13 @@ mod tests {
         };
         write_all(&mut host, 7, b"abcdefghij").unwrap();
         assert_eq!(host.written, b"abcdefghij");
+    }
+
+    #[test]
+    fn reading_takes_one_byte_more_than_the_limit_so_excess_is_seen() {
+        let mut host = Script::default();
+        host.incoming.push_back(vec![1; 50]);
+        assert_eq!(read_limited(&mut host, 7, 10).unwrap().len(), 11);
     }
 
     #[test]

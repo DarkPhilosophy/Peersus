@@ -7,7 +7,7 @@
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Use your phone as a touchpad and keyboard for a paired computer."
   },
-  "platforms": ["linux", "android", "macos"],
+  "platforms": ["linux", "android", "macos", "windows"],
   "program": "peersus_control_wasm.wasm",
   "execution": {"kind": "wasm", "abi": 1},
   "capabilities": {
@@ -15,7 +15,7 @@
   },
   "imports": [
     {"provider": "host", "service": "peersus.peers", "version": 1, "methods": ["list", "send"], "events": []},
-    {"provider": "host", "service": "peersus.input", "version": 1, "methods": ["inject", "release"], "events": []},
+    {"provider": "host", "service": "peersus.input", "version": 1, "methods": ["inject", "release", "inspect"], "events": []},
     {"provider": "host", "service": "peersus.displays", "version": 1, "methods": ["inspect", "arrange"], "events": []},
     {"provider": "host", "service": "peersus.config", "version": 1, "methods": ["get"], "events": []},
     {"provider": "host", "service": "peersus.pages", "version": 1, "methods": ["set"], "events": []}
@@ -51,9 +51,9 @@
         "id": "layout",
         "label": "Layout",
         "placement": "settings",
-        "icon": "pointer",
+        "icon": "layout",
         "surface": "elements",
-        "platforms": ["linux"],
+        "platforms": ["linux", "windows", "macos"],
         "needs_device": false,
         "capability": null,
         "source": {"service": "control.pointer", "method": "layout"}
@@ -80,6 +80,26 @@
         "help": "Draw the controlling device's name beside its independent pointer. The name is the one you gave that device on this computer.",
         "scope": "global",
         "kind": {"type": "toggle", "default": true}
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application.",
+        "changes": "After installing, a Remote page and a Layout editor appear. What you do on the Remote page is sent to the computer you choose and moves its pointer and types there; a paired device you allow can control this computer the same way."
       }
     ]
   }

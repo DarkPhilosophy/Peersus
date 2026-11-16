@@ -2,11 +2,30 @@
 #![cfg(any(target_family = "wasm", feature = "native", test))]
 
 mod host;
+mod layout;
 #[cfg(all(feature = "native", not(target_family = "wasm")))]
 mod native;
 mod remote;
-mod layout;
 mod ui;
+
+/// What this guest keeps between calls: the connections of the remote part, the deliveries that wait, and the state of its two
+/// pages. Kept here, above the three, so that the part that moves input and the pages that draw it need each other only one way.
+#[derive(Default)]
+pub(crate) struct State {
+    pub outgoing: Option<remote::Outgoing>,
+    /// A closed stream may leave a resting pointer or an ongoing gesture on this device.
+    retained: Option<String>,
+    pub next: u64,
+    /// Deliveries that arrived while waiting for an answer of ours, to be handled afterwards.
+    pub waiting: Vec<serde_json::Value>,
+    incoming: std::collections::BTreeMap<host::Handle, remote::Incoming>,
+    pub ui: ui::Ui,
+    pub layout: layout::Ui,
+    /// The layout-page option as last placed, and when (page time) it was last read: the application
+    /// keeps the guest running when the option changes, so the guest looks again while its pages are used.
+    layout_page: Option<bool>,
+    pages_checked: u64,
+}
 
 /// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a
 /// broken protocol.
@@ -36,7 +55,7 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 fn run() -> i32 {
     use host::{Host, Wire};
     let mut host = Host;
-    let mut state = remote::State::default();
+    let mut state = State::default();
     if state.configure_pages(&mut host).is_err() {
         return 1;
     }
