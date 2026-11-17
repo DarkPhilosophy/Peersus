@@ -61,6 +61,8 @@ pub struct Ui {
     bounds: [f64; 4],
     refreshed: u64,
     error: Option<String>,
+    /// Why the arrangement could not be read the last time it was asked for, said on the page instead of failing it.
+    unseen: Option<&'static str>,
     /// The canvas of each page this is drawn on, by page: the same layout is shown in the settings
     /// and, when asked, as a page of its own, each of its own size.
     pages: std::collections::BTreeMap<String, [f64; 4]>,
@@ -72,6 +74,8 @@ pub struct Ui {
     rendered_at: Option<u64>,
     menu_anchor: Option<[f64; 2]>,
 }
+/// What the page says when the person has not let Control see this computer's screens.
+const NEEDS_SCREENS: &str = "To arrange devices here, allow Control to see this computer's screens in Settings, Permissions.";
 fn text(s: impl Into<String>) -> Value {
     json!({"k":"text","text":s.into(),"tone":"muted"})
 }
@@ -159,6 +163,16 @@ impl Ui {
         self.items = items;
         self.expected = value["placements"].clone();
         Ok(())
+    }
+    /// Read the arrangement again for the page. A refusal is said on the page, never an error of the page: without the person's
+    /// permission to see this computer's screens the application answers `denied` to every read, and a failed page on each
+    /// opening (and each tick) told the person only that something went wrong.
+    fn read_again<H: Wire>(&mut self, state: &mut State, host: &mut H) {
+        self.unseen = match self.refresh(state, host) {
+            Ok(()) => None,
+            Err(answer::DENIED) => Some(NEEDS_SCREENS),
+            Err(reason) => Some(reason),
+        };
     }
     fn refresh<H: Wire>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
         self.load(state.call(host, "peersus.displays", "inspect", json!({}))?)
@@ -380,7 +394,7 @@ impl Ui {
                 if self.bounds[3] <= 0. {
                     self.bounds[3] = INITIAL_HEIGHT;
                 }
-                self.refresh(state, host)?;
+                self.read_again(state, host);
             }
             Some("tick") => {
                 let at = event["at"].as_u64().unwrap_or(0);
@@ -388,9 +402,9 @@ impl Ui {
                     return Ok(Value::Null);
                 }
                 self.refreshed = at;
-                let before = self.items.clone();
-                self.refresh(state, host)?;
-                if before == self.items {
+                let before = (self.items.clone(), self.unseen);
+                self.read_again(state, host);
+                if before == (self.items.clone(), self.unseen) {
                     return Ok(Value::Null);
                 }
             }
@@ -796,7 +810,7 @@ impl Ui {
                 "Arrange devices around this computer. Click a device in Devices to place it, or drag it from the menu to the canvas. Drag placed devices to move them; drag the background to pan and use the wheel to zoom.",
             ),
             plane,
-            text(self.error.as_ref().unwrap_or(&verdict)),
+            text(self.error.as_deref().or(self.unseen).unwrap_or(&verdict)),
         ];
         json!({"k":"interval","id":"layout-clock","milliseconds":1000,"child":bx(None,json!({"width":fill(),"height":fill(),"padding":12,"gap":8}),children)})
     }
@@ -1333,6 +1347,28 @@ mod tests {
             assert!(ui.grab.is_none());
             assert!(host.sent.is_empty());
         }
+    }
+
+    #[test]
+    fn a_refused_read_is_said_on_the_page_and_gone_once_it_is_allowed() {
+        let mut ui = Ui::default();
+        let mut state = State::default();
+        let mut host = Script::default();
+        // Opened without the permission to see the screens: the page is drawn and says where to give it.
+        host.results
+            .push_back(json!({"status":"error","code":"denied"}));
+        let page = ui
+            .event(&mut state, &mut host, &json!({"t":"open"}), None)
+            .expect("a refusal does not fail the page");
+        assert!(page.to_string().contains(NEEDS_SCREENS), "{page}");
+        // Allowed meanwhile: the next tick reads the arrangement and the sentence goes.
+        host.results
+            .push_back(json!({"status":"ok","value":scene()}));
+        let page = ui
+            .event(&mut state, &mut host, &json!({"t":"tick","at":5000}), None)
+            .unwrap();
+        assert!(!page.to_string().contains(NEEDS_SCREENS), "{page}");
+        assert_eq!(ui.items.len(), 2);
     }
 
     #[test]
