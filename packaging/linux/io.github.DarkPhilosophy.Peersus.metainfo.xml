@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.DarkPhilosophy.Peersus</id>
+  <name>Peersus</name>
+  <summary>Share files and clipboard between your devices</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <developer id="io.github.darkphilosophy"><name>DarkPhilosophy</name></developer>
+  <url type="homepage">https://axxa.dev</url>
+  <description>
+    <p>Peersus sends files and folders between devices you have paired, on the same network or across the internet. Pairing is done once, by a code and by choosing the same numbered circle on both devices; a paired device is remembered and can be sent to again in one step.</p>
+    <p>What it does:</p>
+    <ul>
+      <li>Sends files and whole folders to one paired device or to several at once, and shows every transfer with its progress</li>
+      <li>Pairs devices by a code that is typed or read by a camera, confirmed on both devices, and never pairs a device just because a file was sent</li>
+      <li>Keeps every connection between devices authenticated and encrypted, with an identity kept in the system keyring</li>
+      <li>Works between computers and Android phones</li>
+      <li>Can keep running in the background to receive while its window is closed</li>
+    </ul>
+    <p>Extensions add what the application itself does not do, such as sharing the clipboard. Each is a separate program installed on request, shows its licence and what it changes before it is installed, and can only do what you have allowed it on each device. Nothing is installed with the application.</p>
+    <p>The programs it installs, each with one job:</p>
+    <ul>
+      <li>peersus-ui: the window, which only shows what the core reports and passes on what you do</li>
+      <li>peersus: the core, which keeps the devices, the transfers, the settings and the extensions, also with no window open; its command line controls a running core</li>
+      <li>peersus-wasm-host and peersus-native-host: the hosts that run one extension each, apart from the core, so that an extension that fails or misbehaves is stopped on its own</li>
+      <li>peersus-store-fetch: fetches the signed list of extensions and their packages, and nothing else</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.DarkPhilosophy.Peersus.desktop</launchable>
+  <categories>
+    <category>Network</category>
+    <category>FileTransfer</category>
+  </categories>
+  <keywords>
+    <keyword>send</keyword>
+    <keyword>receive</keyword>
+    <keyword>share</keyword>
+    <keyword>files</keyword>
+    <keyword>transfer</keyword>
+    <keyword>devices</keyword>
+    <keyword>phone</keyword>
+    <keyword>pair</keyword>
+    <keyword>clipboard</keyword>
+  </keywords>
+  <provides>
+    <binary>peersus-ui</binary>
+    <binary>peersus</binary>
+    <binary>peersus-wasm-host</binary>
+    <binary>peersus-native-host</binary>
+    <binary>peersus-store-fetch</binary>
+  </provides>
+  <branding>
+    <color type="primary" scheme_preference="light">#f9f7f3</color>
+    <color type="primary" scheme_preference="dark">#14181a</color>
+  </branding>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">560</display_length>
+  </requires>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2026-11-01" type="development">
+      <description>
+        <p>Development prerelease: not published, and not yet a version to rely on.</p>
+      </description>
+    </release>
+  </releases>
+</component>

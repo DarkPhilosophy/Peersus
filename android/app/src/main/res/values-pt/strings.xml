@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Ligação dos dispositivos</string>
+    <string name="available_title">Disponível para transferências de ficheiros</string>
+    <string name="available_body">Os dispositivos emparelhados podem ligar-se. Abre a aplicação para gerir o modo em segundo plano.</string>
+    <string name="requests_channel">Pedidos de transferência recebidos</string>
+    <string name="offer_accept">Aceitar</string>
+    <string name="offer_cancel">Cancelar</string>
+    <string name="received_channel">Ficheiros recebidos</string>
+    <string name="notices_channel">Avisos</string>
+    <string name="notifications_disabled">As notificações estão desativadas. Podes ativá-las nas definições Android da aplicação.</string>
+    <plurals name="received_title">
+        <item quantity="one">Ficheiro recebido</item>
+        <item quantity="other">Ficheiros recebidos</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Ficheiros recebidos: %1$d. Abre a aplicação para os ver.</item>
+        <item quantity="other">Ficheiros recebidos: %1$d. Abre a aplicação para os ver.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Transferência de ficheiro recebida</item>
+        <item quantity="other">Transferências de ficheiros recebidas</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Ficheiros à espera da tua aprovação: %1$d. Toca para os rever.</item>
+        <item quantity="other">Ficheiros à espera da tua aprovação: %1$d. Toca para os rever.</item>
+    </plurals>
+</resources>

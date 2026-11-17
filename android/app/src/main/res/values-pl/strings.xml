@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Łączność urządzeń</string>
+    <string name="available_title">Gotowość do przesyłania plików</string>
+    <string name="available_body">Sparowane urządzenia mogą się łączyć. Otwórz aplikację, aby zarządzać trybem działania w tle.</string>
+    <string name="requests_channel">Przychodzące prośby o przesłanie</string>
+    <string name="offer_accept">Akceptuj</string>
+    <string name="offer_cancel">Anuluj</string>
+    <string name="received_channel">Odebrane pliki</string>
+    <string name="notices_channel">Powiadomienia</string>
+    <string name="notifications_disabled">Powiadomienia są wyłączone. Możesz je włączyć w ustawieniach aplikacji w Androidzie.</string>
+    <plurals name="received_title">
+        <item quantity="one">Odebrano plik</item>
+        <item quantity="few">Odebrano pliki</item>
+        <item quantity="many">Odebrano pliki</item>
+        <item quantity="other">Odebrano pliki</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Odebrane pliki: %1$d. Otwórz aplikację, aby je zobaczyć.</item>
+        <item quantity="few">Odebrane pliki: %1$d. Otwórz aplikację, aby je zobaczyć.</item>
+        <item quantity="many">Odebrane pliki: %1$d. Otwórz aplikację, aby je zobaczyć.</item>
+        <item quantity="other">Odebrane pliki: %1$d. Otwórz aplikację, aby je zobaczyć.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Przychodzące przesłanie pliku</item>
+        <item quantity="few">Przychodzące przesłania plików</item>
+        <item quantity="many">Przychodzące przesłania plików</item>
+        <item quantity="other">Przychodzące przesłania plików</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Pliki oczekujące na Twoją zgodę: %1$d. Dotknij, aby je sprawdzić.</item>
+        <item quantity="few">Pliki oczekujące na Twoją zgodę: %1$d. Dotknij, aby je sprawdzić.</item>
+        <item quantity="many">Pliki oczekujące na Twoją zgodę: %1$d. Dotknij, aby je sprawdzić.</item>
+        <item quantity="other">Pliki oczekujące na Twoją zgodę: %1$d. Dotknij, aby je sprawdzić.</item>
+    </plurals>
+</resources>

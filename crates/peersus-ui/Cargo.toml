@@ -1,0 +1,105 @@
+[package]
+name = "peersus-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Peersus interface: renders the owner's Snapshot and sends it Commands. No business logic."
+
+# The interface is a library so that the desktop entry and the Android one load the same code;
+# the desktop program is a thin `main` over it.
+[lib]
+name = "peersus_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "peersus-ui"
+path = "src/main.rs"
+
+[features]
+private-store = ["peersus-app/private-store", "peersus-core/private-store"]
+# The read-only demo window, its self-measuring probe and the snapshot replay bench, and the extension preview
+# (`--demo-extension`, an owner of its own that lives in this process and a thrown-away directory):
+# development only, off by default. A build without it cannot be talked into any of them by
+# arguments or environment.
+demo = ["peersus-app/demo", "dep:freya-winit", "dep:iroh", "dep:tempfile", "dep:peersus-plugin"]
+# The demo window with no display behind it (see `src/headless.rs`): what the automated screen
+# tests and the frame timings of `replay_bench` run on. Development only, like the demo.
+headless = ["demo", "dep:freya-testing"]
+
+[[example]]
+name = "replay_bench"
+path = "examples/replay_bench.rs"
+required-features = ["headless"]
+
+[[example]]
+name = "snapshot_prepare_bench"
+path = "examples/snapshot_prepare_bench.rs"
+
+[[example]]
+name = "demo_shots"
+path = "examples/demo_shots.rs"
+required-features = ["headless"]
+
+[[example]]
+name = "demo_window"
+path = "examples/demo_window.rs"
+required-features = ["demo"]
+
+[dependencies]
+peersus-app = { workspace = true }
+peersus-core = { workspace = true }
+peersus-net = { workspace = true }
+peersus-api = { workspace = true }
+peersus-diagnostics = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+freya = { workspace = true }
+freya-testing = { workspace = true, optional = true }
+# The toolkit's frame-stage events, which only the demo's probe listens to (`src/probe.rs`).
+# The version the toolkit itself resolves, so the build gains no package.
+freya-winit = { workspace = true, optional = true }
+# The demo's own in-process owners (`src/demo_owner.rs`): an identity made in memory, a thrown-away directory, and the
+# helpers that run an extension. The versions the workspace already resolves.
+iroh = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
+peersus-plugin = { workspace = true, optional = true }
+# Only to switch on `embed-freetype`; see the root manifest. Not used by this crate's code.
+freya-skia-safe = { workspace = true }
+qrcodegen = { workspace = true }
+image = { workspace = true }
+# `O_NOFOLLOW`, to read the file that was chosen and not whatever a link points to.
+rustix = { workspace = true }
+# Reads the invitation out of a frame of a camera (`qr::invitation_in_frame`): code that ships, not only tests.
+rqrr = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zeroize = { workspace = true }
+
+# Desktop only: on Android the system picker is reached through the platform crate. `arboard`
+# reads the list of files a file manager put on the clipboard, which the toolkit's own clipboard
+# (text only) cannot.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+rfd = { workspace = true }
+arboard = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "6.2.1", default-features = false, features = ["tokio", "proxy", "service"] }
+futures-lite = "2.6.1"
+# The desktop's GlobalShortcuts portal, for bindings that work while the window is not in front.
+ashpd = { workspace = true }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = { workspace = true }
+# Only the QR code's damage test draws random noise.
+rand = { workspace = true, features = ["std_rng"] }
+peersus-plugin = { workspace = true }
+iroh = { workspace = true }
+
+# Temporary Android benchmark entry uses the same activity backend as the platform crate.
+[target.'cfg(target_os = "android")'.dev-dependencies]
+winit = { workspace = true, features = ["android-native-activity"] }

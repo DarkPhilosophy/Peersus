@@ -1,0 +1,17 @@
+title: "[Idea] "
+body:
+  - type: markdown
+    attributes:
+      value: Describe the problem before selecting an implementation. Do not include private diagnostics or security vulnerability details.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and affected platform
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior and alternatives
+    validations:
+      required: true
