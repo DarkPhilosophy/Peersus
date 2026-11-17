@@ -163,7 +163,14 @@ fn each_part_is_asked_on_its_own_and_not_again_while_its_answer_may_still_come()
     };
     assert_eq!(
         asked(&first),
-        ["processor", "graphics", "memory", "storage", "network", "battery"]
+        [
+            "processor",
+            "graphics",
+            "memory",
+            "storage",
+            "network",
+            "battery"
+        ]
     );
     assert!(first.iter().any(|a| a["service"] == "peersus.peers"));
     // A tick while every answer may still come asks no part again, nor the devices, so a slow answer is not dropped.
@@ -176,14 +183,49 @@ fn each_part_is_asked_on_its_own_and_not_again_while_its_answer_may_still_come()
     // Answered: memory is asked at the next tick, the others still wait for theirs.
     let third = state.ask(&call(json!({"t":"tick","id":"watch","at":2000})));
     assert_eq!(asked(&third), ["memory"]);
-    // A call whose time ran out is asked again, and an answer to it after that is not taken.
+    // A call whose time ran out is asked again, the part is not shown as read meanwhile, and an answer to the old call
+    // after that is not taken.
     let fourth = state.ask(&call(json!({"t":"tick","id":"watch","at":5000})));
     assert!(asked(&fourth).contains(&"processor".to_owned()));
+    assert_eq!(
+        state.own.parts[Part::Processor as usize],
+        Reading::Unavailable
+    );
     let late = first.iter().find(|a| a["method"] == "processor").unwrap();
     state.told(&ok(&late["id"], json!({"name":"Late","cores":2})));
-    assert_eq!(state.own.parts[Part::Processor as usize], Reading::Unknown);
+    assert_eq!(
+        state.own.parts[Part::Processor as usize],
+        Reading::Unavailable
+    );
     // A delivery that is not a call of the page asks nothing.
     assert!(state.ask(&json!({"type":"result","id":1})).is_empty());
+}
+
+#[test]
+fn a_reading_whose_next_question_ran_out_stops_showing_the_last_one() {
+    let mut state = State::default();
+    let first = state.ask(&call(json!({"t":"open","at":0})));
+    let memory = first.iter().find(|a| a["method"] == "memory").unwrap();
+    state.told(&ok(&memory["id"], json!({"total":10,"available":5})));
+    assert!(page(&mut state).contains("5 / 10 B"));
+    // Asked again at the next tick, and never answered.
+    let again = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
+    let unanswered = again
+        .iter()
+        .find(|a| a["method"] == "memory")
+        .unwrap()
+        .clone();
+    // Still within its time: the reading stays.
+    state.ask(&call(json!({"t":"tick","id":"watch","at":5999})));
+    assert!(page(&mut state).contains("5 / 10 B"));
+    // Its time ran out: asked once more, and the old number is not shown as current.
+    let after = state.ask(&call(json!({"t":"tick","id":"watch","at":6000})));
+    assert!(after.iter().any(|a| a["method"] == "memory"));
+    assert_eq!(state.own.parts[Part::Memory as usize], Reading::Unavailable);
+    assert!(!page(&mut state).contains("5 / 10 B"));
+    // An answer to the call that ran out is not taken.
+    state.told(&ok(&unanswered["id"], json!({"total":10,"available":7})));
+    assert_eq!(state.own.parts[Part::Memory as usize], Reading::Unavailable);
 }
 
 #[test]
@@ -191,13 +233,19 @@ fn a_reading_the_system_cannot_give_any_more_stops_showing_the_last_one() {
     let mut state = State::default();
     let first = state.ask(&call(json!({"t":"open","at":0})));
     let battery = first.iter().find(|a| a["method"] == "battery").unwrap();
-    state.told(&ok(&battery["id"], json!({"charge":8100,"charging":false,"minutes":120})));
+    state.told(&ok(
+        &battery["id"],
+        json!({"charge":8100,"charging":false,"minutes":120}),
+    ));
     assert!(page(&mut state).contains("81"));
     let again = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
     let battery = again.iter().find(|a| a["method"] == "battery").unwrap();
     state.told(&json!({"type":"result","id":battery["id"],
         "result":{"status":"error","code":"unavailable","message":"gone"}}));
-    assert_eq!(state.own.parts[Part::Battery as usize], Reading::Unavailable);
+    assert_eq!(
+        state.own.parts[Part::Battery as usize],
+        Reading::Unavailable
+    );
 }
 
 #[test]

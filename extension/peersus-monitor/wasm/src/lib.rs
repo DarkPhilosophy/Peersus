@@ -676,8 +676,14 @@ impl State {
         let at = event["at"].as_u64().unwrap_or(0);
         if self.chosen.is_none() {
             for (index, part) in PARTS.iter().enumerate() {
-                if !self.asked_parts[index].free(at) {
+                let asked = self.asked_parts[index];
+                if !asked.free(at) {
                     continue;
+                }
+                // The question still out had all its time: its answer is not taken any more, so what was read before
+                // is not shown as if it were current (as when the system answers with an error).
+                if asked.id != 0 {
+                    self.own.unavailable(*part);
                 }
                 let (id, call) = self.call("peersus.system", part.method(), json!({}));
                 self.asked_parts[index] = Pending { id, at };

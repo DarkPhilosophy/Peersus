@@ -1243,7 +1243,13 @@ mod tests {
                 self.script.send(value)
             }
             fn receive(&mut self) -> Result<Value, &'static str> {
-                if !self.told && self.script.sent.last().is_some_and(|call| call["method"] == "send") {
+                if !self.told
+                    && self
+                        .script
+                        .sent
+                        .last()
+                        .is_some_and(|call| call["method"] == "send")
+                {
                     self.told = true;
                     return Ok(json!({"type":"cancelled","ticket":3}));
                 }
@@ -1266,7 +1272,11 @@ mod tests {
             fn close(&mut self, handle: Handle) {
                 self.script.close(handle)
             }
-            fn poll(&mut self, handles: &[Handle], timeout_ms: i32) -> Result<Option<Handle>, &'static str> {
+            fn poll(
+                &mut self,
+                handles: &[Handle],
+                timeout_ms: i32,
+            ) -> Result<Option<Handle>, &'static str> {
                 self.script.poll(handles, timeout_ms)
             }
         }
@@ -1281,8 +1291,16 @@ mod tests {
         let written = host.script.written.len();
         assert!(state.receive(&mut host, &receive_call(3, "alex")).is_none());
         assert!(host.told, "the cancellation came during the stream request");
-        assert_eq!(host.script.written.len(), written, "no reading left after the withdrawal");
-        assert_eq!(host.script.opened.len(), 1, "only the question's stream was opened");
+        assert_eq!(
+            host.script.written.len(),
+            written,
+            "no reading left after the withdrawal"
+        );
+        assert_eq!(
+            host.script.opened.len(),
+            1,
+            "only the question's stream was opened"
+        );
     }
 
     #[test]
