@@ -85,11 +85,20 @@ impl State {
     }
 
     fn pending_probe(&self, index: usize) -> bool {
-        self.calls.iter().any(|(_, asked)| *asked == Asked::Probe(index))
+        self.calls
+            .iter()
+            .any(|(_, asked)| *asked == Asked::Probe(index))
     }
 
     /// A call to the application, remembered by its id until it is answered.
-    fn call(&mut self, asked: Asked, service: &str, method: &str, args: Value, timeout_ms: u64) -> Value {
+    fn call(
+        &mut self,
+        asked: Asked,
+        service: &str,
+        method: &str,
+        args: Value,
+        timeout_ms: u64,
+    ) -> Value {
         self.next = self.next.checked_add(1).unwrap_or(1);
         self.calls.push((self.next, asked));
         json!({"op":"call","id":self.next,"provider":"host","service":service,"version":1,
@@ -114,7 +123,9 @@ impl State {
                 _ => {}
             },
             Some("toggle") if id == "switch" => self.on = event["on"].as_bool().unwrap_or(false),
-            Some("toggle") if id == "reveal" => self.reveal = event["on"].as_bool().unwrap_or(false),
+            Some("toggle") if id == "reveal" => {
+                self.reveal = event["on"].as_bool().unwrap_or(false)
+            }
             Some("submit") if id == "say" => {
                 self.said = probes::cut(event["text"].as_str().unwrap_or_default(), 200);
             }
@@ -133,7 +144,12 @@ impl State {
                 }
             }
             Some("size") if id == "pad" => {
-                let number = |key: &str| event[key].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                let number = |key: &str| {
+                    event[key]
+                        .as_i64()
+                        .and_then(|n| i32::try_from(n).ok())
+                        .unwrap_or(0)
+                };
                 self.pad_x = number("x");
                 self.pad_width = Some(number("width"));
                 self.size = format!(
@@ -145,7 +161,10 @@ impl State {
                 );
             }
             Some("wheel") if id == "pad" => {
-                let dy = event["dy"].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                let dy = event["dy"]
+                    .as_i64()
+                    .and_then(|n| i32::try_from(n).ok())
+                    .unwrap_or(0);
                 self.wheel = format!("Wheel {}, {}", event["dx"].as_i64().unwrap_or(0), dy);
                 if self.wheel_steps.len() == WHEEL_STEPS {
                     self.wheel_steps.remove(0);
@@ -154,7 +173,11 @@ impl State {
             }
             Some("tick") if id == "clock" => self.ticks = self.ticks.saturating_add(1),
             Some("choose") if id == "chooser" => {
-                self.chosen = Some(event["device"].as_str().map(|device| probes::cut(device, 64)));
+                self.chosen = Some(
+                    event["device"]
+                        .as_str()
+                        .map(|device| probes::cut(device, 64)),
+                );
             }
             _ => {}
         }
@@ -188,19 +211,33 @@ impl State {
                 _ => true,
             };
             let args = probes::args(probe, on);
-            return vec![self.call(Asked::Probe(index), probe.service, probe.method, args, CALL_MS)];
+            return vec![self.call(
+                Asked::Probe(index),
+                probe.service,
+                probe.method,
+                args,
+                CALL_MS,
+            )];
         }
         let args = match kind {
             "notify" => json!({"text":"The Test extension says hello."}),
-            "question" => json!({"text":"The Test extension asks: which one?","reach":"outside","buttons":[
-                {"id":"this","label":"This one"},
-                {"id":"that","label":"That one"}
-            ]}),
+            "question" => {
+                json!({"text":"The Test extension asks: which one?","reach":"outside","buttons":[
+                    {"id":"this","label":"This one"},
+                    {"id":"that","label":"That one"}
+                ]})
+            }
             _ => return Vec::new(),
         };
         self.asked = self.asked.saturating_add(1);
         self.notifying = self.notifying.saturating_add(1);
-        vec![self.call(Asked::Notification, "peersus.notify", "show", args, NOTIFY_MS)]
+        vec![self.call(
+            Asked::Notification,
+            "peersus.notify",
+            "show",
+            args,
+            NOTIFY_MS,
+        )]
     }
 
     /// The application's answer to a call this extension made. Any other delivery changes nothing.
@@ -229,7 +266,10 @@ impl State {
                     self.peers = peers
                         .iter()
                         .filter_map(|peer| {
-                            Some((probes::cut(peer["device"].as_str()?, 64), probes::cut(peer["name"].as_str()?, 80)))
+                            Some((
+                                probes::cut(peer["device"].as_str()?, 64),
+                                probes::cut(peer["name"].as_str()?, 80),
+                            ))
                         })
                         .collect();
                 }
@@ -242,13 +282,22 @@ impl State {
             }
             Asked::Notification => {
                 self.notifying = self.notifying.saturating_sub(1);
-                self.told = match (result["status"].as_str(), result["value"]["answer"].as_str()) {
+                self.told = match (
+                    result["status"].as_str(),
+                    result["value"]["answer"].as_str(),
+                ) {
                     (Some("ok"), Some("pressed")) => {
-                        format!("pressed {}", probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64))
+                        format!(
+                            "pressed {}",
+                            probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64)
+                        )
                     }
                     (Some("ok"), Some("dismissed")) => "closed".to_owned(),
                     (Some("ok"), _) => "shown".to_owned(),
-                    _ => format!("refused ({})", probes::cut(result["code"].as_str().unwrap_or_default(), 32)),
+                    _ => format!(
+                        "refused ({})",
+                        probes::cut(result["code"].as_str().unwrap_or_default(), 32)
+                    ),
                 };
             }
         }

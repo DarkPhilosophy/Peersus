@@ -125,7 +125,9 @@ pub fn args(probe: &Probe, on: bool) -> Value {
     match probe.id {
         "define" => json!({"id":"testing","label":"Testing"}),
         "set" | "clear" => json!({"id":"testing"}),
-        "pages" if on => json!({"pages":[{"id":"test-settings","page":"test","placement":"settings"}]}),
+        "pages" if on => {
+            json!({"pages":[{"id":"test-settings","page":"test","placement":"settings"}]})
+        }
         "pages" => json!({"pages":[]}),
         "withhold" if on => json!({"actions":["count-plain"]}),
         "withhold" => json!({"actions":[]}),
