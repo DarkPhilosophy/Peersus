@@ -162,7 +162,8 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn a_failed_baseline_is_retried_after_a_growing_bounded_wait_and_a_good_one_waits_for_notices() {
+    fn a_failed_baseline_is_retried_after_a_growing_bounded_wait_and_a_good_one_waits_for_notices()
+    {
         let mut state = Automatic::new();
         let mut retry = Retry::new();
         // Startup could not take a baseline (both resets failed): no notice can come, so the wait is bounded.
@@ -172,9 +173,17 @@ mod tests {
             [1_000, 2_000, 4_000, 8_000, 16_000, 30_000, 30_000].map(Some)
         );
         state.baseline_done(true);
-        assert_eq!(retry.wait(&state), None, "observing again: wait for notices");
+        assert_eq!(
+            retry.wait(&state),
+            None,
+            "observing again: wait for notices"
+        );
         state.baseline_done(false);
-        assert_eq!(retry.wait(&state), Some(1_000), "a new failure starts short again");
+        assert_eq!(
+            retry.wait(&state),
+            Some(1_000),
+            "a new failure starts short again"
+        );
     }
 
     #[test]

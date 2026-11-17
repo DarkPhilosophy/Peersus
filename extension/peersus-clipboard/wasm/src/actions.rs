@@ -294,9 +294,16 @@ impl<'a, H: Wire + Data> Session<'a, H> {
 /// The application's own failure codes a reply may repeat, as the application reads them (`action_state`); anything else
 /// it said is not repeated.
 fn standard_code(code: &Value) -> Option<&'static str> {
-    ["denied", "refused", "unavailable", "stopped", "timeout", "busy"]
-        .into_iter()
-        .find(|known| code == *known)
+    [
+        "denied",
+        "refused",
+        "unavailable",
+        "stopped",
+        "timeout",
+        "busy",
+    ]
+    .into_iter()
+    .find(|known| code == *known)
 }
 
 /// What to reply for one finished call. `reason` is the standard code the application gave for the call of ours that
