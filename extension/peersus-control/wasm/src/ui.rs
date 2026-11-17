@@ -64,6 +64,11 @@ const STUCK_MS: u64 = 30_000;
 fn text(value: &str) -> Value {
     json!({"k":"text","text":value,"tone":"muted"})
 }
+/// The caption of one of the page's controls: one line, cut with an ellipsis where the control is narrower than its word (a
+/// large interface on a phone), never broken inside the word.
+fn control_caption(value: &str) -> Value {
+    json!({"k":"text","text":value,"tone":"muted","lines":1})
+}
 fn px(n: u16) -> Value {
     json!({"unit":"px","value":n})
 }
@@ -642,7 +647,7 @@ impl Ui {
                 Some(id),
                 json!({"width":flex(),"height":px(120),"center":true,"radius":radius,
                 "background":if locked {"accent"} else {"raised"}}),
-                vec![text(&if locked {
+                vec![control_caption(&if locked {
                     format!("{caption} 🔒")
                 } else {
                     caption.to_owned()
@@ -669,7 +674,7 @@ impl Ui {
                 None,
                 json!({"width":flex(),"height":fill(),"center":true,
             "radius":[12,12,12,12],"background":if touched == Some(side) {"raised"} else {"transparent"}}),
-                vec![text(caption)],
+                vec![control_caption(caption)],
             )
         };
         let halves = bx(
