@@ -345,7 +345,8 @@ impl Ui {
                     // was lost stops erasing after `STUCK_MS` like any other lost gesture.
                     self.erasing = Some(at.max(next));
                     let touched = self.last_input;
-                    let sent = self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at);
+                    let sent =
+                        self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at);
                     if self.last_input.is_some() {
                         self.last_input = touched;
                     }
@@ -1660,7 +1661,16 @@ mod tests {
     #[test]
     fn a_backspace_whose_lift_is_lost_stops_erasing_at_the_stuck_input_timeout() {
         let (mut ui, mut state, mut host) = ready();
-        event(&mut ui, &mut state, &mut host, "backspace", "down", 0, 0, 100);
+        event(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "backspace",
+            "down",
+            0,
+            0,
+            100,
+        );
         let key = json!({"t":"key","key":"backspace"});
         let tick = |ui: &mut Ui, state: &mut State, host: &mut Script, at: u64| {
             host.results.push_back(

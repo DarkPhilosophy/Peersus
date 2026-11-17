@@ -884,8 +884,13 @@ mod tests {
         host.results.push_back(ok(json!({"claim":1})));
         let batch = |at: u64| json!({"peer":"pc","events":[{"t":"key","key":"a"}],"at":at});
         state.input(&mut host, &batch(1_000)).unwrap();
-        state.input(&mut host, &batch(1_000 + ROTATE_MS - 1)).unwrap();
-        assert_eq!(host.shutdowns, 0, "younger than the rotation age: kept open");
+        state
+            .input(&mut host, &batch(1_000 + ROTATE_MS - 1))
+            .unwrap();
+        assert_eq!(
+            host.shutdowns, 0,
+            "younger than the rotation age: kept open"
+        );
         state.input(&mut host, &batch(1_000 + ROTATE_MS)).unwrap();
         assert_eq!(host.shutdowns, 1, "old enough: rotated after this batch");
         assert!(state.outgoing.is_none());
@@ -897,9 +902,14 @@ mod tests {
         );
         // The next batch opens a new connection, aged from its own first batch.
         host.results.push_back(ok(json!({"claim":2})));
-        state.input(&mut host, &batch(1_000 + ROTATE_MS + 10)).unwrap();
+        state
+            .input(&mut host, &batch(1_000 + ROTATE_MS + 10))
+            .unwrap();
         assert_eq!(host.opened, vec![(true, 1), (true, 2)]);
-        assert_eq!(state.outgoing.as_ref().unwrap().opened_at, Some(1_010 + ROTATE_MS));
+        assert_eq!(
+            state.outgoing.as_ref().unwrap().opened_at,
+            Some(1_010 + ROTATE_MS)
+        );
     }
 
     #[test]
@@ -919,7 +929,10 @@ mod tests {
             .unwrap();
         host.silent = true;
         assert_eq!(state.next(&mut host), Ok(None));
-        assert_eq!(host.waits[0], ROTATE_MS as i32, "the wait is bounded while it is open");
+        assert_eq!(
+            host.waits[0], ROTATE_MS as i32,
+            "the wait is bounded while it is open"
+        );
         assert!(state.outgoing.is_none(), "rotated after the silence");
         assert_eq!(state.retained.as_deref(), Some("pc"));
         assert!(
