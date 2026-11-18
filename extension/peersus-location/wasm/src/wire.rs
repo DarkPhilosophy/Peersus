@@ -12,7 +12,10 @@
 //! [`crate::geo::ACCURACY_MAX`]), `age` the seconds since the system found it, at the moment it was sent. Whatever arrives is judged here
 //! and nowhere else: what is not exactly this is not understood, and nothing of it is used.
 use crate::geo::{AGE_MAX, Fix};
+use serde::de::{Deserialize, Deserializer, Error, MapAccess, Visitor};
 use serde_json::{Map, Value, json};
+use std::collections::BTreeMap;
+use std::marker::PhantomData;
 
 /// The service one Location sends to another and its version: what the application routes a stream by. A change an older
 /// Location could not read is a new version, never a changed word.
@@ -32,21 +35,54 @@ pub struct Shared {
 #[derive(Debug, PartialEq, Eq)]
 pub struct NotUnderstood;
 
-pub fn encode(shared: &Shared) -> Vec<u8> {
+/// A JSON object in which every key is written once. `serde_json`'s own map keeps the last of a key written twice, which
+/// would read two different messages as one; here a key written twice is not an object at all.
+struct Once<V>(BTreeMap<String, V>);
+
+impl<'de, V: Deserialize<'de>> Deserialize<'de> for Once<V> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct Keys<V>(PhantomData<V>);
+        impl<'de, V: Deserialize<'de>> Visitor<'de> for Keys<V> {
+            type Value = Once<V>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("an object with every key written once")
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut access: A) -> Result<Once<V>, A::Error> {
+                let mut fields = BTreeMap::new();
+                while let Some((key, value)) = access.next_entry::<String, V>()? {
+                    if fields.insert(key, value).is_some() {
+                        return Err(A::Error::custom("a key written twice"));
+                    }
+                }
+                Ok(Once(fields))
+            }
+        }
+        deserializer.deserialize_map(Keys(PhantomData))
+    }
+}
+
+/// The message for `shared`, or nothing when it is older than another Location understands ([`AGE_MAX`]).
+pub fn encode(shared: &Shared) -> Option<Vec<u8>> {
+    if shared.age > AGE_MAX {
+        return None;
+    }
     serde_json::to_vec(&json!({"position":{
         "latitude": shared.fix.latitude,
         "longitude": shared.fix.longitude,
         "accuracy": shared.fix.accuracy,
         "age": shared.age,
     }}))
-    .unwrap_or_default()
+    .ok()
 }
 
 /// A position as the application says it of this device: `{latitude, longitude, accuracy, age}`, those keys and no others,
 /// `accuracy` optional. An accuracy the system cannot have meant is the system not saying; what another device says is
 /// held to more ([`parse`]).
 pub fn position(value: &Value) -> Result<Shared, NotUnderstood> {
-    let fields = value.as_object().ok_or(NotUnderstood)?;
+    fields(value.as_object().ok_or(NotUnderstood)?)
+}
+
+fn fields(fields: &Map<String, Value>) -> Result<Shared, NotUnderstood> {
     if fields
         .keys()
         .any(|key| !matches!(key.as_str(), "latitude" | "longitude" | "accuracy" | "age"))
@@ -71,13 +107,15 @@ pub fn parse(bytes: &[u8]) -> Result<Shared, NotUnderstood> {
     if bytes.len() > MAX {
         return Err(NotUnderstood);
     }
-    let message: Map<String, Value> = serde_json::from_slice(bytes).map_err(|_| NotUnderstood)?;
-    let (1, Some(said)) = (message.len(), message.get("position")) else {
+    let Once(mut message): Once<Once<Value>> =
+        serde_json::from_slice(bytes).map_err(|_| NotUnderstood)?;
+    let (1, Some(Once(said))) = (message.len(), message.remove("position")) else {
         return Err(NotUnderstood);
     };
-    let shared = position(said)?;
+    let said: Map<String, Value> = said.into_iter().collect();
+    let shared = fields(&said)?;
     // An accuracy another device said and that cannot be meant is not left out for it: it is not a position.
-    if shared.fix.accuracy.is_none() && !said["accuracy"].is_null() {
+    if shared.fix.accuracy.is_none() && said.get("accuracy").is_some_and(|said| !said.is_null()) {
         return Err(NotUnderstood);
     }
     Ok(shared)
@@ -94,12 +132,12 @@ mod tests {
             fix: Fix::new(44.4268, 26.1025, Some(12.5)).unwrap(),
             age: 30,
         };
-        assert_eq!(parse(&encode(&shared)), Ok(shared));
+        assert_eq!(parse(&encode(&shared).unwrap()), Ok(shared));
         let unsure = Shared {
             fix: Fix::new(-1.0, -2.0, None).unwrap(),
             age: 0,
         };
-        assert_eq!(parse(&encode(&unsure)), Ok(unsure));
+        assert_eq!(parse(&encode(&unsure).unwrap()), Ok(unsure));
     }
 
     #[test]
@@ -116,6 +154,12 @@ mod tests {
             br#"{"position":{"latitude":"1","longitude":2,"age":3}}"#,
             br#"{"position":{"latitude":1,"longitude":2,"accuracy":"far","age":3}}"#,
             br#"{"position":{"latitude":1,"longitude":2,"accuracy":-1,"age":3}}"#,
+            // A key written twice, at either depth: not the last one read as if it were the only one.
+            br#"{"position":null,"position":{"latitude":1,"longitude":2,"age":3}}"#,
+            br#"{"position":{"latitude":1,"longitude":2,"age":3},"position":{"latitude":1,"longitude":2,"age":3}}"#,
+            br#"{"position":{"latitude":95,"latitude":1,"longitude":2,"age":3}}"#,
+            br#"{"position":{"latitude":1,"longitude":2,"age":3,"age":3}}"#,
+            br#"{"position":[1,2,3]}"#,
             br#"{"position":{"latitude":1,"longitude":2,"accuracy":1000001,"age":3}}"#,
         ] {
             assert_eq!(
@@ -130,6 +174,16 @@ mod tests {
             "0".repeat(MAX)
         );
         assert_eq!(parse(long.as_bytes()), Err(NotUnderstood));
+    }
+
+    #[test]
+    fn a_position_too_old_to_be_understood_is_not_written() {
+        let aged = |age| Shared {
+            fix: Fix::new(1.0, 2.0, None).unwrap(),
+            age,
+        };
+        assert_eq!(parse(&encode(&aged(AGE_MAX)).unwrap()), Ok(aged(AGE_MAX)));
+        assert_eq!(encode(&aged(AGE_MAX + 1)), None);
     }
 
     #[test]

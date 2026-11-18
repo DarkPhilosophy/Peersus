@@ -16,6 +16,8 @@ native = []
 development-diagnostics = []
 
 [dependencies]
+# Named for its traits only (a strict reading of a message); `serde_json` already brings it.
+serde = "1"
 serde_json = "1"
 
 [profile.release]

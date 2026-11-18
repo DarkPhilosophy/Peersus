@@ -12,7 +12,7 @@ mod geo;
 mod host;
 mod native;
 mod wire;
-use host::{Data, Handle, Wire, read_ack, write_all};
+use host::{Data, Handle, Wire, read_ack, read_limited, write_all};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, VecDeque};
 
@@ -22,11 +22,11 @@ const LOCATION: &str = "peersus.location";
 const CALL_MS: u32 = 5_000;
 /// How long it is given to find this device: a system without a fix may need a few seconds (the application's own ceiling).
 const FIND_MS: u32 = 20_000;
-/// Longest wait for a stream to be readable, in milliseconds.
+/// Longest wait for more of what a paired device writes, since anything of it last arrived, in milliseconds.
 const WAIT_MS: i32 = 400;
-/// Longest one stream is waited for in all, in milliseconds: what bounds a message is this and its bytes, never how many
-/// pieces it arrives in.
-const STREAM_MS: i32 = 4_000;
+/// Longest wait for the application to say a share reached the other device, in milliseconds: it says so only after it
+/// opened a stream to that device and wrote everything on it.
+const ACK_MS: i32 = 3_000;
 /// Most deliveries kept for later while a stream is waited for.
 const MOST_KEPT: usize = 64;
 /// Longest name of a device the application gives, in characters.
@@ -110,21 +110,69 @@ enum Ask {
     Keep,
 }
 
-/// What is left of the time one stream may be waited for ([`STREAM_MS`]). A guest has no clock: every wait counts as having
-/// taken all it was given, so the time really waited is never more. When none is left a stream is only looked at: what
-/// already arrived is still read, and nothing more is waited for.
-struct Patience(i32);
+/// One stream to a device for a share: asked of the application, then opened by it.
+#[derive(Clone, Debug, PartialEq)]
+struct Sending {
+    /// The call that asked for the stream; once the application opened it, the claim it is written under.
+    number: u64,
+    alias: String,
+    /// The position this share is of.
+    told: Told,
+    /// Only Keep sharing asked for this share: turned off before the stream is open, nothing is written on it.
+    kept: bool,
+}
 
-impl Patience {
-    fn new() -> Self {
-        Self(STREAM_MS)
+/// The application's streams, read only when there is something to read: every read first waits, `wait` milliseconds at
+/// most, until the stream can be read, and keeps in `kept` what the application delivers meanwhile. A read never stands
+/// still, whatever the other side does or stops doing.
+struct Ready<'a, H> {
+    host: &'a mut H,
+    kept: &'a mut VecDeque<Value>,
+    wait: i32,
+}
+
+impl<H: Wire + Data> Ready<'_, H> {
+    fn wait(&mut self, handle: Handle) -> Result<(), &'static str> {
+        for _ in 0..=MOST_KEPT {
+            match self.host.poll(&[handle], self.wait)? {
+                Some(ready) if ready == handle => return Ok(()),
+                Some(_) => {
+                    if self.kept.len() >= MOST_KEPT {
+                        return Err("Too much arrived to be waited for");
+                    }
+                    let delivery = self.host.receive()?;
+                    self.kept.push_back(delivery);
+                }
+                None => return Err("The other side did not answer in time"),
+            }
+        }
+        Err("Too much arrived to be waited for")
     }
+}
 
-    /// How long the next wait may take, in milliseconds: zero when nothing is left.
-    fn next(&mut self) -> i32 {
-        let wait = self.0.min(WAIT_MS);
-        self.0 -= wait;
-        wait
+impl<H: Wire + Data> Data for Ready<'_, H> {
+    fn open(&mut self, claim: bool, number: u64) -> Result<Handle, &'static str> {
+        self.host.open(claim, number)
+    }
+    fn read(&mut self, handle: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
+        self.wait(handle)?;
+        self.host.read(handle, into)
+    }
+    fn write(&mut self, handle: Handle, from: &[u8]) -> Result<usize, &'static str> {
+        self.host.write(handle, from)
+    }
+    fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str> {
+        self.host.shutdown(handle)
+    }
+    fn close(&mut self, handle: Handle) {
+        self.host.close(handle)
+    }
+    fn poll(
+        &mut self,
+        handles: &[Handle],
+        timeout_ms: i32,
+    ) -> Result<Option<Handle>, &'static str> {
+        self.host.poll(handles, timeout_ms)
     }
 }
 
@@ -144,10 +192,10 @@ pub struct State {
     asked_list: u64,
     listed_at: Option<u64>,
     seen: BTreeMap<String, Told>,
-    /// Calls that asked for a stream to a device: the device, and the position that share is of.
-    sending: Vec<(u64, String, Told)>,
-    /// Streams the application opened for a share, to write that share's position on.
-    outgoing: Vec<(u64, String, Told)>,
+    /// Streams asked of the application for the last share, not open yet.
+    sending: Vec<Sending>,
+    /// Streams the application opened for it, to write that share's position on.
+    outgoing: Vec<Sending>,
     /// What came of the last share to each device: whether every byte reached it.
     delivered: BTreeMap<String, bool>,
     /// The last share reached no device: nobody could take it.
@@ -238,8 +286,9 @@ impl State {
     }
 
     /// One stream asked for, to every device that takes a position now, each for `told`: the position this share is of.
-    /// What an earlier share still waited for is dropped: it is no longer the last one.
-    fn share(&mut self, told: Told) -> Vec<Value> {
+    /// `kept` when only Keep sharing asked for it. What an earlier share still waited for is dropped: it is no longer the
+    /// last one.
+    fn share(&mut self, told: Told, kept: bool) -> Vec<Value> {
         self.shared_at = Some(self.now);
         self.sending.clear();
         self.delivered.clear();
@@ -253,13 +302,18 @@ impl State {
         ready
             .into_iter()
             .map(|alias| {
-                let (id, call) = self.call(
+                let (number, call) = self.call(
                     PEERS,
                     "send",
                     json!({"device":alias,"service":wire::SERVICE,"version":wire::VERSION}),
                     CALL_MS,
                 );
-                self.sending.push((id, alias, told));
+                self.sending.push(Sending {
+                    number,
+                    alias,
+                    told,
+                    kept,
+                });
                 call
             })
             .collect()
@@ -293,7 +347,7 @@ impl State {
             }
         } else if id == self.asked_own {
             self.asked_own = 0;
-            let share = self.share_once || self.share_kept;
+            let (once, kept) = (self.share_once, self.share_kept);
             self.share_once = false;
             self.share_kept = false;
             match result["value"]
@@ -307,8 +361,8 @@ impl State {
                         at: self.now,
                     };
                     self.own = Own::Found(told);
-                    if share {
-                        return self.share(told);
+                    if once || kept {
+                        return self.share(told, !once);
                     }
                 }
                 _ if denied => self.own = Own::Not(words::NOT_ALLOWED.to_owned()),
@@ -323,12 +377,15 @@ impl State {
                     )
                 }
             }
-        } else if let Some(index) = self.sending.iter().position(|(asked, ..)| *asked == id) {
-            let (_, alias, told) = self.sending.swap_remove(index);
+        } else if let Some(index) = self.sending.iter().position(|sending| sending.number == id) {
+            let sending = self.sending.swap_remove(index);
             match result["value"]["claim"].as_u64().filter(|_| ok) {
-                Some(claim) => self.outgoing.push((claim, alias, told)),
+                Some(claim) => self.outgoing.push(Sending {
+                    number: claim,
+                    ..sending
+                }),
                 None => {
-                    self.delivered.insert(alias, false);
+                    self.delivered.insert(sending.alias, false);
                 }
             }
         }
@@ -378,8 +435,10 @@ impl State {
                 if self.keep {
                     calls.extend(self.find(Ask::Keep));
                 } else {
-                    // Turned off while this device was being found for it: that position is not sent.
+                    // Turned off: what only Keep sharing asked for and has not left does not go, whether this device is
+                    // still being found or the streams for it are not open yet. What Share was pressed for still goes.
                     self.share_kept = false;
+                    self.sending.retain(|sending| !sending.kept);
                 }
             }
             (Some("tick"), _) => {
@@ -659,53 +718,38 @@ impl State {
         }
     }
 
-    /// Wait until `handle` can be read, keeping what the application delivers meanwhile: [`WAIT_MS`] at most each time, and
-    /// only while `patience` lasts.
-    fn wait<H: Wire + Data>(
-        &mut self,
-        host: &mut H,
-        handle: Handle,
-        patience: &mut Patience,
-    ) -> Result<(), &'static str> {
-        for _ in 0..=MOST_KEPT {
-            match host.poll(&[handle], patience.next())? {
-                Some(ready) if ready == handle => return Ok(()),
-                Some(_) => {
-                    if self.waiting.len() >= MOST_KEPT {
-                        return Err("Too much arrived to be waited for");
-                    }
-                    let delivery = host.receive()?;
-                    self.waiting.push_back(delivery);
-                }
-                None => return Err("The other side did not answer in time"),
-            }
-        }
-        Err("Too much arrived to be waited for")
-    }
-
-    /// Write, on every stream the application opened for a share, the position that share is of, and wait for each to be
-    /// taken. Where this device was asked or found since changes nothing of it.
+    /// Write, on every stream the application opened for a share, the position that share is of, and wait for the
+    /// application to say each reached its device. Where this device was asked or found since changes nothing of it.
     fn flush<H: Wire + Data>(&mut self, host: &mut H) {
-        for (claim, alias, told) in std::mem::take(&mut self.outgoing) {
-            // As it leaves now: the age it was found with, plus the time since.
-            let bytes = wire::encode(&told.aged(self.now));
-            let delivered = match host.open(true, claim) {
-                Ok(handle) => {
-                    let delivered = self.deliver(host, handle, &bytes);
-                    host.close(handle);
-                    delivered
+        for sending in std::mem::take(&mut self.outgoing) {
+            // As it leaves now: the age it was found with, plus the time since. One grown too old for another Location to
+            // understand is not written.
+            let delivered = wire::encode(&sending.told.aged(self.now)).is_some_and(|bytes| {
+                match host.open(true, sending.number) {
+                    Ok(handle) => {
+                        let delivered = self.deliver(host, handle, &bytes);
+                        host.close(handle);
+                        delivered
+                    }
+                    Err(_) => false,
                 }
-                Err(_) => false,
-            };
-            self.delivered.insert(alias, delivered);
+            });
+            self.delivered.insert(sending.alias, delivered);
         }
     }
 
     fn deliver<H: Wire + Data>(&mut self, host: &mut H, handle: Handle, bytes: &[u8]) -> bool {
         write_all(host, handle, bytes).is_ok()
             && host.shutdown(handle).is_ok()
-            && self.wait(host, handle, &mut Patience::new()).is_ok()
-            && read_ack(host, handle).is_ok_and(|count| u64::try_from(bytes.len()) == Ok(count))
+            && read_ack(
+                &mut Ready {
+                    host,
+                    kept: &mut self.waiting,
+                    wait: ACK_MS,
+                },
+                handle,
+            )
+            .is_ok_and(|count| u64::try_from(bytes.len()) == Ok(count))
     }
 
     /// A paired device shared its position: read it, keep it under the name the application gave that device.
@@ -735,7 +779,18 @@ impl State {
         let handle = host
             .open(false, ticket)
             .map_err(|_| "What was sent was not understood")?;
-        let read = self.read_whole(host, handle);
+        // However many pieces it arrives in, it is one message. Its bytes bound it (one more than the most is read, so that
+        // something longer is seen to be longer) and so does time: each piece is waited for `WAIT_MS` at most, and the
+        // application ends the stream when the time it gives this call is over, which is read here as its end.
+        let read = read_limited(
+            &mut Ready {
+                host,
+                kept: &mut self.waiting,
+                wait: WAIT_MS,
+            },
+            handle,
+            wire::MAX,
+        );
         host.close(handle);
         let shared = wire::parse(&read?).map_err(|_| "What was sent was not understood")?;
         self.seen.insert(
@@ -746,36 +801,6 @@ impl State {
             },
         );
         Ok(())
-    }
-
-    /// Everything a paired device wrote on `handle` until it closed it. However many pieces it arrives in, it is one
-    /// message: its bytes ([`wire::MAX`]) and the time waited for it ([`STREAM_MS`]) bound it, never the number of reads.
-    fn read_whole<H: Wire + Data>(
-        &mut self,
-        host: &mut H,
-        handle: Handle,
-    ) -> Result<Vec<u8>, &'static str> {
-        let mut bytes = Vec::new();
-        let mut chunk = [0u8; 512];
-        let mut patience = Patience::new();
-        // Ends within `wire::MAX + 2` reads: each takes at least one byte, the end takes none, one byte too many is refused.
-        loop {
-            self.wait(host, handle, &mut patience)?;
-            // One byte more than the most, so that something longer is seen to be longer.
-            let room = chunk.len().min(wire::MAX + 1 - bytes.len());
-            let count = host.read(handle, &mut chunk[..room])?;
-            if count == 0 {
-                return Ok(bytes);
-            }
-            bytes.extend_from_slice(
-                chunk
-                    .get(..count)
-                    .ok_or("What was sent was not understood")?,
-            );
-            if bytes.len() > wire::MAX {
-                return Err("What was sent was not understood");
-            }
-        }
     }
 }
 

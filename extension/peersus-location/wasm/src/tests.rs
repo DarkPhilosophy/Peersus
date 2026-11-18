@@ -27,6 +27,16 @@ fn told(latitude: f64, longitude: f64) -> Told {
     }
 }
 
+/// A stream the application opened under `claim` for a share of `told` to `alias`, that the person pressed for.
+fn sending(claim: u64, alias: &str, told: Told) -> Sending {
+    Sending {
+        number: claim,
+        alias: alias.to_owned(),
+        told,
+        kept: false,
+    }
+}
+
 /// The number of the `nth` call the extension sent, of `service` and `method`.
 fn asked(host: &Script, service: &str, method: &str, nth: usize) -> u64 {
     calls(host, service, method)[nth]["id"].as_u64().unwrap()
@@ -177,10 +187,13 @@ fn a_position_shared_with_this_device_is_kept_under_its_name_and_drawn_from_here
     let mut state = State::default();
     state.listed(&[peer("a1", "Phone", true)]);
     state.own = Own::Found(told(44.4268, 26.1025));
-    host.incoming.push_back(wire::encode(&wire::Shared {
-        fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
-        age: 60,
-    }));
+    host.incoming.push_back(
+        wire::encode(&wire::Shared {
+            fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
+            age: 60,
+        })
+        .unwrap(),
+    );
     host.deliveries
         .push_back(json!({"type":"call","ticket":9,"method":"receive","args":{"peer":"a1"}}));
     run_all(&mut host, &mut state);
@@ -400,14 +413,14 @@ fn a_stream_opened_for_a_share_that_is_no_longer_the_last_is_not_written() {
 }
 
 #[test]
-fn a_position_that_arrives_in_many_pieces_is_one_message_bounded_by_its_bytes_and_the_time_waited()
-{
+fn a_position_that_arrives_in_many_pieces_is_one_message_bounded_by_its_bytes_not_its_pieces() {
     let mut host = Script::default();
     let mut state = State::default();
     let message = wire::encode(&wire::Shared {
         fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
         age: 60,
-    });
+    })
+    .unwrap();
     // One byte a read: far more reads than a message has pieces on any real connection.
     assert!(message.len() > 32);
     host.incoming.extend(message.iter().map(|byte| vec![*byte]));
@@ -417,10 +430,9 @@ fn a_position_that_arrives_in_many_pieces_is_one_message_bounded_by_its_bytes_an
     let reply = host.sent.iter().find(|sent| sent["ticket"] == 9).unwrap();
     assert_eq!(reply["result"]["status"], "ok");
     assert_eq!(state.seen["a1"].shared.fix.latitude, 46.7712);
-    // However many reads it took, no more time was given to it than one stream gets.
-    assert!(host.waits.len() > message.len());
-    assert!(host.waits.iter().all(|wait| (0..=WAIT_MS).contains(wait)));
-    assert_eq!(host.waits.iter().sum::<i32>(), STREAM_MS);
+    // One wait before every read, the last one for its end; each for as long as a piece is waited for, never longer.
+    assert_eq!(host.waits.len(), message.len() + 1);
+    assert!(host.waits.iter().all(|wait| *wait == WAIT_MS));
     // One byte more than a message may have, in pieces as small: seen to be too long, and refused.
     host.waits.clear();
     host.incoming
@@ -431,8 +443,8 @@ fn a_position_that_arrives_in_many_pieces_is_one_message_bounded_by_its_bytes_an
     let reply = host.sent.iter().find(|sent| sent["ticket"] == 10).unwrap();
     assert_eq!(reply["result"]["status"], "error");
     assert!(!state.seen.contains_key("b2"));
+    // Read no further than the one byte that shows it: what is left of it is never asked for.
     assert_eq!(host.waits.len(), wire::MAX + 1);
-    assert!(host.waits.iter().sum::<i32>() <= STREAM_MS);
 }
 
 #[test]
@@ -441,11 +453,89 @@ fn a_share_written_waits_for_the_application_to_say_every_byte_arrived() {
     let mut state = State::default();
     // The application says fewer bytes reached the other side than were written: not delivered.
     host.incoming.push_back(ack(3));
-    state.outgoing.push((5, "a1".to_owned(), told(1.0, 2.0)));
+    state.outgoing.push(sending(5, "a1", told(1.0, 2.0)));
     state.flush(&mut host);
     assert_eq!(state.delivered.get("a1"), Some(&false));
     assert_eq!(host.shutdowns, 1);
     assert_eq!(host.closed, 1);
+    // The application never says it arrived: waited for only as long as an acknowledgement is, not delivered, closed.
+    let mut host = Script {
+        silent: true,
+        ..Script::default()
+    };
+    state.outgoing.push(sending(6, "b2", told(1.0, 2.0)));
+    state.flush(&mut host);
+    assert_eq!(state.delivered.get("b2"), Some(&false));
+    assert_eq!(host.waits, [ACK_MS]);
+    assert_eq!(host.closed, 1);
+}
+
+#[test]
+fn a_position_grown_too_old_to_be_understood_is_not_written_on_its_stream() {
+    let mut host = Script {
+        acks: true,
+        ..Script::default()
+    };
+    let mut state = State::default();
+    let mut old = told(1.0, 2.0);
+    old.shared.age = geo::AGE_MAX;
+    state.outgoing.push(sending(5, "a1", old));
+    state.flush(&mut host);
+    assert_eq!(state.delivered.get("a1"), Some(&true));
+    // One second later the same position is a second too old: its stream is not opened at all.
+    state.now = 1_000;
+    state.outgoing.push(sending(6, "b2", old));
+    state.flush(&mut host);
+    assert_eq!(state.delivered.get("b2"), Some(&false));
+    assert_eq!(host.opened, vec![(true, 5)]);
+}
+
+#[test]
+fn keep_sharing_turned_off_before_its_streams_are_open_writes_nothing_on_them() {
+    let mut host = Script {
+        acks: true,
+        ..Script::default()
+    };
+    let mut state = State::default();
+    state.listed(&[peer("a1", "Phone", true)]);
+    // Found for Keep sharing, the stream asked for; turned off before the application opened it.
+    host.deliveries
+        .push_back(event(1, json!({"t":"toggle","id":"keep","on":true})));
+    run_all(&mut host, &mut state);
+    host.deliveries.push_back(result(
+        asked(&host, LOCATION, "current", 0),
+        found(1.0, 2.0, 0),
+    ));
+    host.deliveries
+        .push_back(event(2, json!({"t":"toggle","id":"keep","on":false})));
+    run_all(&mut host, &mut state);
+    host.deliveries.push_back(result(
+        asked(&host, PEERS, "send", 0),
+        json!({"status":"ok","value":{"claim":41}}),
+    ));
+    run_all(&mut host, &mut state);
+    assert!(host.opened.is_empty());
+    // A share the person pressed for is not Keep sharing's to take back: it goes although Keep sharing is off again.
+    for (ticket, did) in [
+        (3, json!({"t":"toggle","id":"keep","on":true})),
+        (4, json!({"t":"press","id":"share"})),
+    ] {
+        host.deliveries.push_back(event(ticket, did));
+    }
+    run_all(&mut host, &mut state);
+    host.deliveries.push_back(result(
+        asked(&host, LOCATION, "current", 1),
+        found(1.0, 2.0, 0),
+    ));
+    host.deliveries
+        .push_back(event(5, json!({"t":"toggle","id":"keep","on":false})));
+    run_all(&mut host, &mut state);
+    host.deliveries.push_back(result(
+        asked(&host, PEERS, "send", 1),
+        json!({"status":"ok","value":{"claim":42}}),
+    ));
+    run_all(&mut host, &mut state);
+    assert_eq!(host.opened, vec![(true, 42)]);
 }
 
 #[test]

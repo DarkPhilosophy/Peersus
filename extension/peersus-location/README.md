@@ -18,8 +18,9 @@ direction from here.
   `peers.watch` and `peers.send` for that device): online, allowed here, and with Location there accepting
   `location.position`. Nothing is asked of another device, and nothing answers: a position goes only when its own person
   shares it. A share sends the position it was asked for: looking where this device is afterwards changes nothing of what
-  goes, a later share replaces an earlier one that had not left yet, and turning *Keep sharing* off while this device is
-  being found sends nothing. *Keep sharing* asks again five minutes after it last asked, found or not.
+  goes, a later share replaces an earlier one that had not left yet, and turning *Keep sharing* off takes back what only
+  it asked for and has not left (this device still being found, or the streams not open yet), never a share the person
+  pressed for. *Keep sharing* asks again five minutes after it last asked, found or not.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
   person allowed Location for (`location.share`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
@@ -34,9 +35,12 @@ One stream, one line of JSON, at most 512 bytes:
 ```
 
 `accuracy` is metres (`null` or left out when the system did not say), `age` the seconds since the system found it when it
-left. Anything else (other keys, a latitude off the Earth, an accuracy below zero or over a thousand kilometres, an age over
-thirty days, a longer stream) is refused and nothing of it is kept. However many pieces the line arrives in, it is one
-message: what bounds it is its 512 bytes and four seconds of waiting for it, in all.
+left. Anything else (other keys, a key written twice, a latitude off the Earth, an accuracy below zero or over a thousand
+kilometres, an age over thirty days, a longer stream) is refused and nothing of it is kept; a position that grew older than
+thirty days before it left is not written at all. However many pieces the line arrives in, it is one message: what bounds
+it is its 512 bytes, 400 milliseconds of waiting for each piece, and the time the application gives the `receive` call, at
+the end of which the application ends the stream. A share counts as delivered only when the application says, within three
+seconds, that every byte reached the other device.
 
 ## The map
 
