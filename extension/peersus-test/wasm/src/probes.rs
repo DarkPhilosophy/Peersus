@@ -68,21 +68,21 @@ pub const PROBES: &[Probe] = &[
     Probe {
         id: "define",
         label: "Make a status",
-        expect: "Defines its status 'Testing', with status.define; denied without it.",
+        expect: "Defines or changes this device's status using the label above; denied without status.define.",
         service: "peersus.status",
         method: "define",
     },
     Probe {
         id: "set",
         label: "Show the status",
-        expect: "Paired devices that watch statuses see 'Testing' for this device, with status.set.",
+        expect: "Paired devices show this device's current status on their Devices page; denied without status.set.",
         service: "peersus.status",
         method: "set",
     },
     Probe {
         id: "clear",
         label: "Hide the status",
-        expect: "The status is no longer shown, with status.set.",
+        expect: "This device's status is no longer shown on paired devices, with status.clear.",
         service: "peersus.status",
         method: "clear",
     },
@@ -92,20 +92,6 @@ pub const PROBES: &[Probe] = &[
         expect: "The statuses it made, and which are on; no permission needed.",
         service: "peersus.status",
         method: "own",
-    },
-    Probe {
-        id: "pages",
-        label: "Also in Settings",
-        expect: "A second copy of this page appears in Settings, or goes again on the next press; no permission needed.",
-        service: "peersus.pages",
-        method: "set",
-    },
-    Probe {
-        id: "withhold",
-        label: "Hide an action",
-        expect: "'Count, with no description' leaves Settings › Binds, or comes back on the next press; no permission needed.",
-        service: "peersus.actions",
-        method: "withhold",
     },
 ];
 
@@ -120,17 +106,11 @@ pub fn pressed(id: &str) -> Option<usize> {
     PROBES.iter().position(|probe| probe.id == wanted)
 }
 
-/// The arguments of a probe: what the contract asks for, and for the two that turn something on and off, which way now.
-pub fn args(probe: &Probe, on: bool) -> Value {
+/// The arguments of a probe: what the host contract asks for.
+pub fn args(probe: &Probe) -> Value {
     match probe.id {
         "define" => json!({"id":"testing","label":"Testing"}),
         "set" | "clear" => json!({"id":"testing"}),
-        "pages" if on => {
-            json!({"pages":[{"id":"test-settings","page":"test","placement":"settings"}]})
-        }
-        "pages" => json!({"pages":[]}),
-        "withhold" if on => json!({"actions":["count-plain"]}),
-        "withhold" => json!({"actions":[]}),
         _ => json!({}),
     }
 }
@@ -149,6 +129,32 @@ pub fn summary(result: &Value) -> String {
     };
     cut(&text, 240)
 }
+/// The test's own definitions in words instead of JSON, including whether each is visible.
+pub fn own_summary(result: &Value) -> String {
+    let Some(defined) = result["value"]
+        .as_array()
+        .filter(|_| result["status"] == "ok")
+    else {
+        return summary(result);
+    };
+    if defined.is_empty() {
+        return "No statuses defined".into();
+    }
+    cut(
+        &defined
+            .iter()
+            .filter_map(|entry| {
+                Some(format!(
+                    "{} ({})",
+                    entry["label"].as_str()?,
+                    if entry["on"].as_bool()? { "on" } else { "off" }
+                ))
+            })
+            .collect::<Vec<_>>()
+            .join(", "),
+        240,
+    )
+}
 
 /// At most `most` characters of `text`, with an ellipsis when it was cut.
 pub fn cut(text: &str, most: usize) -> String {
@@ -165,18 +171,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_probe_has_its_button_and_the_two_switches_alternate() {
+    fn every_probe_has_its_button_and_no_probe_changes_a_different_page() {
         for (index, probe) in PROBES.iter().enumerate() {
             assert_eq!(pressed(&button(probe)), Some(index));
         }
         assert_eq!(pressed("probe-nothing"), None);
         assert_eq!(pressed("count"), None);
-        let pages = &PROBES[pressed("probe-pages").unwrap()];
-        assert_eq!(args(pages, true)["pages"][0]["placement"], "settings");
-        assert_eq!(args(pages, false), json!({"pages":[]}));
-        let withhold = &PROBES[pressed("probe-withhold").unwrap()];
-        assert_eq!(args(withhold, true), json!({"actions":["count-plain"]}));
-        assert_eq!(args(withhold, false), json!({"actions":[]}));
+        assert_eq!(pressed("probe-pages"), None);
+        assert_eq!(pressed("probe-withhold"), None);
     }
 
     #[test]

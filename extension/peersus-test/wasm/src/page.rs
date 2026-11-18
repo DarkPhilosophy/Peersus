@@ -58,8 +58,12 @@ impl State {
         let mut children = vec![
             text("Test", "title"),
             text(
-                "Everything here is drawn by the application from what this extension answered, and every button asks \
-                 the application something through its contract. Version 0.1.3.",
+                concat!(
+                    "Everything here is drawn by the application from what this extension answered, and every button asks \
+                     the application something through its contract. Version ",
+                    env!("CARGO_PKG_VERSION"),
+                    "."
+                ),
                 "muted",
             ),
             self.elements(),
@@ -75,12 +79,6 @@ impl State {
                 "muted",
             ));
         }
-        children.extend((1..=self.rows).map(|n| {
-            row(vec![
-                text(format!("Row {n}"), "body"),
-                text("drawn inside the page", "muted"),
-            ])
-        }));
         let page = json!({"k":"column","children":children});
         // While something waits for the application, the page asks to be drawn again by itself, so the answer shows.
         if self.waiting() {
@@ -150,9 +148,27 @@ impl State {
                 vec![text("This grew out of the switch above.", "body")],
             ));
         }
+        let mut interactive_controls = vec![
+            bx(None, json!({"gap":8}), revealed),
+            bx(
+                None,
+                json!({"horizontal":true,"gap":8,"wrap":true}),
+                vec![
+                    button_node("grow", "Add a row"),
+                    button_node("clear", "Clear rows"),
+                    button_node("flood", "Too large"),
+                ],
+            ),
+        ];
+        interactive_controls.extend((1..=self.rows).map(|n| {
+            row(vec![
+                text(format!("Row {n}"), "body"),
+                text("drawn inside this card", "muted"),
+            ])
+        }));
         section(
             "Elements",
-            "Texts in every tone, the controls, boxes in every colour and shape, the application's pictures and a drawing.",
+            "Texts in every tone, controls, boxes in every colour and shape, and the application's pictures.",
             vec![
                 // Side by side and whole: a box that wraps moves what does not fit under the rest (a row would share the width out
                 // equally and break the figure inside its share on a phone).
@@ -183,28 +199,27 @@ impl State {
                     "body",
                 ),
                 json!({"k":"divider"}),
+                text(
+                    "Colour samples: each box names the theme colour it uses.",
+                    "muted",
+                ),
                 bx(
                     None,
                     json!({"horizontal":true,"gap":8,"wrap":true}),
                     swatches,
                 ),
+                text(
+                    "Box samples: transparency, corners, scrolling and layering.",
+                    "muted",
+                ),
                 shapes,
+                text("Application icons.", "muted"),
                 bx(
                     None,
                     json!({"horizontal":true,"gap":12,"wrap":true,"center":true}),
                     icons,
                 ),
-                self.drawing(),
-                bx(None, json!({"gap":8}), revealed),
-                bx(
-                    None,
-                    json!({"horizontal":true,"gap":8,"wrap":true}),
-                    vec![
-                        button_node("grow", "Add a row"),
-                        button_node("clear", "Clear rows"),
-                        button_node("flood", "Too large"),
-                    ],
-                ),
+                bx(None, json!({"gap":8}), interactive_controls),
             ],
         )
     }
@@ -256,14 +271,31 @@ impl State {
             "Raw pointer, size and wheel events from a box with an id, the application's device chooser, pictures of paired \
              devices and a clock that ticks only while this page is shown.",
             vec![
-                json!({"k":"box","id":"pad","observe":["size","wheel"],
-                "style":{"height":px(120),"padding":12,"radius":[12,12,12,12],"background":"surface","border":true},
-                "children":[
-                    text("Touch, drag or scroll here", "body"),
-                    text(self.pointer.clone(), "muted"),
-                    text(self.size.clone(), "muted"),
-                    text(self.wheel.clone(), "muted"),
-                ]}),
+                bx(
+                    None,
+                    json!({"horizontal":true,"wrap":true,"gap":16}),
+                    vec![
+                        json!({"k":"box","id":"pad","observe":["size","wheel"],
+                        "style":{"height":px(120),"padding":12,"radius":[12,12,12,12],"background":"surface","border":true},
+                        "children":[
+                            text("Touch, drag or scroll here", "body"),
+                            text(self.pointer.clone(), "muted"),
+                            text(self.size.clone(), "muted"),
+                            text(self.wheel.clone(), "muted"),
+                        ]}),
+                        bx(
+                            None,
+                            json!({"width":px(300),"gap":8}),
+                            vec![
+                                self.drawing(),
+                                text(
+                                    "The ring follows touch; the line follows scrolling. The green triangle is a sample shape.",
+                                    "muted",
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
                 json!({"k":"devices","id":"chooser","this_device":true,
                     "pick":{"presence":["online","sleeping","offline"],"allowed":false}}),
                 text(chosen, "body"),
@@ -281,6 +313,24 @@ impl State {
     fn answers(&self) -> Value {
         let mut children = Vec::new();
         for (index, probe) in PROBES.iter().enumerate() {
+            if probe.id == "define" {
+                children.push(text(
+                    "This device's status: type a label and press Enter to define or change it; Testing is the default. \
+                     Show turns it on; Hide turns it off. Paired devices see active statuses on their Devices page.",
+                    "muted",
+                ));
+                children.push(json!({"k":"field","id":"status-label","placeholder":"Status label (press Enter to apply)","value":"","height":44}));
+                children.push(text(
+                    match &self.status_label {
+                        Some(label) => format!(
+                            "This device: {label} ({})",
+                            if self.status_on { "on" } else { "off" }
+                        ),
+                        None => "No status defined on this device yet".to_owned(),
+                    },
+                    "body",
+                ));
+            }
             let said = self.probed[index].clone().unwrap_or_else(|| {
                 if self.pending_probe(index) {
                     "Asked…".to_owned()
@@ -293,11 +343,15 @@ impl State {
                 text(said, "body"),
             ]));
             children.push(text(probe.expect, "muted"));
+            if probe.id == "define" {
+                children.push(button_node("reset-status", "Reset label to Testing"));
+            }
         }
         children.push(json!({"k":"divider"}));
         children.push(text(
-            "Notifications (permission: notify.show). Keys: on Settings › Binds, bind keys to this extension's actions: three \
-             count here, two ask for the notifications.",
+            "Notifications (permission: notify.show): Say something appears only in this window. Ask a question appears \
+             here when the window is in front, otherwise through the system when supported and permitted. Keys: on \
+             Settings › Binds, bind actions to count or ask for either notification.",
             "muted",
         ));
         children.push(row(vec![

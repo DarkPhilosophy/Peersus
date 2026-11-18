@@ -1,7 +1,6 @@
-//! Test: one page of its own, drawn by the application from plain elements, that tries what the application offers an
-//! extension through its contract: every element and event, a call of every service it may ask (`probes`), the
-//! notifications, the actions a key can be bound to, and, when its setting asks, ways to misbehave on purpose
-//! (`trouble`) that the application must survive while only this extension suffers.
+//! Test: one page of its own, drawn by the application from plain elements, that tries local interactions and services
+//! through the extension contract. Its drawing stays beside its input, statuses show their result here and on paired
+//! devices, and notifications are presented by the application. When its setting asks, it can also misbehave on purpose.
 #![cfg(any(target_family = "wasm", feature = "native", test))]
 
 mod host;
@@ -16,6 +15,7 @@ use serde_json::{Value, json};
 
 /// The setting that shows the buttons that misbehave on purpose.
 const SHOW_TROUBLE: &str = "show_trouble";
+const DEFAULT_STATUS_LABEL: &str = "Testing";
 /// How long the application may take to answer a call of this extension.
 const CALL_MS: u64 = 10_000;
 /// How long a question outside the window may wait for the person.
@@ -38,6 +38,10 @@ pub(crate) struct State {
     reveal: bool,
     said: String,
     rows: u32,
+    /// The proposed and last accepted words for the single status the test owns.
+    status_input: String,
+    status_label: Option<String>,
+    status_on: bool,
     spammed: u32,
     /// How many times one of its key-bindable actions ran (`bump`).
     keyed: u32,
@@ -47,9 +51,6 @@ pub(crate) struct State {
     told: String,
     /// The last answer of each probe, in `probes::PROBES` order.
     probed: Vec<Option<String>>,
-    /// Which way the two switching probes go next (`pages`, `withhold`).
-    offered: bool,
-    withheld: bool,
     /// Paired devices as the last answer of `peersus.peers` `list` named them: alias and name.
     peers: Vec<(String, String)>,
     show_trouble: bool,
@@ -73,6 +74,7 @@ impl State {
     fn new() -> Self {
         Self {
             probed: vec![None; probes::PROBES.len()],
+            status_input: DEFAULT_STATUS_LABEL.into(),
             pointer: "No touch yet".into(),
             size: "Not measured yet".into(),
             wheel: "No wheel yet".into(),
@@ -197,20 +199,22 @@ impl State {
             Some(method) => method,
             None => return Vec::new(),
         };
+        if delivery["method"] == "event" && event["t"] == "submit" && event["id"] == "status-label"
+        {
+            self.status_input = event["text"].as_str().unwrap_or_default().trim().to_owned();
+            return vec![self.define_status()];
+        }
+        if delivery["method"] == "event" && event["t"] == "press" && event["id"] == "reset-status" {
+            self.status_input = DEFAULT_STATUS_LABEL.into();
+            return vec![self.define_status()];
+        }
         if let Some(index) = probes::pressed(kind) {
             let probe = &probes::PROBES[index];
-            let on = match probe.id {
-                "pages" => {
-                    self.offered = !self.offered;
-                    self.offered
-                }
-                "withhold" => {
-                    self.withheld = !self.withheld;
-                    self.withheld
-                }
-                _ => true,
+            let args = if probe.id == "define" {
+                json!({"id":"testing","label":self.status_input})
+            } else {
+                probes::args(probe)
             };
-            let args = probes::args(probe, on);
             return vec![self.call(
                 Asked::Probe(index),
                 probe.service,
@@ -238,6 +242,21 @@ impl State {
             args,
             NOTIFY_MS,
         )]
+    }
+
+    fn define_status(&mut self) -> Value {
+        let index = probes::PROBES
+            .iter()
+            .position(|probe| probe.id == "define")
+            .expect("the test extension declares its define probe");
+        let probe = &probes::PROBES[index];
+        self.call(
+            Asked::Probe(index),
+            probe.service,
+            probe.method,
+            json!({"id":"testing","label":self.status_input}),
+            CALL_MS,
+        )
     }
 
     /// The application's answer to a call this extension made. Any other delivery changes nothing.
@@ -278,7 +297,23 @@ impl State {
                 {
                     self.show_trouble = on;
                 }
-                self.probed[index] = Some(probes::summary(result));
+                if result["status"] == "ok" {
+                    match probes::PROBES[index].id {
+                        "define" => {
+                            if let Some(label) = result["value"]["label"].as_str() {
+                                self.status_label = Some(label.to_owned());
+                            }
+                        }
+                        "set" => self.status_on = true,
+                        "clear" => self.status_on = false,
+                        _ => {}
+                    }
+                }
+                self.probed[index] = Some(if probes::PROBES[index].id == "own" {
+                    probes::own_summary(result)
+                } else {
+                    probes::summary(result)
+                });
             }
             Asked::Notification => {
                 self.notifying = self.notifying.saturating_sub(1);

@@ -91,7 +91,7 @@ fn each_probe_sends_exactly_its_call_and_the_page_shows_the_answer() {
             ),
             (Some("host"), Some(probe.service), Some(probe.method))
         );
-        assert_eq!(sent["args"], probes::args(probe, true), "{}", probe.id);
+        assert_eq!(sent["args"], probes::args(probe), "{}", probe.id);
         assert!(state.page().to_string().contains("Asked…"));
         state.told(&json!({"type":"result","id":sent["id"],"result":{"status":"error","code":"denied","message":"Not allowed"}}));
         assert_eq!(
@@ -100,12 +100,122 @@ fn each_probe_sends_exactly_its_call_and_the_page_shows_the_answer() {
         );
     }
     assert!(!state.waiting(), "every call was answered");
-    // The two switches go back on the second press.
-    let again = state.calls_for(&press("probe-pages"));
-    assert_eq!(again[0]["args"], json!({"pages":[]}));
     // An answer to a call this extension never made changes nothing.
     state.told(&json!({"type":"result","id":999,"result":{"status":"ok","value":1}}));
-    assert_eq!(state.calls.len(), 1);
+    assert!(state.calls.is_empty());
+}
+
+#[test]
+fn status_text_can_be_defined_changed_and_reset_without_changing_its_identity() {
+    let mut state = State::new();
+    let define = state.calls_for(&press("probe-define"));
+    assert_eq!(define[0]["args"], json!({"id":"testing","label":"Testing"}));
+    answer_all(
+        &mut state,
+        &define,
+        &json!({"status":"ok","value":{"id":"testing","label":"Testing"}}),
+    );
+    let custom = state.calls_for(&call(
+        json!({"t":"submit","id":"status-label","text":"Reviewing"}),
+    ));
+    assert_eq!(custom[0]["service"], "peersus.status");
+    assert_eq!(custom[0]["method"], "define");
+    assert_eq!(
+        custom[0]["args"],
+        json!({"id":"testing","label":"Reviewing"})
+    );
+    answer_all(
+        &mut state,
+        &custom,
+        &json!({"status":"ok","value":{"id":"testing","label":"Reviewing"}}),
+    );
+    assert!(state.page().to_string().contains("Reviewing"));
+    let show = state.calls_for(&press("probe-set"));
+    assert_eq!(show[0]["args"], json!({"id":"testing"}));
+    let hide = state.calls_for(&press("probe-clear"));
+    assert_eq!(hide[0]["args"], show[0]["args"]);
+    let reset = state.calls_for(&press("reset-status"));
+    assert_eq!(reset[0]["args"], define[0]["args"]);
+    answer_all(
+        &mut state,
+        &reset,
+        &json!({"status":"ok","value":{"id":"testing","label":"Testing"}}),
+    );
+    assert!(state.page().to_string().contains("Testing"));
+}
+
+#[test]
+fn expanding_content_and_added_rows_stay_beside_their_controls() {
+    let mut state = State::new();
+    state.answer(&json!({"t":"toggle","id":"reveal","on":true}));
+    state.answer(&json!({"t":"press","id":"grow"}));
+    let page = state.page();
+    let elements = &page["children"][2]["children"];
+    let location = elements
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|node| node.to_string().contains(r#""id":"grow""#))
+        .unwrap();
+    let area = &elements[location];
+    assert!(
+        area.to_string().contains("Row 1"),
+        "added row must stay in Elements, beside Add a row"
+    );
+    assert!(
+        area.to_string()
+            .contains("This grew out of the switch above."),
+        "reveal must stay in the same Elements area as its switch"
+    );
+}
+
+#[test]
+fn pointer_and_wheel_feedback_are_drawn_in_the_pad_card_not_in_another_section() {
+    let state = State::new();
+    let page = state.page();
+    let elements = &page["children"][2];
+    let touch = &page["children"][3];
+    assert!(!elements.to_string().contains(r#""k":"drawing""#));
+    let feedback_area = &touch["children"][2];
+    assert!(feedback_area.to_string().contains(r#""id":"pad""#));
+    assert!(
+        feedback_area.to_string().contains(r#""k":"drawing""#),
+        "the drawing belongs beside the pad on wide screens, underneath on narrow screens"
+    );
+}
+
+#[test]
+fn failed_status_change_leaves_the_last_accepted_label_and_own_reports_on_off_in_words() {
+    let mut state = State::new();
+    let define = state.calls_for(&press("probe-define"));
+    answer_all(
+        &mut state,
+        &define,
+        &json!({"status":"ok","value":{"id":"testing","label":"Testing"}}),
+    );
+    let bad = state.calls_for(&call(json!({"t":"submit","id":"status-label","text":""})));
+    answer_all(
+        &mut state,
+        &bad,
+        &json!({"status":"error","code":"refused","message":"invalid label"}),
+    );
+    assert_eq!(state.status_label.as_deref(), Some("Testing"));
+    assert!(
+        state
+            .page()
+            .to_string()
+            .contains("refused (refused): invalid label")
+    );
+    let own = state.calls_for(&press("probe-own"));
+    answer_all(
+        &mut state,
+        &own,
+        &json!({"status":"ok","value":[
+            {"plugin":"test","id":"testing","label":"Testing","on":false}
+        ]}),
+    );
+    let index = probes::pressed("probe-own").unwrap();
+    assert_eq!(state.probed[index].as_deref(), Some("Testing (off)"));
 }
 
 #[test]
