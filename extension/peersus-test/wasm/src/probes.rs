@@ -82,7 +82,7 @@ pub const PROBES: &[Probe] = &[
     Probe {
         id: "clear",
         label: "Hide the status",
-        expect: "This device's status is no longer shown on paired devices, with status.clear.",
+        expect: "This device's status is no longer shown on paired devices; denied without status.set.",
         service: "peersus.status",
         method: "clear",
     },
@@ -140,20 +140,22 @@ pub fn own_summary(result: &Value) -> String {
     if defined.is_empty() {
         return "No statuses defined".into();
     }
-    cut(
-        &defined
-            .iter()
-            .filter_map(|entry| {
-                Some(format!(
-                    "{} ({})",
-                    entry["label"].as_str()?,
-                    if entry["on"].as_bool()? { "on" } else { "off" }
-                ))
-            })
-            .collect::<Vec<_>>()
-            .join(", "),
-        240,
-    )
+    let entries: Option<Vec<String>> = defined
+        .iter()
+        .map(|entry| {
+            Some(format!(
+                "{} ({})",
+                entry["label"].as_str()?,
+                if entry["on"].as_bool()? { "on" } else { "off" }
+            ))
+        })
+        .collect();
+    // An entry that is not a label and whether it is on is the application not keeping its contract: the answer is
+    // shown as it came, never with that entry left out.
+    match entries {
+        Some(entries) => cut(&entries.join(", "), 240),
+        None => summary(result),
+    }
 }
 
 /// At most `most` characters of `text`, with an ellipsis when it was cut.
@@ -195,5 +197,30 @@ mod tests {
         assert_eq!(long.chars().count(), 241);
         assert!(long.ends_with('…'));
         assert_eq!(summary(&json!(7)), "an answer that is no outcome");
+    }
+
+    #[test]
+    fn its_own_statuses_are_said_in_words_and_an_entry_that_is_not_one_is_shown_as_it_came() {
+        let own = |value: Value| own_summary(&json!({"status":"ok","value":value}));
+        assert_eq!(own(json!([])), "No statuses defined");
+        assert_eq!(
+            own(
+                json!([{"id":"a","label":"Testing","on":true},{"id":"b","label":"Away","on":false}])
+            ),
+            "Testing (on), Away (off)"
+        );
+        // No `on`, alone or among entries that have it: nothing is left out, the whole answer is shown.
+        assert_eq!(
+            own(json!([{"label":"Testing"}])),
+            r#"ok: [{"label":"Testing"}]"#
+        );
+        assert_eq!(
+            own(json!([{"label":"Testing","on":true},{"label":7,"on":false}])),
+            r#"ok: [{"label":"Testing","on":true},{"label":7,"on":false}]"#
+        );
+        assert_eq!(
+            own_summary(&json!({"status":"error","code":"denied","message":"Not allowed"})),
+            "refused (denied): Not allowed"
+        );
     }
 }
