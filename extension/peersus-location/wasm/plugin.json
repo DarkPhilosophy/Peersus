@@ -1,0 +1,129 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Location",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Share where this device is with your paired devices, and see on a drawn map where the ones that shared with it were, how far and in which direction."
+  },
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "program": "peersus_location_wasm.wasm",
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
+  "capabilities": {
+    "location.share": "Receive the location a paired device shares with this one, and show it on the Location page. This device's own location is sent only when you share it."
+  },
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": [
+        "list",
+        "send"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.location",
+      "version": 1,
+      "methods": [
+        "current"
+      ],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "location.page",
+      "version": 1,
+      "description": "What the Location page shows, and what a person does on it.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "event": {
+          "description": "Answers what a person did on the Location page with the page as it is after it."
+        }
+      },
+      "events": {}
+    },
+    {
+      "service": "location.position",
+      "version": 1,
+      "description": "Carries one position a paired device shared with this one: latitude, longitude, how sure its system was and how old the fix was.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "receive": {
+          "capability": "location.share",
+          "description": "Takes the position a paired device shared and keeps it, in memory only, to show on the Location page."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "pages": [
+      {
+        "id": "where",
+        "label": "Location",
+        "placement": "primary",
+        "icon": "peers",
+        "surface": "elements",
+        "source": {
+          "service": "location.page",
+          "method": "event"
+        }
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {
+            "label": "Apache License 2.0 text",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Location adds a page that shows where this device is and, on a drawn map with this device in the middle, where the paired devices that shared their location with it were, how far away and in which direction. It asks your system where this device is only when you press a button on the page (or, if you turn it on, every five minutes while the page is open), and sends that position only to the paired devices you allowed.",
+        "changes": "After installing, Location appears among the pages. To find this device it needs the permission to know where this device is; your system may also ask you once. To share, it needs, for each paired device, the permissions to see it, to send to it and to share locations with it, and Location must be installed and allowed for this device on the other one too. Received locations are kept in memory only and are forgotten when the application stops, when you press Forget, or as soon as you unpair that device or stop allowing Location for it.",
+        "body": [
+          {
+            "k": "heading",
+            "text": "What is sent, and to whom"
+          },
+          {
+            "k": "list",
+            "items": [
+              "Only when you share. Pressing Share my location sends this device's position once; Keep sharing sends it again every five minutes while the page is open, and stops when you turn it off or leave the page.",
+              "Only to devices you allowed. A paired device receives it only if you allowed Location for it here, and its own person allowed Location for this device there.",
+              "Only the position. Latitude, longitude, how sure your system was and how old the fix is: no name, address, history or anything else. It travels straight between the two devices, through the application's encrypted connection; Location sends nothing anywhere else.",
+              "How your system finds it is your system's own. Satellites, or the wireless networks it sees, which your system may look up with an online service of its own; Location receives only the position."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
