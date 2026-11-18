@@ -37,10 +37,12 @@ One stream, one line of JSON, at most 512 bytes:
 `accuracy` is metres (`null` or left out when the system did not say), `age` the seconds since the system found it when it
 left. Anything else (other keys, a key written twice, a latitude off the Earth, an accuracy below zero or over a thousand
 kilometres, an age over thirty days, a longer stream) is refused and nothing of it is kept; a position that grew older than
-thirty days before it left is not written at all. However many pieces the line arrives in, it is one message: what bounds
-it is its 512 bytes, 400 milliseconds of waiting for each piece, and the time the application gives the `receive` call, at
-the end of which the application ends the stream. A share counts as delivered only when the application says, within three
-seconds, that every byte reached the other device.
+thirty days before it left is not written at all. However many pieces the line arrives in, it is one message. What bounds
+it is its 512 bytes and time: a guest has no clock, so each single wait for a piece is 400 milliseconds at most (begun again
+when the application delivers something else meanwhile, of which 64 at most are kept), and the whole is ended by the
+application, which ends the stream when the time it gives the `receive` call is over. A share counts as delivered only when
+the application says that every byte reached the other device: each read of that acknowledgement (a few bytes, in a piece or
+two) is waited for three seconds at most, in the same way.
 
 ## The map
 

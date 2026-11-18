@@ -22,10 +22,11 @@ const LOCATION: &str = "peersus.location";
 const CALL_MS: u32 = 5_000;
 /// How long it is given to find this device: a system without a fix may need a few seconds (the application's own ceiling).
 const FIND_MS: u32 = 20_000;
-/// Longest wait for more of what a paired device writes, since anything of it last arrived, in milliseconds.
+/// Longest single wait for more of what a paired device writes, in milliseconds. A guest has no clock: this is each wait,
+/// not the whole (see [`Ready`]).
 const WAIT_MS: i32 = 400;
-/// Longest wait for the application to say a share reached the other device, in milliseconds: it says so only after it
-/// opened a stream to that device and wrote everything on it.
+/// Longest single wait for each read of the application's word that a share reached the other device, in milliseconds: it
+/// says so only after it opened a stream to that device and wrote everything on it.
 const ACK_MS: i32 = 3_000;
 /// Most deliveries kept for later while a stream is waited for.
 const MOST_KEPT: usize = 64;
@@ -122,9 +123,11 @@ struct Sending {
     kept: bool,
 }
 
-/// The application's streams, read only when there is something to read: every read first waits, `wait` milliseconds at
-/// most, until the stream can be read, and keeps in `kept` what the application delivers meanwhile. A read never stands
-/// still, whatever the other side does or stops doing.
+/// The application's streams, read only when there is something to read: every read first waits until the stream can be
+/// read, and keeps in `kept` what the application delivers meanwhile. A read never stands still, whatever the other side
+/// does or stops doing: each single wait is `wait` milliseconds at most and is begun again only after such a delivery,
+/// of which [`MOST_KEPT`] at most are kept, so one read waits `(MOST_KEPT + 1) * wait` at the very most. The whole of a
+/// stream has no time of its own here (a guest has no clock): the application ends it with the call it belongs to.
 struct Ready<'a, H> {
     host: &'a mut H,
     kept: &'a mut VecDeque<Value>,
