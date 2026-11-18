@@ -1,8 +1,11 @@
 # Location extension
 
 One extension identity with one WASM guest for Linux, Android, macOS and Windows. A page, among the application's pages, that
-says where this device is and draws, with this device in the middle and north up, where the paired devices that shared their
-location with it were: how far away, in which direction, how sure their system was and how long ago.
+says where this device is and draws, north up, where the paired devices that shared their location with it were: how far
+away, in which direction, how sure their system was and how long ago. This device is in the middle of the map when it knows
+where it is; when it does not (not asked yet, not allowed, or a system that cannot say, as on macOS and Windows today), one
+of the devices that shared with it is in the middle, and each device's line says its coordinates in place of a distance and
+direction from here.
 
 ## What it asks, and when
 
@@ -14,7 +17,9 @@ location with it were: how far away, in which direction, how sure their system w
 - **Sharing** sends that one position, once, to every paired device that takes it now (`peersus.peers` `send`, the person's
   `peers.watch` and `peers.send` for that device): online, allowed here, and with Location there accepting
   `location.position`. Nothing is asked of another device, and nothing answers: a position goes only when its own person
-  shares it.
+  shares it. A share sends the position it was asked for: looking where this device is afterwards changes nothing of what
+  goes, a later share replaces an earlier one that had not left yet, and turning *Keep sharing* off while this device is
+  being found sends nothing. *Keep sharing* asks again five minutes after it last asked, found or not.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
   person allowed Location for (`location.share`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
@@ -28,8 +33,10 @@ One stream, one line of JSON, at most 512 bytes:
 {"position":{"latitude":44.4268,"longitude":26.1025,"accuracy":12.5,"age":30}}
 ```
 
-`accuracy` is metres (`null` when the system did not say), `age` the seconds since the system found it when it left. Anything
-else (other keys, a latitude off the Earth, an age over thirty days, a longer stream) is refused and nothing of it is kept.
+`accuracy` is metres (`null` or left out when the system did not say), `age` the seconds since the system found it when it
+left. Anything else (other keys, a latitude off the Earth, an accuracy below zero or over a thousand kilometres, an age over
+thirty days, a longer stream) is refused and nothing of it is kept. However many pieces the line arrives in, it is one
+message: what bounds it is its 512 bytes and four seconds of waiting for it, in all.
 
 ## The map
 

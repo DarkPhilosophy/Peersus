@@ -106,7 +106,7 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Location adds a page that shows where this device is and, on a drawn map with this device in the middle, where the paired devices that shared their location with it were, how far away and in which direction. It asks your system where this device is only when you press a button on the page (or, if you turn it on, every five minutes while the page is open), and sends that position only to the paired devices you allowed.",
+        "explains": "Location adds a page that shows where this device is and, on a drawn map, where the paired devices that shared their location with it were, how far away and in which direction. This device is in the middle of the map when it knows where it is; otherwise one of the devices that shared with it is. It asks your system where this device is only when you press a button on the page (or, if you turn it on, every five minutes while the page is open), and sends that position only to the paired devices you allowed.",
         "changes": "After installing, Location appears among the pages. To find this device it needs the permission to know where this device is; your system may also ask you once. To share, it needs, for each paired device, the permissions to see it, to send to it and to share locations with it, and Location must be installed and allowed for this device on the other one too. Received locations are kept in memory only and are forgotten when the application stops, when you press Forget, or as soon as you unpair that device or stop allowing Location for it.",
         "body": [
           {

@@ -1,5 +1,6 @@
-//! A page that says where this device is and, on a drawn map with this device in the middle, where the paired devices that
-//! shared their location with it were: how far away, in which direction and how long ago.
+//! A page that says where this device is and, on a drawn map with this device in the middle when it is known (otherwise
+//! one of the devices that shared with it), where the paired devices that shared their location with it were: how far away,
+//! in which direction and how long ago.
 //!
 //! This device's position is asked of the application (`peersus.location`, the person's `location.read`) only when the person
 //! presses a button, or every five minutes while the page is open when they turned that on. Sharing sends it once to every
@@ -23,8 +24,9 @@ const CALL_MS: u32 = 5_000;
 const FIND_MS: u32 = 20_000;
 /// Longest wait for a stream to be readable, in milliseconds.
 const WAIT_MS: i32 = 400;
-/// Most reads of one stream before its end: a position is one short line that arrives in a piece or two.
-const MOST_READS: usize = 8;
+/// Longest one stream is waited for in all, in milliseconds: what bounds a message is this and its bytes, never how many
+/// pieces it arrives in.
+const STREAM_MS: i32 = 4_000;
 /// Most deliveries kept for later while a stream is waited for.
 const MOST_KEPT: usize = 64;
 /// Longest name of a device the application gives, in characters.
@@ -63,10 +65,7 @@ enum Own {
     Unknown,
     Finding,
     /// Found: the position, how old the system said it was, and when (page clock) it was told.
-    Found {
-        shared: wire::Shared,
-        at: u64,
-    },
+    Found(Told),
     /// Not found, in words to show.
     Not(String),
 }
@@ -80,11 +79,53 @@ struct Device {
     ready: bool,
 }
 
-/// A position a paired device shared, and when (page clock) it arrived.
+/// A position and when (page clock) it was told: this device's by the application, a paired device's when it arrived.
 #[derive(Clone, Copy, Debug, PartialEq)]
-struct Seen {
+struct Told {
     shared: wire::Shared,
     at: u64,
+}
+
+impl Told {
+    /// What it is at `now`: the age it was told with, plus the time since.
+    fn aged(&self, now: u64) -> wire::Shared {
+        wire::Shared {
+            fix: self.shared.fix,
+            age: self
+                .shared
+                .age
+                .saturating_add(now.saturating_sub(self.at) / 1000),
+        }
+    }
+}
+
+/// Why this device is asked where it is.
+#[derive(Clone, Copy, Debug)]
+enum Ask {
+    /// Only to show it here.
+    Show,
+    /// The person pressed Share: it is sent once it is found.
+    Share,
+    /// Keep sharing is due: it is sent once it is found, unless Keep sharing is turned off before.
+    Keep,
+}
+
+/// What is left of the time one stream may be waited for ([`STREAM_MS`]). A guest has no clock: every wait counts as having
+/// taken all it was given, so the time really waited is never more. When none is left a stream is only looked at: what
+/// already arrived is still read, and nothing more is waited for.
+struct Patience(i32);
+
+impl Patience {
+    fn new() -> Self {
+        Self(STREAM_MS)
+    }
+
+    /// How long the next wait may take, in milliseconds: zero when nothing is left.
+    fn next(&mut self) -> i32 {
+        let wait = self.0.min(WAIT_MS);
+        self.0 -= wait;
+        wait
+    }
 }
 
 #[derive(Default)]
@@ -94,23 +135,28 @@ pub struct State {
     now: u64,
     own: Own,
     asked_own: u64,
-    /// Share as soon as this device is found.
-    share_found: bool,
+    /// The person pressed Share: send as soon as this device is found.
+    share_once: bool,
+    /// Keep sharing asked: send as soon as this device is found, unless it is turned off before.
+    share_kept: bool,
     devices: Vec<Device>,
     devices_denied: bool,
     asked_list: u64,
     listed_at: Option<u64>,
-    seen: BTreeMap<String, Seen>,
-    /// Calls that asked for a stream to a device, by the device.
-    sending: Vec<(u64, String)>,
-    /// Streams the application opened for a share, to write.
-    outgoing: Vec<(u64, String)>,
+    seen: BTreeMap<String, Told>,
+    /// Calls that asked for a stream to a device: the device, and the position that share is of.
+    sending: Vec<(u64, String, Told)>,
+    /// Streams the application opened for a share, to write that share's position on.
+    outgoing: Vec<(u64, String, Told)>,
     /// What came of the last share to each device: whether every byte reached it.
     delivered: BTreeMap<String, bool>,
     /// The last share reached no device: nobody could take it.
     nobody: bool,
     keep: bool,
+    /// When (page clock) a share last went out.
     shared_at: Option<u64>,
+    /// When (page clock) Keep sharing last asked where this device is, found or not.
+    kept_at: Option<u64>,
     waiting: VecDeque<Value>,
 }
 
@@ -171,19 +217,31 @@ impl State {
         call
     }
 
-    /// Ask where this device is; `share` sends it to every device that takes it once it is found.
-    fn find(&mut self, share: bool) -> Value {
-        self.share_found |= share;
+    /// Ask where this device is, for `ask`. One answer serves every reason it was asked for: while one is awaited, nothing
+    /// more is asked.
+    fn find(&mut self, ask: Ask) -> Option<Value> {
+        match ask {
+            Ask::Show => {}
+            Ask::Share => self.share_once = true,
+            Ask::Keep => {
+                self.share_kept = true;
+                self.kept_at = Some(self.now);
+            }
+        }
+        if self.own == Own::Finding {
+            return None;
+        }
         self.own = Own::Finding;
         let (id, call) = self.call(LOCATION, "current", json!({}), FIND_MS);
         self.asked_own = id;
-        call
+        Some(call)
     }
 
-    /// One stream asked for, to every device that takes a position now.
-    fn share(&mut self) -> Vec<Value> {
-        self.share_found = false;
+    /// One stream asked for, to every device that takes a position now, each for `told`: the position this share is of.
+    /// What an earlier share still waited for is dropped: it is no longer the last one.
+    fn share(&mut self, told: Told) -> Vec<Value> {
         self.shared_at = Some(self.now);
+        self.sending.clear();
         self.delivered.clear();
         let ready: Vec<String> = self
             .devices
@@ -201,21 +259,16 @@ impl State {
                     json!({"device":alias,"service":wire::SERVICE,"version":wire::VERSION}),
                     CALL_MS,
                 );
-                self.sending.push((id, alias));
+                self.sending.push((id, alias, told));
                 call
             })
             .collect()
     }
 
-    /// What this device's position is as it leaves now: the age the system said, plus the time since.
+    /// What this device's position is now: the age the system said, plus the time since.
     fn own_now(&self) -> Option<wire::Shared> {
         match &self.own {
-            Own::Found { shared, at } => Some(wire::Shared {
-                fix: shared.fix,
-                age: shared
-                    .age
-                    .saturating_add(self.now.saturating_sub(*at) / 1000),
-            }),
+            Own::Found(told) => Some(told.aged(self.now)),
             _ => None,
         }
     }
@@ -240,18 +293,22 @@ impl State {
             }
         } else if id == self.asked_own {
             self.asked_own = 0;
+            let share = self.share_once || self.share_kept;
+            self.share_once = false;
+            self.share_kept = false;
             match result["value"]
                 .as_object()
                 .filter(|_| ok)
                 .map(|_| wire::position(&result["value"]))
             {
                 Some(Ok(shared)) => {
-                    self.own = Own::Found {
+                    let told = Told {
                         shared,
                         at: self.now,
                     };
-                    if self.share_found {
-                        return self.share();
+                    self.own = Own::Found(told);
+                    if share {
+                        return self.share(told);
                     }
                 }
                 _ if denied => self.own = Own::Not(words::NOT_ALLOWED.to_owned()),
@@ -266,11 +323,10 @@ impl State {
                     )
                 }
             }
-            self.share_found = false;
-        } else if let Some(index) = self.sending.iter().position(|(asked, _)| *asked == id) {
-            let (_, alias) = self.sending.swap_remove(index);
+        } else if let Some(index) = self.sending.iter().position(|(asked, ..)| *asked == id) {
+            let (_, alias, told) = self.sending.swap_remove(index);
             match result["value"]["claim"].as_u64().filter(|_| ok) {
-                Some(claim) => self.outgoing.push((claim, alias)),
+                Some(claim) => self.outgoing.push((claim, alias, told)),
                 None => {
                     self.delivered.insert(alias, false);
                 }
@@ -314,17 +370,16 @@ impl State {
         let mut calls = Vec::new();
         match (event["t"].as_str(), event["id"].as_str()) {
             (Some("open"), _) => calls.push(self.list()),
-            (Some("press"), Some("share")) if self.own != Own::Finding => {
-                calls.push(self.find(true))
-            }
-            (Some("press"), Some("find")) if self.own != Own::Finding => {
-                calls.push(self.find(false))
-            }
+            (Some("press"), Some("share")) => calls.extend(self.find(Ask::Share)),
+            (Some("press"), Some("find")) => calls.extend(self.find(Ask::Show)),
             (Some("press"), Some("forget")) => self.seen.clear(),
             (Some("toggle"), Some("keep")) => {
                 self.keep = event["on"] == true;
-                if self.keep && self.own != Own::Finding {
-                    calls.push(self.find(true));
+                if self.keep {
+                    calls.extend(self.find(Ask::Keep));
+                } else {
+                    // Turned off while this device was being found for it: that position is not sent.
+                    self.share_kept = false;
                 }
             }
             (Some("tick"), _) => {
@@ -335,13 +390,14 @@ impl State {
                 {
                     calls.push(self.list());
                 }
+                // Five minutes after the last share, and after Keep sharing last asked: not found waits as long as found.
                 if self.keep
-                    && self.own != Own::Finding
                     && self
                         .shared_at
+                        .max(self.kept_at)
                         .is_none_or(|at| self.now.saturating_sub(at) >= SHARE_EVERY)
                 {
-                    calls.push(self.find(true));
+                    calls.extend(self.find(Ask::Keep));
                 }
             }
             _ => {}
@@ -380,7 +436,7 @@ impl State {
         match &self.own {
             Own::Finding => words::FINDING.to_owned(),
             Own::Not(said) => said.clone(),
-            Own::Unknown | Own::Found { .. } => words::UNKNOWN.to_owned(),
+            Own::Unknown | Own::Found(_) => words::UNKNOWN.to_owned(),
         }
     }
 
@@ -422,16 +478,11 @@ impl State {
             .map(|own| ("This device".to_owned(), own, true))
             .into_iter()
             .collect();
-        all.extend(self.seen.iter().map(|(alias, seen)| {
-            let shared = wire::Shared {
-                fix: seen.shared.fix,
-                age: seen
-                    .shared
-                    .age
-                    .saturating_add(self.now.saturating_sub(seen.at) / 1000),
-            };
-            (self.name(alias), shared, false)
-        }));
+        all.extend(
+            self.seen
+                .iter()
+                .map(|(alias, told)| (self.name(alias), told.aged(self.now), false)),
+        );
         all
     }
 
@@ -608,10 +659,16 @@ impl State {
         }
     }
 
-    /// Wait until `handle` can be read, keeping what the application delivers meanwhile, for [`WAIT_MS`] at most each time.
-    fn wait<H: Wire + Data>(&mut self, host: &mut H, handle: Handle) -> Result<(), &'static str> {
+    /// Wait until `handle` can be read, keeping what the application delivers meanwhile: [`WAIT_MS`] at most each time, and
+    /// only while `patience` lasts.
+    fn wait<H: Wire + Data>(
+        &mut self,
+        host: &mut H,
+        handle: Handle,
+        patience: &mut Patience,
+    ) -> Result<(), &'static str> {
         for _ in 0..=MOST_KEPT {
-            match host.poll(&[handle], WAIT_MS)? {
+            match host.poll(&[handle], patience.next())? {
                 Some(ready) if ready == handle => return Ok(()),
                 Some(_) => {
                     if self.waiting.len() >= MOST_KEPT {
@@ -626,20 +683,12 @@ impl State {
         Err("Too much arrived to be waited for")
     }
 
-    /// Write this device's position on every stream the application opened for a share, and wait for each to be taken.
+    /// Write, on every stream the application opened for a share, the position that share is of, and wait for each to be
+    /// taken. Where this device was asked or found since changes nothing of it.
     fn flush<H: Wire + Data>(&mut self, host: &mut H) {
-        let outgoing = std::mem::take(&mut self.outgoing);
-        if outgoing.is_empty() {
-            return;
-        }
-        // Asked again meanwhile: what was found before is not sent as if it were now.
-        let Some(own) = self.own_now() else {
-            self.delivered
-                .extend(outgoing.into_iter().map(|(_, alias)| (alias, false)));
-            return;
-        };
-        let bytes = wire::encode(&own);
-        for (claim, alias) in outgoing {
+        for (claim, alias, told) in std::mem::take(&mut self.outgoing) {
+            // As it leaves now: the age it was found with, plus the time since.
+            let bytes = wire::encode(&told.aged(self.now));
             let delivered = match host.open(true, claim) {
                 Ok(handle) => {
                     let delivered = self.deliver(host, handle, &bytes);
@@ -655,7 +704,7 @@ impl State {
     fn deliver<H: Wire + Data>(&mut self, host: &mut H, handle: Handle, bytes: &[u8]) -> bool {
         write_all(host, handle, bytes).is_ok()
             && host.shutdown(handle).is_ok()
-            && self.wait(host, handle).is_ok()
+            && self.wait(host, handle, &mut Patience::new()).is_ok()
             && read_ack(host, handle).is_ok_and(|count| u64::try_from(bytes.len()) == Ok(count))
     }
 
@@ -691,7 +740,7 @@ impl State {
         let shared = wire::parse(&read?).map_err(|_| "What was sent was not understood")?;
         self.seen.insert(
             alias,
-            Seen {
+            Told {
                 shared,
                 at: self.now,
             },
@@ -699,6 +748,8 @@ impl State {
         Ok(())
     }
 
+    /// Everything a paired device wrote on `handle` until it closed it. However many pieces it arrives in, it is one
+    /// message: its bytes ([`wire::MAX`]) and the time waited for it ([`STREAM_MS`]) bound it, never the number of reads.
     fn read_whole<H: Wire + Data>(
         &mut self,
         host: &mut H,
@@ -706,8 +757,10 @@ impl State {
     ) -> Result<Vec<u8>, &'static str> {
         let mut bytes = Vec::new();
         let mut chunk = [0u8; 512];
-        for _ in 0..MOST_READS {
-            self.wait(host, handle)?;
+        let mut patience = Patience::new();
+        // Ends within `wire::MAX + 2` reads: each takes at least one byte, the end takes none, one byte too many is refused.
+        loop {
+            self.wait(host, handle, &mut patience)?;
             // One byte more than the most, so that something longer is seen to be longer.
             let room = chunk.len().min(wire::MAX + 1 - bytes.len());
             let count = host.read(handle, &mut chunk[..room])?;
@@ -723,7 +776,6 @@ impl State {
                 return Err("What was sent was not understood");
             }
         }
-        Err("What was sent was not understood")
     }
 }
 

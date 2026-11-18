@@ -8,9 +8,9 @@
 //! {"position":{"latitude":44.4268,"longitude":26.1025,"accuracy":12.5,"age":30}}
 //! ```
 //!
-//! `accuracy` is metres (`null` when the system did not say), `age` the seconds since the system found it, at the moment it
-//! was sent. Whatever arrives is judged here and nowhere else: what is not exactly this is not understood, and nothing of it
-//! is used.
+//! `accuracy` is metres (`null` or left out when the system did not say; one that is said is between zero and
+//! [`crate::geo::ACCURACY_MAX`]), `age` the seconds since the system found it, at the moment it was sent. Whatever arrives is judged here
+//! and nowhere else: what is not exactly this is not understood, and nothing of it is used.
 use crate::geo::{AGE_MAX, Fix};
 use serde_json::{Map, Value, json};
 
@@ -42,8 +42,9 @@ pub fn encode(shared: &Shared) -> Vec<u8> {
     .unwrap_or_default()
 }
 
-/// A position as the application or another device says it: `{latitude, longitude, accuracy, age}`, those keys and no
-/// others, `accuracy` optional. The application's own answer to `current` has this shape too.
+/// A position as the application says it of this device: `{latitude, longitude, accuracy, age}`, those keys and no others,
+/// `accuracy` optional. An accuracy the system cannot have meant is the system not saying; what another device says is
+/// held to more ([`parse`]).
 pub fn position(value: &Value) -> Result<Shared, NotUnderstood> {
     let fields = value.as_object().ok_or(NotUnderstood)?;
     if fields
@@ -71,15 +72,21 @@ pub fn parse(bytes: &[u8]) -> Result<Shared, NotUnderstood> {
         return Err(NotUnderstood);
     }
     let message: Map<String, Value> = serde_json::from_slice(bytes).map_err(|_| NotUnderstood)?;
-    match (message.len(), message.get("position")) {
-        (1, Some(said)) => position(said),
-        _ => Err(NotUnderstood),
+    let (1, Some(said)) = (message.len(), message.get("position")) else {
+        return Err(NotUnderstood);
+    };
+    let shared = position(said)?;
+    // An accuracy another device said and that cannot be meant is not left out for it: it is not a position.
+    if shared.fix.accuracy.is_none() && !said["accuracy"].is_null() {
+        return Err(NotUnderstood);
     }
+    Ok(shared)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::geo::ACCURACY_MAX;
 
     #[test]
     fn a_position_goes_and_comes_back_the_same() {
@@ -108,6 +115,8 @@ mod tests {
             br#"{"position":{"latitude":1,"longitude":2,"age":99999999999}}"#,
             br#"{"position":{"latitude":"1","longitude":2,"age":3}}"#,
             br#"{"position":{"latitude":1,"longitude":2,"accuracy":"far","age":3}}"#,
+            br#"{"position":{"latitude":1,"longitude":2,"accuracy":-1,"age":3}}"#,
+            br#"{"position":{"latitude":1,"longitude":2,"accuracy":1000001,"age":3}}"#,
         ] {
             assert_eq!(
                 parse(said),
@@ -121,5 +130,30 @@ mod tests {
             "0".repeat(MAX)
         );
         assert_eq!(parse(long.as_bytes()), Err(NotUnderstood));
+    }
+
+    #[test]
+    fn an_accuracy_is_said_within_its_bounds_or_not_at_all() {
+        let at = |accuracy: &str| {
+            parse(
+                format!(
+                    r#"{{"position":{{"latitude":1,"longitude":2,"accuracy":{accuracy},"age":3}}}}"#
+                )
+                .as_bytes(),
+            )
+            .map(|shared| shared.fix.accuracy)
+        };
+        assert_eq!(at("0"), Ok(Some(0.0)));
+        assert_eq!(at("1000000"), Ok(Some(ACCURACY_MAX)));
+        assert_eq!(at("null"), Ok(None));
+        assert_eq!(
+            parse(br#"{"position":{"latitude":1,"longitude":2,"age":3}}"#)
+                .map(|shared| shared.fix.accuracy),
+            Ok(None)
+        );
+        // The application's answer of this device is not another device's word: there it is the system not saying.
+        let own =
+            position(&json!({"latitude":1,"longitude":2,"accuracy":1000001,"age":3})).unwrap();
+        assert_eq!(own.fix.accuracy, None);
     }
 }

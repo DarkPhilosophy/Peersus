@@ -18,6 +18,20 @@ fn peer(alias: &str, name: &str, ready: bool) -> Value {
         "accepts": if ready { json!([wire::SERVICE]) } else { json!([]) }})
 }
 
+/// A position told at the start of the page's clock, with no age and no accuracy.
+fn told(latitude: f64, longitude: f64) -> Told {
+    Told {
+        shared: wire::position(&json!({"latitude":latitude,"longitude":longitude,"age":0}))
+            .unwrap(),
+        at: 0,
+    }
+}
+
+/// The number of the `nth` call the extension sent, of `service` and `method`.
+fn asked(host: &Script, service: &str, method: &str, nth: usize) -> u64 {
+    calls(host, service, method)[nth]["id"].as_u64().unwrap()
+}
+
 /// Every call the extension sent, of `service` and `method`.
 fn calls<'a>(host: &'a Script, service: &str, method: &str) -> Vec<&'a Value> {
     host.sent
@@ -162,10 +176,7 @@ fn a_position_shared_with_this_device_is_kept_under_its_name_and_drawn_from_here
     let mut host = Script::default();
     let mut state = State::default();
     state.listed(&[peer("a1", "Phone", true)]);
-    state.own = Own::Found {
-        shared: wire::position(&json!({"latitude":44.4268,"longitude":26.1025,"age":0})).unwrap(),
-        at: 0,
-    };
+    state.own = Own::Found(told(44.4268, 26.1025));
     host.incoming.push_back(wire::encode(&wire::Shared {
         fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
         age: 60,
@@ -262,18 +273,175 @@ fn keep_sharing_sends_again_only_every_five_minutes_and_stops_when_turned_off() 
 }
 
 #[test]
+fn keep_sharing_waits_five_minutes_after_this_device_was_not_found_too() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    state.listed(&[peer("a1", "Phone", true)]);
+    host.deliveries
+        .push_back(event(1, json!({"t":"toggle","id":"keep","on":true})));
+    run_all(&mut host, &mut state);
+    let find = asked(&host, LOCATION, "current", 0);
+    host.deliveries.push_back(result(
+        find,
+        json!({"status":"error","code":"unavailable","message":"x"}),
+    ));
+    for at in [1_000, 60_000, SHARE_EVERY - 1] {
+        host.deliveries
+            .push_back(event(2, json!({"t":"tick","id":"clock","at":at})));
+    }
+    run_all(&mut host, &mut state);
+    assert_eq!(calls(&host, LOCATION, "current").len(), 1);
+    host.deliveries
+        .push_back(event(3, json!({"t":"tick","id":"clock","at":SHARE_EVERY})));
+    run_all(&mut host, &mut state);
+    assert_eq!(calls(&host, LOCATION, "current").len(), 2);
+    // Nothing was shared: only a share that went out counts as one.
+    assert_eq!(state.shared_at, None);
+}
+
+#[test]
+fn keep_sharing_turned_off_while_this_device_is_found_sends_nothing_but_a_pressed_share_still_goes()
+{
+    let mut host = Script::default();
+    let mut state = State::default();
+    state.listed(&[peer("a1", "Phone", true)]);
+    host.deliveries
+        .push_back(event(1, json!({"t":"toggle","id":"keep","on":true})));
+    host.deliveries
+        .push_back(event(2, json!({"t":"toggle","id":"keep","on":false})));
+    run_all(&mut host, &mut state);
+    let find = asked(&host, LOCATION, "current", 0);
+    host.deliveries.push_back(result(find, found(1.0, 2.0, 0)));
+    run_all(&mut host, &mut state);
+    // Found, and shown here, but the person turned Keep sharing off before: it goes nowhere.
+    assert!(matches!(state.own, Own::Found(_)));
+    assert!(calls(&host, PEERS, "send").is_empty());
+    // The same, with Share pressed meanwhile: one question answers both, and turning Keep sharing off takes back only
+    // its own.
+    for (ticket, did) in [
+        (3, json!({"t":"toggle","id":"keep","on":true})),
+        (4, json!({"t":"press","id":"share"})),
+        (5, json!({"t":"toggle","id":"keep","on":false})),
+    ] {
+        host.deliveries.push_back(event(ticket, did));
+    }
+    run_all(&mut host, &mut state);
+    assert_eq!(calls(&host, LOCATION, "current").len(), 2);
+    let find = asked(&host, LOCATION, "current", 1);
+    host.deliveries.push_back(result(find, found(1.0, 2.0, 0)));
+    run_all(&mut host, &mut state);
+    assert_eq!(calls(&host, PEERS, "send").len(), 1);
+}
+
+#[test]
+fn a_share_sends_the_position_it_is_of_whatever_this_device_is_found_to_be_since() {
+    let mut host = Script {
+        acks: true,
+        ..Script::default()
+    };
+    let mut state = State::default();
+    state.listed(&[peer("a1", "Phone", true)]);
+    host.deliveries
+        .push_back(event(1, json!({"t":"press","id":"share"})));
+    run_all(&mut host, &mut state);
+    let find = asked(&host, LOCATION, "current", 0);
+    host.deliveries
+        .push_back(result(find, found(10.0, 20.0, 0)));
+    // The stream is not open yet when the person only looks where this device is, and it is somewhere else.
+    host.deliveries
+        .push_back(event(2, json!({"t":"press","id":"find"})));
+    run_all(&mut host, &mut state);
+    let find = asked(&host, LOCATION, "current", 1);
+    host.deliveries
+        .push_back(result(find, found(30.0, 40.0, 0)));
+    host.deliveries.push_back(result(
+        asked(&host, PEERS, "send", 0),
+        json!({"status":"ok","value":{"claim":41}}),
+    ));
+    run_all(&mut host, &mut state);
+    assert_eq!(state.own_now().unwrap().fix.latitude, 30.0);
+    assert_eq!(host.opened, vec![(true, 41)]);
+    let sent = wire::parse(&host.written).unwrap();
+    assert_eq!((sent.fix.latitude, sent.fix.longitude), (10.0, 20.0));
+}
+
+#[test]
+fn a_stream_opened_for_a_share_that_is_no_longer_the_last_is_not_written() {
+    let mut host = Script {
+        acks: true,
+        ..Script::default()
+    };
+    let mut state = State::default();
+    state.listed(&[peer("a1", "Phone", true)]);
+    for (nth, latitude) in [(0, 10.0), (1, 30.0)] {
+        host.deliveries
+            .push_back(event(1, json!({"t":"press","id":"share"})));
+        run_all(&mut host, &mut state);
+        let find = asked(&host, LOCATION, "current", nth);
+        host.deliveries
+            .push_back(result(find, found(latitude, 0.0, 0)));
+        run_all(&mut host, &mut state);
+    }
+    // The first share's stream comes only now, after the second share began: nothing is written on it.
+    host.deliveries.push_back(result(
+        asked(&host, PEERS, "send", 0),
+        json!({"status":"ok","value":{"claim":41}}),
+    ));
+    run_all(&mut host, &mut state);
+    assert!(host.opened.is_empty());
+    host.deliveries.push_back(result(
+        asked(&host, PEERS, "send", 1),
+        json!({"status":"ok","value":{"claim":42}}),
+    ));
+    run_all(&mut host, &mut state);
+    assert_eq!(host.opened, vec![(true, 42)]);
+    assert_eq!(wire::parse(&host.written).unwrap().fix.latitude, 30.0);
+    assert_eq!(state.delivered.get("a1"), Some(&true));
+}
+
+#[test]
+fn a_position_that_arrives_in_many_pieces_is_one_message_bounded_by_its_bytes_and_the_time_waited()
+{
+    let mut host = Script::default();
+    let mut state = State::default();
+    let message = wire::encode(&wire::Shared {
+        fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
+        age: 60,
+    });
+    // One byte a read: far more reads than a message has pieces on any real connection.
+    assert!(message.len() > 32);
+    host.incoming.extend(message.iter().map(|byte| vec![*byte]));
+    host.deliveries
+        .push_back(json!({"type":"call","ticket":9,"method":"receive","args":{"peer":"a1"}}));
+    run_all(&mut host, &mut state);
+    let reply = host.sent.iter().find(|sent| sent["ticket"] == 9).unwrap();
+    assert_eq!(reply["result"]["status"], "ok");
+    assert_eq!(state.seen["a1"].shared.fix.latitude, 46.7712);
+    // However many reads it took, no more time was given to it than one stream gets.
+    assert!(host.waits.len() > message.len());
+    assert!(host.waits.iter().all(|wait| (0..=WAIT_MS).contains(wait)));
+    assert_eq!(host.waits.iter().sum::<i32>(), STREAM_MS);
+    // One byte more than a message may have, in pieces as small: seen to be too long, and refused.
+    host.waits.clear();
+    host.incoming
+        .extend(std::iter::repeat_n(vec![b' '], wire::MAX + 1));
+    host.deliveries
+        .push_back(json!({"type":"call","ticket":10,"method":"receive","args":{"peer":"b2"}}));
+    run_all(&mut host, &mut state);
+    let reply = host.sent.iter().find(|sent| sent["ticket"] == 10).unwrap();
+    assert_eq!(reply["result"]["status"], "error");
+    assert!(!state.seen.contains_key("b2"));
+    assert_eq!(host.waits.len(), wire::MAX + 1);
+    assert!(host.waits.iter().sum::<i32>() <= STREAM_MS);
+}
+
+#[test]
 fn a_share_written_waits_for_the_application_to_say_every_byte_arrived() {
     let mut host = Script::default();
-    let mut state = State {
-        own: Own::Found {
-            shared: wire::position(&json!({"latitude":1.0,"longitude":2.0,"age":0})).unwrap(),
-            at: 0,
-        },
-        ..State::default()
-    };
+    let mut state = State::default();
     // The application says fewer bytes reached the other side than were written: not delivered.
     host.incoming.push_back(ack(3));
-    state.outgoing.push((5, "a1".to_owned()));
+    state.outgoing.push((5, "a1".to_owned(), told(1.0, 2.0)));
     state.flush(&mut host);
     assert_eq!(state.delivered.get("a1"), Some(&false));
     assert_eq!(host.shutdowns, 1);
@@ -283,13 +451,13 @@ fn a_share_written_waits_for_the_application_to_say_every_byte_arrived() {
 #[test]
 fn the_map_never_has_more_shapes_than_a_drawing_takes() {
     let mut state = State {
-        own: Own::Found {
+        own: Own::Found(Told {
             shared: wire::position(
                 &json!({"latitude":0.0,"longitude":0.0,"accuracy":500.0,"age":0}),
             )
             .unwrap(),
             at: 0,
-        },
+        }),
         ..State::default()
     };
     for n in 0..MOST_SEEN {
@@ -297,7 +465,7 @@ fn the_map_never_has_more_shapes_than_a_drawing_takes() {
             &json!({"latitude":n as f64 * 0.01,"longitude":0.5,"accuracy":800.0,"age":0}),
         )
         .unwrap();
-        state.seen.insert(format!("d{n}"), Seen { shared, at: 0 });
+        state.seen.insert(format!("d{n}"), Told { shared, at: 0 });
     }
     let page = state.page();
     let drawing = find_drawing(&page).expect("no map");
@@ -349,7 +517,7 @@ fn a_device_unpaired_or_no_longer_allowed_is_forgotten_at_once() {
     let mut state = State::default();
     let shared = wire::position(&json!({"latitude":1.0,"longitude":2.0,"age":0})).unwrap();
     for alias in ["a1", "b2", "c3"] {
-        state.seen.insert(alias.to_owned(), Seen { shared, at: 0 });
+        state.seen.insert(alias.to_owned(), Told { shared, at: 0 });
     }
     let mut no_longer = peer("b2", "Laptop", true);
     no_longer["allowed"] = json!(false);
