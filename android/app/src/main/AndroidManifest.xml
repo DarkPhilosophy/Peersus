@@ -1,0 +1,95 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Devices are reached over the network: without these nothing connects, and nothing says why. -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <!-- Explicit background mode keeps paired network devices reachable independently of the Activity. -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+  <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  <!-- To start the background service again after the phone restarts, when the person turned it on. -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <!-- The panel of an offer of files is drawn over whatever the person is doing, so that the application never has to open: this is the
+       permission that lets it, given once by hand in the system's settings. Without it the offer is a notification instead. -->
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <!-- The camera reads the code of another device, and nothing else; it is asked for when a person opens it, at the
+       circle of Receive, and not at start. Optional: everything but that works without one, so a device with no
+       camera is not turned away. -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <!-- Experimental, off until the person turns it on: a paired device brought near is proposed as where files go. This device announces a
+       few bytes over Bluetooth Low Energy and listens for those of its paired devices, without connecting. Never used to work out where
+       the phone is. Optional: a phone without the radio is not turned away. -->
+  <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+  <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+  <!-- Where the phone is, for an extension the person granted "location.read", and only when it asks: the system's question is shown
+       then, never at start. The application keeps no position and reads none in the background. -->
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-feature android:name="android.hardware.location" android:required="false" />
+  <!-- allowBackup is off: the application's data directory is where the device's identity will live, and an
+       automatic backup would copy it to another device. -->
+  <application android:label="Peersus" android:hasCode="true" android:allowBackup="false"
+               android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"
+               android:theme="@android:style/Theme.Material.NoActionBar">
+    <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTask"
+              android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+              android:windowSoftInputMode="adjustResize">
+      <meta-data android:name="android.app.lib_name" android:value="peersus_android" />
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
+      <!-- A store link from a web page (peersus://store/<id>): the window opens the store at that extension. Only this scheme and host;
+           the address is read for the extension's id and nothing else, and installing still asks the person. -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="peersus" android:host="store" />
+      </intent-filter>
+      <!-- Files shared from another application: they are handed to the same intake as the file picker, and the person then chooses
+           who gets them (a code, or a device). Read through the descriptor the sharing application grants for this one use. -->
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <action android:name="android.intent.action.SEND_MULTIPLE" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="*/*" />
+      </intent-filter>
+    </activity>
+    <service android:name=".TransferService" android:exported="false"
+             android:foregroundServiceType="connectedDevice" android:stopWithTask="false" />
+    <!-- Store HTTP/TLS stays outside the owner. No new permission or exported entry. -->
+    <service android:name=".StoreFetchService" android:exported="false"
+             android:process=":store" android:stopWithTask="false" />
+    <service android:name=".WasmPluginService" android:exported="false"
+             android:process=":wasm" android:isolatedProcess="true" android:stopWithTask="false" />
+    <receiver android:name=".NotificationActions" android:exported="false" />
+    <!-- Started by a touch of the offer notification, shows nothing and ends at once: see the class. -->
+    <activity android:name=".OfferViewActivity" android:exported="false" android:theme="@android:style/Theme.NoDisplay"
+              android:taskAffinity="" android:excludeFromRecents="true" android:noHistory="true" />
+    <!-- A paired device the person allowed moves a pointer and types on this phone. Off until the person turns it on in the
+         system's accessibility settings; only the system can bind it. -->
+    <service android:name=".RemoteInput" android:exported="true"
+             android:label="@string/remote_input_label"
+             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data android:name="android.accessibilityservice" android:resource="@xml/remote_input" />
+    </service>
+    <!-- The system sends these two, and only when the application is not running: after a restart and after an update. -->
+    <receiver android:name=".BootStart" android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.BOOT_COMPLETED" />
+        <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+      </intent-filter>
+    </receiver>
+  </application>
+</manifest>

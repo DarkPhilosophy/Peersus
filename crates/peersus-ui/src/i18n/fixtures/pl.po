@@ -1,0 +1,73 @@
+# Test fixture: a few messages of the language file of the languages branch, the ones the tests read.
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pl\n"
+"X-Language-Name: Polski\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Language"
+msgstr "Język"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} chce wysłać Ci plik"
+
+msgid "{duration} ago"
+msgstr "{duration} temu"
+
+msgid "Battery"
+msgstr "Bateria"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Ograniczone: gdy telefon jest bezczynny, system może odciąć sieć usługi w tle. Zezwól w ustawieniach baterii."
+
+msgid "Version {version} is available."
+msgstr "Dostępna jest wersja {version}."
+
+msgid "up to date"
+msgstr "aktualna"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} plik"
+msgstr[1] "{count} pliki"
+msgstr[2] "{count} plików"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minutę"
+msgstr[1] "{count} minuty"
+msgstr[2] "{count} minut"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} godzinę"
+msgstr[1] "{count} godziny"
+msgstr[2] "{count} godzin"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dzień"
+msgstr[1] "{count} dni"
+msgstr[2] "{count} dni"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} miesiąc"
+msgstr[1] "{count} miesiące"
+msgstr[2] "{count} miesięcy"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} rok"
+msgstr[1] "{count} lata"
+msgstr[2] "{count} lat"
+
+msgid "just now"
+msgstr "przed chwilą"

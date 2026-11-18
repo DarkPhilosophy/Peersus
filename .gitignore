@@ -1,0 +1,40 @@
+/target/
+# Independent extension sources are developed locally and published only on submission
+# branches that target `extension`; the application branch never tracks them.
+/plugins/
+# A local copy of the `languages` branch (one directory of language files per release); the application branch never
+# tracks it, only the English template under crates/peersus-ui/languages/.
+/languages/
+/.flatpak-builder/
+/.backup/
+/.shots/
+# Raw screenshots taken of devices while testing (they show people's pictures, paired devices and data): local evidence,
+# never tracked. A picture the website shows is chosen, cut and described on its own (docs/website.md).
+/shots/
+/dist/
+/benchmark-results/
+/.direnv/
+/result
+/result-*
+/android/.gradle/
+/android/local.properties
+/android/build/
+/.wrangler/
+# Legacy native staging is not an input; canonical artifacts live under target/android/.
+/android/app/src/*/jniLibs/
+**/.DS_Store
+.env
+.env.*
+*.jks
+*.keystore
+*.pem
+*.key
+*.p12
+*.pfx
+keystore.properties
+google-services.json
+service-account*.json
+__pycache__/
+*.pyc
+.cargo-ok
+/vms/
