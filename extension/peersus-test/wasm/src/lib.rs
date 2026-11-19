@@ -15,6 +15,10 @@ use serde_json::{Value, json};
 
 /// The setting that shows the buttons that misbehave on purpose.
 const SHOW_TROUBLE: &str = "show_trouble";
+/// The person's option that also places the page among the application's own pages, and the id of that placement.
+const PAGE_SETTING: &str = "test-page";
+/// The page this extension declares; it lives in its settings.
+const PAGE: &str = "test";
 const DEFAULT_STATUS_LABEL: &str = "Testing";
 /// How long the application may take to answer a call of this extension.
 const CALL_MS: u64 = 10_000;
@@ -29,6 +33,7 @@ enum Asked {
     Config,
     Probe(usize),
     Notification,
+    Pages,
 }
 
 #[derive(Default)]
@@ -68,6 +73,8 @@ pub(crate) struct State {
     /// Calls out, by id, and what each is for.
     calls: Vec<(u64, Asked)>,
     next: u64,
+    /// Whether the page was last placed among the application's pages; `None` until that is known to have been said.
+    placed: Option<bool>,
 }
 
 impl State {
@@ -259,23 +266,29 @@ impl State {
         )
     }
 
-    /// The application's answer to a call this extension made. Any other delivery changes nothing.
-    fn told(&mut self, delivery: &Value) {
+    /// The application's answer to a call this extension made, and the call it leads to: placing the page when its option
+    /// changed. Any other delivery changes nothing.
+    fn told(&mut self, delivery: &Value) -> Option<Value> {
         if delivery["type"] != "result" {
-            return;
+            return None;
         }
-        let Some(id) = delivery["id"].as_u64() else {
-            return;
-        };
-        let Some(position) = self.calls.iter().position(|(call, _)| *call == id) else {
-            return;
-        };
+        let id = delivery["id"].as_u64()?;
+        let position = self.calls.iter().position(|(call, _)| *call == id)?;
         let (_, asked) = self.calls.remove(position);
         let result = &delivery["result"];
         match asked {
             Asked::Config => {
                 if let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool() {
                     self.show_trouble = on;
+                }
+                if result["status"] == "ok" {
+                    return self.place(&result["value"]);
+                }
+            }
+            Asked::Pages => {
+                if result["status"] != "ok" {
+                    // Not placed after all: said again with the next answer of the settings.
+                    self.placed = None;
                 }
             }
             Asked::Probe(index) => {
@@ -336,6 +349,28 @@ impl State {
                 };
             }
         }
+        None
+    }
+
+    /// Place the page among the application's pages, or take it out, when its option says otherwise than what was said last.
+    fn place(&mut self, config: &Value) -> Option<Value> {
+        let wanted = config["settings"][PAGE_SETTING].as_bool().unwrap_or(false);
+        if self.placed == Some(wanted) {
+            return None;
+        }
+        self.placed = Some(wanted);
+        let pages = if wanted {
+            json!([{"id":PAGE_SETTING,"page":PAGE,"placement":"primary"}])
+        } else {
+            json!([])
+        };
+        Some(self.call(
+            Asked::Pages,
+            "peersus.pages",
+            "set",
+            json!({ "pages": pages }),
+            CALL_MS,
+        ))
     }
 }
 
@@ -370,7 +405,9 @@ enum End {
 
 /// One delivery: the answer it carries, the trouble it asks for, the calls it leads to and the reply.
 fn step<H: Wire>(host: &mut H, state: &mut State, delivery: &Value) -> Result<(), End> {
-    state.told(delivery);
+    if let Some(call) = state.told(delivery) {
+        host.send(call).map_err(|_| End::Gone)?;
+    }
     if let Some(trouble) = trouble::asked(delivery) {
         let ticket = delivery["ticket"].as_u64().unwrap_or(0);
         match trouble::make(host, trouble, ticket) {

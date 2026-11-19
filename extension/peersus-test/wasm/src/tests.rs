@@ -246,6 +246,34 @@ fn the_misbehaving_buttons_follow_the_setting() {
 }
 
 #[test]
+fn the_page_is_among_the_applications_pages_only_while_the_persons_option_is_on() {
+    let mut state = State::new();
+    let said = |state: &mut State, settings: Value| {
+        let asked = state.ask_config();
+        state.told(&json!({"type":"result","id":asked["id"],"result":{"status":"ok","value":{"settings":settings}}}))
+    };
+    // Never set: nothing is placed, and that is said.
+    let placing = said(&mut state, json!({})).unwrap();
+    assert_eq!(placing["service"], "peersus.pages");
+    assert_eq!(placing["args"]["pages"], json!([]));
+    // Turned on: placed from the declared page; said again unchanged, nothing more.
+    let placing = said(&mut state, json!({PAGE_SETTING: true})).unwrap();
+    assert_eq!(
+        placing["args"]["pages"],
+        json!([{"id":PAGE_SETTING,"page":PAGE,"placement":"primary"}])
+    );
+    assert!(said(&mut state, json!({PAGE_SETTING: true})).is_none());
+    // Refused by the application: the next answer places it again.
+    state.told(
+        &json!({"type":"result","id":placing["id"],"result":{"status":"error","code":"refused"}}),
+    );
+    assert!(said(&mut state, json!({PAGE_SETTING: true})).is_some());
+    // Turned off: taken out.
+    let placing = said(&mut state, json!({PAGE_SETTING: false})).unwrap();
+    assert_eq!(placing["args"]["pages"], json!([]));
+}
+
+#[test]
 fn touches_sizes_wheels_ticks_and_choices_change_the_page() {
     let mut state = State::new();
     state
@@ -372,6 +400,14 @@ fn the_fullest_page_stays_well_within_one_message() {
 #[test]
 fn the_manifest_imports_every_call_and_declares_the_setting() {
     let manifest: Value = serde_json::from_str(include_str!("../plugin.json")).unwrap();
+    // Hosts that render declared placements directly must not show Test in navigation before opt-in.
+    let pages = manifest["contributions"]["pages"].as_array().unwrap();
+    assert!(
+        pages
+            .iter()
+            .any(|p| p["id"] == PAGE && p["placement"] == "settings")
+    );
+    assert!(!pages.iter().any(|p| p["placement"] == "primary"));
     let imported = |service: &str, method: &str| {
         manifest["imports"]
             .as_array()
@@ -396,6 +432,7 @@ fn the_manifest_imports_every_call_and_declares_the_setting() {
         );
     }
     assert!(imported("peersus.config", "get") && imported("peersus.notify", "show"));
+    assert!(imported("peersus.pages", "set"));
     let settings = manifest["contributions"]["settings"].as_array().unwrap();
     assert!(
         settings

@@ -96,6 +96,15 @@
         "show"
       ],
       "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
+      ],
+      "events": []
     }
   ],
   "exports": [
@@ -128,7 +137,7 @@
       {
         "id": "test",
         "label": "Test",
-        "placement": "primary",
+        "placement": "settings",
         "icon": "plugins",
         "surface": "elements",
         "source": {
@@ -187,6 +196,16 @@
       }
     ],
     "settings": [
+      {
+        "id": "test-page",
+        "label": "Add Test to page",
+        "help": "Also show Test as its own page; keep the original Test in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      },
       {
         "id": "show_trouble",
         "label": "Show the misbehaving buttons",

@@ -1,6 +1,6 @@
 # Test extension
 
-A page of its own, drawn by the application from plain elements, for the people who build Peersus and its extensions. It tries what the application offers an extension through its contract, the limits, and what the application must survive when an extension misbehaves. It is not a feature for anyone else.
+Open Test in the extension's settings. Turn on **Add Test to page** to show the same page in the main navigation as well; turning it off leaves the settings page available. Test exercises the extension contract for developers, not as an end-user feature.
 
 ## What it shows
 
