@@ -1,0 +1,2340 @@
+use std::{
+    cell::Cell,
+    collections::HashMap,
+    rc::Rc,
+    sync::atomic::{
+        AtomicI8,
+        Ordering,
+    },
+};
+
+use freya::helpers::*;
+use freya_core::{
+    element::ElementExt,
+    integration::*,
+    path_element::PathElement,
+    prelude::*,
+    runner::{
+        Diff,
+        MutationRemove,
+    },
+    tree::DiffModifies,
+};
+use rustc_hash::FxHashMap;
+use tiny_diff::DiffNode;
+use torin::size::Size;
+
+#[test]
+fn retained_children_reuse_requires_same_rc() {
+    struct DiffProbe(Rc<Cell<usize>>);
+
+    impl ElementExt for DiffProbe {
+        fn diff(&self, _previous: &Rc<dyn ElementExt>) -> DiffModifies {
+            self.0.set(self.0.get() + 1);
+            DiffModifies::empty()
+        }
+    }
+
+    let diffs = Rc::new(Cell::new(0));
+    let children = Rc::new(vec![Element::Element {
+        key: DiffKey::None,
+        element: Rc::new(DiffProbe(diffs.clone())),
+        elements: Vec::new().into(),
+    }]);
+    let mut runner = Runner::new(|| {
+        let children = use_consume::<State<Rc<Vec<Element>>>>();
+        rect().retained_children(children.read().clone()).into()
+    });
+    let mut state = runner.provide_root_context(|| State::create(children.clone()));
+    runner.sync_and_update();
+
+    state.set(children.clone());
+    runner.sync_and_update();
+    assert_eq!(diffs.get(), 0);
+
+    state.set(Rc::new(children.as_ref().clone()));
+    runner.sync_and_update();
+    assert_eq!(diffs.get(), 1);
+}
+
+struct RawIdMap(FxHashMap<u64, Vec<u64>>);
+
+impl From<FxHashMap<u64, Vec<u64>>> for RawIdMap {
+    fn from(m: FxHashMap<u64, Vec<u64>>) -> Self {
+        RawIdMap(m)
+    }
+}
+
+impl From<RawIdMap> for FxHashMap<NodeId, Vec<NodeId>> {
+    fn from(raw: RawIdMap) -> Self {
+        raw.0
+            .into_iter()
+            .map(|(k, v)| (NodeId::from(k), v.into_iter().map(NodeId::from).collect()))
+            .collect()
+    }
+}
+
+fn convert_ids(map: FxHashMap<u64, Vec<u64>>) -> FxHashMap<NodeId, Vec<NodeId>> {
+    RawIdMap::from(map).into()
+}
+
+#[test]
+fn diff_preserves_public_field_types() {
+    let diff = Diff {
+        added: vec![Box::from([0])],
+        modified: Vec::new(),
+        removed: Vec::new(),
+        moved: FxHashMap::from_iter([(Box::<[u32]>::from([]), vec![(0, 1)])]),
+    };
+    let movements: FxHashMap<Box<[u32]>, Vec<(u32, u32)>> = diff.moved;
+    assert_eq!(movements.get(&[][..]), Some(&vec![(0, 1)]));
+}
+
+#[test]
+fn mutations() {
+    fn app() -> Element {
+        rect()
+            .children([
+                from_fn_captured(|| counter(5, true)),
+                from_fn_captured(|| counter(10, false)),
+            ])
+            .into()
+    }
+
+    fn counter(stuff: u8, inc_or_dec: bool) -> Element {
+        let mut value = use_state(|| stuff);
+
+        rect()
+            .layer(*value.read() as i16)
+            .on_mouse_up(move |_| {
+                if inc_or_dec {
+                    *value.write() += 1;
+                } else {
+                    *value.write() -= 1;
+                }
+            })
+            .children(
+                [label().text(format!("Value is {}", value.read())).into()]
+                    .into_iter()
+                    .chain({
+                        if *value.read() == stuff + { if inc_or_dec { 1 } else { 0 } } {
+                            vec![label().text("Hello World!").into()]
+                        } else {
+                            vec![]
+                        }
+                    })
+                    .collect::<Vec<Element>>(),
+            )
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    // Addition
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 7]),
+            (5, vec![6]),
+            (7, vec![8, 9]),
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    // Nothing
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 7]),
+            (5, vec![6]),
+            (7, vec![8, 9]),
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    // Addition
+    runner.handle_event(
+        5,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 7]),
+            (5, vec![6, 10]),
+            (7, vec![8, 9]),
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    // Removal
+    runner.handle_event(
+        7,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 7]),
+            (5, vec![6, 10]),
+            (7, vec![8]),
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn components() {
+    fn app() -> Element {
+        let mut value = use_state(|| 1);
+        let curr = *value.read();
+        rect()
+            .on_mouse_up(move |_| {
+                *value.write() += 1;
+            })
+            .children([
+                from_fn_captured(move || counter(&curr)),
+                from_fn_standalone_borrowed(*value.read(), counter),
+            ])
+            .into()
+    }
+
+    fn counter(value: &u8) -> Element {
+        rect()
+            .children([label().text(format!("Value is {value}"))])
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 5);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+
+    runner.handle_event(
+        2,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert_eq!(mutations.modified.len(), 2);
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+}
+
+#[test]
+fn state_reconcillation() {
+    fn first() -> Element {
+        rect().into()
+    }
+
+    fn second() -> Element {
+        rect().into()
+    }
+
+    let first_render: Element = rect().children([from_fn_standalone(second)]).into();
+    let second_render: Element = rect()
+        .children([from_fn_standalone(first), from_fn_standalone(second)])
+        .into();
+    let first_render = PathElement::from_element(vec![0], first_render, None);
+    let second_render = PathElement::from_element(vec![0], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert_eq!(diff.added, vec![vec![0, 0].into_boxed_slice()]);
+    assert!(diff.modified.is_empty());
+    assert!(diff.removed.is_empty());
+
+    let first_render: Element = rect()
+        .children([from_fn_standalone(first), from_fn_standalone(second)])
+        .into();
+    let second_render: Element = rect().children([from_fn_standalone(second)]).into();
+    let first_render = PathElement::from_element(vec![0], first_render, None);
+    let second_render = PathElement::from_element(vec![0], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert!(diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed, vec![vec![0, 0].into_boxed_slice()]);
+
+    let first_render: Element = rect()
+        .children([from_fn_standalone(first), from_fn_standalone(second)])
+        .into();
+    let first_render = PathElement::from_element(vec![0], first_render, None);
+    let mut diff = Diff::default();
+    first_render.diff(None, &mut diff);
+    assert!(!diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert!(diff.removed.is_empty());
+}
+
+#[test]
+fn state_reconcillation2() {
+    fn app() -> Element {
+        let mut value = use_state(|| 5);
+        rect()
+            .children(
+                [
+                    rect()
+                        .on_mouse_up(move |_| {
+                            *value.write() += 1;
+                        })
+                        .into(),
+                    rect()
+                        .on_mouse_up(move |_| {
+                            *value.write() -= 1;
+                        })
+                        .into(),
+                ]
+                .into_iter()
+                .chain((0..*value.read()).map(|_| from_fn_captured(|| counter(5)))),
+            )
+            .into()
+    }
+
+    fn counter(stuff: u8) -> Element {
+        rect()
+            .children([label().text(format!("Value is {stuff}"))])
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![3, 4, 10, 12, 14, 16, 18]),
+            (10, vec![11]),
+            (12, vec![13]),
+            (14, vec![15]),
+            (16, vec![17]),
+            (18, vec![19]),
+        ]))
+    );
+    assert_eq!(
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .size(),
+        9
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    runner.handle_event(
+        3,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![3, 4, 10, 12, 14, 16, 18, 21]),
+            (10, vec![11]),
+            (12, vec![13]),
+            (14, vec![15]),
+            (16, vec![17]),
+            (18, vec![19]),
+            (21, vec![22]),
+        ]))
+    );
+    assert_eq!(
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .size(),
+        10
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    runner.handle_event(
+        4,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    runner.handle_event(
+        4,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![3, 4, 10, 12, 14, 16]),
+            (10, vec![11]),
+            (12, vec![13]),
+            (14, vec![15]),
+            (16, vec![17]),
+        ]))
+    );
+    assert_eq!(
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .size(),
+        8
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn scopes_smart_rerun() {
+    static COUNTER: AtomicI8 = AtomicI8::new(0);
+
+    fn app() -> Element {
+        let mut value = use_state(|| 5);
+        rect()
+            .children(vec![
+                rect()
+                    .on_mouse_up(move |_| {
+                        *value.write() += 1;
+                    })
+                    .into(),
+                label().text(format!("Value is {}", value.read())).into(),
+                from_fn_standalone_borrowed(*value.read(), counter),
+            ])
+            .into()
+    }
+
+    fn counter(stuff: &usize) -> Element {
+        COUNTER.fetch_add(1, Ordering::Relaxed);
+        let mut value = use_state(|| 5);
+        rect()
+            .on_mouse_up(move |_| {
+                *value.write() += 1;
+            })
+            .children([label().text(format!("Value is {stuff} {}", value.read()))])
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+    assert_eq!(COUNTER.load(Ordering::Relaxed), 1);
+
+    runner.handle_event(
+        3,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    runner.handle_event(
+        6,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(COUNTER.load(Ordering::Relaxed), 2);
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn element_diffing() {
+    let first_render: Element = rect().children([rect(), rect(), rect()]).into();
+    let second_render: Element = rect().children([rect(), rect()]).into();
+    let first_render = PathElement::from_element(vec![0], first_render, None);
+    let second_render = PathElement::from_element(vec![0], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert!(diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed, vec![vec![0, 2].into_boxed_slice()]);
+
+    // Compare keys from one render to the other one and diff those, then dif normally the others, and finally remove thus not unmarked
+
+    let first_render: Element = rect()
+        .children([rect().key(1), rect().key(2), rect().key(3)])
+        .into();
+    let second_render: Element = rect().children([rect().key(1), rect().key(3)]).into();
+    let first_render = PathElement::from_element(vec![0], first_render, None);
+    let second_render = PathElement::from_element(vec![0], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert!(diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed, vec![vec![0, 1].into_boxed_slice()]);
+}
+
+#[test]
+fn element_diffing3() {
+    let first_render: Element = rect().key(1).into();
+    let second_render: Element = rect().key(2).into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert_eq!(diff.added, vec![vec![].into_boxed_slice()]);
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed, vec![vec![].into_boxed_slice()]);
+
+    fn first() -> Element {
+        rect().into()
+    }
+
+    fn second() -> Element {
+        rect().into()
+    }
+
+    let first_render: Element = from_fn_standalone(first);
+    let second_render: Element = from_fn_standalone(second);
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert_eq!(diff.added, vec![vec![].into_boxed_slice()]);
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed, vec![vec![].into_boxed_slice()]);
+}
+
+#[test]
+fn element_diffing4() {
+    fn container(children: &Element) -> Element {
+        children.clone()
+    }
+
+    let mut runner = Runner::new(|| {
+        let state = use_consume::<State<bool>>();
+        if state() {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(
+                    1,
+                    from_fn_standalone_borrowed("1".into(), container),
+                    container,
+                ))
+                .child(from_fn_standalone_borrowed_keyed(
+                    2,
+                    from_fn_standalone_borrowed("2".into(), container),
+                    container,
+                ))
+                .into()
+        } else {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(
+                    2,
+                    from_fn_standalone_borrowed("2".into(), container),
+                    container,
+                ))
+                .child(from_fn_standalone_borrowed_keyed(
+                    1,
+                    from_fn_standalone_borrowed("1".into(), container),
+                    container,
+                ))
+                .into()
+        }
+    });
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 3);
+    assert_eq!(mutations.added[0].index, 0);
+    assert_eq!(mutations.added[1].index, 0);
+    assert_eq!(mutations.added[2].index, 1);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+
+    let scope_a_before = runner
+        .scopes
+        .get(&ScopeId::from(2))
+        .unwrap()
+        .borrow()
+        .path_in_parent
+        .clone();
+    let scope_b_before = runner
+        .scopes
+        .get(&ScopeId::from(3))
+        .unwrap()
+        .borrow()
+        .path_in_parent
+        .clone();
+
+    assert_eq!(scope_a_before.as_ref(), [0, 0]);
+    assert_eq!(scope_b_before.as_ref(), [0, 1]);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+
+    let scope_a_after = runner
+        .scopes
+        .get(&ScopeId::from(2))
+        .unwrap()
+        .borrow()
+        .path_in_parent
+        .clone();
+    let scope_b_after = runner
+        .scopes
+        .get(&ScopeId::from(3))
+        .unwrap()
+        .borrow()
+        .path_in_parent
+        .clone();
+
+    assert_eq!(scope_a_after.as_ref(), [0, 1]);
+    assert_eq!(scope_b_after.as_ref(), [0, 0]);
+}
+
+#[test]
+fn element_diffing5() {
+    fn container(_: &()) -> Element {
+        rect().into()
+    }
+
+    let first_render: Element = rect()
+        .child(from_fn_standalone_borrowed_keyed(1, (), container))
+        .child(from_fn_standalone_borrowed_keyed(2, (), container))
+        .into();
+    let second_render: Element = rect()
+        .child(from_fn_standalone_borrowed_keyed(2, (), container))
+        .child(from_fn_standalone_borrowed_keyed(1, (), container))
+        .into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert!(diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert!(diff.removed.is_empty());
+    assert_eq!(
+        diff.moved,
+        HashMap::from_iter([(Box::from([]), vec![(1, 0), (0, 1)])])
+    );
+
+    let first_render: Element = rect().child(rect().key(1)).child(rect().key(0)).into();
+    let second_render: Element = rect().child(rect().key(0)).child(rect().key(1)).into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert!(diff.added.is_empty());
+    assert!(diff.modified.is_empty());
+    assert!(diff.removed.is_empty());
+    assert_eq!(
+        diff.moved,
+        HashMap::from_iter([(Box::from([]), vec![(1, 0), (0, 1)])])
+    );
+}
+
+#[test]
+fn element_diffing6() {
+    fn container(_: &()) -> Element {
+        rect().into()
+    }
+
+    let first_render: Element = rect()
+        .child(from_fn_standalone_borrowed_keyed(1, (), container))
+        .child(from_fn_standalone_borrowed_keyed(2, (), container))
+        .into();
+    let second_render: Element = rect()
+        .child(rect().child(from_fn_standalone_borrowed_keyed(2, (), container)))
+        .into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+    assert_eq!(
+        diff.added,
+        vec![vec![0].into_boxed_slice(), vec![0, 0].into_boxed_slice()]
+    );
+    assert!(diff.modified.is_empty());
+    assert_eq!(
+        diff.removed,
+        vec![vec![0].into_boxed_slice(), vec![1].into_boxed_slice()]
+    );
+    assert!(diff.moved.is_empty());
+}
+
+#[test]
+fn mixed_keyed_additions_removals_and_reorders() {
+    fn container(_: &()) -> Element {
+        rect().into()
+    }
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+        let use_component = consume_context::<bool>();
+        let keys: &[u8] = if state() { &[4, 1, 5, 0] } else { &[3, 0, 1] };
+        rect()
+            .children(keys.iter().map(|key| {
+                if use_component && *key == 1 {
+                    from_fn_standalone_borrowed_keyed(*key, (), container)
+                } else {
+                    rect().key(*key).into()
+                }
+            }))
+            .into()
+    }
+
+    for use_component in [false, true] {
+        for (initial, added, removed, children) in [(true, 1, 2, 3), (false, 2, 1, 4)] {
+            let mut runner = Runner::new(app);
+            let mut tree = Tree::default();
+            runner.provide_root_context(|| use_component);
+            let mut state = runner.provide_root_context(|| State::create(initial));
+            tree.apply_mutations(runner.sync_and_update(), 1.0);
+
+            state.set(!initial);
+            let mutations = runner.sync_and_update();
+            assert_eq!(mutations.added.len(), added);
+            assert!(mutations.modified.is_empty());
+            assert_eq!(mutations.removed.len(), removed);
+            assert_eq!(mutations.moved.len(), 1);
+            assert_eq!(mutations.moved.values().next().unwrap().len(), children);
+
+            tree.apply_mutations(mutations, 1.0);
+            tree.verify_tree_integrity();
+            assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+        }
+    }
+}
+
+#[test]
+fn element_diffing9() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        rect()
+            .maybe_child(state().then(rect))
+            .child(rect().key(1))
+            .child(rect().key(2))
+            .into()
+    }
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(false));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(true);
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 1);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert_eq!(mutations.moved.iter().next().unwrap().1.len(), 3);
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn element_diffing10() {
+    fn container() -> Element {
+        rect().into()
+    }
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(rect().key(1).child(from_fn_standalone(container)))
+                .child(rect().key(2).child(from_fn_standalone(container)))
+                .into()
+        } else {
+            rect()
+                .child(rect().key(2).child(from_fn_standalone(container)))
+                .child(rect().key(1).child(from_fn_standalone(container)))
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(false));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(true);
+    let mutations = runner.sync_and_update();
+
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert_eq!(mutations.moved.len(), 1);
+    assert_eq!(mutations.moved.iter().next().unwrap().1.len(), 2);
+    tree.apply_mutations(mutations, 1.0);
+}
+
+#[test]
+fn element_diffing11() {
+    fn container(_: &()) -> Element {
+        rect().into()
+    }
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(1, (), container))
+                .child(from_fn_standalone_borrowed_keyed(2, (), container))
+                .into()
+        } else {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(2, (), container))
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+
+    assert_eq!(mutations.added.len(), 3);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert_eq!(
+        mutations.removed,
+        vec![MutationRemove::Scope { id: 5.into() }]
+    );
+    assert_eq!(mutations.moved.iter().next().unwrap().1.len(), 1);
+    tree.apply_mutations(mutations, 1.0);
+}
+
+#[test]
+fn element_diffing12() {
+    fn container(_: &()) -> Element {
+        rect().into()
+    }
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .key(3)
+                .child(from_fn_standalone_borrowed_keyed(2, (), container))
+                .into()
+        } else {
+            rect()
+                .key(4)
+                .child(from_fn_standalone_borrowed_keyed(1, (), container))
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+
+    assert_eq!(mutations.added.len(), 2);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+
+    assert_eq!(mutations.added.len(), 2);
+    assert_eq!(mutations.removed.len(), 2);
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+}
+
+#[test]
+fn element_diffing13() {
+    let first_render: Element = rect()
+        .child(
+            rect()
+                .child(rect().child(rect()))
+                .child(rect().child(rect()))
+                .child(rect()),
+        )
+        .child(rect())
+        .into();
+    let second_render: Element = rect()
+        .key(2)
+        .child(rect().child(rect()))
+        .child(rect().child(rect()))
+        .child(rect())
+        .into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+
+    assert_eq!(diff.added.len(), 6);
+    assert!(diff.modified.is_empty());
+    assert_eq!(diff.removed.len(), 7);
+    assert!(diff.moved.is_empty());
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(
+                    rect()
+                        .child(rect().child(rect()))
+                        .child(rect().child(rect()))
+                        .child(rect()),
+                )
+                .child(rect())
+                .into()
+        } else {
+            rect()
+                .key(2)
+                .child(rect().child(rect()))
+                .child(rect().child(rect()))
+                .child(rect())
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    let first_render: Element = rect()
+        .child(rect().key(2))
+        .child(rect().child(rect().child(rect())))
+        .into();
+    let second_render: Element = rect()
+        .child(rect().child(rect().key(3)).child(rect()))
+        .into();
+    let first_render = PathElement::from_element(vec![], first_render, None);
+    let second_render = PathElement::from_element(vec![], second_render, None);
+    let mut diff = Diff::default();
+    second_render.diff(Some(&first_render), &mut diff);
+
+    fn app3() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(rect().key(2))
+                .child(
+                    rect()
+                        .child(rect().child(rect()))
+                        .child(rect().child(rect()))
+                        .child(rect().child(rect())),
+                )
+                .into()
+        } else {
+            rect()
+                .child(rect().child(rect().key(3)).child(rect()))
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app3);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    fn app4() -> Element {
+        let state = use_consume::<State<i32>>();
+
+        if state() == 1 {
+            rect()
+                .child(rect().key(0))
+                .child(rect().key(1))
+                .child(rect().key(2))
+                .into()
+        } else if state() == 2 {
+            rect()
+                .child(rect().key(3))
+                .child(rect().key(4))
+                .child(rect().key(5))
+                .into()
+        } else {
+            rect()
+                .child(rect().key(4))
+                .child(rect().key(7))
+                .child(rect().key(8))
+                .into()
+        }
+    }
+    let mut runner = Runner::new(app4);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(0));
+    let mutations = runner.sync_and_update();
+
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(1);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(2);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+}
+
+#[test]
+fn tree_unordered_mutations() {
+    fn app() -> Element {
+        let mut show = use_state(|| false);
+        rect()
+            .on_mouse_up(move |_| show.toggle())
+            .maybe_child(show().then(|| from_fn_captured(|| counter())))
+            .child(rect().key(1))
+            .child(rect().key(2))
+            .maybe_child(show().then(|| rect()))
+            .into()
+    }
+
+    fn counter() -> Element {
+        rect().into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([(1, vec![2]), (2, vec![3, 4]),]))
+    );
+    assert_eq!(
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .size(),
+        4
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    runner.handle_event(
+        2,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(!mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([(1, vec![2]), (2, vec![7, 3, 4, 6]),]))
+    );
+    assert_eq!(
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .size(),
+        6
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn tree_mutations_root_components() {
+    #[derive(PartialEq)]
+    struct OtherCoolComp;
+
+    impl Component for OtherCoolComp {
+        fn render(&self) -> impl IntoElement {
+            "Hello, World!"
+        }
+    }
+
+    #[derive(PartialEq)]
+    struct CoolComp(u8);
+
+    impl Component for CoolComp {
+        fn render(&self) -> impl IntoElement {
+            let mut count = use_state(|| 1);
+
+            if count() > 1 {
+                OtherCoolComp.into()
+            } else {
+                rect()
+                    .on_mouse_up(move |_| {
+                        *count.write() += 1;
+                    })
+                    .width(Size::px(100.))
+                    .height(Size::px(100.))
+                    .background((255, 0, 0))
+                    .child(self.0.to_string())
+                    .into_element()
+            }
+        }
+    }
+
+    fn app() -> Element {
+        rect()
+            .spacing(6.)
+            .child(CoolComp(1))
+            .child(CoolComp(2))
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 7]),
+            (5, vec![6]),
+            (7, vec![8]),
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    runner.handle_event(
+        7,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    assert_eq!(
+        tree.children,
+        convert_ids(FxHashMap::from_iter([
+            (1, vec![2]),
+            (2, vec![5, 10]),
+            (5, vec![6])
+        ]))
+    );
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn conditional_nested_component_removal() {
+    #[derive(PartialEq)]
+    struct Container(Element);
+
+    impl Component for Container {
+        fn render(&self) -> impl IntoElement {
+            rect().child(self.0.clone())
+        }
+    }
+
+    fn app() -> Element {
+        let mut count = use_state(|| 0);
+
+        if *count.read() > 0 {
+            return rect().into();
+        }
+
+        rect()
+            .child(Container("hey".into_element()))
+            .child(
+                rect()
+                    .on_mouse_up(move |_| count.set(1))
+                    .child(Container("hi".into_element())),
+            )
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    // Initial render with components
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+
+    // Initial tree should have multiple nodes
+    let initial_node_count = tree.elements.len();
+    let initial_scope_count = runner.scopes.len();
+    assert!(initial_node_count > 1);
+    assert!(initial_scope_count > 0);
+
+    runner.handle_event(
+        4,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+
+    assert_eq!(tree.elements.len(), 2);
+    assert_eq!(tree.children.len(), 2);
+    assert_ne!(runner.scopes.len(), initial_scope_count);
+    assert_eq!(runner.scopes.len(), 1);
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn effect_cascade_in_new_nodes_with_parent_effects() {
+    fn app() -> Element {
+        let mut toggled = use_state(|| false);
+
+        let child: Element = if toggled() {
+            label().text("Hello").into()
+        } else {
+            rect().into()
+        };
+
+        rect()
+            .opacity(0.5)
+            .on_mouse_up(move |_| toggled.toggle())
+            .child(child)
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    assert!(tree.effect_state.contains_key(&2u64.into()));
+    assert_eq!(
+        tree.effect_state.get(&2u64.into()).unwrap().opacities.len(),
+        1
+    );
+    assert!(tree.effect_state.contains_key(&3u64.into()));
+    assert_eq!(
+        tree.effect_state.get(&3u64.into()).unwrap().opacities.len(),
+        1
+    );
+
+    runner.handle_event(
+        2,
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.modified.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    assert!(tree.effect_state.contains_key(&3u64.into()));
+    assert_eq!(
+        tree.effect_state.get(&3u64.into()).unwrap().opacities.len(),
+        1
+    );
+}
+
+#[test]
+fn modified_with_removed_sibling() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(rect().key(1).padding(10.))
+                .child(rect().key(2).padding(20.))
+                .into()
+        } else {
+            // Key 1 is removed, key 2 changes padding (triggers modification)
+            rect().child(rect().key(2).padding(30.)).into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.modified.is_empty());
+    assert!(!mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn modified_and_moved_element() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            // A at [0,0] with child X, B at [0,1]
+            rect()
+                .child(rect().key(1).padding(10.).child(rect().key(10).padding(5.)))
+                .child(rect().key(2).padding(20.))
+                .into()
+        } else {
+            // Swap A and B, both are modified (padding changed)
+            // B at [0,0] (was [0,1]), A at [0,1] (was [0,0]), X at [0,1,0]
+            // Since both are modified, no movement is recorded.
+            // scope.nodes still has A at [0,0] (with child) and B at [0,1] (no child)
+            // Modification at [0,1,0] navigates to old B which has no children -> panic
+            rect()
+                .child(rect().key(2).padding(99.))
+                .child(
+                    rect()
+                        .key(1)
+                        .padding(88.)
+                        .child(rect().key(10).padding(77.)),
+                )
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.modified.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn modified_and_moved_both_siblings_with_nested_child() {
+    // When two siblings SWAP positions and BOTH are modified, no movements
+    // are recorded (the diff emits `modified` instead of `moved` when content
+    // changes). This means `scope.nodes` is never rearranged.
+    //
+    // If one of the swapped elements has a child that is also modified,
+    // the modification path (from the new tree) points into the wrong
+    // subtree in `scope.nodes`, causing `scope.nodes.get(&path)` to return
+    // `None` (the other sibling has no children at that position).
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            // Old tree:
+            //   root
+            //     A (key=1, padding=10) has child X
+            //       X (key=3, padding=30)
+            //     B (key=2, padding=20) has no children
+            rect()
+                .child(rect().key(1).padding(10.).child(rect().key(3).padding(30.)))
+                .child(rect().key(2).padding(20.))
+                .into()
+        } else {
+            // New tree: A and B swap positions, both modified.
+            // X (child of A) is also modified.
+            //   root
+            //     B (key=2, padding=99) moved to [0,0], modified
+            //     A (key=1, padding=88) moved to [0,1], modified
+            //       X (key=3, padding=77) at [0,1,0], modified
+            //
+            // No movements are recorded because both A and B are modified.
+            // scope.nodes still has A at [0,0] and B at [0,1].
+            // Modification of X at path [0,1,0] navigates to B (at old
+            // position 1), which has no children → None → panic!
+            rect()
+                .child(rect().key(2).padding(99.))
+                .child(rect().key(1).padding(88.).child(rect().key(3).padding(77.)))
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(!mutations.modified.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn nested_move_simultaneous_add() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+        let show = state();
+        rect()
+            .maybe_child(show.then(|| rect().key(0)))
+            .child(
+                rect()
+                    .key(1)
+                    .maybe_child(show.then(|| rect().key(3)))
+                    .child(rect().key(2)),
+            )
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(false));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(true);
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 2);
+    assert!(mutations.removed.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.removed.len(), 2);
+    assert!(mutations.added.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn nested_move_pure_swap() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+        if state() {
+            rect()
+                .child(rect().key(1).child(rect().key(2)).child(rect().key(5)))
+                .child(rect().key(3))
+                .into()
+        } else {
+            rect()
+                .child(rect().key(3))
+                .child(rect().key(1).child(rect().key(5)).child(rect().key(2)))
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(false));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(true);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn ordered_scope_mutations_diffing() {
+    fn second(_: &()) -> Element {
+        "text".into()
+    }
+    fn app() -> Element {
+        let mut enable = use_state(|| false);
+
+        rect()
+            .expanded()
+            .background((255, 255, 255))
+            .on_mouse_up(move |_| enable.toggle())
+            .maybe_child(enable().then(|| "hi"))
+            .child(rect().key(0).child(from_fn_standalone_borrowed_keyed(
+                DiffKey::from(&enable()),
+                (),
+                second,
+            )))
+            .into_element()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    runner.handle_event(
+        NodeId::from(2),
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 2);
+    tree.apply_mutations(mutations, 1.0);
+
+    runner.handle_event(
+        NodeId::from(2),
+        EventName::MouseUp,
+        EventType::Mouse(MouseEventData::default()),
+        false,
+    );
+    let mutations = runner.sync_and_update();
+    assert_eq!(mutations.added.len(), 1);
+    assert_eq!(mutations.removed.len(), 2);
+    tree.apply_mutations(mutations, 1.0);
+
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn deeply_nested_component_move() {
+    fn comp3(_: &()) -> Element {
+        rect().into()
+    }
+
+    fn comp2(_: &()) -> Element {
+        from_fn_standalone_borrowed((), comp3)
+    }
+
+    fn comp1(_: &()) -> Element {
+        from_fn_standalone_borrowed((), comp2)
+    }
+
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+        if state() {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(1, (), comp1))
+                .child(from_fn_standalone_borrowed_keyed(2, (), comp1))
+                .into()
+        } else {
+            rect()
+                .child(from_fn_standalone_borrowed_keyed(2, (), comp1))
+                .child(from_fn_standalone_borrowed_keyed(1, (), comp1))
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    // Swap: key=1 moves from position 0 to 1, key=2 moves from position 1 to 0
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    // Swap back: verify the move is fully reversible
+    state.set(true);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.modified.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+#[test]
+fn ordered_movements_first_to_last() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+        if state() {
+            rect()
+                .child(rect().key(1))
+                .child(rect().key(2))
+                .child(rect().key(3))
+                .child(rect().key(4))
+                .into()
+        } else {
+            rect()
+                .child(rect().key(2))
+                .child(rect().key(3))
+                .child(rect().key(4))
+                .child(rect().key(1))
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+
+    let initial_children = tree.children.get(&NodeId::from(2)).unwrap().clone();
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    assert!(mutations.added.is_empty());
+    assert!(mutations.removed.is_empty());
+    assert!(!mutations.moved.is_empty());
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    let reordered_children = tree.children.get(&NodeId::from(2)).unwrap();
+    assert_eq!(
+        reordered_children,
+        &vec![
+            initial_children[1],
+            initial_children[2],
+            initial_children[3],
+            initial_children[0],
+        ]
+    );
+}
+
+fn page_a(_: &()) -> Element {
+    label().text("Page A").into()
+}
+
+fn page_b(_: &()) -> Element {
+    label().text("Page B").into()
+}
+
+fn outlet(_: &()) -> Element {
+    label().text("Outlet").into()
+}
+
+/// Two keyed elements swap positions while the component inside one
+/// changes type. This triggers an addition whose parent is a move
+/// destination. The addition must be deferred until after the move.
+#[test]
+fn moved_element_with_child_component_type_change() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(
+                    rect()
+                        .key("left")
+                        .child(from_fn_standalone_borrowed((), page_a)),
+                )
+                .child(
+                    rect()
+                        .key("right")
+                        .child(from_fn_standalone_borrowed((), outlet)),
+                )
+                .into()
+        } else {
+            rect()
+                .child(
+                    rect()
+                        .key("right")
+                        .child(from_fn_standalone_borrowed((), outlet)),
+                )
+                .child(
+                    rect()
+                        .key("left")
+                        .child(from_fn_standalone_borrowed((), page_b)),
+                )
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+/// Same as above but the component is nested deeper: the moved element
+/// is a grandparent of the added component.
+#[test]
+fn moved_element_with_deeply_nested_child_type_change() {
+    fn app() -> Element {
+        let state = use_consume::<State<bool>>();
+
+        if state() {
+            rect()
+                .child(
+                    rect()
+                        .key("left")
+                        .child(rect().child(from_fn_standalone_borrowed((), page_a))),
+                )
+                .child(
+                    rect()
+                        .key("right")
+                        .child(rect().child(from_fn_standalone_borrowed((), outlet))),
+                )
+                .into()
+        } else {
+            rect()
+                .child(
+                    rect()
+                        .key("right")
+                        .child(rect().child(from_fn_standalone_borrowed((), outlet))),
+                )
+                .child(
+                    rect()
+                        .key("left")
+                        .child(rect().child(from_fn_standalone_borrowed((), page_b))),
+                )
+                .into()
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(true));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(false);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+/// Frame 1 reorders A's children inside a moved wrapper and inserts a new
+/// sibling in the middle. The PathGraph `insert` semantics used during move
+/// application and deferred additions leave an empty slot in `scope.nodes`
+/// that shifts `a1` from its tree path `[0,1,2]` to `[0,1,3]`.
+///
+/// Frame 2 adds a new grandchild under `a1` at tree path `[0,1,2,0]`. The
+/// diff emits `added = [[0,1,2,0]]`, which is not deferred (no moves), and
+/// `process_addition` looks up the parent `[0,1,2]` in `scope.nodes`, but
+/// that slot holds the leftover empty entry from frame 1, so `nodes.get`
+/// returns `None` and the unwrap at runner.rs L971 fires.
+#[test]
+fn crash_l971_leftover_empty_slot() {
+    fn app() -> Element {
+        let state = use_consume::<State<u8>>();
+        match state() {
+            0 => rect()
+                .child(rect().key(1).child(rect().key(2)).child(rect().key(3)))
+                .child(rect().key(4))
+                .into(),
+            1 => rect()
+                .child(rect().key(4))
+                .child(
+                    rect()
+                        .key(1)
+                        .child(rect().key(3).child(rect()))
+                        .child(rect())
+                        .child(rect().key(2)),
+                )
+                .into(),
+            _ => rect()
+                .child(rect().key(4))
+                .child(
+                    rect()
+                        .key(1)
+                        .child(rect().key(3).child(rect()))
+                        .child(rect())
+                        .child(rect().key(2).child(rect())),
+                )
+                .into(),
+        }
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut state = runner.provide_root_context(|| State::create(0u8));
+
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(1);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+    state.set(2);
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+    tree.verify_tree_integrity();
+    assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+}
+
+fn replay_keyed_list(history: &[Vec<u8>]) {
+    fn app() -> Element {
+        let layout = consume_context::<State<Vec<u8>>>();
+        rect()
+            .children(layout.read().iter().map(|key| rect().key(*key)))
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut layout = runner.provide_root_context(|| State::create(Vec::<u8>::new()));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    for step in history {
+        layout.set(step.clone());
+        let mutations = runner.sync_and_update();
+        tree.apply_mutations(mutations, 1.0);
+        tree.verify_tree_integrity();
+
+        for (parent, children) in &tree.children {
+            for child in children {
+                assert_ne!(
+                    *child,
+                    NodeId::PLACEHOLDER,
+                    "placeholder in {parent:?} after {step:?}"
+                );
+                assert!(
+                    tree.accessibility_state.contains_key(child),
+                    "orphan child {child:?} of {parent:?} after {step:?}"
+                );
+            }
+        }
+
+        let mut expected = Vec::new();
+        runner
+            .scopes
+            .get(&ScopeId::ROOT)
+            .unwrap()
+            .borrow()
+            .nodes
+            .traverse(&[0], |path, node| {
+                if let [_, index] = *path {
+                    expected.push((index, node.node_id));
+                }
+            });
+        expected.sort_by_key(|(index, _)| *index);
+        let expected = expected
+            .into_iter()
+            .map(|(_, node_id)| node_id)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            tree.children.get(&2u64.into()).cloned().unwrap_or_default(),
+            expected,
+            "children drifted from the source tree after {step:?}"
+        );
+        assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+    }
+}
+
+#[test]
+fn tree_keyed_list_minimal_orphan_repro() {
+    replay_keyed_list(&[vec![1, 4, 0, 2], vec![2, 0, 3, 4], vec![4]]);
+}
+
+#[test]
+fn tree_keyed_list_reorders() {
+    fn permutations(keys: &[u8]) -> Vec<Vec<u8>> {
+        if keys.is_empty() {
+            return vec![Vec::new()];
+        }
+        let mut output = Vec::new();
+        for index in 0..keys.len() {
+            let mut rest = keys.to_vec();
+            let first = rest.remove(index);
+            for mut permutation in permutations(&rest) {
+                permutation.insert(0, first);
+                output.push(permutation);
+            }
+        }
+        output
+    }
+
+    let layouts = (0..=4)
+        .flat_map(|size| permutations(&(0..size).collect::<Vec<u8>>()))
+        .collect::<Vec<_>>();
+
+    let mut history = Vec::new();
+    for from in &layouts {
+        for to in &layouts {
+            history.push(from.clone());
+            history.push(to.clone());
+        }
+    }
+
+    replay_keyed_list(&history);
+}
+
+type NestedLayout = Vec<(u8, Vec<(u8, u8, bool)>)>;
+
+/// Replays layouts of keyed outer rects holding (key, grandchildren count, is component)
+/// children, verifying each scope's nodes graph matches its element tree at every step.
+fn replay_nested_keyed_layouts(history: &[NestedLayout]) {
+    fn collect_element_paths(element: &PathElement, output: &mut Vec<Vec<u32>>) {
+        match element {
+            PathElement::Component { path, .. } => output.push(path.to_vec()),
+            PathElement::Element { path, elements, .. } => {
+                output.push(path.to_vec());
+                for child in elements.iter() {
+                    collect_element_paths(child, output);
+                }
+            }
+        }
+    }
+
+    fn nested_comp(grandchildren_count: &u8) -> Element {
+        rect()
+            .children((0..*grandchildren_count).map(|_| rect()))
+            .into()
+    }
+
+    fn app() -> Element {
+        let layout = consume_context::<State<NestedLayout>>();
+        rect()
+            .children(layout.read().iter().map(|(key, children)| {
+                rect().key(*key).children(children.iter().map(
+                    |(child_key, grandchildren_count, is_component)| {
+                        if *is_component {
+                            from_fn(*child_key, *grandchildren_count, nested_comp)
+                        } else {
+                            rect()
+                                .key(*child_key)
+                                .children((0..*grandchildren_count).map(|_| rect()))
+                                .into()
+                        }
+                    },
+                ))
+            }))
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut layout = runner.provide_root_context(|| State::create(NestedLayout::new()));
+    let mutations = runner.sync_and_update();
+    tree.apply_mutations(mutations, 1.0);
+
+    for step in history {
+        layout.set(step.clone());
+        let mutations = runner.sync_and_update();
+        tree.apply_mutations(mutations, 1.0);
+        tree.verify_tree_integrity();
+        assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+
+        for scope_rc in runner.scopes.values() {
+            let scope = scope_rc.borrow();
+
+            let mut element_paths = Vec::new();
+            if let Some(element) = scope.element.as_ref() {
+                collect_element_paths(element, &mut element_paths);
+            }
+
+            let mut node_paths = Vec::new();
+            scope.nodes.traverse(&[], |path, parent| {
+                if !path.is_empty() {
+                    node_paths.push(path.to_vec());
+                }
+                if parent.scope_id.is_some() {
+                    return;
+                }
+                let mut expected_children = Vec::new();
+                scope.nodes.traverse_1_level(path, |_, child| {
+                    let mut node = child.clone();
+                    while let Some(scope_id) = node.scope_id {
+                        node = runner.scopes[&scope_id]
+                            .borrow()
+                            .nodes
+                            .get(&[0])
+                            .unwrap()
+                            .clone();
+                    }
+                    expected_children.push(node.node_id);
+                });
+                assert_eq!(
+                    tree.children
+                        .get(&parent.node_id)
+                        .cloned()
+                        .unwrap_or_default(),
+                    expected_children,
+                    "child order diverged at {path:?} after {step:?}",
+                );
+            });
+            assert_eq!(
+                element_paths, node_paths,
+                "scope {:?} nodes diverged from its element tree after {step:?}",
+                scope.id,
+            );
+        }
+    }
+}
+
+/// The removed outer rect's old path equals the new path of the sibling whose
+/// children get reordered, which used to wipe those movements from the diff.
+#[test]
+fn removed_sibling_path_collides_with_reordered_children_parent() {
+    replay_nested_keyed_layouts(&[
+        vec![(1, vec![]), (2, vec![(0, 0, true), (2, 0, false)])],
+        vec![(2, vec![(2, 0, false), (0, 0, true)])],
+    ]);
+}
+
+/// A child is inserted at the head of a moved parent whose other children get
+/// reordered, so the addition must be applied before those movements.
+#[test]
+fn addition_at_head_of_moved_parent_with_reordered_children() {
+    replay_nested_keyed_layouts(&[
+        vec![(2, vec![]), (1, vec![(0, 0, false), (2, 0, false)])],
+        vec![
+            (1, vec![(3, 0, false), (2, 0, false), (0, 0, false)]),
+            (2, vec![]),
+        ],
+    ]);
+}
+
+/// A child is added under a parent that got shifted by a new sibling inserted
+/// before it while another sibling is due to move away.
+#[test]
+fn addition_under_parent_shifted_by_inserted_sibling() {
+    replay_nested_keyed_layouts(&[
+        vec![(1, vec![]), (2, vec![])],
+        vec![(0, vec![]), (2, vec![(0, 0, false)]), (1, vec![])],
+    ]);
+}
+
+/// Grandchildren are added under a parent whose index did not change but whose slot got
+/// shifted by a sibling removal, so the path based parent lookup grabbed the wrong node.
+#[test]
+fn grandchild_addition_under_parent_shifted_by_removal() {
+    replay_nested_keyed_layouts(&[
+        vec![(0, vec![]), (2, vec![(1, 0, false)]), (3, vec![])],
+        vec![(3, vec![]), (2, vec![(1, 2, false)])],
+    ]);
+}
+
+#[test]
+fn mixed_reorder_emits_final_child_order() {
+    fn app() -> Element {
+        let keys = use_consume::<State<Vec<u8>>>();
+        rect()
+            .children(keys.read().iter().map(|key| rect().key(*key)))
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    let mut keys = runner.provide_root_context(|| State::create(vec![0u8, 1, 2, 3]));
+    tree.apply_mutations(runner.sync_and_update(), 1.0);
+    let parent_node_id = runner.scopes[&ScopeId::ROOT]
+        .borrow()
+        .nodes
+        .get(&[0])
+        .unwrap()
+        .node_id;
+    let previous_children = tree.children[&parent_node_id].clone();
+
+    let mut expected = vec![
+        previous_children[3],
+        previous_children[1],
+        previous_children[0],
+    ];
+    for (next_keys, added_index) in [(vec![3, 4, 1, 0], 1), (vec![5, 3, 4, 1, 0], 0)] {
+        keys.set(next_keys);
+        let mutations = runner.sync_and_update();
+        assert_eq!(mutations.added.len(), 1);
+        assert_eq!(mutations.added[0].index, added_index);
+        expected.insert(added_index as usize, mutations.added[0].node_id);
+        assert_eq!(mutations.moved[&parent_node_id], expected);
+
+        tree.apply_mutations(mutations, 1.0);
+        tree.verify_tree_integrity();
+        assert_eq!(tree.children[&parent_node_id], expected);
+    }
+}
+
+#[test]
+fn mixed_nested_reconciliation_sequences() {
+    let mut seed = 42u64;
+    let mut next = || {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+        (seed >> 32) as u32
+    };
+    let mut history = Vec::new();
+    for _ in 0..1000 {
+        let mut outer_keys = (0..5u8).map(|key| (next(), key)).collect::<Vec<_>>();
+        outer_keys.sort_unstable();
+        let mut layout = Vec::new();
+        for (_, key) in outer_keys.into_iter().take((next() % 6) as usize) {
+            let mut child_keys = (0..5u8).map(|key| (next(), key)).collect::<Vec<_>>();
+            child_keys.sort_unstable();
+            let children = child_keys
+                .into_iter()
+                .take((next() % 6) as usize)
+                .map(|(_, child_key)| (child_key, (next() % 3) as u8, next() % 2 == 0))
+                .collect();
+            layout.push((key, children));
+        }
+        history.push(layout);
+    }
+    replay_nested_keyed_layouts(&history);
+}
+
+fn replay_component_root_reorder(
+    component_key: u8,
+    reordered_keys: [u8; 3],
+    change_root_type: bool,
+) {
+    fn changing_root(&(reordered, change_root_type): &(bool, bool)) -> Element {
+        let initial_value = use_state(|| reordered);
+        assert!(!initial_value());
+        if change_root_type {
+            if reordered {
+                label().into()
+            } else {
+                rect().into()
+            }
+        } else {
+            rect().key(reordered).into()
+        }
+    }
+
+    fn app() -> Element {
+        let reordered = use_consume::<State<bool>>();
+        let (component_key, reordered_keys, change_root_type) =
+            consume_context::<(u8, [u8; 3], bool)>();
+        let keys = if reordered() {
+            reordered_keys
+        } else {
+            [0, 1, 2]
+        };
+        rect()
+            .children(keys.into_iter().map(|key| {
+                if key == component_key {
+                    from_fn(key, (reordered(), change_root_type), changing_root)
+                } else {
+                    rect().key(key).into()
+                }
+            }))
+            .into()
+    }
+
+    let mut runner = Runner::new(app);
+    let mut tree = Tree::default();
+    runner.provide_root_context(|| (component_key, reordered_keys, change_root_type));
+    let mut reordered = runner.provide_root_context(|| State::create(false));
+    tree.apply_mutations(runner.sync_and_update(), 1.0);
+    let root_scope = runner.scopes[&ScopeId::ROOT].clone();
+    let parent_node_id = root_scope.borrow().nodes.get(&[0]).unwrap().node_id;
+    let component_scope_id = root_scope
+        .borrow()
+        .nodes
+        .get(&[0, component_key as u32])
+        .unwrap()
+        .scope_id
+        .unwrap();
+    let old_children = tree.children[&parent_node_id].clone();
+
+    for next in [true, false, true] {
+        reordered.set(next);
+        tree.apply_mutations(runner.sync_and_update(), 1.0);
+        tree.verify_tree_integrity();
+        assert_eq!(tree.elements.len(), runner.node_to_scope.len());
+        let keys = if next { reordered_keys } else { [0, 1, 2] };
+        let component_index = keys.iter().position(|key| *key == component_key).unwrap();
+        assert_eq!(
+            root_scope
+                .borrow()
+                .nodes
+                .get(&[0, component_index as u32])
+                .unwrap()
+                .scope_id,
+            Some(component_scope_id),
+        );
+
+        let root_node_id = runner.scopes[&component_scope_id]
+            .borrow()
+            .nodes
+            .get(&[0])
+            .unwrap()
+            .node_id;
+        if change_root_type {
+            assert_eq!(root_node_id, old_children[component_key as usize]);
+        }
+        let expected = keys.map(|key| {
+            if key == component_key {
+                root_node_id
+            } else {
+                old_children[key as usize]
+            }
+        });
+        assert_eq!(tree.children[&parent_node_id], expected);
+    }
+}
+
+#[test]
+fn unchanged_middle_component_replaces_root_during_sibling_reorder() {
+    replay_component_root_reorder(1, [2, 1, 0], false);
+}
+
+#[test]
+fn stationary_component_root_replacement_preserves_reordered_sibling_order() {
+    replay_component_root_reorder(0, [0, 2, 1], false);
+}
+
+#[test]
+fn moving_component_replaces_root_during_sibling_reorder() {
+    replay_component_root_reorder(0, [2, 1, 0], false);
+}
+
+#[test]
+fn moving_component_changes_root_type_during_sibling_reorder() {
+    replay_component_root_reorder(0, [2, 1, 0], true);
+}
+
+#[test]
+fn component_changes_root_type_without_sibling_reorder() {
+    replay_component_root_reorder(0, [0, 1, 2], true);
+}
+
+#[test]
+fn reorder_with_insertion_among_moved_siblings() {
+    replay_nested_keyed_layouts(&[
+        vec![(0, vec![]), (5, vec![]), (2, vec![])],
+        vec![
+            (2, vec![]),
+            (1, vec![]),
+            (5, vec![(2, 0, true)]),
+            (0, vec![]),
+        ],
+    ]);
+}

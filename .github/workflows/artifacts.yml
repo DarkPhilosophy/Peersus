@@ -1,0 +1,93 @@
+name: Local release preparation
+# Explicit request only. No release, Pages, repository publication or signing job exists.
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Unsigned artifact to prepare
+        type: choice
+        options: [linux, android, flatpak, appimage]
+        required: true
+      runtime_sha256:
+        description: appimage only. The SHA-256 published for the type 2 runtime that is downloaded (https://github.com/AppImage/type2-runtime/releases). Compared before anything is built from it.
+        type: string
+        required: false
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_SKIA_BUILD: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared toolchain
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - run: sh scripts/install-linux-deps.sh
+      - name: Linux artifacts
+        if: inputs.package == 'linux' || inputs.package == 'appimage'
+        run: |
+          cargo xtask build
+          python3 scripts/stage-linux.py
+      - name: AppImage (unsigned, host graphics libraries)
+        if: inputs.package == 'appimage'
+        env:
+          RUNTIME_SHA256: ${{ inputs.runtime_sha256 }}
+        run: |
+          test -n "$RUNTIME_SHA256" || { echo "runtime_sha256 is required for appimage"; exit 1; }
+          sudo apt-get install -y squashfs-tools desktop-file-utils
+          curl --fail --location --silent --show-error -o target/runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+          python3 scripts/build-appimage.py --runtime target/runtime-x86_64 --runtime-sha256 "$RUNTIME_SHA256"
+      - name: Android prerequisites
+        if: inputs.package == 'android'
+        run: |
+          # The runner image has the command-line tools under ANDROID_HOME but not on PATH.
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' > /dev/null
+          rustup target add aarch64-linux-android x86_64-linux-android wasm32-unknown-unknown
+          cargo install cargo-ndk --version 4.1.2 --locked
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          # Build scripts that compile Java (mundy) look for android.jar; cargo-ndk 4 names the minimum platform (31), which is
+          # not installed here, so they are given the compile SDK's.
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-36/android.jar" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/build-tools/36.0.0" >> "$GITHUB_PATH"
+      - name: Android unsigned artifacts and native checks
+        if: inputs.package == 'android'
+        run: |
+          cargo xtask android
+          mkdir -p target/distribution/android
+          cp target/android/gradle/app/outputs/apk/*/release/*.apk target/distribution/android/
+          cp target/android/gradle/app/outputs/bundle/*Release/*.aab target/distribution/android/
+      - name: Disk left on the runner (after a failure)
+        if: failure()
+        run: df -h . /tmp
+      - name: Flatpak build prerequisites
+        if: inputs.package == 'flatpak'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream desktop-file-utils
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.freedesktop.Platform//26.08 org.freedesktop.Sdk//26.08 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.llvm22//26.08
+      - if: inputs.package == 'flatpak'
+        run: cargo xtask flatpak
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: peersus-${{ inputs.package }}-unsigned
+          path: |
+            target/distribution/linux/
+            target/distribution/appimage/*.AppImage
+            target/distribution/appimage/*.AppImage.sha256
+            target/distribution/appimage/README-appimage.txt
+            target/distribution/android/
+            target/distribution/android-size.json
+            target/distribution/flatpak-*/Peersus.flatpak
+            target/distribution/flatpak-*/repo/
+          if-no-files-found: error
+          retention-days: 14

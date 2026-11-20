@@ -1,0 +1,11 @@
+# A child of a wrapping box is measured against a whole line
+
+Baseline: torin 0.6.0-alpha.1 as published on crates.io, https://github.com/marc2332/freya (`crates/torin`), revision `6edb0dfbe887ee4a8f503403942286892ffbd002`, the same revision as the vendored `freya-core` and `freya-components`. The published package carries no license file; `LICENSE.md` is the MIT license of that repository at that revision, copied from `vendor/freya-core`. Everything else is the published package unchanged.
+
+Local change in `src/measure.rs` (`measure_children`, initial phase, marked `PEERSUS PATCH`): in a parent whose content wraps (`Content::Wrap`), each child is measured against the parent's whole available area, not against what the children before it left of the line. Upstream measures each child against the shrinking rest of the line and then, in the final phase, moves a child to the next line only when that measured size does not fit the rest. A child whose content wraps to the width it is offered (a text of more than one line) squeezes itself into the rest, is judged to fit, and is laid out there with its word broken letter by letter. Seen on NX in an extension's page: the last chip of a wrapping row read "b" / "or" / "de" / "r". Measured at its own size (capped at a whole line), it goes to the next line whole when it does not fit, which is what a wrapping row promises (the application's `crate::text` rule, and `Style::wrap` in the extension contract).
+
+Children whose size does not depend on the width offered (fixed sizes, one-line labels, which `freya-core` lays out unbounded) measure the same either way, so their wrapping does not change. The initial phase's accumulated sizes are not used for a wrapping parent (it allows no alignments), so nothing else reads the larger measurements.
+
+Test: `a_text_in_a_box_that_wraps_goes_under_the_others_whole` in `crates/peersus-ui/src/headless/tests.rs` (`cargo test -p peersus-ui --features headless --lib -- wraps_goes_under`), with real paragraphs: fails on the published package (the third word is laid out on several lines on the first line), passes with this change.
+
+Removal: drop this copy when a torin release measures wrapping children at their own size; run that test and the headless broken-word gate (`no_text_is_broken_inside_a_word`) after removal.

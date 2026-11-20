@@ -1,0 +1,8 @@
+{
+  "files": [
+    { "path": "AGENTS.md", "description": "Architecture contract: component ownership, extension agnosticism, isolation, quotas, validation rules" },
+    { "path": "docs/architecture.md", "description": "Component overview and data flow" },
+    { "path": "docs/extension-store.md", "description": "Extension submission, review and admission process", "scope": ["extension/**", ".github/workflows/**"] },
+    { "path": "docs/api/module-abi.md", "description": "Host ABI available to WASM extensions", "scope": ["extension/**", "crates/peersus-plugin*/**"] }
+  ]
+}

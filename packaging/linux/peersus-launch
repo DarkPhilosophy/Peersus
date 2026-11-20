@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+# Large, reusable canvas rasters must give pages back when the window closes them.
+# Disable glibc's adaptive threshold without changing the machine or other programs.
+: "${MALLOC_MMAP_THRESHOLD_:=4194304}"
+export MALLOC_MMAP_THRESHOLD_
+
+# Keep the actual executable (and the owner it finds beside itself) unchanged.
+exec "$(dirname "$0")/peersus-ui" "$@"
