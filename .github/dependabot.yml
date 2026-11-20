@@ -1,0 +1,59 @@
+version: 2
+
+# Version updates go to the `dev` branch, one grouped pull request per ecosystem (major updates
+# included), and `.github/workflows/dependency-roll.yml` folds them into ONE commit on `dev` in the
+# owner's name and starts the gate there. Nothing reaches `main` by itself, nothing is published.
+# Pre-releases of crates still on a stable line, and vendored copies, are reported separately by
+# `.github/workflows/dependency-news.yml`. Security updates also require the repository's Dependabot
+# alerts/security-updates settings to be enabled.
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-type: all
+    groups:
+      cargo:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: gradle
+    directory: /android
+    target-branch: dev
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      android:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  # The `extension` branch carries only its own workflows; extension sources live on
+  # `submission/*` branches, which are not a target a schedule can name.
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: extension
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    groups:
+      extension-actions-compatible:
+        update-types: [minor, patch]

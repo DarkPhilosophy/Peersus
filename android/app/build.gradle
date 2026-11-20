@@ -1,0 +1,197 @@
+// Rust and JNI artifacts are built separately for each distribution by cargo xtask.
+plugins { id 'com.android.application' }
+def nativeLibraries = rootProject.file('../target/android/jniLibs')
+android {
+    namespace = 'dev.peersus.app'
+    compileSdk = 36
+    // This module contains Java/JNI only; do not apply an unused Kotlin compiler or stdlib.
+    enableKotlin = false
+    // Instrumentation uses AndroidX's maintained runner, never the deprecated OS test runner.
+    defaultConfig {
+        applicationId = 'ro.peersus'
+        testInstrumentationRunner = 'androidx.test.runner.AndroidJUnitRunner'
+        minSdk = 31
+        targetSdk = 36
+        // Android refuses an older build over a newer one: the number follows the one the native owner is compiled with.
+        versionCode = (providers.environmentVariable('PEERSUS_BUILD_NUMBER').orNull ?: '0').toInteger() + 1
+        versionName = '0.1.0'
+    }
+    flavorDimensions += 'distribution'
+    productFlavors {
+        play { dimension = 'distribution' }
+        community { dimension = 'distribution' }
+    }
+    sourceSets {
+        main.jniLibs.srcDirs = []
+        debug.jniLibs.srcDirs = []
+        release.jniLibs.srcDirs = []
+        play.jniLibs.srcDirs = [new File(nativeLibraries, 'play')]
+        community.jniLibs.srcDirs = [new File(nativeLibraries, 'community')]
+        community.java.srcDir(layout.buildDirectory.dir('generated/nativeSlots/java').get().asFile)
+        community.manifest.srcFile(layout.buildDirectory.file('generated/nativeSlots/AndroidManifest.xml').get().asFile)
+        androidTest.assets.srcDir(layout.buildDirectory.dir('generated/moduleTestAssets').get().asFile)
+        androidTestCommunity.java.srcDir('src/communityTest/java')
+        androidTestCommunity.assets.srcDir(layout.buildDirectory.dir('generated/nativeModuleTestAssets').get().asFile)
+        if (providers.gradleProperty('peersusPickerValidation').orNull == 'true') {
+            androidTest.java.srcDir('src/selectorTest/java')
+        }
+        if (providers.gradleProperty('peersusClipboardValidation').orNull == 'true') {
+            androidTest.java.srcDir('src/clipboardTest/java')
+            androidTest.manifest.srcFile('src/clipboardTest/AndroidManifest.xml')
+        }
+        if (providers.gradleProperty('peersusServiceValidation').orNull == 'true') {
+            androidTest.java.srcDir('src/serviceTest/java')
+        }
+    }
+    buildTypes {
+        debug {
+            debuggable = true
+            buildConfigField 'boolean', 'PRIVATE_STORE', providers.gradleProperty('peersusPrivateStore').orNull == 'true' ? 'true' : 'false'
+        }
+        release {
+            buildConfigField 'boolean', 'PRIVATE_STORE', 'false'
+            debuggable = false
+            jniDebuggable = false
+            minifyEnabled = true
+            shrinkResources = true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Intentionally unsigned. No environment variables or private signing files are read.
+        }
+    }
+    splits {
+        abi {
+            enable = providers.gradleProperty('peersusReleaseSplits').orNull == 'true'
+            reset()
+            include 'arm64-v8a', 'x86_64'
+            universalApk = false
+        }
+    }
+    packaging { jniLibs { useLegacyPackaging = false } }
+    buildFeatures { aidl = true; buildConfig = true }
+    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+}
+
+// Optional elevated clipboard access is absent from the Play artifact.
+dependencies {
+    // Shizuku's class annotations are compile-time metadata, not an application runtime API.
+    compileOnly 'androidx.annotation:annotation-jvm:1.9.1'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+    androidTestImplementation 'androidx.test:core:1.7.0'
+    // Must match the Rust-side JNI support component; mismatches fail before packaging.
+    def verifierLock = providers.fileContents(layout.projectDirectory.file('../../Cargo.lock')).asText.get()
+    def verifierMatch = verifierLock =~ /name = "rustls-platform-verifier-android"\r?\nversion = "([^"]+)"/
+    if (!verifierMatch.find() || verifierMatch.group(1) != '0.2.0') {
+        throw new GradleException('Update the pinned Android verifier artifact to match Cargo.lock')
+    }
+    implementation 'org.rustls:rustls-platform-verifier:0.2.0'
+    // That artifact is compiled Kotlin and calls the Kotlin standard library (`kotlin.jvm.internal.Intrinsics`, `kotlin.LazyKt`,
+    // `kotlin.Pair`…), but its POM declares no dependency and this application has no Kotlin of its own: without this line the
+    // APK held none of those classes, the first certificate check threw NoClassDefFoundError inside the verifier, and every
+    // HTTPS request of the Android engine failed ("the system's certificate checker could not be called", seen on NX
+    // 2026-11-15). The version is the one the verifier's own Android build uses (its `libraries.versions.toml`).
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.2.10'
+    // Play's own update question; the community artifact replaces itself through its shell provider instead.
+    playImplementation 'com.google.android.play:app-update:2.1.0'
+    communityImplementation 'dev.rikka.shizuku:api:13.1.5'
+    communityImplementation 'dev.rikka.shizuku:provider:13.1.5'
+}
+
+def moduleTestAssets = tasks.register('moduleTestAssets', Exec) {
+    def sdk = file('../../crates/peersus-plugin-runtime/sdk')
+    def destination = layout.buildDirectory.dir('generated/moduleTestAssets')
+    inputs.files(new File(sdk, 'echo.c'), new File(sdk, 'peersus_plugin.h'))
+    outputs.file(destination.map { it.file('echo.wasm') })
+    doFirst { destination.get().asFile.mkdirs() }
+    commandLine 'clang', '--target=wasm32', '-std=c11', '-O2', '-ffreestanding', '-fno-builtin', '-nostdlib',
+        '-Wl,--no-entry', '-Wl,--export-memory', '-Wl,--max-memory=67108864',
+        new File(sdk, 'echo.c').absolutePath, '-o', destination.get().file('echo.wasm').asFile.absolutePath
+}
+def moduleDataTestAssets = tasks.register('moduleDataTestAssets', Exec) {
+    def source = file('../../crates/peersus-plugin-runtime/tests/android_data_fixture.c')
+    def destination = layout.buildDirectory.dir('generated/moduleTestAssets')
+    inputs.files(source, file('../../crates/peersus-plugin-runtime/sdk/peersus_plugin.h'))
+    outputs.file(destination.map { it.file('data.wasm') })
+    doFirst { destination.get().asFile.mkdirs() }
+    commandLine 'clang', '--target=wasm32', '-std=c11', '-O2', '-ffreestanding', '-fno-builtin', '-nostdlib',
+        '-Wl,--no-entry', '-Wl,--export-memory', '-Wl,--max-memory=67108864',
+        source.absolutePath, '-o', destination.get().file('data.wasm').asFile.absolutePath
+}
+tasks.configureEach { if (name.startsWith('merge') && name.endsWith('AndroidTestAssets')) dependsOn(moduleTestAssets, moduleDataTestAssets) }
+
+// Derive the manifest slots from the shared installation limit, never a second hard-coded cap.
+def nativeSlots = tasks.register('nativeSlots') {
+    def source = file('../../crates/peersus-app/src/discovery.rs')
+    def destination = layout.buildDirectory.dir('generated/nativeSlots')
+    inputs.file(source)
+    outputs.dir(destination)
+    doLast {
+        def match = source.text =~ /pub const MAX_PLUGINS: usize = ([0-9]+);/
+        if (!match.find()) throw new GradleException('Cannot determine the native service slot bound')
+        int count = match.group(1).toInteger()
+        if (count < 1 || count > 256) throw new GradleException('Invalid native service slot bound')
+        def java = new File(destination.get().asFile, 'java/dev/peersus/app/NativeSlots.java')
+        java.parentFile.mkdirs()
+        java.text = 'package dev.peersus.app;\npublic final class NativeSlots {\n    static final int COUNT = ' + count + ';\n' +
+            (0..<count).collect { '    public static final class Slot' + it + ' extends NativePluginService {}\n' }.join('') + '}\n'
+        def manifest = new File(destination.get().asFile, 'AndroidManifest.xml')
+        manifest.text = '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><uses-permission android:name="moe.shizuku.manager.permission.API_V23" /><application>\n' +
+            '<provider android:name="rikka.shizuku.ShizukuProvider" android:authorities="${applicationId}.shizuku" android:multiprocess="false" android:enabled="true" android:exported="true" android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />\n' +
+            (0..<count).collect { '<service android:name="dev.peersus.app.NativeSlots$Slot' + it + '" android:process=":native_' + it + '" android:exported="false" android:stopWithTask="false" />\n' }.join('') +
+            '</application></manifest>\n'
+    }
+}
+tasks.configureEach { if (name.contains('Community') && (name.startsWith('compile') || name.startsWith('process') || name.startsWith('extract'))) dependsOn(nativeSlots) }
+
+['play', 'community'].each { flavor ->
+    def verifyLibraries = tasks.register('verify' + flavor.capitalize() + 'NativeLibraries') {
+        doLast {
+            ['arm64-v8a', 'x86_64'].each { abi ->
+                def libraries = ['libpeersus_android.so', 'libpeersus_plugin_android.so']
+                if (flavor == 'community') libraries += 'libpeersus_native_android.so'
+                libraries.each { library ->
+                    if (!new File(nativeLibraries, flavor + '/' + abi + '/' + library).isFile()) {
+                        throw new GradleException('Missing ' + flavor + ' native artifact; run cargo xtask android before packaging')
+                    }
+                }
+                if (flavor == 'play' && new File(nativeLibraries, 'play/' + abi + '/libpeersus_native_android.so').exists()) {
+                    throw new GradleException('External-native loader must never enter the Play source set')
+                }
+            }
+        }
+    }
+    tasks.configureEach {
+        if (name.startsWith('merge' + flavor.capitalize()) && name.endsWith('NativeLibs') && !name.contains('AndroidTest')) dependsOn(verifyLibraries)
+    }
+}
+
+def nativeCommunityTestAssets = tasks.register('nativeCommunityTestAssets', Exec) {
+    inputs.files(file('../../scripts/build-android-native.py'), file('../../crates/peersus-plugin-runtime/native/android.c'),
+        file('../../crates/peersus-plugin-runtime/native/host.c'), file('../../crates/peersus-plugin-runtime/sdk/peersus_plugin.h'),
+        file('../../crates/peersus-plugin-runtime/sdk/echo.c'), file('../../crates/peersus-plugin-runtime/tests/android_data_fixture.c'))
+    outputs.dir(layout.buildDirectory.dir('generated/nativeModuleTestAssets'))
+    commandLine 'python3', file('../../scripts/build-android-native.py').absolutePath, '--output', new File(nativeLibraries, 'community').absolutePath,
+        '--fixtures-only', '--test-assets', layout.buildDirectory.dir('generated/nativeModuleTestAssets').get().asFile.absolutePath
+}
+tasks.configureEach { if (name == 'mergeCommunityDebugAndroidTestAssets') dependsOn(nativeCommunityTestAssets) }
+
+// These transport regressions use the real JDK HTTP stack, without Android mocks
+// or a second test-framework dependency. Match the existing plain JVM tests.
+def verifyStoreTransport = tasks.register('verifyStoreTransport', JavaExec) {
+    dependsOn('compileCommunityDebugUnitTestJavaWithJavac')
+    mainClass = 'dev.peersus.app.StoreDownloadTest'
+    classpath = files(
+        providers.provider { tasks.named('compileCommunityDebugJavaWithJavac').get().destinationDirectory.get() },
+        providers.provider { tasks.named('compileCommunityDebugUnitTestJavaWithJavac').get().destinationDirectory.get() }
+    )
+}
+def verifyInputRecovery = tasks.register('verifyInputRecovery', JavaExec) {
+    dependsOn('compileCommunityDebugUnitTestJavaWithJavac')
+    mainClass = 'dev.peersus.app.InputRecoverySettingsTest'
+    classpath = verifyStoreTransport.get().classpath
+}
+verifyStoreTransport.configure { dependsOn(verifyInputRecovery) }
+tasks.named('check').configure { dependsOn(verifyStoreTransport) }
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xlint:deprecation']
+}
