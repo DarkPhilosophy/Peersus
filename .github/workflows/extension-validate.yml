@@ -173,7 +173,7 @@ jobs:
           rustup toolchain install "$version" --profile minimal
           rustup default "$version"
           sh scripts/install-linux-deps.sh
-          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1
+          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1 libxkbcommon-x11-0
           cargo xtask bench-extension-build
       - name: Sample both versions three times on this runner, alternating the order
         id: sampled
