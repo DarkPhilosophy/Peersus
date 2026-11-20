@@ -3357,3 +3357,426 @@ msgstr "BEZ STAVU"
 
 msgid "STATUS NOT ALLOWED"
 msgstr "STAV NEPOVOLEN"
+
+msgid "Know where this device is now, as its system finds it. To find it the system may ask an online service of its own with the wireless networks it sees nearby; the extension receives only the position."
+msgstr "Zjistí, kde se toto zařízení právě nachází, podle jeho systému. Systém se k tomu může dotázat vlastní online služby a předat jí bezdrátové sítě, které vidí poblíž; rozšíření obdrží pouze polohu."
+
+msgid "Where this device is now, as its system finds it, behind its own permission."
+msgstr "Kde se toto zařízení právě nachází podle jeho systému, pod vlastním oprávněním."
+
+msgid "Finishing…"
+msgstr "Dokončování…"
+
+msgid "PRIVACY"
+msgstr "SOUKROMÍ"
+
+msgid "Private mode"
+msgstr "Soukromý režim"
+
+msgid "Off: your paired devices see this device online, with its name, picture and statuses. On: this device stays connected and sees them, but tells them nothing about itself, so they show it as offline, and extensions send nothing on their own. Sending a file to a device, or choosing a device in an extension, shows this device to that one device until a short while after you are done."
+msgstr "Vypnuto: vaše spárovaná zařízení vidí toto zařízení online, včetně jeho názvu, obrázku a stavů. Zapnuto: toto zařízení zůstává připojené a vidí je, ale nic o sobě nesděluje, takže ho zobrazují jako offline, a rozšíření sama nic neodesílají. Odesláním souboru do zařízení nebo výběrem zařízení v rozšíření se toto zařízení tomuto jednomu zařízení zobrazí až do chvíle krátce poté, co skončíte."
+
+msgid "Private mode is on: nothing is sent to that device until you start something for it"
+msgstr "Soukromý režim je zapnutý: do tohoto zařízení se nic neodešle, dokud pro něj něco nezahájíte"
+
+msgid "Updating keeps what you allowed that the new version still asks for. Anything new it asks for stays off until you allow it."
+msgstr "Aktualizace zachová to, co jste povolili a co nová verze stále požaduje. Vše nové, co požaduje, zůstane vypnuté, dokud to nepovolíte."
+
+msgid "Its manifest must explicitly declare `execution`"
+msgstr "Jeho manifest musí výslovně deklarovat `execution`"
+
+msgid "Turn on to allow downloads from {address}. The server sees the requested resources and this device’s network address. No files, saved credentials or cookies are sent."
+msgstr "Zapnutím povolíte stahování z {address}. Server uvidí požadované prostředky a síťovou adresu tohoto zařízení. Neodesílají se žádné soubory, uložené přihlašovací údaje ani cookies."
+
+msgid "This setting changed. Review it in Settings before trying again."
+msgstr "Toto nastavení se změnilo. Než to zkusíte znovu, zkontrolujte ho v Nastavení."
+
+msgid "This setting is not available on this platform"
+msgstr "Toto nastavení není na této platformě k dispozici"
+
+msgid "Accept the extension agreement before enabling this setting"
+msgstr "Před zapnutím tohoto nastavení přijměte smlouvu o rozšíření"
+
+msgid "This extension does not import Public HTTPS"
+msgstr "Toto rozšíření neimportuje Veřejné HTTPS"
+
+msgid "Public HTTPS is unavailable"
+msgstr "Veřejné HTTPS není k dispozici"
+
+msgid "Unknown public resource setting"
+msgstr "Neznámé nastavení veřejného prostředku"
+
+msgid "Change this public resource in the extension's Settings"
+msgstr "Tento veřejný prostředek změňte v Nastavení rozšíření"
+
+msgid "Enable this public resource in the extension's settings"
+msgstr "Tento veřejný prostředek zapněte v nastavení rozšíření"
+
+msgid "Download bounded public data, without cookies or credentials, from an HTTPS address you approve."
+msgstr "Stahuje omezená veřejná data, bez cookies a přihlašovacích údajů, z adresy HTTPS, kterou schválíte."
+
+msgid "This extension draws too much and was paused to keep Peersus responsive."
+msgstr "Toto rozšíření vykresluje příliš mnoho a bylo pozastaveno, aby Peersus zůstal svižný."
+
+msgid "Resume"
+msgstr "Pokračovat"
+
+msgid "This window cannot manage any more extension drawings."
+msgstr "Toto okno nedokáže spravovat žádná další vykreslování rozšíření."
+
+msgid "Enable the extension before restarting it"
+msgstr "Před restartováním rozšíření ho zapněte"
+
+msgid "Start when you sign in"
+msgstr "Spustit po přihlášení"
+
+msgid "Off: Peersus starts when you open it. This is separate from Run in the background."
+msgstr "Vypnuto: Peersus se spustí, když ho otevřete. Toto je nezávislé na volbě Běžet na pozadí."
+
+msgid "On: Peersus starts with your session and keeps running without a window, so your devices can reach it. This is separate from Run in the background."
+msgstr "Zapnuto: Peersus se spustí s vaší relací a běží bez okna, aby se k němu vaše zařízení mohla připojit. Toto je nezávislé na volbě Běžet na pozadí."
+
+msgid "Checking whether the system starts Peersus with your session."
+msgstr "Zjišťuje se, zda systém spouští Peersus s vaší relací."
+
+msgid "The system will start it with your session, and it is running now."
+msgstr "Systém ho spustí s vaší relací a nyní běží."
+
+msgid "The system will start it with your session; it is not running now."
+msgstr "Systém ho spustí s vaší relací; nyní neběží."
+
+msgid "The system will not start it with your session; it is running now until you sign out."
+msgstr "Systém ho s vaší relací nespustí; nyní běží, dokud se neodhlásíte."
+
+msgid "The system will not start it with your session, and it is not running now."
+msgstr "Systém ho s vaší relací nespustí a nyní neběží."
+
+msgid "Your session runs before you sign in (lingering). The keyring is locked until you sign in, so Peersus waits and does not connect before then."
+msgstr "Vaše relace běží ještě před přihlášením (lingering). Klíčenka je až do přihlášení zamčená, takže Peersus čeká a do té doby se nepřipojí."
+
+msgid "Your session starts when you sign in, so this starts then, not when the computer starts. Peersus does not turn lingering on."
+msgstr "Vaše relace začíná při přihlášení, takže se to spustí tehdy, ne při startu počítače. Peersus lingering nezapíná."
+
+msgid "Whether your session runs before you sign in could not be read."
+msgstr "Nepodařilo se zjistit, zda vaše relace běží před přihlášením."
+
+msgid "The system's user service manager could not be asked."
+msgstr "Nepodařilo se dotázat systémového správce uživatelských služeb."
+
+msgid "The system's user service manager is not available, so Peersus cannot be started with your session."
+msgstr "Systémový správce uživatelských služeb není k dispozici, takže Peersus nelze spouštět s vaší relací."
+
+msgid "The system refused to turn the service on."
+msgstr "Systém odmítl službu zapnout."
+
+msgid "The system refused to turn the service off."
+msgstr "Systém odmítl službu vypnout."
+
+msgid "The program to start cannot be used in a service file."
+msgstr "Spouštěný program nelze použít v souboru služby."
+
+msgid "The program to start was not found next to this window."
+msgstr "Spouštěný program nebyl nalezen vedle tohoto okna."
+
+msgid "The service file could not be written."
+msgstr "Soubor služby se nepodařilo zapsat."
+
+msgid "This account has no configuration directory, so Peersus cannot be started with your session."
+msgstr "Tento účet nemá konfigurační adresář, takže Peersus nelze spouštět s vaší relací."
+
+msgid "Cannot acquire the application's private directory"
+msgstr "Nelze získat soukromý adresář aplikace"
+
+msgid "The system keyring is locked; Peersus is waiting for it to be unlocked and has not changed the identity"
+msgstr "Systémová klíčenka je zamčená; Peersus čeká na její odemčení a identitu nezměnil"
+
+msgid "The system keyring is not available; Peersus is waiting for it and has not changed the identity"
+msgstr "Systémová klíčenka není dostupná; Peersus na ni čeká a identitu nezměnil"
+
+msgid "Approval is required in System Settings → General → Login Items. No connection has been confirmed."
+msgstr "Je vyžadováno schválení v Nastavení systému → Obecné → Položky při přihlášení. Žádné připojení nebylo potvrzeno."
+
+msgid "This user service runs only in your signed-in macOS session. It does not control the login screen."
+msgstr "Tato uživatelská služba běží pouze ve vaší přihlášené relaci macOS. Neovládá přihlašovací obrazovku."
+
+msgid "Starting with your session requires macOS 13 or later."
+msgstr "Spouštění s vaší relací vyžaduje macOS 13 nebo novější."
+
+msgid "Open the installed application bundle to manage startup."
+msgstr "Pro správu spouštění otevřete nainstalovaný balíček aplikace."
+
+msgid "macOS could not find the bundled user service."
+msgstr "macOS nenašel přibalenou uživatelskou službu."
+
+msgid "macOS did not approve the user service."
+msgstr "macOS neschválil uživatelskou službu."
+
+msgid "macOS rejected the application's signature."
+msgstr "macOS odmítl podpis aplikace."
+
+msgid "macOS could not register the user service."
+msgstr "macOS nemohl zaregistrovat uživatelskou službu."
+
+msgid "macOS could not unregister the user service."
+msgstr "macOS nemohl zrušit registraci uživatelské služby."
+
+msgid "A user service cannot run as root"
+msgstr "Uživatelská služba nemůže běžet jako root"
+
+msgid "Cannot prevent keychain prompts; the service did not start"
+msgstr "Nelze zabránit výzvám klíčenky; služba se nespustila"
+
+msgid "The service cannot read the existing identity; open the app in your session"
+msgstr "Služba nemůže přečíst stávající identitu; otevřete aplikaci ve své relaci"
+
+msgid "Windows applies this account's choice at the next sign-in. No service instance runs for a signed-out account."
+msgstr "Windows použije volbu tohoto účtu při příštím přihlášení. Pro odhlášený účet neběží žádná instance služby."
+
+msgid "The Windows per-user service template is missing or disabled. An administrator must install it before an account can opt in."
+msgstr "Šablona služby Windows pro jednotlivé uživatele chybí nebo je zakázaná. Než se účet může přihlásit, musí ji nainstalovat správce."
+
+msgid "Windows could not read or save this account's service choice."
+msgstr "Windows nemohl přečíst ani uložit volbu služby tohoto účtu."
+
+msgid "The Windows service manager could not be reached."
+msgstr "Správce služeb Windows není dostupný."
+
+msgid "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained."
+msgstr "Okna, rozvržení a komponenty této aplikace. Místní záplaty manifestů core/component nahrazují neudržované makro paste knihovnou pastey; původní atribuce MIT je zachována."
+
+msgid "The clipboard interface the text fields copy and paste through. On Android the application supplies its own provider over the system clipboard, because this library's own does nothing there."
+msgstr "Rozhraní schránky, přes které textová pole kopírují a vkládají. Na Androidu aplikace dodává vlastního poskytovatele nad systémovou schránkou, protože vlastní poskytovatel této knihovny tam nic nedělá."
+
+msgid "Enumerates actual Windows monitors for paired desktop layouts and pointer pass-through."
+msgstr "Vyjmenovává skutečné monitory Windows pro rozvržení spárovaných ploch a průchod ukazatele."
+
+msgid "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation."
+msgstr "Komunikace přes desktopovou sběrnici Linuxu. Přímé sledování spánku a motivu přechází na zbus 6; starší tranzitivní serializační závislosti se stále napravují."
+
+msgid "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending."
+msgstr "Předvolby vzhledu a přístupnosti plochy. Místní záplata linuxového portálu přechází na zbus 6 bez vypnutí podpory předvoleb; ověření na platformách čeká."
+
+msgid "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending."
+msgstr "Linuxový protokol asistenčních technologií. Místní porty common/proxy zachovávají validaci podpisů XML nad udržovanými API přenosu zbus. Regresní testy protokolu a izolovaná registrace sběrnice procházejí; úplné ověření čtečky obrazovky a platforem stále čeká."
+
+msgid "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration."
+msgstr "Strom přístupnosti a integrace s platformou Linux. Místní porty kompatibility Unix/AT-SPI zachovávají podporu asistenčních technologií během přechodu na udržovanou sběrnici."
+
+msgid "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs."
+msgstr "Ověřuje přenosové podpisy přístupnosti vůči jejich definicím XML. Místní porty knihovny a maker zachovávají tyto kontroly s udržovanými API zbus a introspekčního XML."
+
+msgid "Wayland window decorations. The local 0.10.1 compatibility patch backports the maintained skrifa title renderer; upstream attribution and licenses are retained."
+msgstr "Dekorace oken Wayland. Místní záplata kompatibility 0.10.1 přenáší udržovaný vykreslovač titulků skrifa; původní atribuce a licence jsou zachovány."
+
+msgid "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain."
+msgstr "Analyzuje a vykresluje písma titulků Wayland místo neudržovaného řetězce ttf-parser."
+
+msgid "Maintained token-pasting macros used by local compatibility patches in Freya and rav1e. Only dependency manifests change; upstream source and licenses are retained."
+msgstr "Udržovaná makra pro spojování tokenů používaná místními záplatami kompatibility ve Freya a rav1e. Mění se pouze manifesty závislostí; původní zdrojový kód a licence jsou zachovány."
+
+msgid "AV1 encoding in the image dependency chain, with a local pastey dependency migration."
+msgstr "Kódování AV1 v řetězci závislostí pro obrázky s místní migrací závislosti pastey."
+
+msgid "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed."
+msgstr "Sledování síťových rozhraní. Místní záplata kompatibility 0.19.3 zpětně přenáší udržovanou sadu závislostí netlink; zbývající bezpečnostní upozornění k závislostem nejsou potlačena."
+
+msgid "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS."
+msgstr "Stahuje katalog rozšíření a schválená rozšíření a nahrává soubory přes HTTPS."
+
+msgid "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision."
+msgstr "Ověřuje certifikáty HTTPS proti úložišti důvěryhodných certifikátů platformy Android. Oficiální podpůrný artefakt pro Android je připnut ke své zdrojové revizi upstreamu."
+
+msgid "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision."
+msgstr "Oficiální most správce důvěry pro Android, zachovaný ve vydávaných balíčcích a připnutý ke své zdrojové revizi upstreamu."
+
+msgid "Combines asynchronous connection events without blocking transfers."
+msgstr "Kombinuje asynchronní události připojení bez blokování přenosů."
+
+msgid "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key."
+msgstr "Ověřuje podpis správce na katalogu rozšíření. Umí pouze ověřovat: tato aplikace nemá žádný podpisový klíč."
+
+msgid "Reads who made an extension out of its program file, without running it."
+msgstr "Zjistí z programového souboru rozšíření, kdo ho vytvořil, aniž by ho spouštěl."
+
+msgid "Reads the same facts out of a WebAssembly extension, without running it."
+msgstr "Zjistí stejné údaje z rozšíření WebAssembly, aniž by ho spouštěl."
+
+msgid "Replays permitted pointer and keyboard input through the Windows platform backend."
+msgstr "Přehrává povolený vstup z ukazatele a klávesnice přes backend platformy Windows."
+
+msgid "Contains supervised extension processes in Windows job objects so their children stop with them."
+msgstr "Uzavírá dohlížené procesy rozšíření do objektů úloh Windows, aby se jejich podřízené procesy zastavily s nimi."
+
+msgid "Reads this device's identity from the Linux system keyring for the session service, without ever asking to unlock it."
+msgstr "Načítá identitu tohoto zařízení ze systémové klíčenky Linuxu pro službu relace, aniž by kdy žádal o její odemčení."
+
+msgid "Registers the application's optional macOS login agent with Service Management."
+msgstr "Registruje volitelného přihlašovacího agenta aplikace pro macOS pomocí Service Management."
+
+msgid "Connects the optional per-user owner to the Windows service manager."
+msgstr "Připojuje volitelného vlastníka pro jednotlivé uživatele ke správci služeb Windows."
+
+msgid "Windows service dispatcher already started"
+msgstr "Dispečer služeb Windows již byl spuštěn"
+
+msgid "Windows must start the session service through its service manager"
+msgstr "Windows musí spustit službu relace prostřednictvím svého správce služeb"
+
+msgid "Not a signed-in user's Windows service instance"
+msgstr "Nejde o instanci služby Windows přihlášeného uživatele"
+
+msgid "The service is already running"
+msgstr "Služba již běží"
+
+msgid "Windows refused the service start"
+msgstr "Windows odmítl spuštění služby"
+
+msgid "The service has no owner"
+msgstr "Služba nemá vlastníka"
+
+msgid "Install the desktop programs in the machine's Program Files/Peersus directory first."
+msgstr "Nejprve nainstalujte desktopové programy do adresáře Program Files/Peersus na tomto počítači."
+
+msgid "Installing the Windows per-user service template requires administrator approval."
+msgstr "Instalace šablony služby Windows pro jednotlivé uživatele vyžaduje schválení správcem."
+
+msgid "Windows did not create the session service template. An existing registration was not replaced."
+msgstr "Windows nevytvořil šablonu služby relace. Stávající registrace nebyla nahrazena."
+
+msgid "Destinations"
+msgstr "Cíle"
+
+msgid "Search"
+msgstr "Hledat"
+
+msgid "Graphics renderer"
+msgstr "Grafický renderer"
+
+msgid "Compare renderers"
+msgstr "Porovnat renderery"
+
+msgid "Software"
+msgstr "Softwarový"
+
+msgid "Frame time, CPU and memory"
+msgstr "Doba snímku, CPU a paměť"
+
+msgid "This window does not report a native renderer."
+msgstr "Toto okno nehlásí žádný nativní renderer."
+
+msgid "In use now: {renderer}"
+msgstr "Nyní používán: {renderer}"
+
+msgid "Saved preference: {renderer}"
+msgstr "Uložená předvolba: {renderer}"
+
+msgid "A launch override requested {renderer}."
+msgstr "Přepsání při spuštění vyžádalo {renderer}."
+
+msgid "{renderer} is not included in this build."
+msgstr "{renderer} není součástí tohoto sestavení."
+
+msgid "{renderer} could not start on this display."
+msgstr "{renderer} se na tomto displeji nepodařilo spustit."
+
+msgid "Automatic selection skipped the basic {renderer} software adapter."
+msgstr "Automatický výběr přeskočil základní softwarový adaptér {renderer}."
+
+msgid "{renderer} stopped working while this window was open."
+msgstr "{renderer} přestal fungovat, když bylo toto okno otevřené."
+
+msgid "The renderer preference could not be saved. Try again."
+msgstr "Předvolbu rendereru se nepodařilo uložit. Zkuste to znovu."
+
+msgid "Restart Peersus to apply renderer changes."
+msgstr "Změny rendereru se projeví po restartu aplikace Peersus."
+
+msgid "Renderer changes apply the next time you open a window."
+msgstr "Změny rendereru se projeví při příštím otevření okna."
+
+msgid "Automatic tries these renderers in order: {renderers}"
+msgstr "Automatický režim zkouší tyto renderery v tomto pořadí: {renderers}"
+
+msgid "Not included in this build: {renderers}"
+msgstr "Není součástí tohoto sestavení: {renderers}"
+
+msgid "Renderer comparison is available on desktop only."
+msgstr "Porovnání rendererů je k dispozici pouze na počítači."
+
+msgid "Renderer comparison"
+msgstr "Porovnání rendererů"
+
+msgid "Synthetic failure for the demo"
+msgstr "Simulované selhání pro ukázku"
+
+msgid "Run a short test in temporary windows. Results stay on this device. Leaving this page stops the test."
+msgstr "Spustí krátký test v dočasných oknech. Výsledky zůstanou v tomto zařízení. Opuštěním této stránky test zastavíte."
+
+msgid "Testing {renderer}…"
+msgstr "Testuje se {renderer}…"
+
+msgid "Stopping renderer comparison…"
+msgstr "Zastavuje se porovnání rendererů…"
+
+msgid "Renderer comparison cancelled."
+msgstr "Porovnání rendererů bylo zrušeno."
+
+msgid "Renderer comparison could not finish. Try again."
+msgstr "Porovnání rendererů se nepodařilo dokončit. Zkuste to znovu."
+
+msgid "Could not start on this display"
+msgstr "Na tomto displeji se nepodařilo spustit"
+
+msgid "Timed out"
+msgstr "Vypršel časový limit"
+
+msgid "Test did not finish"
+msgstr "Test nebyl dokončen"
+
+msgid "CPU or memory counters unavailable"
+msgstr "Čítače CPU nebo paměti nejsou k dispozici"
+
+msgid "Renderer"
+msgstr "Renderer"
+
+msgid "p50 (ms)"
+msgstr "p50 (ms)"
+
+msgid "p95 (ms)"
+msgstr "p95 (ms)"
+
+msgid "Main CPU (%)"
+msgstr "Hlavní CPU (%)"
+
+msgid "RAM (MiB)"
+msgstr "RAM (MiB)"
+
+msgid "{renderer} (baseline)"
+msgstr "{renderer} (výchozí stav)"
+
+msgid "No recommendation: the current renderer could not be measured. Try again."
+msgstr "Žádné doporučení: aktuální renderer se nepodařilo změřit. Zkuste to znovu."
+
+msgid "No recommendation: only the current renderer could be measured."
+msgstr "Žádné doporučení: podařilo se změřit pouze aktuální renderer."
+
+msgid "Keep the current renderer. No alternative showed a clear gain without a trade-off."
+msgstr "Ponechte aktuální renderer. Žádná alternativa nepřinesla jasné zlepšení bez kompromisu."
+
+msgid "Try {renderer}: its slow frames were shorter in this test."
+msgstr "Vyzkoušejte {renderer}: jeho pomalé snímky byly v tomto testu kratší."
+
+msgid "Try {renderer}: it used less main-thread CPU in this test."
+msgstr "Vyzkoušejte {renderer}: v tomto testu méně zatěžoval CPU hlavního vlákna."
+
+msgid "Try {renderer}: it used less memory in this test."
+msgstr "Vyzkoušejte {renderer}: v tomto testu použil méně paměti."
+
+msgid "p50 is the typical frame time; p95 shows the slower frames. CPU is a percentage of one core."
+msgstr "p50 je typická doba snímku; p95 ukazuje pomalejší snímky. CPU je uvedeno v procentech jednoho jádra."
+
+msgid "The active renderer changed. Rerun the test for a current baseline."
+msgstr "Aktivní renderer se změnil. Spusťte test znovu pro aktuální výchozí stav."
+
+msgid "Test frame did not match the scene"
+msgstr "Testovací snímek neodpovídal scéně"

@@ -3351,3 +3351,426 @@ msgstr "GEEN STATUS"
 
 msgid "STATUS NOT ALLOWED"
 msgstr "STATUS NIET TOEGESTAAN"
+
+msgid "Know where this device is now, as its system finds it. To find it the system may ask an online service of its own with the wireless networks it sees nearby; the extension receives only the position."
+msgstr "Weet waar dit apparaat nu is, zoals het systeem dat bepaalt. Om dit te bepalen kan het systeem een eigen onlinedienst raadplegen met de draadloze netwerken die het in de buurt ziet; de extensie ontvangt alleen de positie."
+
+msgid "Where this device is now, as its system finds it, behind its own permission."
+msgstr "Waar dit apparaat nu is, zoals het systeem dat bepaalt, met een eigen toestemming."
+
+msgid "Finishing…"
+msgstr "Afronden…"
+
+msgid "PRIVACY"
+msgstr "PRIVACY"
+
+msgid "Private mode"
+msgstr "Privémodus"
+
+msgid "Off: your paired devices see this device online, with its name, picture and statuses. On: this device stays connected and sees them, but tells them nothing about itself, so they show it as offline, and extensions send nothing on their own. Sending a file to a device, or choosing a device in an extension, shows this device to that one device until a short while after you are done."
+msgstr "Uit: je gekoppelde apparaten zien dit apparaat online, met de naam, afbeelding en statussen. Aan: dit apparaat blijft verbonden en ziet hen, maar vertelt hun niets over zichzelf, zodat ze het als offline tonen, en extensies versturen niets uit zichzelf. Als je een bestand naar een apparaat stuurt of een apparaat kiest in een extensie, wordt dit apparaat zichtbaar voor dat ene apparaat tot kort nadat je klaar bent."
+
+msgid "Private mode is on: nothing is sent to that device until you start something for it"
+msgstr "Privémodus staat aan: er wordt niets naar dat apparaat gestuurd totdat je er iets voor start"
+
+msgid "Updating keeps what you allowed that the new version still asks for. Anything new it asks for stays off until you allow it."
+msgstr "Bij bijwerken blijft behouden wat je had toegestaan en waar de nieuwe versie nog steeds om vraagt. Alles waar nieuw om wordt gevraagd blijft uit totdat je het toestaat."
+
+msgid "Its manifest must explicitly declare `execution`"
+msgstr "Het manifest moet `execution` expliciet declareren"
+
+msgid "Turn on to allow downloads from {address}. The server sees the requested resources and this device’s network address. No files, saved credentials or cookies are sent."
+msgstr "Zet aan om downloads van {address} toe te staan. De server ziet de opgevraagde bronnen en het netwerkadres van dit apparaat. Er worden geen bestanden, opgeslagen inloggegevens of cookies verstuurd."
+
+msgid "This setting changed. Review it in Settings before trying again."
+msgstr "Deze instelling is gewijzigd. Controleer haar in Instellingen voordat je het opnieuw probeert."
+
+msgid "This setting is not available on this platform"
+msgstr "Deze instelling is niet beschikbaar op dit platform"
+
+msgid "Accept the extension agreement before enabling this setting"
+msgstr "Accepteer de extensieovereenkomst voordat je deze instelling inschakelt"
+
+msgid "This extension does not import Public HTTPS"
+msgstr "Deze extensie importeert geen Openbare HTTPS"
+
+msgid "Public HTTPS is unavailable"
+msgstr "Openbare HTTPS is niet beschikbaar"
+
+msgid "Unknown public resource setting"
+msgstr "Onbekende instelling voor openbare bron"
+
+msgid "Change this public resource in the extension's Settings"
+msgstr "Wijzig deze openbare bron in de Instellingen van de extensie"
+
+msgid "Enable this public resource in the extension's settings"
+msgstr "Schakel deze openbare bron in via de instellingen van de extensie"
+
+msgid "Download bounded public data, without cookies or credentials, from an HTTPS address you approve."
+msgstr "Downloadt beperkte openbare gegevens, zonder cookies of inloggegevens, van een HTTPS-adres dat je goedkeurt."
+
+msgid "This extension draws too much and was paused to keep Peersus responsive."
+msgstr "Deze extensie tekent te veel en is gepauzeerd om Peersus responsief te houden."
+
+msgid "Resume"
+msgstr "Hervatten"
+
+msgid "This window cannot manage any more extension drawings."
+msgstr "Dit venster kan geen extra extensietekeningen meer beheren."
+
+msgid "Enable the extension before restarting it"
+msgstr "Schakel de extensie in voordat je haar opnieuw start"
+
+msgid "Start when you sign in"
+msgstr "Starten wanneer je inlogt"
+
+msgid "Off: Peersus starts when you open it. This is separate from Run in the background."
+msgstr "Uit: Peersus start wanneer je het opent. Dit staat los van Op de achtergrond uitvoeren."
+
+msgid "On: Peersus starts with your session and keeps running without a window, so your devices can reach it. This is separate from Run in the background."
+msgstr "Aan: Peersus start met je sessie en blijft zonder venster actief, zodat je apparaten het kunnen bereiken. Dit staat los van Op de achtergrond uitvoeren."
+
+msgid "Checking whether the system starts Peersus with your session."
+msgstr "Controleren of het systeem Peersus met je sessie start."
+
+msgid "The system will start it with your session, and it is running now."
+msgstr "Het systeem start het met je sessie, en het is nu actief."
+
+msgid "The system will start it with your session; it is not running now."
+msgstr "Het systeem start het met je sessie; het is nu niet actief."
+
+msgid "The system will not start it with your session; it is running now until you sign out."
+msgstr "Het systeem start het niet met je sessie; het is nu actief totdat je uitlogt."
+
+msgid "The system will not start it with your session, and it is not running now."
+msgstr "Het systeem start het niet met je sessie, en het is nu niet actief."
+
+msgid "Your session runs before you sign in (lingering). The keyring is locked until you sign in, so Peersus waits and does not connect before then."
+msgstr "Je sessie draait al voordat je inlogt (lingering). De sleutelbos is vergrendeld totdat je inlogt, dus Peersus wacht en maakt tot dan geen verbinding."
+
+msgid "Your session starts when you sign in, so this starts then, not when the computer starts. Peersus does not turn lingering on."
+msgstr "Je sessie start wanneer je inlogt, dus dit start dan, niet wanneer de computer opstart. Peersus zet lingering niet aan."
+
+msgid "Whether your session runs before you sign in could not be read."
+msgstr "Kon niet worden gelezen of je sessie draait voordat je inlogt."
+
+msgid "The system's user service manager could not be asked."
+msgstr "De gebruikersservicebeheerder van het systeem kon niet worden geraadpleegd."
+
+msgid "The system's user service manager is not available, so Peersus cannot be started with your session."
+msgstr "De gebruikersservicebeheerder van het systeem is niet beschikbaar, dus Peersus kan niet met je sessie worden gestart."
+
+msgid "The system refused to turn the service on."
+msgstr "Het systeem weigerde de service in te schakelen."
+
+msgid "The system refused to turn the service off."
+msgstr "Het systeem weigerde de service uit te schakelen."
+
+msgid "The program to start cannot be used in a service file."
+msgstr "Het te starten programma kan niet in een servicebestand worden gebruikt."
+
+msgid "The program to start was not found next to this window."
+msgstr "Het te starten programma is niet gevonden naast dit venster."
+
+msgid "The service file could not be written."
+msgstr "Het servicebestand kon niet worden geschreven."
+
+msgid "This account has no configuration directory, so Peersus cannot be started with your session."
+msgstr "Dit account heeft geen configuratiemap, dus Peersus kan niet met je sessie worden gestart."
+
+msgid "Cannot acquire the application's private directory"
+msgstr "Kan de privémap van de toepassing niet verkrijgen"
+
+msgid "The system keyring is locked; Peersus is waiting for it to be unlocked and has not changed the identity"
+msgstr "De systeemsleutelbos is vergrendeld; Peersus wacht tot die wordt ontgrendeld en heeft de identiteit niet gewijzigd"
+
+msgid "The system keyring is not available; Peersus is waiting for it and has not changed the identity"
+msgstr "De systeemsleutelbos is niet beschikbaar; Peersus wacht erop en heeft de identiteit niet gewijzigd"
+
+msgid "Approval is required in System Settings → General → Login Items. No connection has been confirmed."
+msgstr "Goedkeuring is vereist in Systeeminstellingen → Algemeen → Inlogonderdelen. Er is geen verbinding bevestigd."
+
+msgid "This user service runs only in your signed-in macOS session. It does not control the login screen."
+msgstr "Deze gebruikersservice draait alleen in je ingelogde macOS-sessie. Het inlogscherm wordt er niet door bestuurd."
+
+msgid "Starting with your session requires macOS 13 or later."
+msgstr "Starten met je sessie vereist macOS 13 of nieuwer."
+
+msgid "Open the installed application bundle to manage startup."
+msgstr "Open de geïnstalleerde app-bundel om het opstarten te beheren."
+
+msgid "macOS could not find the bundled user service."
+msgstr "macOS kon de meegeleverde gebruikersservice niet vinden."
+
+msgid "macOS did not approve the user service."
+msgstr "macOS heeft de gebruikersservice niet goedgekeurd."
+
+msgid "macOS rejected the application's signature."
+msgstr "macOS heeft de handtekening van de toepassing geweigerd."
+
+msgid "macOS could not register the user service."
+msgstr "macOS kon de gebruikersservice niet registreren."
+
+msgid "macOS could not unregister the user service."
+msgstr "macOS kon de registratie van de gebruikersservice niet opheffen."
+
+msgid "A user service cannot run as root"
+msgstr "Een gebruikersservice kan niet als root draaien"
+
+msgid "Cannot prevent keychain prompts; the service did not start"
+msgstr "Kan sleutelhangermeldingen niet voorkomen; de service is niet gestart"
+
+msgid "The service cannot read the existing identity; open the app in your session"
+msgstr "De service kan de bestaande identiteit niet lezen; open de app in je sessie"
+
+msgid "Windows applies this account's choice at the next sign-in. No service instance runs for a signed-out account."
+msgstr "Windows past de keuze van dit account toe bij de volgende aanmelding. Voor een afgemeld account draait geen service-instantie."
+
+msgid "The Windows per-user service template is missing or disabled. An administrator must install it before an account can opt in."
+msgstr "Het Windows-servicesjabloon per gebruiker ontbreekt of is uitgeschakeld. Een beheerder moet het installeren voordat een account zich kan aanmelden."
+
+msgid "Windows could not read or save this account's service choice."
+msgstr "Windows kon de servicekeuze van dit account niet lezen of opslaan."
+
+msgid "The Windows service manager could not be reached."
+msgstr "Het Windows-servicebeheer kon niet worden bereikt."
+
+msgid "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained."
+msgstr "De vensters, indeling en componenten van deze toepassing. Lokale patches van core-/componentmanifesten vervangen de niet-onderhouden paste-macro door pastey; de upstream MIT-naamsvermelding blijft behouden."
+
+msgid "The clipboard interface the text fields copy and paste through. On Android the application supplies its own provider over the system clipboard, because this library's own does nothing there."
+msgstr "De klembordinterface waarmee de tekstvelden kopiëren en plakken. Op Android levert de toepassing een eigen provider bovenop het systeemklembord, omdat die van deze bibliotheek daar niets doet."
+
+msgid "Enumerates actual Windows monitors for paired desktop layouts and pointer pass-through."
+msgstr "Somt de werkelijke Windows-monitoren op voor gekoppelde bureaubladindelingen en het doorgeven van de aanwijzer."
+
+msgid "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation."
+msgstr "Communicatie via de Linux-desktopbus. Directe slaap- en themawatchers migreren naar zbus 6; verouderde transitieve serialisatieafhankelijkheden worden nog hersteld."
+
+msgid "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending."
+msgstr "Voorkeuren voor bureaubladweergave en toegankelijkheid. Een lokale Linux-portalpatch migreert naar zbus 6 zonder voorkeursondersteuning uit te schakelen; platformverificatie staat nog open."
+
+msgid "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending."
+msgstr "Linux-protocol voor hulptechnologie. Lokale common-/proxy-ports behouden XML-handtekeningvalidatie op onderhouden zbus-wire-API's. Protocolregressietests en geïsoleerde busregistratie slagen; volledige verificatie met schermlezers/platforms staat nog open."
+
+msgid "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration."
+msgstr "Toegankelijkheidsboom en Linux-platformintegratie. Lokale Unix-/AT-SPI-compatibiliteitsports behouden ondersteuning voor hulptechnologie tijdens de migratie naar de onderhouden bus."
+
+msgid "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs."
+msgstr "Valideert toegankelijkheidswire-handtekeningen aan de hand van hun XML-definities. Lokale bibliotheek- en macro-ports behouden deze controles met de onderhouden zbus- en introspectie-XML-API's."
+
+msgid "Wayland window decorations. The local 0.10.1 compatibility patch backports the maintained skrifa title renderer; upstream attribution and licenses are retained."
+msgstr "Wayland-vensterdecoraties. De lokale 0.10.1-compatibiliteitspatch backport de onderhouden skrifa-titelrenderer; upstream naamsvermelding en licenties blijven behouden."
+
+msgid "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain."
+msgstr "Verwerkt en tekent Wayland-titellettertypen in plaats van de niet-onderhouden ttf-parser-keten."
+
+msgid "Maintained token-pasting macros used by local compatibility patches in Freya and rav1e. Only dependency manifests change; upstream source and licenses are retained."
+msgstr "Onderhouden token-pasting-macro's die door lokale compatibiliteitspatches in Freya en rav1e worden gebruikt. Alleen afhankelijkheidsmanifesten veranderen; upstream broncode en licenties blijven behouden."
+
+msgid "AV1 encoding in the image dependency chain, with a local pastey dependency migration."
+msgstr "AV1-codering in de afhankelijkheidsketen voor afbeeldingen, met een lokale migratie van de pastey-afhankelijkheid."
+
+msgid "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed."
+msgstr "Bewaking van netwerkinterfaces. De lokale compatibiliteitspatch voor 0.19.3 brengt de onderhouden netlink-afhankelijkheden terug naar deze versie; overige beveiligingsmeldingen over afhankelijkheden worden niet onderdrukt."
+
+msgid "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS."
+msgstr "Downloadt de extensiecatalogus en goedgekeurde extensies, en uploadt bestanden, via HTTPS."
+
+msgid "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision."
+msgstr "Controleert HTTPS-certificaten aan de hand van de vertrouwde certificaten van het Android-platform. Het officiële Android-ondersteuningsartefact is vastgezet op de bijbehorende upstream-bronrevisie."
+
+msgid "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision."
+msgstr "De officiële Android-brug voor trust managers, behouden in releasepakketten en vastgezet op de bijbehorende upstream-bronrevisie."
+
+msgid "Combines asynchronous connection events without blocking transfers."
+msgstr "Combineert asynchrone verbindingsgebeurtenissen zonder overdrachten te blokkeren."
+
+msgid "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key."
+msgstr "Controleert de handtekening van de beheerder op de extensiecatalogus. Het kan alleen verifiëren: deze toepassing heeft geen ondertekeningssleutel."
+
+msgid "Reads who made an extension out of its program file, without running it."
+msgstr "Leest uit het programmabestand van een extensie wie die heeft gemaakt, zonder het uit te voeren."
+
+msgid "Reads the same facts out of a WebAssembly extension, without running it."
+msgstr "Leest dezelfde gegevens uit een WebAssembly-extensie, zonder die uit te voeren."
+
+msgid "Replays permitted pointer and keyboard input through the Windows platform backend."
+msgstr "Speelt toegestane aanwijzer- en toetsenbordinvoer opnieuw af via de Windows-platformbackend."
+
+msgid "Contains supervised extension processes in Windows job objects so their children stop with them."
+msgstr "Plaatst bewaakte extensieprocessen in Windows-taakobjecten, zodat hun onderliggende processen samen met hen stoppen."
+
+msgid "Reads this device's identity from the Linux system keyring for the session service, without ever asking to unlock it."
+msgstr "Leest de identiteit van dit apparaat uit de Linux-systeemsleutelbos voor de sessieservice, zonder ooit te vragen die te ontgrendelen."
+
+msgid "Registers the application's optional macOS login agent with Service Management."
+msgstr "Registreert de optionele macOS-aanmeldagent van de toepassing bij Service Management."
+
+msgid "Connects the optional per-user owner to the Windows service manager."
+msgstr "Verbindt de optionele eigenaar per gebruiker met Windows Servicebeheer."
+
+msgid "Windows service dispatcher already started"
+msgstr "Windows-servicedispatcher is al gestart"
+
+msgid "Windows must start the session service through its service manager"
+msgstr "Windows moet de sessieservice starten via Servicebeheer"
+
+msgid "Not a signed-in user's Windows service instance"
+msgstr "Geen Windows-service-instantie van een aangemelde gebruiker"
+
+msgid "The service is already running"
+msgstr "De service is al actief"
+
+msgid "Windows refused the service start"
+msgstr "Windows heeft het starten van de service geweigerd"
+
+msgid "The service has no owner"
+msgstr "De service heeft geen eigenaar"
+
+msgid "Install the desktop programs in the machine's Program Files/Peersus directory first."
+msgstr "Installeer eerst de desktopprogramma's in de map Program Files/Peersus van deze computer."
+
+msgid "Installing the Windows per-user service template requires administrator approval."
+msgstr "Voor het installeren van de Windows-servicesjabloon per gebruiker is toestemming van een beheerder nodig."
+
+msgid "Windows did not create the session service template. An existing registration was not replaced."
+msgstr "Windows heeft de sjabloon voor de sessieservice niet aangemaakt. Een bestaande registratie is niet vervangen."
+
+msgid "Destinations"
+msgstr "Bestemmingen"
+
+msgid "Search"
+msgstr "Zoeken"
+
+msgid "Graphics renderer"
+msgstr "Grafische renderer"
+
+msgid "Compare renderers"
+msgstr "Renderers vergelijken"
+
+msgid "Software"
+msgstr "Software"
+
+msgid "Frame time, CPU and memory"
+msgstr "Frametijd, CPU en geheugen"
+
+msgid "This window does not report a native renderer."
+msgstr "Dit venster meldt geen native renderer."
+
+msgid "In use now: {renderer}"
+msgstr "Nu in gebruik: {renderer}"
+
+msgid "Saved preference: {renderer}"
+msgstr "Opgeslagen voorkeur: {renderer}"
+
+msgid "A launch override requested {renderer}."
+msgstr "Een opstartoverschrijving heeft {renderer} aangevraagd."
+
+msgid "{renderer} is not included in this build."
+msgstr "{renderer} zit niet in deze build."
+
+msgid "{renderer} could not start on this display."
+msgstr "{renderer} kon niet starten op dit beeldscherm."
+
+msgid "Automatic selection skipped the basic {renderer} software adapter."
+msgstr "Automatische selectie heeft de eenvoudige {renderer}-softwareadapter overgeslagen."
+
+msgid "{renderer} stopped working while this window was open."
+msgstr "{renderer} werkte niet meer terwijl dit venster open was."
+
+msgid "The renderer preference could not be saved. Try again."
+msgstr "De renderervoorkeur kon niet worden opgeslagen. Probeer het opnieuw."
+
+msgid "Restart Peersus to apply renderer changes."
+msgstr "Start Peersus opnieuw om rendererwijzigingen toe te passen."
+
+msgid "Renderer changes apply the next time you open a window."
+msgstr "Rendererwijzigingen worden toegepast wanneer je de volgende keer een venster opent."
+
+msgid "Automatic tries these renderers in order: {renderers}"
+msgstr "Automatisch probeert deze renderers in volgorde: {renderers}"
+
+msgid "Not included in this build: {renderers}"
+msgstr "Niet opgenomen in deze build: {renderers}"
+
+msgid "Renderer comparison is available on desktop only."
+msgstr "Renderervergelijking is alleen beschikbaar op desktop."
+
+msgid "Renderer comparison"
+msgstr "Renderervergelijking"
+
+msgid "Synthetic failure for the demo"
+msgstr "Gesimuleerde fout voor de demo"
+
+msgid "Run a short test in temporary windows. Results stay on this device. Leaving this page stops the test."
+msgstr "Voer een korte test uit in tijdelijke vensters. De resultaten blijven op dit apparaat. Als je deze pagina verlaat, stopt de test."
+
+msgid "Testing {renderer}…"
+msgstr "{renderer} testen…"
+
+msgid "Stopping renderer comparison…"
+msgstr "Renderervergelijking stoppen…"
+
+msgid "Renderer comparison cancelled."
+msgstr "Renderervergelijking geannuleerd."
+
+msgid "Renderer comparison could not finish. Try again."
+msgstr "Renderervergelijking kon niet worden voltooid. Probeer het opnieuw."
+
+msgid "Could not start on this display"
+msgstr "Kon niet starten op dit scherm"
+
+msgid "Timed out"
+msgstr "Time-out"
+
+msgid "Test did not finish"
+msgstr "Test is niet voltooid"
+
+msgid "CPU or memory counters unavailable"
+msgstr "CPU- of geheugentellers niet beschikbaar"
+
+msgid "Renderer"
+msgstr "Renderer"
+
+msgid "p50 (ms)"
+msgstr "p50 (ms)"
+
+msgid "p95 (ms)"
+msgstr "p95 (ms)"
+
+msgid "Main CPU (%)"
+msgstr "Hoofd-CPU (%)"
+
+msgid "RAM (MiB)"
+msgstr "RAM (MiB)"
+
+msgid "{renderer} (baseline)"
+msgstr "{renderer} (referentie)"
+
+msgid "No recommendation: the current renderer could not be measured. Try again."
+msgstr "Geen aanbeveling: de huidige renderer kon niet worden gemeten. Probeer het opnieuw."
+
+msgid "No recommendation: only the current renderer could be measured."
+msgstr "Geen aanbeveling: alleen de huidige renderer kon worden gemeten."
+
+msgid "Keep the current renderer. No alternative showed a clear gain without a trade-off."
+msgstr "Behoud de huidige renderer. Geen enkel alternatief liet een duidelijke verbetering zien zonder nadeel."
+
+msgid "Try {renderer}: its slow frames were shorter in this test."
+msgstr "Probeer {renderer}: de trage frames waren korter in deze test."
+
+msgid "Try {renderer}: it used less main-thread CPU in this test."
+msgstr "Probeer {renderer}: deze gebruikte minder CPU op de hoofdthread in deze test."
+
+msgid "Try {renderer}: it used less memory in this test."
+msgstr "Probeer {renderer}: deze gebruikte minder geheugen in deze test."
+
+msgid "p50 is the typical frame time; p95 shows the slower frames. CPU is a percentage of one core."
+msgstr "p50 is de gebruikelijke frametijd; p95 toont de tragere frames. CPU is een percentage van één kern."
+
+msgid "The active renderer changed. Rerun the test for a current baseline."
+msgstr "De actieve renderer is gewijzigd. Voer de test opnieuw uit voor een actuele referentie."
+
+msgid "Test frame did not match the scene"
+msgstr "Testframe kwam niet overeen met de scène"

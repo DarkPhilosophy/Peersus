@@ -1,60 +1,60 @@
 {
   "languages": [
     {
-      "bytes": 113324,
+      "bytes": 137075,
       "language": "cs",
       "machine": true,
       "name": "Čeština",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 117864,
+      "bytes": 142406,
       "language": "de",
       "machine": true,
       "name": "Deutsch",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 115586,
+      "bytes": 140104,
       "language": "es",
       "machine": true,
       "name": "Español",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 119436,
+      "bytes": 144644,
       "language": "fr",
       "machine": true,
       "name": "Français",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 116270,
+      "bytes": 140655,
       "language": "it",
       "machine": true,
       "name": "Italiano",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 114946,
+      "bytes": 138699,
       "language": "nl",
       "machine": true,
       "name": "Nederlands",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 115489,
+      "bytes": 139459,
       "language": "pl",
       "machine": true,
       "name": "Polski",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 116353,
+      "bytes": 140790,
       "language": "pt",
       "machine": true,
       "name": "Português",
-      "translated": 1108
+      "translated": 1249
     },
     {
       "bytes": 112474,
@@ -64,27 +64,27 @@
       "translated": 1081
     },
     {
-      "bytes": 112629,
+      "bytes": 136112,
       "language": "sv",
       "machine": true,
       "name": "Svenska",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 111843,
+      "bytes": 135511,
       "language": "tr",
       "machine": true,
       "name": "Türkçe",
-      "translated": 1108
+      "translated": 1249
     },
     {
-      "bytes": 103331,
+      "bytes": 124838,
       "language": "zh",
       "machine": true,
       "name": "中文",
-      "translated": 1108
+      "translated": 1249
     }
   ],
-  "messages": 1108,
+  "messages": 1249,
   "release": "0.1.0"
 }

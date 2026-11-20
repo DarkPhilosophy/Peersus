@@ -3340,3 +3340,426 @@ msgstr "无状态"
 
 msgid "STATUS NOT ALLOWED"
 msgstr "状态不允许"
+
+msgid "Know where this device is now, as its system finds it. To find it the system may ask an online service of its own with the wireless networks it sees nearby; the extension receives only the position."
+msgstr "获知此设备当前的位置（由其系统确定）。为确定位置，系统可能会将附近检测到的无线网络发送给其自有的在线服务；扩展仅接收位置信息。"
+
+msgid "Where this device is now, as its system finds it, behind its own permission."
+msgstr "此设备当前的位置（由其系统确定），需单独授权。"
+
+msgid "Finishing…"
+msgstr "正在完成…"
+
+msgid "PRIVACY"
+msgstr "隐私"
+
+msgid "Private mode"
+msgstr "隐私模式"
+
+msgid "Off: your paired devices see this device online, with its name, picture and statuses. On: this device stays connected and sees them, but tells them nothing about itself, so they show it as offline, and extensions send nothing on their own. Sending a file to a device, or choosing a device in an extension, shows this device to that one device until a short while after you are done."
+msgstr "关闭：你已配对的设备可看到此设备在线，以及其名称、头像和状态。开启：此设备保持连接并能看到它们，但不向它们透露自身的任何信息，因此它们会将其显示为离线，扩展也不会自行发送任何内容。向某设备发送文件，或在扩展中选择某设备时，此设备会对该设备可见，直到你完成操作后的一小段时间。"
+
+msgid "Private mode is on: nothing is sent to that device until you start something for it"
+msgstr "隐私模式已开启：在你为该设备发起操作之前，不会向其发送任何内容"
+
+msgid "Updating keeps what you allowed that the new version still asks for. Anything new it asks for stays off until you allow it."
+msgstr "更新时会保留你已允许且新版本仍需要的权限。新版本请求的任何新权限在你允许之前保持关闭。"
+
+msgid "Its manifest must explicitly declare `execution`"
+msgstr "其清单必须明确声明 `execution`"
+
+msgid "Turn on to allow downloads from {address}. The server sees the requested resources and this device’s network address. No files, saved credentials or cookies are sent."
+msgstr "开启以允许从 {address} 下载。服务器可看到所请求的资源以及此设备的网络地址。不会发送任何文件、已保存的凭据或 Cookie。"
+
+msgid "This setting changed. Review it in Settings before trying again."
+msgstr "此设置已更改。请先在设置中查看，然后再重试。"
+
+msgid "This setting is not available on this platform"
+msgstr "此设置在此平台上不可用"
+
+msgid "Accept the extension agreement before enabling this setting"
+msgstr "请先接受扩展协议，再启用此设置"
+
+msgid "This extension does not import Public HTTPS"
+msgstr "此扩展未导入公共 HTTPS"
+
+msgid "Public HTTPS is unavailable"
+msgstr "公共 HTTPS 不可用"
+
+msgid "Unknown public resource setting"
+msgstr "未知的公共资源设置"
+
+msgid "Change this public resource in the extension's Settings"
+msgstr "请在扩展的设置中更改此公共资源"
+
+msgid "Enable this public resource in the extension's settings"
+msgstr "请在扩展的设置中启用此公共资源"
+
+msgid "Download bounded public data, without cookies or credentials, from an HTTPS address you approve."
+msgstr "从你批准的 HTTPS 地址下载有限的公共数据，不含 Cookie 或凭据。"
+
+msgid "This extension draws too much and was paused to keep Peersus responsive."
+msgstr "此扩展绘制过多，已被暂停以保持 Peersus 响应流畅。"
+
+msgid "Resume"
+msgstr "恢复"
+
+msgid "This window cannot manage any more extension drawings."
+msgstr "此窗口无法再管理更多扩展绘制。"
+
+msgid "Enable the extension before restarting it"
+msgstr "请先启用扩展，再重启它"
+
+msgid "Start when you sign in"
+msgstr "登录时启动"
+
+msgid "Off: Peersus starts when you open it. This is separate from Run in the background."
+msgstr "关闭：Peersus 在你打开时启动。此项与“在后台运行”相互独立。"
+
+msgid "On: Peersus starts with your session and keeps running without a window, so your devices can reach it. This is separate from Run in the background."
+msgstr "开启：Peersus 随你的会话启动，并在无窗口状态下持续运行，以便你的设备能连接到它。此项与“在后台运行”相互独立。"
+
+msgid "Checking whether the system starts Peersus with your session."
+msgstr "正在检查系统是否随你的会话启动 Peersus。"
+
+msgid "The system will start it with your session, and it is running now."
+msgstr "系统将随你的会话启动它，且它当前正在运行。"
+
+msgid "The system will start it with your session; it is not running now."
+msgstr "系统将随你的会话启动它；它当前未在运行。"
+
+msgid "The system will not start it with your session; it is running now until you sign out."
+msgstr "系统不会随你的会话启动它；它当前正在运行，直到你退出登录。"
+
+msgid "The system will not start it with your session, and it is not running now."
+msgstr "系统不会随你的会话启动它，且它当前未在运行。"
+
+msgid "Your session runs before you sign in (lingering). The keyring is locked until you sign in, so Peersus waits and does not connect before then."
+msgstr "你的会话在你登录前就已运行（lingering）。密钥环在你登录前处于锁定状态，因此 Peersus 会等待，在此之前不会连接。"
+
+msgid "Your session starts when you sign in, so this starts then, not when the computer starts. Peersus does not turn lingering on."
+msgstr "你的会话在你登录时启动，因此此项会在那时启动，而非在计算机启动时。Peersus 不会开启 lingering。"
+
+msgid "Whether your session runs before you sign in could not be read."
+msgstr "无法读取你的会话是否在登录前运行。"
+
+msgid "The system's user service manager could not be asked."
+msgstr "无法查询系统的用户服务管理器。"
+
+msgid "The system's user service manager is not available, so Peersus cannot be started with your session."
+msgstr "系统的用户服务管理器不可用，因此无法随你的会话启动 Peersus。"
+
+msgid "The system refused to turn the service on."
+msgstr "系统拒绝开启该服务。"
+
+msgid "The system refused to turn the service off."
+msgstr "系统拒绝关闭该服务。"
+
+msgid "The program to start cannot be used in a service file."
+msgstr "要启动的程序无法在服务文件中使用。"
+
+msgid "The program to start was not found next to this window."
+msgstr "未在此窗口所在位置找到要启动的程序。"
+
+msgid "The service file could not be written."
+msgstr "无法写入服务文件。"
+
+msgid "This account has no configuration directory, so Peersus cannot be started with your session."
+msgstr "此账户没有配置目录，因此 Peersus 无法随你的会话启动。"
+
+msgid "Cannot acquire the application's private directory"
+msgstr "无法获取应用的私有目录"
+
+msgid "The system keyring is locked; Peersus is waiting for it to be unlocked and has not changed the identity"
+msgstr "系统密钥环已锁定；Peersus 正在等待其解锁，尚未更改身份"
+
+msgid "The system keyring is not available; Peersus is waiting for it and has not changed the identity"
+msgstr "系统密钥环不可用；Peersus 正在等待其可用，尚未更改身份"
+
+msgid "Approval is required in System Settings → General → Login Items. No connection has been confirmed."
+msgstr "需要在“系统设置 → 通用 → 登录项”中批准。尚未确认任何连接。"
+
+msgid "This user service runs only in your signed-in macOS session. It does not control the login screen."
+msgstr "此用户服务仅在你已登录的 macOS 会话中运行，不控制登录界面。"
+
+msgid "Starting with your session requires macOS 13 or later."
+msgstr "随会话启动需要 macOS 13 或更高版本。"
+
+msgid "Open the installed application bundle to manage startup."
+msgstr "请打开已安装的应用包来管理启动设置。"
+
+msgid "macOS could not find the bundled user service."
+msgstr "macOS 找不到内置的用户服务。"
+
+msgid "macOS did not approve the user service."
+msgstr "macOS 未批准该用户服务。"
+
+msgid "macOS rejected the application's signature."
+msgstr "macOS 拒绝了应用的签名。"
+
+msgid "macOS could not register the user service."
+msgstr "macOS 无法注册该用户服务。"
+
+msgid "macOS could not unregister the user service."
+msgstr "macOS 无法注销该用户服务。"
+
+msgid "A user service cannot run as root"
+msgstr "用户服务不能以 root 身份运行"
+
+msgid "Cannot prevent keychain prompts; the service did not start"
+msgstr "无法阻止钥匙串提示；服务未启动"
+
+msgid "The service cannot read the existing identity; open the app in your session"
+msgstr "服务无法读取现有身份；请在你的会话中打开应用"
+
+msgid "Windows applies this account's choice at the next sign-in. No service instance runs for a signed-out account."
+msgstr "Windows 会在下次登录时应用此账户的选择。已注销的账户不会运行服务实例。"
+
+msgid "The Windows per-user service template is missing or disabled. An administrator must install it before an account can opt in."
+msgstr "Windows 按用户服务模板缺失或已禁用。需由管理员安装后，账户才能选择启用。"
+
+msgid "Windows could not read or save this account's service choice."
+msgstr "Windows 无法读取或保存此账户的服务选择。"
+
+msgid "The Windows service manager could not be reached."
+msgstr "无法连接 Windows 服务管理器。"
+
+msgid "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained."
+msgstr "此应用的窗口、布局和组件。本地 core/component 清单补丁将不再维护的 paste 宏替换为 pastey；保留上游 MIT 署名。"
+
+msgid "The clipboard interface the text fields copy and paste through. On Android the application supplies its own provider over the system clipboard, because this library's own does nothing there."
+msgstr "文本框用于复制和粘贴的剪贴板接口。在 Android 上，应用基于系统剪贴板提供自己的实现，因为该库自带的实现在那里不起作用。"
+
+msgid "Enumerates actual Windows monitors for paired desktop layouts and pointer pass-through."
+msgstr "枚举实际的 Windows 显示器，用于配对桌面布局和指针穿透。"
+
+msgid "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation."
+msgstr "Linux 桌面总线通信。直接的睡眠与主题监视器正在迁移到 zbus 6；遗留的传递性序列化依赖仍在修复中。"
+
+msgid "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending."
+msgstr "桌面外观与无障碍偏好设置。本地 Linux portal 补丁迁移到 zbus 6，且不禁用偏好设置支持；平台验证尚待完成。"
+
+msgid "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending."
+msgstr "Linux 辅助技术协议。本地 common/proxy 移植在维护中的 zbus 传输 API 上保留 XML 签名验证。协议回归测试和隔离总线注册均已通过；完整的屏幕阅读器/平台验证尚待完成。"
+
+msgid "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration."
+msgstr "无障碍树与 Linux 平台集成。本地 Unix/AT-SPI 兼容移植在迁移到维护中的总线期间保留辅助技术支持。"
+
+msgid "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs."
+msgstr "根据 XML 定义验证无障碍传输签名。本地库和宏移植通过维护中的 zbus 及内省 XML API 保留这些检查。"
+
+msgid "Wayland window decorations. The local 0.10.1 compatibility patch backports the maintained skrifa title renderer; upstream attribution and licenses are retained."
+msgstr "Wayland 窗口装饰。本地 0.10.1 兼容补丁向后移植了维护中的 skrifa 标题渲染器；保留上游署名和许可证。"
+
+msgid "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain."
+msgstr "解析并绘制 Wayland 标题字体，取代不再维护的 ttf-parser 依赖链。"
+
+msgid "Maintained token-pasting macros used by local compatibility patches in Freya and rav1e. Only dependency manifests change; upstream source and licenses are retained."
+msgstr "维护中的令牌拼接宏，供 Freya 和 rav1e 的本地兼容补丁使用。仅更改依赖清单；保留上游源代码和许可证。"
+
+msgid "AV1 encoding in the image dependency chain, with a local pastey dependency migration."
+msgstr "图像依赖链中的 AV1 编码，含本地 pastey 依赖迁移。"
+
+msgid "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed."
+msgstr "网络接口监控。本地 0.19.3 兼容性补丁向后移植了仍在维护的 netlink 依赖集；其余依赖安全公告未被屏蔽。"
+
+msgid "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS."
+msgstr "通过 HTTPS 下载扩展目录和已批准的扩展，并上传文件。"
+
+msgid "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision."
+msgstr "根据 Android 平台信任库检查 HTTPS 证书。官方 Android 支持构件已固定到其上游源码修订版本。"
+
+msgid "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision."
+msgstr "官方 Android 信任管理器桥接组件，保留在发布包中，并固定到其上游源码修订版本。"
+
+msgid "Combines asynchronous connection events without blocking transfers."
+msgstr "合并异步连接事件，不阻塞传输。"
+
+msgid "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key."
+msgstr "检查扩展目录上的维护者签名。它只能验证：此应用不持有签名密钥。"
+
+msgid "Reads who made an extension out of its program file, without running it."
+msgstr "从扩展的程序文件中读取其作者信息，无需运行它。"
+
+msgid "Reads the same facts out of a WebAssembly extension, without running it."
+msgstr "从 WebAssembly 扩展中读取相同信息，无需运行它。"
+
+msgid "Replays permitted pointer and keyboard input through the Windows platform backend."
+msgstr "通过 Windows 平台后端重放已允许的指针和键盘输入。"
+
+msgid "Contains supervised extension processes in Windows job objects so their children stop with them."
+msgstr "将受监管的扩展进程放入 Windows 作业对象中，使其子进程随之停止。"
+
+msgid "Reads this device's identity from the Linux system keyring for the session service, without ever asking to unlock it."
+msgstr "为会话服务从 Linux 系统密钥环读取此设备的身份，绝不要求解锁密钥环。"
+
+msgid "Registers the application's optional macOS login agent with Service Management."
+msgstr "通过 Service Management 注册应用的可选 macOS 登录代理。"
+
+msgid "Connects the optional per-user owner to the Windows service manager."
+msgstr "将可选的按用户所有者连接到 Windows 服务管理器。"
+
+msgid "Windows service dispatcher already started"
+msgstr "Windows 服务调度程序已启动"
+
+msgid "Windows must start the session service through its service manager"
+msgstr "Windows 必须通过其服务管理器启动会话服务"
+
+msgid "Not a signed-in user's Windows service instance"
+msgstr "不是已登录用户的 Windows 服务实例"
+
+msgid "The service is already running"
+msgstr "服务已在运行"
+
+msgid "Windows refused the service start"
+msgstr "Windows 拒绝启动服务"
+
+msgid "The service has no owner"
+msgstr "服务没有所有者"
+
+msgid "Install the desktop programs in the machine's Program Files/Peersus directory first."
+msgstr "请先将桌面程序安装到本机的 Program Files/Peersus 目录中。"
+
+msgid "Installing the Windows per-user service template requires administrator approval."
+msgstr "安装 Windows 按用户服务模板需要管理员批准。"
+
+msgid "Windows did not create the session service template. An existing registration was not replaced."
+msgstr "Windows 未创建会话服务模板。现有注册未被替换。"
+
+msgid "Destinations"
+msgstr "目标"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Graphics renderer"
+msgstr "图形渲染器"
+
+msgid "Compare renderers"
+msgstr "比较渲染器"
+
+msgid "Software"
+msgstr "软件"
+
+msgid "Frame time, CPU and memory"
+msgstr "帧时间、CPU 和内存"
+
+msgid "This window does not report a native renderer."
+msgstr "此窗口未报告原生渲染器。"
+
+msgid "In use now: {renderer}"
+msgstr "当前使用：{renderer}"
+
+msgid "Saved preference: {renderer}"
+msgstr "已保存的偏好：{renderer}"
+
+msgid "A launch override requested {renderer}."
+msgstr "启动覆盖设置请求了 {renderer}。"
+
+msgid "{renderer} is not included in this build."
+msgstr "此版本未包含 {renderer}。"
+
+msgid "{renderer} could not start on this display."
+msgstr "{renderer} 无法在此显示器上启动。"
+
+msgid "Automatic selection skipped the basic {renderer} software adapter."
+msgstr "自动选择已跳过基本 {renderer} 软件适配器。"
+
+msgid "{renderer} stopped working while this window was open."
+msgstr "此窗口打开期间，{renderer} 停止工作。"
+
+msgid "The renderer preference could not be saved. Try again."
+msgstr "无法保存渲染器偏好设置。请重试。"
+
+msgid "Restart Peersus to apply renderer changes."
+msgstr "重启 Peersus 以应用渲染器更改。"
+
+msgid "Renderer changes apply the next time you open a window."
+msgstr "渲染器更改将在你下次打开窗口时生效。"
+
+msgid "Automatic tries these renderers in order: {renderers}"
+msgstr "自动模式按以下顺序尝试渲染器：{renderers}"
+
+msgid "Not included in this build: {renderers}"
+msgstr "此版本未包含：{renderers}"
+
+msgid "Renderer comparison is available on desktop only."
+msgstr "渲染器对比仅在桌面端可用。"
+
+msgid "Renderer comparison"
+msgstr "渲染器对比"
+
+msgid "Synthetic failure for the demo"
+msgstr "用于演示的模拟故障"
+
+msgid "Run a short test in temporary windows. Results stay on this device. Leaving this page stops the test."
+msgstr "在临时窗口中运行简短测试。结果仅保存在此设备上。离开此页面将停止测试。"
+
+msgid "Testing {renderer}…"
+msgstr "正在测试 {renderer}…"
+
+msgid "Stopping renderer comparison…"
+msgstr "正在停止渲染器对比…"
+
+msgid "Renderer comparison cancelled."
+msgstr "渲染器对比已取消。"
+
+msgid "Renderer comparison could not finish. Try again."
+msgstr "渲染器对比未能完成。请重试。"
+
+msgid "Could not start on this display"
+msgstr "无法在此显示器上启动"
+
+msgid "Timed out"
+msgstr "已超时"
+
+msgid "Test did not finish"
+msgstr "测试未完成"
+
+msgid "CPU or memory counters unavailable"
+msgstr "CPU 或内存计数器不可用"
+
+msgid "Renderer"
+msgstr "渲染器"
+
+msgid "p50 (ms)"
+msgstr "p50（毫秒）"
+
+msgid "p95 (ms)"
+msgstr "p95（毫秒）"
+
+msgid "Main CPU (%)"
+msgstr "主线程 CPU（%）"
+
+msgid "RAM (MiB)"
+msgstr "RAM（MiB）"
+
+msgid "{renderer} (baseline)"
+msgstr "{renderer}（基准）"
+
+msgid "No recommendation: the current renderer could not be measured. Try again."
+msgstr "无建议：无法测量当前渲染器。请重试。"
+
+msgid "No recommendation: only the current renderer could be measured."
+msgstr "无建议：只能测量当前渲染器。"
+
+msgid "Keep the current renderer. No alternative showed a clear gain without a trade-off."
+msgstr "保留当前渲染器。没有其他渲染器在无代价的情况下表现出明显优势。"
+
+msgid "Try {renderer}: its slow frames were shorter in this test."
+msgstr "试试 {renderer}：在此测试中它的慢帧更短。"
+
+msgid "Try {renderer}: it used less main-thread CPU in this test."
+msgstr "试试 {renderer}：在此测试中它占用的主线程 CPU 更少。"
+
+msgid "Try {renderer}: it used less memory in this test."
+msgstr "试试 {renderer}：在此测试中它占用的内存更少。"
+
+msgid "p50 is the typical frame time; p95 shows the slower frames. CPU is a percentage of one core."
+msgstr "p50 为典型帧时间；p95 反映较慢的帧。CPU 为单个核心的百分比。"
+
+msgid "The active renderer changed. Rerun the test for a current baseline."
+msgstr "当前使用的渲染器已更改。请重新运行测试以获取最新基准。"
+
+msgid "Test frame did not match the scene"
+msgstr "测试帧与场景不匹配"

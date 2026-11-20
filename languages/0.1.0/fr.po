@@ -3351,3 +3351,426 @@ msgstr "AUCUN STATUT"
 
 msgid "STATUS NOT ALLOWED"
 msgstr "STATUT NON AUTORISÉ"
+
+msgid "Know where this device is now, as its system finds it. To find it the system may ask an online service of its own with the wireless networks it sees nearby; the extension receives only the position."
+msgstr "Connaît la position actuelle de cet appareil, telle que son système la détermine. Pour la trouver, le système peut interroger son propre service en ligne avec les réseaux sans fil qu’il voit à proximité ; l’extension ne reçoit que la position."
+
+msgid "Where this device is now, as its system finds it, behind its own permission."
+msgstr "Position actuelle de cet appareil, telle que son système la détermine, sous sa propre autorisation."
+
+msgid "Finishing…"
+msgstr "Finalisation…"
+
+msgid "PRIVACY"
+msgstr "CONFIDENTIALITÉ"
+
+msgid "Private mode"
+msgstr "Mode privé"
+
+msgid "Off: your paired devices see this device online, with its name, picture and statuses. On: this device stays connected and sees them, but tells them nothing about itself, so they show it as offline, and extensions send nothing on their own. Sending a file to a device, or choosing a device in an extension, shows this device to that one device until a short while after you are done."
+msgstr "Désactivé : vos appareils associés voient cet appareil en ligne, avec son nom, sa photo et ses statuts. Activé : cet appareil reste connecté et les voit, mais ne leur dit rien sur lui-même, ils l’affichent donc hors ligne, et les extensions n’envoient rien d’elles-mêmes. Envoyer un fichier à un appareil, ou choisir un appareil dans une extension, montre cet appareil à cet appareil uniquement, jusqu’à peu de temps après que vous avez terminé."
+
+msgid "Private mode is on: nothing is sent to that device until you start something for it"
+msgstr "Le mode privé est activé : rien n’est envoyé à cet appareil tant que vous ne lancez pas quelque chose pour lui"
+
+msgid "Updating keeps what you allowed that the new version still asks for. Anything new it asks for stays off until you allow it."
+msgstr "La mise à jour conserve ce que vous avez autorisé et que la nouvelle version demande encore. Toute nouvelle demande reste désactivée jusqu’à ce que vous l’autorisiez."
+
+msgid "Its manifest must explicitly declare `execution`"
+msgstr "Son manifeste doit déclarer explicitement `execution`"
+
+msgid "Turn on to allow downloads from {address}. The server sees the requested resources and this device’s network address. No files, saved credentials or cookies are sent."
+msgstr "Activez pour autoriser les téléchargements depuis {address}. Le serveur voit les ressources demandées et l’adresse réseau de cet appareil. Aucun fichier, identifiant enregistré ou cookie n’est envoyé."
+
+msgid "This setting changed. Review it in Settings before trying again."
+msgstr "Ce paramètre a changé. Vérifiez-le dans les Paramètres avant de réessayer."
+
+msgid "This setting is not available on this platform"
+msgstr "Ce paramètre n’est pas disponible sur cette plateforme"
+
+msgid "Accept the extension agreement before enabling this setting"
+msgstr "Acceptez le contrat des extensions avant d’activer ce paramètre"
+
+msgid "This extension does not import Public HTTPS"
+msgstr "Cette extension n’importe pas HTTPS public"
+
+msgid "Public HTTPS is unavailable"
+msgstr "HTTPS public n’est pas disponible"
+
+msgid "Unknown public resource setting"
+msgstr "Paramètre de ressource publique inconnu"
+
+msgid "Change this public resource in the extension's Settings"
+msgstr "Modifiez cette ressource publique dans les Paramètres de l’extension"
+
+msgid "Enable this public resource in the extension's settings"
+msgstr "Activez cette ressource publique dans les paramètres de l’extension"
+
+msgid "Download bounded public data, without cookies or credentials, from an HTTPS address you approve."
+msgstr "Télécharge des données publiques limitées, sans cookies ni identifiants, depuis une adresse HTTPS que vous approuvez."
+
+msgid "This extension draws too much and was paused to keep Peersus responsive."
+msgstr "Cette extension dessine trop et a été mise en pause pour que Peersus reste réactif."
+
+msgid "Resume"
+msgstr "Reprendre"
+
+msgid "This window cannot manage any more extension drawings."
+msgstr "Cette fenêtre ne peut plus gérer d’autres dessins d’extension."
+
+msgid "Enable the extension before restarting it"
+msgstr "Activez l’extension avant de la redémarrer"
+
+msgid "Start when you sign in"
+msgstr "Démarrer à l’ouverture de session"
+
+msgid "Off: Peersus starts when you open it. This is separate from Run in the background."
+msgstr "Désactivé : Peersus démarre quand vous l’ouvrez. Ce réglage est distinct d’Exécuter en arrière-plan."
+
+msgid "On: Peersus starts with your session and keeps running without a window, so your devices can reach it. This is separate from Run in the background."
+msgstr "Activé : Peersus démarre avec votre session et continue de fonctionner sans fenêtre, pour que vos appareils puissent le joindre. Ce réglage est distinct d’Exécuter en arrière-plan."
+
+msgid "Checking whether the system starts Peersus with your session."
+msgstr "Vérification que le système démarre Peersus avec votre session."
+
+msgid "The system will start it with your session, and it is running now."
+msgstr "Le système le démarrera avec votre session, et il est en cours d’exécution."
+
+msgid "The system will start it with your session; it is not running now."
+msgstr "Le système le démarrera avec votre session ; il n’est pas en cours d’exécution."
+
+msgid "The system will not start it with your session; it is running now until you sign out."
+msgstr "Le système ne le démarrera pas avec votre session ; il est en cours d’exécution jusqu’à votre déconnexion."
+
+msgid "The system will not start it with your session, and it is not running now."
+msgstr "Le système ne le démarrera pas avec votre session, et il n’est pas en cours d’exécution."
+
+msgid "Your session runs before you sign in (lingering). The keyring is locked until you sign in, so Peersus waits and does not connect before then."
+msgstr "Votre session s’exécute avant que vous ne vous connectiez (lingering). Le trousseau est verrouillé jusqu’à votre connexion, donc Peersus attend et ne se connecte pas avant."
+
+msgid "Your session starts when you sign in, so this starts then, not when the computer starts. Peersus does not turn lingering on."
+msgstr "Votre session démarre quand vous vous connectez, donc ceci démarre à ce moment-là, pas au démarrage de l’ordinateur. Peersus n’active pas le lingering."
+
+msgid "Whether your session runs before you sign in could not be read."
+msgstr "Impossible de savoir si votre session s’exécute avant votre connexion."
+
+msgid "The system's user service manager could not be asked."
+msgstr "Impossible d’interroger le gestionnaire de services utilisateur du système."
+
+msgid "The system's user service manager is not available, so Peersus cannot be started with your session."
+msgstr "Le gestionnaire de services utilisateur du système n’est pas disponible, Peersus ne peut donc pas démarrer avec votre session."
+
+msgid "The system refused to turn the service on."
+msgstr "Le système a refusé d’activer le service."
+
+msgid "The system refused to turn the service off."
+msgstr "Le système a refusé de désactiver le service."
+
+msgid "The program to start cannot be used in a service file."
+msgstr "Le programme à lancer ne peut pas être utilisé dans un fichier de service."
+
+msgid "The program to start was not found next to this window."
+msgstr "Le programme à lancer est introuvable à côté de cette fenêtre."
+
+msgid "The service file could not be written."
+msgstr "Impossible d’écrire le fichier de service."
+
+msgid "This account has no configuration directory, so Peersus cannot be started with your session."
+msgstr "Ce compte n’a pas de répertoire de configuration ; Peersus ne peut donc pas démarrer avec votre session."
+
+msgid "Cannot acquire the application's private directory"
+msgstr "Impossible d’obtenir le répertoire privé de l’application"
+
+msgid "The system keyring is locked; Peersus is waiting for it to be unlocked and has not changed the identity"
+msgstr "Le trousseau du système est verrouillé ; Peersus attend son déverrouillage et n’a pas modifié l’identité"
+
+msgid "The system keyring is not available; Peersus is waiting for it and has not changed the identity"
+msgstr "Le trousseau du système n’est pas disponible ; Peersus l’attend et n’a pas modifié l’identité"
+
+msgid "Approval is required in System Settings → General → Login Items. No connection has been confirmed."
+msgstr "Une autorisation est requise dans Réglages Système → Général → Ouverture. Aucune connexion n’a été confirmée."
+
+msgid "This user service runs only in your signed-in macOS session. It does not control the login screen."
+msgstr "Ce service utilisateur s’exécute uniquement dans votre session macOS ouverte. Il ne contrôle pas l’écran de connexion."
+
+msgid "Starting with your session requires macOS 13 or later."
+msgstr "Le démarrage avec votre session nécessite macOS 13 ou version ultérieure."
+
+msgid "Open the installed application bundle to manage startup."
+msgstr "Ouvrez le paquet d’application installé pour gérer le démarrage."
+
+msgid "macOS could not find the bundled user service."
+msgstr "macOS n’a pas trouvé le service utilisateur intégré."
+
+msgid "macOS did not approve the user service."
+msgstr "macOS n’a pas autorisé le service utilisateur."
+
+msgid "macOS rejected the application's signature."
+msgstr "macOS a rejeté la signature de l’application."
+
+msgid "macOS could not register the user service."
+msgstr "macOS n’a pas pu enregistrer le service utilisateur."
+
+msgid "macOS could not unregister the user service."
+msgstr "macOS n’a pas pu désinscrire le service utilisateur."
+
+msgid "A user service cannot run as root"
+msgstr "Un service utilisateur ne peut pas s’exécuter en tant que root"
+
+msgid "Cannot prevent keychain prompts; the service did not start"
+msgstr "Impossible d’empêcher les demandes du trousseau ; le service n’a pas démarré"
+
+msgid "The service cannot read the existing identity; open the app in your session"
+msgstr "Le service ne peut pas lire l’identité existante ; ouvrez l’application dans votre session"
+
+msgid "Windows applies this account's choice at the next sign-in. No service instance runs for a signed-out account."
+msgstr "Windows applique le choix de ce compte à la prochaine connexion. Aucune instance du service ne s’exécute pour un compte déconnecté."
+
+msgid "The Windows per-user service template is missing or disabled. An administrator must install it before an account can opt in."
+msgstr "Le modèle de service par utilisateur de Windows est absent ou désactivé. Un administrateur doit l’installer avant qu’un compte puisse l’activer."
+
+msgid "Windows could not read or save this account's service choice."
+msgstr "Windows n’a pas pu lire ou enregistrer le choix de service de ce compte."
+
+msgid "The Windows service manager could not be reached."
+msgstr "Impossible de joindre le gestionnaire de services Windows."
+
+msgid "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained."
+msgstr "Les fenêtres, la mise en page et les composants de cette application. Des correctifs locaux des manifestes core/component remplacent la macro paste non maintenue par pastey ; l’attribution MIT d’origine est conservée."
+
+msgid "The clipboard interface the text fields copy and paste through. On Android the application supplies its own provider over the system clipboard, because this library's own does nothing there."
+msgstr "L’interface de presse-papiers par laquelle les champs de texte copient et collent. Sur Android, l’application fournit son propre fournisseur s’appuyant sur le presse-papiers du système, car celui de cette bibliothèque n’y fait rien."
+
+msgid "Enumerates actual Windows monitors for paired desktop layouts and pointer pass-through."
+msgstr "Énumère les écrans Windows réels pour les dispositions de bureau appairées et le passage du pointeur."
+
+msgid "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation."
+msgstr "Communication par bus du bureau Linux. Les observateurs directs de veille et de thème migrent vers zbus 6 ; d’anciennes dépendances transitives de sérialisation sont encore en cours de correction."
+
+msgid "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending."
+msgstr "Préférences d’apparence et d’accessibilité du bureau. Un correctif local du portail Linux migre vers zbus 6 sans désactiver la prise en charge des préférences ; la vérification sur la plateforme est en attente."
+
+msgid "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending."
+msgstr "Protocole des technologies d’assistance Linux. Des portages locaux de common/proxy conservent la validation des signatures XML sur les API de transmission zbus maintenues. Les tests de régression du protocole et l’enregistrement sur un bus isolé réussissent ; la vérification complète avec lecteur d’écran et sur la plateforme reste en attente."
+
+msgid "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration."
+msgstr "Arbre d’accessibilité et intégration à la plateforme Linux. Des portages locaux de compatibilité Unix/AT-SPI conservent la prise en charge des technologies d’assistance pendant la migration vers le bus maintenu."
+
+msgid "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs."
+msgstr "Valide les signatures de transmission d’accessibilité par rapport à leurs définitions XML. Des portages locaux de la bibliothèque et des macros conservent ces vérifications avec les API zbus et XML d’introspection maintenues."
+
+msgid "Wayland window decorations. The local 0.10.1 compatibility patch backports the maintained skrifa title renderer; upstream attribution and licenses are retained."
+msgstr "Décorations de fenêtre Wayland. Le correctif local de compatibilité 0.10.1 rétroporte le moteur de rendu de titre skrifa maintenu ; l’attribution et les licences d’origine sont conservées."
+
+msgid "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain."
+msgstr "Analyse et dessine les polices de titre Wayland à la place de la chaîne ttf-parser non maintenue."
+
+msgid "Maintained token-pasting macros used by local compatibility patches in Freya and rav1e. Only dependency manifests change; upstream source and licenses are retained."
+msgstr "Macros maintenues de collage de jetons utilisées par les correctifs locaux de compatibilité de Freya et rav1e. Seuls les manifestes de dépendances changent ; le code source et les licences d’origine sont conservés."
+
+msgid "AV1 encoding in the image dependency chain, with a local pastey dependency migration."
+msgstr "Encodage AV1 dans la chaîne de dépendances d’images, avec une migration locale de la dépendance pastey."
+
+msgid "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed."
+msgstr "Surveillance des interfaces réseau. Le correctif local de compatibilité 0.19.3 rétroporte l’ensemble maintenu de dépendances netlink ; les avis de sécurité restants sur les dépendances ne sont pas masqués."
+
+msgid "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS."
+msgstr "Télécharge le catalogue d’extensions et les extensions approuvées, et envoie des fichiers, via HTTPS."
+
+msgid "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision."
+msgstr "Vérifie les certificats HTTPS auprès du magasin de confiance de la plateforme Android. L’artefact officiel de prise en charge Android est épinglé à sa révision source en amont."
+
+msgid "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision."
+msgstr "Le pont officiel du gestionnaire de confiance Android, conservé dans les paquets de version et épinglé à sa révision source en amont."
+
+msgid "Combines asynchronous connection events without blocking transfers."
+msgstr "Combine les événements de connexion asynchrones sans bloquer les transferts."
+
+msgid "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key."
+msgstr "Vérifie la signature du mainteneur sur le catalogue d’extensions. Elle ne peut que vérifier : cette application ne détient aucune clé de signature."
+
+msgid "Reads who made an extension out of its program file, without running it."
+msgstr "Lit l’auteur d’une extension dans son fichier programme, sans l’exécuter."
+
+msgid "Reads the same facts out of a WebAssembly extension, without running it."
+msgstr "Lit les mêmes informations dans une extension WebAssembly, sans l’exécuter."
+
+msgid "Replays permitted pointer and keyboard input through the Windows platform backend."
+msgstr "Rejoue les saisies autorisées du pointeur et du clavier via le backend de la plateforme Windows."
+
+msgid "Contains supervised extension processes in Windows job objects so their children stop with them."
+msgstr "Place les processus d’extension supervisés dans des objets de tâche Windows afin que leurs processus enfants s’arrêtent avec eux."
+
+msgid "Reads this device's identity from the Linux system keyring for the session service, without ever asking to unlock it."
+msgstr "Lit l’identité de cet appareil dans le trousseau système Linux pour le service de session, sans jamais demander à le déverrouiller."
+
+msgid "Registers the application's optional macOS login agent with Service Management."
+msgstr "Enregistre l’agent de connexion macOS facultatif de l’application auprès de Service Management."
+
+msgid "Connects the optional per-user owner to the Windows service manager."
+msgstr "Connecte le propriétaire facultatif par utilisateur au gestionnaire de services Windows."
+
+msgid "Windows service dispatcher already started"
+msgstr "Répartiteur de services Windows déjà démarré"
+
+msgid "Windows must start the session service through its service manager"
+msgstr "Windows doit démarrer le service de session via son gestionnaire de services"
+
+msgid "Not a signed-in user's Windows service instance"
+msgstr "Pas une instance de service Windows d’un utilisateur connecté"
+
+msgid "The service is already running"
+msgstr "Le service est déjà en cours d’exécution"
+
+msgid "Windows refused the service start"
+msgstr "Windows a refusé le démarrage du service"
+
+msgid "The service has no owner"
+msgstr "Le service n’a pas de propriétaire"
+
+msgid "Install the desktop programs in the machine's Program Files/Peersus directory first."
+msgstr "Installez d’abord les programmes de bureau dans le répertoire Program Files/Peersus de la machine."
+
+msgid "Installing the Windows per-user service template requires administrator approval."
+msgstr "L’installation du modèle de service Windows par utilisateur nécessite l’approbation d’un administrateur."
+
+msgid "Windows did not create the session service template. An existing registration was not replaced."
+msgstr "Windows n’a pas créé le modèle du service de session. Un enregistrement existant n’a pas été remplacé."
+
+msgid "Destinations"
+msgstr "Destinations"
+
+msgid "Search"
+msgstr "Rechercher"
+
+msgid "Graphics renderer"
+msgstr "Moteur de rendu graphique"
+
+msgid "Compare renderers"
+msgstr "Comparer les moteurs de rendu"
+
+msgid "Software"
+msgstr "Logiciel"
+
+msgid "Frame time, CPU and memory"
+msgstr "Temps d’image, CPU et mémoire"
+
+msgid "This window does not report a native renderer."
+msgstr "Cette fenêtre ne signale aucun moteur de rendu natif."
+
+msgid "In use now: {renderer}"
+msgstr "Utilisé actuellement : {renderer}"
+
+msgid "Saved preference: {renderer}"
+msgstr "Préférence enregistrée : {renderer}"
+
+msgid "A launch override requested {renderer}."
+msgstr "Un remplacement au lancement a demandé {renderer}."
+
+msgid "{renderer} is not included in this build."
+msgstr "{renderer} n’est pas inclus dans cette version."
+
+msgid "{renderer} could not start on this display."
+msgstr "{renderer} n’a pas pu démarrer sur cet écran."
+
+msgid "Automatic selection skipped the basic {renderer} software adapter."
+msgstr "La sélection automatique a ignoré l’adaptateur logiciel de base {renderer}."
+
+msgid "{renderer} stopped working while this window was open."
+msgstr "{renderer} a cessé de fonctionner pendant que cette fenêtre était ouverte."
+
+msgid "The renderer preference could not be saved. Try again."
+msgstr "Impossible d’enregistrer la préférence de moteur de rendu. Réessayez."
+
+msgid "Restart Peersus to apply renderer changes."
+msgstr "Redémarrez Peersus pour appliquer les changements de moteur de rendu."
+
+msgid "Renderer changes apply the next time you open a window."
+msgstr "Les changements de moteur de rendu s’appliqueront à la prochaine ouverture d’une fenêtre."
+
+msgid "Automatic tries these renderers in order: {renderers}"
+msgstr "Le mode automatique essaie ces moteurs de rendu dans l’ordre : {renderers}"
+
+msgid "Not included in this build: {renderers}"
+msgstr "Non inclus dans cette version : {renderers}"
+
+msgid "Renderer comparison is available on desktop only."
+msgstr "La comparaison des moteurs de rendu n’est disponible que sur ordinateur."
+
+msgid "Renderer comparison"
+msgstr "Comparaison des moteurs de rendu"
+
+msgid "Synthetic failure for the demo"
+msgstr "Échec simulé pour la démo"
+
+msgid "Run a short test in temporary windows. Results stay on this device. Leaving this page stops the test."
+msgstr "Lancez un court test dans des fenêtres temporaires. Les résultats restent sur cet appareil. Quitter cette page arrête le test."
+
+msgid "Testing {renderer}…"
+msgstr "Test de {renderer}…"
+
+msgid "Stopping renderer comparison…"
+msgstr "Arrêt de la comparaison des moteurs de rendu…"
+
+msgid "Renderer comparison cancelled."
+msgstr "Comparaison des moteurs de rendu annulée."
+
+msgid "Renderer comparison could not finish. Try again."
+msgstr "La comparaison des moteurs de rendu n’a pas pu se terminer. Réessayez."
+
+msgid "Could not start on this display"
+msgstr "Impossible de démarrer sur cet écran"
+
+msgid "Timed out"
+msgstr "Délai dépassé"
+
+msgid "Test did not finish"
+msgstr "Le test ne s’est pas terminé"
+
+msgid "CPU or memory counters unavailable"
+msgstr "Compteurs CPU ou mémoire indisponibles"
+
+msgid "Renderer"
+msgstr "Moteur de rendu"
+
+msgid "p50 (ms)"
+msgstr "p50 (ms)"
+
+msgid "p95 (ms)"
+msgstr "p95 (ms)"
+
+msgid "Main CPU (%)"
+msgstr "CPU principal (%)"
+
+msgid "RAM (MiB)"
+msgstr "RAM (Mio)"
+
+msgid "{renderer} (baseline)"
+msgstr "{renderer} (référence)"
+
+msgid "No recommendation: the current renderer could not be measured. Try again."
+msgstr "Aucune recommandation : le moteur de rendu actuel n’a pas pu être mesuré. Réessayez."
+
+msgid "No recommendation: only the current renderer could be measured."
+msgstr "Aucune recommandation : seul le moteur de rendu actuel a pu être mesuré."
+
+msgid "Keep the current renderer. No alternative showed a clear gain without a trade-off."
+msgstr "Conservez le moteur de rendu actuel. Aucune alternative n’a montré de gain net sans contrepartie."
+
+msgid "Try {renderer}: its slow frames were shorter in this test."
+msgstr "Essayez {renderer} : ses images lentes étaient plus courtes lors de ce test."
+
+msgid "Try {renderer}: it used less main-thread CPU in this test."
+msgstr "Essayez {renderer} : il a utilisé moins de CPU sur le thread principal lors de ce test."
+
+msgid "Try {renderer}: it used less memory in this test."
+msgstr "Essayez {renderer} : il a utilisé moins de mémoire lors de ce test."
+
+msgid "p50 is the typical frame time; p95 shows the slower frames. CPU is a percentage of one core."
+msgstr "p50 est le temps d’image typique ; p95 montre les images les plus lentes. Le CPU est exprimé en pourcentage d’un cœur."
+
+msgid "The active renderer changed. Rerun the test for a current baseline."
+msgstr "Le moteur de rendu actif a changé. Relancez le test pour obtenir une référence à jour."
+
+msgid "Test frame did not match the scene"
+msgstr "L’image de test ne correspondait pas à la scène"
