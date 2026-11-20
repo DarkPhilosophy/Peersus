@@ -1,0 +1,44 @@
+name: Dependency news
+
+# Which dependencies have a newer release on crates.io, alpha and beta included, and which vendored
+# copies have a newer upstream. Dependabot proposes stable releases (and pre-releases only for a crate
+# already on one) and cannot see a vendored copy, so this keeps one issue up to date with all of it.
+# It only reports: nothing in the tree is changed, nothing is published.
+on:
+  schedule:
+    - cron: '41 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: dependency-news
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Newer releases, pre-releases included
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Ask the registry
+        run: |
+          python3 scripts/test-dependency-news.py
+          python3 scripts/dependency-news.py --out report.md
+      - name: Keep one issue with the report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Dependency news (releases and pre-releases)
+        run: |
+          number=$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title \
+            --jq "map(select(.title == env.TITLE)) | .[0].number // empty")
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file report.md
+          else
+            gh issue create --title "$TITLE" --body-file report.md
+          fi

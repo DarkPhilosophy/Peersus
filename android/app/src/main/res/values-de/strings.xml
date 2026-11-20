@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Geräteverbindung</string>
+    <string name="available_title">Für Dateiübertragungen verfügbar</string>
+    <string name="available_body">Gekoppelte Geräte können sich verbinden. Öffne die App, um den Hintergrundmodus zu verwalten.</string>
+    <string name="requests_channel">Eingehende Übertragungsanfragen</string>
+    <string name="offer_accept">Annehmen</string>
+    <string name="offer_cancel">Abbrechen</string>
+    <string name="received_channel">Empfangene Dateien</string>
+    <string name="notices_channel">Hinweise</string>
+    <string name="notifications_disabled">Benachrichtigungen sind deaktiviert. Du kannst sie in den Android-App-Einstellungen aktivieren.</string>
+    <plurals name="received_title">
+        <item quantity="one">Datei empfangen</item>
+        <item quantity="other">Dateien empfangen</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Empfangene Dateien: %1$d. Öffne die App, um sie anzusehen.</item>
+        <item quantity="other">Empfangene Dateien: %1$d. Öffne die App, um sie anzusehen.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Eingehende Dateiübertragung</item>
+        <item quantity="other">Eingehende Dateiübertragungen</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Dateien, die auf deine Zustimmung warten: %1$d. Zum Prüfen antippen.</item>
+        <item quantity="other">Dateien, die auf deine Zustimmung warten: %1$d. Zum Prüfen antippen.</item>
+    </plurals>
+</resources>

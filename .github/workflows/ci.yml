@@ -1,0 +1,276 @@
+name: Quality gates
+on:
+  # Application PRs are measured on open and on each new head; extension submissions have their own workflow.
+  # A fork still needs the maintainer's run:ci label for the revision being checked.
+  pull_request:
+    branches: [main, dev]
+    types: [opened, reopened, synchronize, labeled]
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Revision to measure against (empty: latest verified main-<short SHA> backup)'
+        required: false
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: quality-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'run:ci' && github.event.label.name || 'checks' }}
+  cancel-in-progress: true
+jobs:
+  linux:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run:ci' || (github.event.action != 'labeled' && github.event.pull_request.head.repo.full_name == github.repository)
+    name: Linux compilation and automated tests (not desktop runtime)
+    runs-on: ubuntu-24.04
+    env:
+      FORCE_SKIA_BUILD: '1'
+      # Keep source-built Skia and workspace test artifacts within runner disk limits.
+      # Debug assertions, overflow checks and all quality gates remain enabled.
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared Rust toolchain and gate tools
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal --component rustfmt --component clippy
+          rustup default "$version"
+          rustup target add wasm32-unknown-unknown
+          cargo install cargo-audit --version 0.22.2 --locked
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+      - run: sh scripts/install-linux-deps.sh
+      - run: cargo xtask gate
+  nix-environment:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'run:ci' || (github.event.action != 'labeled' && github.event.pull_request.head.repo.full_name == github.repository)
+    name: Pinned Nix shell evaluation (not runtime validation)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
+      - run: nix flake lock
+      - run: nix eval --raw .#devShells.x86_64-linux.default.drvPath
+  resources:
+    # Last check: build the exact PR base and head in release, then sample both on one runner.
+    needs: [linux, nix-environment]
+    name: Resource impact against the PR base
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      FORCE_SKIA_BUILD: '1'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The PR merge supplies both SHA-pinned parents. Manual runs need the snapshot refs.
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && '0' || '2' }}
+          persist-credentials: false
+      - name: Create the benchmark report directory
+        run: |
+          mkdir -p "$RUNNER_TEMP/application-benchmark"
+          echo "PEERSUS_BENCH_RESULTS=$RUNNER_TEMP/application-benchmark" >> "$GITHUB_ENV"
+      - name: Install declared Rust toolchain, build prerequisites and a display that draws into memory
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal --target wasm32-unknown-unknown
+          rustup default "$version"
+          sh scripts/install-linux-deps.sh
+          sudo apt-get install -y xvfb x11-utils libgl1-mesa-dri libegl1 libxkbcommon-x11-0
+      - name: Choose the baseline
+        id: revisions
+        env:
+          EVENT: ${{ github.event_name }}
+          ASKED: ${{ inputs.baseline }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          change=$(git rev-parse HEAD)
+          baseline=
+          if [ "$EVENT" = pull_request ]; then
+            baseline=$(git rev-parse HEAD^1)
+            test "$baseline" = "$PR_BASE" && test "$(git rev-parse HEAD^2)" = "$PR_HEAD" || {
+              echo "::error::The checked-out merge is not for this PR base and head"; exit 1;
+            }
+            change=$PR_HEAD
+          elif [ -n "$ASKED" ]; then
+            baseline=$(git rev-parse --verify --end-of-options "$ASKED^{commit}" 2>/dev/null \
+              || git rev-parse --verify --end-of-options "refs/remotes/origin/$ASKED^{commit}" 2>/dev/null) || {
+              echo "::error::The baseline is not a commit reachable from a fetched ref"; exit 1;
+            }
+          else
+            # Historical backups used backup/main-. A branch called main-feature is not a baseline.
+            refs=$(git for-each-ref --sort=-committerdate --format='%(refname) %(objectname)' \
+              'refs/remotes/origin/main-*' 'refs/remotes/origin/backup/main-*')
+            while read -r ref oid; do
+              if [[ "${ref##*/}" == "main-${oid:0:7}" && -n "$oid" && "$oid" != "$change" ]]; then
+                baseline=$oid
+                break
+              fi
+            done <<< "$refs"
+          fi
+          if [ "$baseline" = "$change" ]; then baseline=; fi
+          echo "change=$change" >> "$GITHUB_OUTPUT"
+          echo "baseline=$baseline" >> "$GITHUB_OUTPUT"
+      - name: Build the baseline, then the change, and keep the programs of each
+        id: built
+        env:
+          BASELINE: ${{ steps.revisions.outputs.baseline }}
+          CHANGE: ${{ steps.revisions.outputs.change }}
+        run: |
+          # One folder and one build directory for both: what the two revisions share is compiled once.
+          keep() {
+            local revision=$1 out=$2 file
+            git checkout --quiet --detach "$revision"
+            mkdir -p "$out/examples"
+            cargo xtask help > "$out/bench-help"
+            cargo xtask build
+            cargo xtask bench-build
+            for file in peersus peersus-ui peersus-wasm-host peersus-wasm-canvas-host peersus-native-host peersus-store-fetch \
+                        examples/replay_bench examples/benchmark examples/demo_window; do
+              if [ -x "target/release/$file" ]; then
+                # Do not let a program removed by the next revision survive as its output.
+                mv "target/release/$file" "$out/$file"
+              fi
+            done
+            # A real owner with an in-memory identity; the ordinary executable above supplies its shipped size.
+            cargo build --locked --release -p peersus-app --features test-identity --bin peersus
+            mv target/release/peersus "$out/peersus-test-identity"
+          }
+          mkdir -p "$RUNNER_TEMP/tool"
+          tool=change
+          if [ -n "$BASELINE" ]; then
+            keep "$BASELINE" "$RUNNER_TEMP/baseline"
+            if grep -Fq -- '--measure-programs=DIR' "$RUNNER_TEMP/baseline/bench-help"; then
+              cp target/debug/xtask "$RUNNER_TEMP/tool/xtask"
+              tool=baseline
+            fi
+          fi
+          keep "$CHANGE" "$RUNNER_TEMP/change"
+          if [ "$tool" = change ]; then
+            cp target/debug/xtask "$RUNNER_TEMP/tool/xtask"
+          fi
+          echo "tool=$tool" >> "$GITHUB_OUTPUT"
+          cargo xtask bench-fixtures
+          mkdir -p "$RUNNER_TEMP/program-fixtures/hello"
+          cp templates/hello-guest/plugin.json target/hello-guest/wasm32-unknown-unknown/release/hello_guest.wasm \
+            "$RUNNER_TEMP/program-fixtures/hello/"
+          if [ -x "$RUNNER_TEMP/change/peersus-wasm-canvas-host" ] \
+            && { [ -z "$BASELINE" ] || [ -x "$RUNNER_TEMP/baseline/peersus-wasm-canvas-host" ]; }; then
+            mkdir "$RUNNER_TEMP/program-fixtures/canvas"
+            cp templates/canvas-guest/plugin.json target/canvas-guest/wasm32-unknown-unknown/release/canvas_guest.wasm \
+              "$RUNNER_TEMP/program-fixtures/canvas/"
+          fi
+          if [ -n "$BASELINE" ] && [ -d "$RUNNER_TEMP/program-fixtures/canvas" ] \
+            && grep -Fq -- 'bench --surface' "$RUNNER_TEMP/baseline/bench-help" \
+            && grep -Fq -- 'bench --surface' "$RUNNER_TEMP/change/bench-help"; then
+            # Use the same Canvas manifest and WASM for both the runtime and frame workloads.
+            echo "canvas=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Collect three samples on each side, alternating the order
+        id: sampled
+        env:
+          BASELINE: ${{ steps.revisions.outputs.baseline }}
+          CANVAS: ${{ steps.built.outputs.canvas }}
+        run: |
+          extra=()
+          extra+=("--measure-programs=$RUNNER_TEMP/program-fixtures")
+          if [ "$CANVAS" = true ]; then extra+=("--with-surface=$RUNNER_TEMP/program-fixtures/canvas"); fi
+          failed=0
+          measure() {
+            if ! "$RUNNER_TEMP/tool/xtask" bench --programs="$RUNNER_TEMP/$1" --sizes --save="$1-$run" "${extra[@]}"; then
+              echo "::warning::Missing $1 sample $run; see the benchmark log"
+              failed=1
+            fi
+          }
+          for run in 1 2 3; do
+            if [ -n "$BASELINE" ] && [ "$run" != 2 ]; then measure baseline; fi
+            measure change
+            if [ -n "$BASELINE" ] && [ "$run" = 2 ]; then measure baseline; fi
+          done
+          exit "$failed"
+      - name: Judge the change against the baseline
+        if: ${{ !cancelled() }}
+        env:
+          BASELINE: ${{ steps.revisions.outputs.baseline }}
+          CHANGE: ${{ steps.revisions.outputs.change }}
+          TOOL: ${{ steps.built.outputs.tool }}
+          REVISIONS: ${{ steps.revisions.outcome }}
+          BUILT: ${{ steps.built.outcome }}
+          SAMPLED: ${{ steps.sampled.outcome }}
+          CANVAS: ${{ steps.built.outputs.canvas }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          # A waiver left on the PR does not approve a new push. Only a maintainer's explicit rerun may use it.
+          ACCEPTED: ${{ github.event.action == 'labeled' && github.event.label.name == 'run:ci' && contains(github.event.pull_request.labels.*.name, 'impact:accepted') }}
+        run: |
+          export PEERSUS_BENCH_RESULTS="$RUNNER_TEMP/application-benchmark"
+          mkdir -p "$PEERSUS_BENCH_RESULTS"
+          report="$PEERSUS_BENCH_RESULTS/impact.md"
+          status=1
+          if [ -x "$RUNNER_TEMP/tool/xtask" ]; then
+            base=--no-baseline
+            if [ -n "$BASELINE" ]; then base=--base=baseline-1,baseline-2,baseline-3; fi
+            status=0
+            "$RUNNER_TEMP/tool/xtask" bench-compare "$base" --head=change-1,change-2,change-3 --markdown="$report" || status=$?
+          fi
+          if [ ! -f "$report" ]; then
+            printf '## Resource impact: INCONCLUSIVE — benchmark could not run\n\nRevisions: `%s`. Build: `%s`. Samples: `%s`. See the failed step in the run log.\n' "$REVISIONS" "$BUILT" "$SAMPLED" > "$report"
+            status=1
+          fi
+          printf '\nBaseline `%s`, measured change `%s`, PR head `%s`; one runner, tool from %s.\n' \
+            "${BASELINE:-unavailable}" "${CHANGE:-unavailable}" "${PR_HEAD:-not a PR}" "${TOOL:-unavailable}" >> "$report"
+          if [ "$CANVAS" != true ]; then
+            printf '\nCanvas was not scheduled: both revisions must expose the probe and finish building. No Canvas comparison is claimed.\n' >> "$report"
+          fi
+          if [ "$BUILT" = success ] && [ "$SAMPLED" = success ] && [ "$status" != 0 ] && [ "$ACCEPTED" = true ] \
+            && grep -q '^## Resource impact: REGRESSION — [1-9][0-9]* blocking' "$report"; then
+            printf '\nBlocking regression accepted by a maintainer (label `impact:accepted`); the verdict is unchanged.\n' >> "$report"
+            status=0
+          fi
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: resource-impact-${{ github.run_id }}
+          path: ${{ runner.temp }}/application-benchmark/
+          if-no-files-found: ignore
+          retention-days: 30
+  resources-description:
+    # Trusted default-branch code replaces only the marked section of the live PR description.
+    # Fork PRs cannot use a write token; their report stays in the benchmark job summary.
+    needs: resources
+    if: ${{ always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (needs.resources.result == 'success' || needs.resources.result == 'failure') }}
+    name: Resource impact in the PR description
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: resource-impact-description-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: resource-impact-${{ github.run_id }}
+          path: ${{ runner.temp }}/results
+      - name: Update the marked benchmark section
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 scripts/update-resource-impact.py --repository "$REPOSITORY" --pr "$PR" \
+            --head "$HEAD" --base "$BASE" --report "$RUNNER_TEMP/results/impact.md" \
+            || echo "::warning::The benchmark section could not be updated; see the benchmark job summary"

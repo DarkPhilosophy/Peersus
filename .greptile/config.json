@@ -1,0 +1,66 @@
+{
+  "strictness": 2,
+  "commentTypes": ["logic", "syntax"],
+  "autoReview": ["open", "push"],
+  "includeBranches": ["main", "extension"],
+  "ignorePatterns": "**/target/**\n**/Cargo.lock\nvendor/**\n.backup/**",
+  "instructions": "Peersus is a private Rust workspace (edition 2024, MSRV 1.96) for peer-to-peer file transfer with optional, separately installed extensions. Pull requests to `extension` are single-extension source submissions; pull requests to `main` change the host. Report only concrete, evidenced defects in behaviour, security or contracts, following .greptile/rules.md; skip style preferences and requests beyond the PR's stated scope.",
+  "rules": [
+    {
+      "id": "agnostic-host",
+      "rule": "The host never names a concrete extension: no extension name, ID, settings key, page or behaviour as a condition or special case. Extensions are identified by a host-assigned ID and everything they add is data rendered generically.",
+      "scope": ["crates/**", "android/**"],
+      "severity": "high"
+    },
+    {
+      "id": "untrusted-extension-data",
+      "rule": "Every value from an extension or peer is untrusted: validate at the boundary, refuse explicitly when not understood, never unwrap/expect/panic on it, and never wait or loop without a bound on the main loop.",
+      "scope": ["crates/peersus-plugin*/**", "crates/peersus-app/**", "crates/peersus-api/**", "extension/**"],
+      "severity": "high"
+    },
+    {
+      "id": "quotas",
+      "rule": "Extension calls, events, notifications, data and connections are rate limited and bounded; over the limit they are refused or deferred, never queued without bound.",
+      "scope": ["crates/peersus-plugin*/**", "crates/peersus-app/**"],
+      "severity": "high"
+    },
+    {
+      "id": "unsafe-boundary",
+      "rule": "unsafe is forbidden except in peersus-ui-android and peersus-plugin-android, where each block carries a // SAFETY: comment stating its invariant.",
+      "scope": ["crates/**"],
+      "severity": "high"
+    },
+    {
+      "id": "no-secret-leaks",
+      "rule": "Secret text never reaches logs, diagnostics, accessibility trees, clipboard flows or error messages.",
+      "severity": "high"
+    },
+    {
+      "id": "explicit-unsupported",
+      "rule": "Unsupported capabilities and errors stay explicit: no fake fields, hidden no-ops, invented fallbacks or compatibility aliases without a real consumer.",
+      "severity": "medium"
+    },
+    {
+      "id": "reuse",
+      "rule": "Reuse the existing helper, component or path instead of adding a parallel one; do not merge distinct semantics into a flag-heavy abstraction.",
+      "severity": "medium"
+    },
+    {
+      "id": "behavioural-tests",
+      "rule": "Tests assert behaviour (state transitions, validation, errors, limits), not source strings, echoed fields or non-emptiness.",
+      "severity": "medium"
+    },
+    {
+      "id": "submission-shape",
+      "rule": "An extension submission changes exactly one extension directory, declares every permission it uses in its manifest, uses per-device permissions for peer actions, contains submission.toml, ownership.json and license notices, commits no build output, and its README states platforms and limitations honestly.",
+      "scope": ["extension/**"],
+      "severity": "high"
+    },
+    {
+      "id": "workflow-trust",
+      "rule": "Untrusted extension source is built without secrets and validated on another runner; actions are pinned by full commit SHA; heavy jobs start only via the maintainer-applied run:ci label or manual dispatch; admission requires a pull_request run bound to the exact head commit. Flag anything exposing secrets to PR code, widening token permissions or letting contributors start paid runs.",
+      "scope": [".github/workflows/**"],
+      "severity": "high"
+    }
+  ]
+}
