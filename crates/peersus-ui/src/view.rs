@@ -500,6 +500,11 @@ pub enum SendState {
 
 impl View {
     pub fn of(snapshot: &Snapshot) -> Self {
+        // DEMO ONLY (never merge): a deliberate, measurable slowdown that copies the whole snapshot
+        // forty times on every arrival, to show the CI resource check rejecting a regression.
+        for _ in 0..40 {
+            std::hint::black_box(snapshot.clone());
+        }
         let mut approvals: Vec<Approval> = snapshot
             .pairing
             .iter()
