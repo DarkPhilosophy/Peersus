@@ -1,0 +1,209 @@
+{
+  "version": 1,
+  "runs": [
+    {
+      "at": "2026-11-18T22:13:24.741Z",
+      "sha": "f4caa9e00fbe2b37c60bb89df0523804d0727a15",
+      "pr": null,
+      "actor": "DarkPhilosophy",
+      "files": 570,
+      "functions": 7501,
+      "loc": 198645,
+      "languages": 20,
+      "topLanguages": [
+        {
+          "ext": "rs",
+          "pct": 86,
+          "lines": 170164
+        },
+        {
+          "ext": "py",
+          "pct": 4,
+          "lines": 8707
+        },
+        {
+          "ext": "java",
+          "pct": 4,
+          "lines": 8583
+        },
+        {
+          "ext": "md",
+          "pct": 3,
+          "lines": 5822
+        },
+        {
+          "ext": "xml",
+          "pct": 1,
+          "lines": 1086
+        }
+      ],
+      "dead": 69,
+      "deadPct": 0.9,
+      "circular": 0,
+      "godObjects": 158,
+      "avgCoupling": 9.2,
+      "securityIssues": 2,
+      "patterns": 11,
+      "duplicates": 30,
+      "layerViolations": 85,
+      "connections": 5264,
+      "avgFnLines": 15.5,
+      "longestFn": 16,
+      "testFiles": 51,
+      "testRatio": 8.9,
+      "topFolders": [
+        {
+          "name": "crates",
+          "count": 344
+        },
+        {
+          "name": "android",
+          "count": 88
+        },
+        {
+          "name": "scripts",
+          "count": 58
+        },
+        {
+          "name": "docs",
+          "count": 33
+        },
+        {
+          "name": "site",
+          "count": 14
+        }
+      ],
+      "folders": 5,
+      "grade": "C",
+      "score": 74,
+      "topBlast": {
+        "path": "crates/peersus-core/src/layout.rs",
+        "direct": 226,
+        "transitive": 433,
+        "total": 659
+      },
+      "fragility": [
+        {
+          "path": "crates/peersus-core/src/layout.rs",
+          "direct": 226,
+          "transitive": 433,
+          "total": 659
+        },
+        {
+          "path": "crates/peersus-app/src/nearby/linux.rs",
+          "direct": 130,
+          "transitive": 428,
+          "total": 558
+        },
+        {
+          "path": "crates/peersus-app/src/store_branch.rs",
+          "direct": 116,
+          "transitive": 432,
+          "total": 548
+        }
+      ]
+    },
+    {
+      "at": "2026-11-20T17:14:08.173Z",
+      "sha": "d2cb6b266d2068b46eb32e5c489df26949636636",
+      "pr": null,
+      "actor": "DarkPhilosophy",
+      "files": 623,
+      "functions": 8441,
+      "loc": 224336,
+      "languages": 20,
+      "topLanguages": [
+        {
+          "ext": "rs",
+          "pct": 86,
+          "lines": 192913
+        },
+        {
+          "ext": "py",
+          "pct": 5,
+          "lines": 10743
+        },
+        {
+          "ext": "java",
+          "pct": 4,
+          "lines": 8659
+        },
+        {
+          "ext": "md",
+          "pct": 3,
+          "lines": 6332
+        },
+        {
+          "ext": "xml",
+          "pct": 0,
+          "lines": 1087
+        }
+      ],
+      "dead": 58,
+      "deadPct": 0.7,
+      "circular": 0,
+      "godObjects": 177,
+      "avgCoupling": 10,
+      "securityIssues": 2,
+      "patterns": 11,
+      "duplicates": 35,
+      "layerViolations": 81,
+      "connections": 6207,
+      "avgFnLines": 15.4,
+      "longestFn": 16,
+      "testFiles": 57,
+      "testRatio": 9.1,
+      "topFolders": [
+        {
+          "name": "crates",
+          "count": 384
+        },
+        {
+          "name": "android",
+          "count": 89
+        },
+        {
+          "name": "scripts",
+          "count": 63
+        },
+        {
+          "name": "docs",
+          "count": 34
+        },
+        {
+          "name": "site",
+          "count": 14
+        }
+      ],
+      "folders": 5,
+      "grade": "C",
+      "score": 72,
+      "topBlast": {
+        "path": "crates/peersus-core/src/layout.rs",
+        "direct": 256,
+        "transitive": 484,
+        "total": 740
+      },
+      "fragility": [
+        {
+          "path": "crates/peersus-core/src/layout.rs",
+          "direct": 256,
+          "transitive": 484,
+          "total": 740
+        },
+        {
+          "path": "crates/peersus-app/src/page_views.rs",
+          "direct": 186,
+          "transitive": 483,
+          "total": 669
+        },
+        {
+          "path": "crates/peersus-render/src/display.rs",
+          "direct": 177,
+          "transitive": 483,
+          "total": 660
+        }
+      ]
+    }
+  ]
+}
