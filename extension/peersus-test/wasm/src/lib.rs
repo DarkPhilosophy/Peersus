@@ -20,8 +20,10 @@ const PAGE_SETTING: &str = "test-page";
 /// The page this extension declares; it lives in its settings.
 const PAGE: &str = "test";
 const DEFAULT_STATUS_LABEL: &str = "Testing";
-/// How long the application may take to answer a call of this extension.
+/// The usual time the application may take to answer a call of this extension.
 const CALL_MS: u64 = 10_000;
+/// Location can wait for a system fix up to the host's 20-second ceiling.
+const LOCATION_MS: u64 = 20_000;
 /// How long a question outside the window may wait for the person.
 const NOTIFY_MS: u64 = 120_000;
 /// Most wheel steps the drawing keeps.
@@ -222,12 +224,17 @@ impl State {
             } else {
                 probes::args(probe)
             };
+            let timeout = if probe.id == probes::LOCATION {
+                LOCATION_MS
+            } else {
+                CALL_MS
+            };
             return vec![self.call(
                 Asked::Probe(index),
                 probe.service,
                 probe.method,
                 args,
-                CALL_MS,
+                timeout,
             )];
         }
         let args = match kind {
@@ -292,7 +299,8 @@ impl State {
                 }
             }
             Asked::Probe(index) => {
-                if probes::PROBES[index].id == "peers"
+                let probe = probes::PROBES[index].id;
+                if probe == "peers"
                     && let Some(peers) = result["value"].as_array()
                 {
                     self.peers = peers
@@ -305,13 +313,13 @@ impl State {
                         })
                         .collect();
                 }
-                if probes::PROBES[index].id == "config"
+                if probe == "config"
                     && let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool()
                 {
                     self.show_trouble = on;
                 }
                 if result["status"] == "ok" {
-                    match probes::PROBES[index].id {
+                    match probe {
                         "define" => {
                             if let Some(label) = result["value"]["label"].as_str() {
                                 self.status_label = Some(label.to_owned());
@@ -322,10 +330,10 @@ impl State {
                         _ => {}
                     }
                 }
-                self.probed[index] = Some(if probes::PROBES[index].id == "own" {
-                    probes::own_summary(result)
-                } else {
-                    probes::summary(result)
+                self.probed[index] = Some(match probe {
+                    "own" => probes::own_summary(result),
+                    probes::LOCATION => probes::location_summary(result),
+                    _ => probes::summary(result),
                 });
             }
             Asked::Notification => {

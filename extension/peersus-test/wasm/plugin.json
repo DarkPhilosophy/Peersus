@@ -6,7 +6,7 @@
     "author": "Peersus contributors",
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "A page that tries the extension contract in context: controls and their results together, editable status, notifications, and deliberately misbehaving buttons behind a setting.",
-    "changelog": "0.1.3: status label can be defined, changed, hidden and reset with its result shown in place; touch drawing sits beside its pad, added rows stay by their button, and cross-page buttons were removed. 0.1.2: every button asks the application through its contract and shows the answer; every element, colour and event of a page; the misbehaving buttons behind a setting."
+    "changelog": "0.1.3: added a device location probe that reports accuracy without revealing coordinates; status label can be defined, changed, hidden and reset with its result shown in place; touch drawing sits beside its pad, added rows stay by their button, and cross-page buttons were removed. 0.1.2: every button asks the application through its contract and shows the answer; every element, colour and event of a page; the misbehaving buttons behind a setting."
   },
   "platforms": [
     "linux",
@@ -55,6 +55,15 @@
       "version": 1,
       "methods": [
         "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.location",
+      "version": 1,
+      "methods": [
+        "current"
       ],
       "events": []
     },
@@ -236,7 +245,7 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Test draws controls and their feedback together. Its page can show settings, language, system, allowed peers and extensions; you can type a custom status label (Testing by default), show or hide it, and request notifications. Misbehaving buttons remain behind a setting.",
+        "explains": "Test draws controls and their feedback together. Its page can show settings, language, system, allowed peers and extensions; you can type a custom status label (Testing by default), show or hide it, and request notifications. With Location permission, pressing Check device location asks where this device is once. Test shows only whether it received a position and its accuracy; it never stores, logs, or shares the position. Your operating system may use its own online location service. Misbehaving buttons remain behind a setting.",
         "changes": "Installing adds the Test page. A status you turn on is sent to paired devices and shown on their Devices pages until you turn it off or the extension stops; changing its label while it is on changes what they see. Notifications appear in the app, or via the system while it is in the background if permitted. Other probes need their own permissions. No Test page button adds a Settings page or hides an action. Removing Test removes its page and status."
       }
     ]

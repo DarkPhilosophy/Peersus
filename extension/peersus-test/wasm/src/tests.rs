@@ -96,13 +96,113 @@ fn each_probe_sends_exactly_its_call_and_the_page_shows_the_answer() {
         state.told(&json!({"type":"result","id":sent["id"],"result":{"status":"error","code":"denied","message":"Not allowed"}}));
         assert_eq!(
             state.probed[index].as_deref(),
-            Some("refused (denied): Not allowed")
+            Some(if probe.id == "location" {
+                "Location permission not granted."
+            } else {
+                "refused (denied): Not allowed"
+            })
         );
     }
     assert!(!state.waiting(), "every call was answered");
     // An answer to a call this extension never made changes nothing.
     state.told(&json!({"type":"result","id":999,"result":{"status":"ok","value":1}}));
     assert!(state.calls.is_empty());
+}
+
+fn location_probe_page(result: Value) -> String {
+    let mut host = Script::default();
+    let mut state = State::new();
+    step(&mut host, &mut state, &press("probe-location")).unwrap();
+    assert_eq!(host.sent.len(), 2, "one host call, then the page reply");
+    let id = &host.sent[0]["id"];
+    assert_eq!(
+        host.sent[0],
+        json!({"op":"call","id":id,"provider":"host","service":"peersus.location",
+            "version":1,"method":"current","args":{},"timeout_ms":20_000})
+    );
+    assert!(host.sent[1].to_string().contains("Asked…"));
+    let result = json!({"type":"result","id":id,"result":result});
+    step(&mut host, &mut state, &result).unwrap();
+    assert_eq!(
+        host.sent.len(),
+        2,
+        "receiving a fix or refusal sends nothing"
+    );
+    assert!(!state.waiting());
+    state.page().to_string()
+}
+
+#[test]
+fn location_reports_only_receipt_and_accuracy_of_a_valid_position() {
+    let page = location_probe_page(
+        json!({"status":"ok","value":{"latitude":12.345678,"longitude":-98.765432,"accuracy":14.5,"age":2}}),
+    );
+    assert!(page.contains("Position received; accuracy: 14.5 m."));
+    assert!(!page.contains("12.345678") && !page.contains("-98.765432"));
+}
+
+#[test]
+fn location_accepts_boundary_coordinates_and_explicitly_unknown_accuracy() {
+    let page = location_probe_page(
+        json!({"status":"ok","value":{"latitude":-90,"longitude":180,"accuracy":null,"age":0}}),
+    );
+    assert!(page.contains("Position received; accuracy not reported."));
+}
+
+#[test]
+fn location_reports_permission_not_granted_without_echoing_host_text() {
+    let page = location_probe_page(
+        json!({"status":"error","code":"denied","message":"private host text"}),
+    );
+    assert!(page.contains("Location permission not granted."));
+    assert!(!page.contains("private host text"));
+}
+
+#[test]
+fn location_reports_unavailable_on_this_system() {
+    let page = location_probe_page(
+        json!({"status":"error","code":"unavailable","message":"No system fix"}),
+    );
+    assert!(page.contains("Location is unavailable on this system."));
+}
+
+#[test]
+fn location_reports_malformed_answers_without_exposing_the_payload() {
+    for value in [
+        json!("private host text"),
+        json!({"latitude": "12.345678", "longitude": 0, "accuracy": 4, "age": 0}),
+        json!({"latitude": 90.00001, "longitude": 0, "accuracy": 4, "age": 0}),
+        json!({"latitude": 0, "longitude": -180.00001, "accuracy": 4, "age": 0}),
+        json!({"latitude": 0, "longitude": 0, "accuracy": -1, "age": 0}),
+        json!({"latitude": 0, "longitude": 0, "accuracy": "private host text", "age": 0}),
+        json!({"latitude": 0, "longitude": 0, "accuracy": 4, "age": -1}),
+        json!({"latitude": 0, "longitude": 0, "accuracy": 4, "age": 0.5}),
+        json!({"latitude": 0, "longitude": 0, "age": 0}),
+    ] {
+        let page = location_probe_page(json!({"status":"ok","value":value}));
+        assert!(page.contains("Malformed location answer."));
+        assert!(!page.contains("private host text") && !page.contains("12.345678"));
+    }
+    for result in [Value::Null, json!({"status":"error","code":"denied"})] {
+        assert!(location_probe_page(result).contains("Malformed location answer."));
+    }
+}
+
+#[test]
+fn location_reports_the_hub_deadline_expiring() {
+    let page = location_probe_page(
+        json!({"status":"error","code":"timeout","message":"The request timed out"}),
+    );
+    assert!(page.contains("No location answer in time."));
+}
+
+#[test]
+fn location_reports_other_refusals_without_echoing_host_text() {
+    let page = location_probe_page(
+        json!({"status":"error","code":"rate-limited","message":"private host text"}),
+    );
+    assert!(page.contains("Location request was refused."));
+    assert!(!page.contains("private host text"));
 }
 
 #[test]

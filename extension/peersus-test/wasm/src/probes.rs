@@ -1,6 +1,5 @@
-//! One button for each thing the application offers an extension to ask: pressing it sends exactly that call, and the
-//! page says what came back. Nothing is interpreted beyond a short summary: a refusal is shown with its code, so a
-//! permission the person has not granted reads as `denied`, which is what the application must answer.
+//! One button for each host call Test probes. Pressing it sends exactly that call and shows a short summary.
+//! The location probe never shows the coordinates or repeats text supplied by the host.
 use serde_json::{Value, json};
 
 /// One call Test can make, by the id of its button.
@@ -13,8 +12,11 @@ pub struct Probe {
     pub method: &'static str,
 }
 
-/// Every probe, in the order the page shows them. Each service, method and permission here is in the manifest's
-/// `imports`; a call the manifest did not import is refused by the hub before the application sees it.
+/// The location probe's button suffix and result discriminator.
+pub const LOCATION: &str = "location";
+
+/// Every probe, in the order the page shows them. Its service and method are in the manifest's `imports`;
+/// the host binds any permission to that import and refuses calls that were not imported.
 pub const PROBES: &[Probe] = &[
     Probe {
         id: "config",
@@ -50,6 +52,13 @@ pub const PROBES: &[Probe] = &[
         expect: "The person's language as a tag (en, ro), with language.read; denied without it.",
         service: "peersus.language",
         method: "get",
+    },
+    Probe {
+        id: LOCATION,
+        label: "Check device location",
+        expect: "With location.read, asks where this device is once. Shows whether a position was received and its accuracy, never its coordinates.",
+        service: "peersus.location",
+        method: "current",
     },
     Probe {
         id: "peers",
@@ -129,6 +138,44 @@ pub fn summary(result: &Value) -> String {
     };
     cut(&text, 240)
 }
+
+/// Validate the host's position but return only a receipt and the accuracy, never any raw reply text.
+pub fn location_summary(result: &Value) -> String {
+    const MALFORMED: &str = "Malformed location answer.";
+    match result["status"].as_str() {
+        Some("ok") => {
+            let position = &result["value"];
+            if !position["latitude"]
+                .as_f64()
+                .is_some_and(|degrees| (-90.0..=90.0).contains(&degrees))
+                || !position["longitude"]
+                    .as_f64()
+                    .is_some_and(|degrees| (-180.0..=180.0).contains(&degrees))
+                || position["age"].as_u64().is_none()
+            {
+                return MALFORMED.into();
+            }
+            match position.get("accuracy") {
+                Some(Value::Null) => "Position received; accuracy not reported.".into(),
+                Some(Value::Number(accuracy))
+                    if accuracy.as_f64().is_some_and(|m| m.is_finite() && m >= 0.0) =>
+                {
+                    format!("Position received; accuracy: {accuracy} m.")
+                }
+                _ => MALFORMED.into(),
+            }
+        }
+        Some("error") if result["message"].is_string() => match result["code"].as_str() {
+            Some("denied") => "Location permission not granted.".into(),
+            Some("unavailable") => "Location is unavailable on this system.".into(),
+            Some("timeout") => "No location answer in time.".into(),
+            Some(_) => "Location request was refused.".into(),
+            None => MALFORMED.into(),
+        },
+        _ => MALFORMED.into(),
+    }
+}
+
 /// The test's own definitions in words instead of JSON, including whether each is visible.
 pub fn own_summary(result: &Value) -> String {
     let Some(defined) = result["value"]
