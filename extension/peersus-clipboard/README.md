@@ -31,11 +31,17 @@ cargo test --locked
 
 The guest's unit tests drive its protocol with scripted host answers: framing, bounds, cancellation, permission changes, automatic synchronization and delivery confirmation, without a clipboard.
 
-The application carries the end-to-end test of this guest: two real owners on private virtual X displays pair and keep their clipboards in step through it, both ways (`crates/peersus-app/tests/desktop_clipboard_wasm.rs`). It needs **Xvfb** and **xclip**, the guest built into `target/clip-wasm-rel/` (`cargo build --release --target wasm32-unknown-unknown --target-dir ../../../target/clip-wasm-rel` here) and is opt-in:
+The application carries the opt-in end-to-end test of this guest: two real owners on private virtual X displays pair and keep their clipboards in step through it, both ways (`crates/peersus-app/tests/desktop_clipboard_wasm.rs`). It needs **Xvfb**, **xclip**, and the trusted host SDK checkout containing `crates/peersus-app`. Start in this submission's `extension/peersus-clipboard/wasm/` directory (or the `wasm/` directory of a local copy). Set `sdk` to the SDK checkout's absolute path:
 
 ```sh
-PEERSUS_DESKTOP_WASM_TEST=1 PEERSUS_CLIPBOARD_MANIFEST=$PWD/plugins/peersus-clipboard/wasm/plugin.json \
-  cargo test -p peersus-app --features test-plugin,test-identity --test desktop_clipboard_wasm -- --test-threads=1
+sdk=/absolute/path/to/peersus-sdk
+manifest="$PWD/plugin.json"
+cargo build --locked --release --target wasm32-unknown-unknown --target-dir "$sdk/target/clip-wasm-rel"
+cd "$sdk"
+cargo build --locked -p peersus-plugin-runtime --bin peersus-wasm-host --target-dir "$sdk/target"
+PEERSUS_DESKTOP_WASM_TEST=1 PEERSUS_CLIPBOARD_MANIFEST="$manifest" \
+  cargo test --locked -p peersus-app --features test-plugin,test-identity --target-dir "$sdk/target" \
+    --test desktop_clipboard_wasm -- --test-threads=1
 ```
 
 The owners use the test build's identity (no system keyring), as the application's gate builds its tests; the package is installed as a person installs one from a folder, its licence, notice and the outside-store warning accepted by digest. It never touches the display or data of the person running it; a run without the flag returns at once and is not a clipboard verification.

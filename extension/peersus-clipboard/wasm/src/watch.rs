@@ -4,7 +4,7 @@
 //! by `Automatic`, which is tested without a host. The loop here asks it, does what it says, and goes back to waiting.
 //!
 //! There is no clock, so nothing is polled while the platform observes. The application's change notice wakes this, and
-//! a notice that arrives while an earlier one is being handled is kept by the session and handled next, never dropped.
+//! a notice that arrives while an earlier one is being handled is deferred, or the guest stops if it cannot keep it.
 //! Only a failed baseline, which stops the platform observing, is retried after a bounded wait (`Retry`).
 use crate::actions::Session;
 use crate::automatic::{Automatic, Eligibility, Epoch};
@@ -42,15 +42,13 @@ fn arm<H: Wire + Data>(session: &mut Session<'_, H>, state: &mut Automatic) -> O
             state.baseline_done(done);
             Some(state.can_observe())
         }
-        // Only reachability changed: the baseline is still good and the platform is still observing. What was seen is
-        // forgotten, so a snapshot read now is a baseline, while a copy the platform proves new is a real one, to be sent
-        // if somebody is reachable now. Returning here instead would drop the very copy that woke the guest.
-        Epoch::Forget => Some(state.can_observe()),
-        Epoch::Same => Some(state.can_observe()),
+        // A reachability change forgets snapshot continuity but still suppresses a received write. Read in this pass:
+        // it may have been a real local copy that woke the guest.
+        Epoch::Forget | Epoch::Same => Some(state.can_observe()),
     }
 }
 
-/// One change notice. Returns `Stop` only when the application is gone.
+/// One change notice. Stop if deferred deliveries can no longer be kept safely.
 pub fn on_change<H: Wire + Data>(
     host: &mut H,
     state: &mut Automatic,
@@ -60,6 +58,9 @@ pub fn on_change<H: Wire + Data>(
     let mut session = Session::new(host, NOT_A_CALL, *next);
     let outcome = send_new_copy(&mut session, state);
     *next = session.next();
+    if session.stopped {
+        return Pass::Stop;
+    }
     backlog.extend(session.waiting);
     outcome
 }
@@ -205,6 +206,24 @@ mod tests {
             backlog.into_iter().collect::<Vec<_>>(),
             [json!({"type":"cancelled","ticket":12}), receive, changed,]
         );
+    }
+
+    #[test]
+    fn automatic_pass_stops_when_a_deferred_cancellation_cannot_be_kept() {
+        let mut host = Script::default();
+        host.deliveries
+            .extend(std::iter::repeat_n(json!({"type":"event"}), 32));
+        host.deliveries
+            .push_back(json!({"type":"cancelled","ticket":77}));
+        let mut backlog = std::collections::VecDeque::from([
+            json!({"type":"call","ticket":77,"method":"share","args":{"peer":"phone"}}),
+        ]);
+
+        assert_eq!(
+            on_change(&mut host, &mut Automatic::new(), &mut 0, &mut backlog),
+            Pass::Stop
+        );
+        assert!(host.opened.is_empty());
     }
 
     #[test]
@@ -547,7 +566,7 @@ mod tests {
     fn a_text_this_device_placed_is_never_sent_back_when_its_own_write_raises_the_change_notice() {
         let (mut state, mut host) = armed(&[("phone", true, true)]);
         // The device received this text from another and put it on the clipboard: the loop reports it as received.
-        state.received("from the other device");
+        state.received("from the other device".into());
         // Its own write now raises the change notice, and the platform proves the text as a copy made just now.
         host.results
             .push_back(config(true, &[("phone", true, true)]));
@@ -565,6 +584,37 @@ mod tests {
             !methods(&host).contains(&"peersus.peers.send".to_string()),
             "no destination was even asked for"
         );
+    }
+
+    #[test]
+    fn reconnect_suppresses_the_received_write_but_sends_the_next_local_copy() {
+        let (mut state, mut host) = armed(&[("phone", false, true)]);
+        let devices = [("phone", true, true)];
+        let mut next = 100;
+        state.received("remote sample".into());
+        host.results.push_back(config(true, &devices));
+        host.results.extend(captured("remote sample", true));
+        // If suppression is broken, the first pass has everything it needs to send an echo.
+        host.results.extend([config(true, &devices), claim()]);
+        host.acks = true;
+
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert!(host.sent.iter().all(|request| request["method"] != "send"));
+        assert!(host.opened.is_empty());
+        host.results.clear();
+
+        let item = wire::encode("local sample").unwrap();
+        host.results.push_back(config(true, &devices));
+        host.results.extend(captured("local sample", true));
+        host.results.extend([config(true, &devices), claim()]);
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+            Pass::Done
+        );
+        assert_eq!(host.written, item);
     }
 
     #[test]

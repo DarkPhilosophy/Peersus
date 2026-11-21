@@ -17,7 +17,7 @@ const KIND_PNG: u8 = 2;
 /// Most PNG data the process variant accepts. A text-only guest never takes it, but must still refuse it by name.
 const MAX_PNG: usize = 32 * 1024 * 1024;
 
-/// Why an item was refused. Fixed words: nothing of what was received is repeated back.
+/// Why an item was refused. These variants carry no bytes from the item.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Error {
     NotAnItem,
@@ -176,35 +176,5 @@ mod tests {
         let mut picture = head(KIND_PNG, 4);
         picture.extend_from_slice(&[1, 2, 3, 4]);
         assert_eq!(decode(&picture), Err(Error::NotText));
-    }
-
-    #[test]
-    fn what_the_error_says_never_repeats_what_was_received() {
-        for error in [
-            Error::NotAnItem,
-            Error::UnknownKind,
-            Error::TooLarge,
-            Error::Truncated,
-            Error::BadText,
-            Error::NotText,
-        ] {
-            let words = error.words();
-            assert!(!words.is_empty() && words.len() < 80, "{words}");
-            assert!(!words.contains('{') && !words.contains('"'), "{words}");
-        }
-    }
-
-    impl Error {
-        /// The words an error would be given if it were ever said. The property under test is what they never contain.
-        fn words(&self) -> &'static str {
-            match self {
-                Self::NotAnItem => "not a clipboard item",
-                Self::UnknownKind => "an item of a kind this does not take",
-                Self::TooLarge => "an item larger than is accepted",
-                Self::Truncated => "an item that ended before it should have",
-                Self::BadText => "text that is not valid",
-                Self::NotText => "an item that is not text",
-            }
-        }
     }
 }

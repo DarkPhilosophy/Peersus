@@ -10,8 +10,7 @@
   "platforms": [
     "linux",
     "android",
-    "macos",
-    "windows"
+    "macos"
   ],
   "program": "peersus_clipboard_wasm.wasm",
   "execution": {

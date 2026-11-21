@@ -15,7 +15,6 @@ mod observation;
 mod watch;
 mod wire;
 
-#[cfg(any(target_family = "wasm", feature = "native"))]
 use serde_json::Value;
 
 /// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a broken protocol.
@@ -43,8 +42,10 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 fn run() -> i32 {
-    use host::{Data, Host, Wire};
-    let mut host = Host;
+    run_loop(&mut host::Host)
+}
+
+fn run_loop<H: host::Wire + host::Data>(host: &mut H) -> i32 {
     let mut next = 0u64;
     let mut state = automatic::Automatic::new();
     let mut backlog: std::collections::VecDeque<Value> = std::collections::VecDeque::new();
@@ -56,7 +57,7 @@ fn run() -> i32 {
     // The platform reports a change only while somebody observes, and the only observing this guest does is in answer to
     // a change. Waiting for the first notice would therefore wait for ever: startup takes the baseline and then reads
     // once, which is what makes the platform start telling. It sends only what the settings already allow.
-    if watch::start(&mut host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
+    if watch::start(host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
         return 1;
     }
     let mut retry = watch::Retry::new();
@@ -70,7 +71,7 @@ fn run() -> i32 {
                     match host.poll(&[], wait) {
                         Ok(Some(_)) => {}
                         Ok(None) => {
-                            if watch::on_change(&mut host, &mut state, &mut next, &mut backlog)
+                            if watch::on_change(host, &mut state, &mut next, &mut backlog)
                                 == watch::Pass::Stop
                             {
                                 return 1;
@@ -92,31 +93,90 @@ fn run() -> i32 {
             continue;
         }
         if watch::wakes(&delivery) {
-            if watch::on_change(&mut host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop
-            {
+            if watch::on_change(host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
                 return 1;
             }
             continue;
         }
-        match actions::handle(&mut host, &delivery, &mut next) {
-            actions::Handled::Ignored => {}
+        let (waiting, placed, reply) = match actions::handle(host, &delivery, &mut next) {
+            actions::Handled::Ignored => continue,
             actions::Handled::Stop => return 1,
-            actions::Handled::Cancelled { waiting } => backlog.extend(waiting),
+            actions::Handled::Cancelled { waiting, placed } => (waiting, placed, None),
             actions::Handled::Replied {
                 reply,
                 waiting,
                 placed,
-            } => {
-                // Before anything else is looked at, including the notice this very write is about to cause: that text is
-                // this device's own and must never be sent back as if somebody had just copied it.
-                if let Some(text) = placed {
-                    state.received(&text);
-                }
-                backlog.extend(waiting);
-                if host.send(reply).is_err() {
-                    return 1;
-                }
-            }
+            } => (waiting, placed, Some(reply)),
+        };
+        // Mark a completed write even if cleanup was cancelled, before running its deferred notice.
+        if let Some(text) = placed {
+            state.received(text);
         }
+        backlog.extend(waiting);
+        if let Some(reply) = reply
+            && host.send(reply).is_err()
+        {
+            return 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::host::scripted::Script;
+    use serde_json::json;
+
+    #[test]
+    fn a_receive_cancelled_during_release_does_not_echo_its_committed_write() {
+        let text = "received sample";
+        let config = json!({"plugin":"clipboard","settings":{"automatic":true},"peers":[{
+            "device":"phone","online":true,"settings":{"sync":true},
+            "permissions":[{"owner":"host","name":"peers.send"},{"owner":"clipboard","name":"clipboard.use"}]
+        }]});
+        let result =
+            |id, value| json!({"type":"result","id":id,"result":{"status":"ok","value":value}});
+        let mut host = Script {
+            acks: true,
+            ..Script::default()
+        };
+        host.incoming.push_back(wire::encode(text).unwrap());
+        host.deliveries.extend([
+            result(1, config.clone()),
+            result(2, json!({"reset":true})),
+            result(3, json!({"available":false})),
+            result(4, config.clone()),
+            result(5, json!({"available":false})),
+            json!({"type":"call","ticket":41,"method":"receive"}),
+            result(6, json!({"put":"put-1"})),
+            result(7, json!({"next":text.len()})),
+            result(8, json!({"written":true})),
+            json!({"type":"event","provider":"host","service":"peersus.clipboard","version":1,"event":"changed","data":{}}),
+            json!({"type":"cancelled","ticket":41}),
+            result(10, config.clone()),
+            result(11, json!({"available":true,"clip":"clip-2","bytes":text.len(),"changed":true})),
+            result(12, json!({"text":text,"next":text.len()})),
+            result(13, json!({"released":true})),
+            result(14, config),
+            result(15, json!({"claim":9})),
+        ]);
+
+        assert_eq!(run_loop(&mut host), 0);
+        let cancelled = host
+            .sent
+            .iter()
+            .position(|message| message["op"] == "cancel" && message["id"] == 9)
+            .expect("the completed write was cancelled during release");
+        assert!(
+            host.sent[cancelled + 1..]
+                .iter()
+                .any(|message| message["method"] == "observe")
+        );
+        assert!(
+            host.sent
+                .iter()
+                .all(|message| message["op"] != "reply" && message["method"] != "send")
+        );
+        assert_eq!(host.opened, [(false, 41)]);
     }
 }

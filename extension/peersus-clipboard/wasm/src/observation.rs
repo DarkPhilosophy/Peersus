@@ -13,6 +13,7 @@ use crate::wire::MAX_TEXT;
 pub struct Observation {
     last: Option<String>,
     initialized: bool,
+    last_received: bool,
 }
 
 fn usable(text: Option<String>) -> Option<String> {
@@ -23,16 +24,29 @@ impl Observation {
     /// A snapshot: the text now, or nothing readable. Returns the text only when it is a copy made since the last one.
     pub fn changed(&mut self, text: Option<String>) -> Option<String> {
         let text = usable(text);
-        let changed = self.initialized && self.last != text;
+        let same = self.last == text;
+        let changed = self.initialized && !same;
         self.initialized = text.is_some();
-        self.last.clone_from(&text);
+        if !same {
+            self.last_received = false;
+            self.last.clone_from(&text);
+        }
         if changed { text } else { None }
     }
 
     /// Text this device itself placed: not a copy of its own, so it is never sent back.
-    pub fn received(&mut self, text: &str) {
-        self.last = Some(text.to_owned());
+    pub fn received(&mut self, text: String) {
+        self.last = Some(text);
+        self.last_received = true;
         self.initialized = true;
+    }
+
+    /// A reachability change invalidates snapshot continuity, not the marker for a received write.
+    pub fn forget_snapshot(&mut self) {
+        self.initialized = false;
+        if !self.last_received {
+            self.last = None;
+        }
     }
 
     /// A platform event proves freshness even after unreadable contents: the copy happened after the last baseline.
@@ -40,10 +54,14 @@ impl Observation {
         if text.is_empty() || text.len() > MAX_TEXT {
             return self.changed(None);
         }
-        let duplicate = self.last.as_ref() == Some(&text);
+        if self.last.as_ref() == Some(&text) {
+            self.initialized = true;
+            return None;
+        }
+        self.last_received = false;
         self.initialized = true;
         self.last = Some(text.clone());
-        (!duplicate).then_some(text)
+        Some(text)
     }
 }
 
@@ -64,7 +82,7 @@ mod tests {
     fn remote_write_and_duplicate_poll_do_not_echo() {
         let mut state = Observation::default();
         state.changed(Some("local".into()));
-        state.received("remote");
+        state.received("remote".into());
         assert_eq!(state.changed(Some("remote".into())), None);
         assert_eq!(state.changed(Some("remote".into())), None);
         assert_eq!(
@@ -85,7 +103,7 @@ mod tests {
     #[test]
     fn a_proven_new_copy_after_sensitive_contents_is_not_mistaken_for_a_stale_snapshot() {
         let mut state = Observation::default();
-        state.received("remote sensitive");
+        state.received("remote sensitive".into());
         assert_eq!(state.changed(None), None);
         assert_eq!(
             state.fresh("genuinely copied now".into()),
@@ -97,7 +115,7 @@ mod tests {
     #[test]
     fn received_text_does_not_echo_after_destination_changes_rebaseline() {
         let mut state = Observation::default();
-        state.received("remote");
+        state.received("remote".into());
         state = Observation::default();
         assert_eq!(state.changed(Some("remote".into())), None);
         assert_eq!(state.changed(Some("remote".into())), None);

@@ -4,8 +4,8 @@
 //! happens then is the process variant's rules, one for one:
 //!
 //! * a copy is sent only to devices the person opted in AND that hold both permissions AND are online;
-//! * the first reading after any change of consent or reachability is a BASELINE, never a copy, so an old clipboard is
-//!   never sent as if it were just copied;
+//! * a change of consent starts a new baseline; after a reachability change a snapshot is a baseline, but a
+//!   platform-proven local copy is still new and can be sent;
 //! * consent is read again before EVERY destination, so a slow first device cannot keep a later, revoked one alive;
 //! * a copy that waited longer than its freshness window is dropped, and the application enforces that window where it
 //!   holds the time (the captured text expires there), so a stale one is refused rather than sent late.
@@ -33,7 +33,7 @@ impl Eligibility {
 pub enum Epoch {
     /// Consent changed in either direction, or no baseline was ever taken: take a new baseline and send nothing.
     Rebaseline,
-    /// Only reachability changed: forget what was seen and send nothing, but the baseline is still good.
+    /// Only reachability changed: forget snapshot continuity but still suppress a received write.
     Forget,
     /// Nothing changed that affects what may be sent.
     Same,
@@ -74,7 +74,7 @@ impl Automatic {
         }
         if now.reachable != self.seen.reachable {
             self.seen = now.clone();
-            self.observation = Observation::default();
+            self.observation.forget_snapshot();
             return Epoch::Forget;
         }
         Epoch::Same
@@ -100,7 +100,7 @@ impl Automatic {
     }
 
     /// A text this device itself put on the clipboard: not a copy of its own, so it is never sent back.
-    pub fn received(&mut self, text: &str) {
+    pub fn received(&mut self, text: String) {
         self.observation.received(text);
     }
 
@@ -121,8 +121,8 @@ impl Automatic {
 
     /// Whether the platform should be kept observing. That follows CONSENT and not reachability: a guest that stopped
     /// observing while every consenting device was offline would depend on a notice to start again. Observing sends
-    /// nothing: what is sent is decided by the reachable destinations, and the first reading after a device becomes
-    /// reachable is a baseline, never a copy.
+    /// nothing: what is sent is decided by the reachable destinations, and a snapshot after a change in reachability
+    /// is a baseline, not a copy.
     pub fn can_observe(&self) -> bool {
         !self.baseline_needed && !self.seen.consented.is_empty()
     }

@@ -6,6 +6,8 @@
 //! device or the network is repeated back, because they reach the screen and the log.
 use crate::automatic::Reading;
 use crate::config::Config;
+#[cfg(any(target_family = "wasm", feature = "native"))]
+use crate::host::LIMIT as CONTROL_LIMIT;
 use crate::host::{Data, Wire, read_ack, read_limited, write_all};
 use crate::wire::{self, HEADER, MAX_TEXT};
 use serde_json::{Value, json};
@@ -20,11 +22,18 @@ const VERSION: u32 = 1;
 const CALL_MS: u32 = 8_000;
 /// Most bytes of one item ever read from a data connection: its header, the largest text, and one more.
 const MOST_READ: usize = HEADER + MAX_TEXT + 1;
+/// The clipboard service also caps each unescaped append piece.
+const APPEND_BYTES: usize = 8 * 1024;
+/// `host::LIMIT` is not compiled in hostless tests.
+#[cfg(not(any(target_family = "wasm", feature = "native")))]
+const CONTROL_LIMIT: usize = 48 * 1024;
+const MAX_WAITING: usize = 32;
 
 pub mod answer {
     pub const NOTHING: &str = "There is no text to share";
     pub const REFUSED: &str = "That device cannot be sent to";
     pub const FAILED: &str = "The text could not be sent";
+    pub const BUSY: &str = "The clipboard extension has too many requests waiting";
     pub const NOT_ACCEPTED: &str = "What was sent was not accepted";
     pub const NOT_PLACED: &str = "The text could not be placed on the clipboard";
     pub const UNKNOWN: &str = "Nothing here answers that";
@@ -40,6 +49,8 @@ pub struct Session<'a, H: Wire + Data> {
     /// Deliveries that arrived while waiting for an answer of ours, to be handled afterwards.
     pub waiting: Vec<Value>,
     pub cancelled: bool,
+    /// Neither this session nor its caller can continue after losing a deferred delivery.
+    pub stopped: bool,
     /// The text this session put on the clipboard, if it did: the loop must know it so that it is never sent back.
     pub placed: Option<String>,
     /// The first standard reason the application gave for a call of ours that failed, if any: it is the reason this
@@ -55,6 +66,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             next,
             waiting: Vec::new(),
             cancelled: false,
+            stopped: false,
             placed: None,
             reason: None,
         }
@@ -72,12 +84,33 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         method: &str,
         args: Value,
     ) -> Result<Value, &'static str> {
-        self.next = self.next.checked_add(1).ok_or(answer::FAILED)?;
-        let id = self.next;
-        self.host.send(json!({
-            "op":"call","id":id,"provider":provider,"service":service,"version":1,
-            "method":method,"args":args,"timeout_ms":CALL_MS
-        }))?;
+        let (id, request) = self.request(provider, service, method, args)?;
+        self.exchange(id, request)
+    }
+
+    fn request(
+        &self,
+        provider: &str,
+        service: &str,
+        method: &str,
+        args: Value,
+    ) -> Result<(u64, Value), &'static str> {
+        if self.stopped {
+            return Err(answer::FAILED);
+        }
+        let id = self.next.checked_add(1).ok_or(answer::FAILED)?;
+        Ok((
+            id,
+            json!({
+                "op":"call","id":id,"provider":provider,"service":service,"version":1,
+                "method":method,"args":args,"timeout_ms":CALL_MS
+            }),
+        ))
+    }
+
+    fn exchange(&mut self, id: u64, request: Value) -> Result<Value, &'static str> {
+        self.next = id;
+        self.host.send(request)?;
         loop {
             let message = self.host.receive()?;
             match message["type"].as_str() {
@@ -97,12 +130,25 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                     self.host.send(json!({"op":"cancel","id":id}))?;
                     return Err(answer::CANCELLED);
                 }
-                // Somebody else's call, a change notice, or a result for a call we gave up on. Calls and notices are kept,
-                // never dropped, and bounded; a stray result for an answer nobody awaits is of no use to anyone.
-                Some("call") | Some("cancelled") | Some("event") if self.waiting.len() < 32 => {
-                    self.waiting.push(message)
+                Some(kind @ ("call" | "cancelled" | "event")) => {
+                    if self.waiting.len() < MAX_WAITING {
+                        self.waiting.push(message);
+                        continue;
+                    }
+                    if kind == "call"
+                        && let Some(ticket) = message["ticket"].as_u64()
+                    {
+                        let result = outcome(Err(answer::BUSY), Some("busy"));
+                        let reply = json!({"op":"reply","ticket":ticket,"result":result});
+                        if self.host.send(reply).is_ok() {
+                            continue;
+                        }
+                    }
+                    // A cancellation may be for a call already in the loop's backlog. If it cannot be
+                    // kept, stop the guest rather than let any deferred call run without it.
+                    self.stopped = true;
+                    return Err(answer::FAILED);
                 }
-                Some("call") | Some("cancelled") | Some("event") => return Err(answer::FAILED),
                 _ => {}
             }
         }
@@ -136,6 +182,18 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         Ok(text)
     }
 
+    /// Give back a clipboard handle. Best-effort cleanup cannot hide cancellation or a stopped session.
+    fn release(&mut self) -> Result<(), &'static str> {
+        let result = self.call("host", CLIPBOARD, "release", json!({}));
+        if self.cancelled || matches!(result, Err(answer::CANCELLED)) {
+            Err(answer::CANCELLED)
+        } else if self.stopped {
+            Err(answer::FAILED)
+        } else {
+            Ok(())
+        }
+    }
+
     /// The text to send: the clipboard's, or the text shared into the application, never a fallback from one to the other.
     fn text(&mut self, context: Option<u64>) -> Result<String, &'static str> {
         let captured = match context {
@@ -149,7 +207,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         }
         let result = self.take(&captured);
         // The handle is ours to give back whether or not the text arrived.
-        let _ = self.call("host", CLIPBOARD, "release", json!({}));
+        self.release()?;
         result
     }
 
@@ -195,7 +253,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         }
         let changed = captured["changed"] == true;
         let text = self.take(&captured);
-        let _ = self.call("host", CLIPBOARD, "release", json!({}));
+        self.release().ok()?;
         let text = text.ok()?;
         Some(if changed {
             Reading::Changed(text)
@@ -246,35 +304,49 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             return Err(answer::NOT_ACCEPTED);
         }
         let text = wire::decode(&bytes).map_err(|_| answer::NOT_ACCEPTED)?;
-        self.place(&text)
+        self.place(text)
+    }
+
+    fn append(&mut self, put: &str, offset: usize, text: &str) -> Result<usize, &'static str> {
+        let (id, mut request) = self.request(
+            "host",
+            CLIPBOARD,
+            "append",
+            json!({"put":put,"offset":offset,"text":""}),
+        )?;
+        // Count the full envelope with an empty string; each input byte can add at most six JSON bytes.
+        let envelope = serde_json::to_vec(&request)
+            .map_err(|_| answer::FAILED)?
+            .len();
+        let budget = (CONTROL_LIMIT.saturating_sub(envelope) / 6).min(APPEND_BYTES);
+        let mut end = (offset + budget).min(text.len());
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        if end == offset {
+            return Err(answer::FAILED);
+        }
+        request["args"]["text"] = json!(&text[offset..end]);
+        self.exchange(id, request)?;
+        Ok(end)
     }
 
     /// Replace the clipboard with `text`, in bounded pieces, committing only a complete sequence.
-    fn place(&mut self, text: &str) -> Result<(), &'static str> {
+    fn place(&mut self, text: String) -> Result<(), &'static str> {
         let begun = self
             .call("host", CLIPBOARD, "write", json!({"bytes":text.len()}))
             .map_err(|_| answer::NOT_PLACED)?;
-        let put = begun["put"].as_str().ok_or(answer::NOT_PLACED)?.to_owned();
+        let put = begun["put"].as_str().ok_or(answer::NOT_PLACED)?;
         let mut offset = 0;
         let mut sent = Ok(());
         while offset < text.len() {
-            let mut end = (offset + 8 * 1024).min(text.len());
-            while !text.is_char_boundary(end) {
-                end -= 1;
+            match self.append(put, offset, &text) {
+                Ok(end) => offset = end,
+                Err(_) => {
+                    sent = Err(answer::NOT_PLACED);
+                    break;
+                }
             }
-            if self
-                .call(
-                    "host",
-                    CLIPBOARD,
-                    "append",
-                    json!({"put":put,"offset":offset,"text":&text[offset..end]}),
-                )
-                .is_err()
-            {
-                sent = Err(answer::NOT_PLACED);
-                break;
-            }
-            offset = end;
         }
         let done = sent.and_then(|()| {
             self.call("host", CLIPBOARD, "commit", json!({"put":put}))
@@ -282,12 +354,12 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                 .map_err(|_| answer::NOT_PLACED)
         });
         // Whatever happened, nothing of an unfinished replacement is left with the application.
-        let _ = self.call("host", CLIPBOARD, "release", json!({}));
+        let _ = self.release();
         // Only a text that really reached the clipboard is remembered as received: it must not be sent back as a copy.
         if done.is_ok() {
-            self.placed = Some(text.to_owned());
+            self.placed = Some(text);
         }
-        done.map(|_| ())
+        done
     }
 }
 
@@ -357,6 +429,9 @@ pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) ->
         _ => Err(answer::UNKNOWN),
     };
     *next = session.next();
+    if session.stopped {
+        return Handled::Stop;
+    }
     let (cancelled, waiting, placed, reason) = (
         session.cancelled,
         std::mem::take(&mut session.waiting),
@@ -365,7 +440,7 @@ pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) ->
     );
     if cancelled {
         // A cancelled call is answered by nobody: the application no longer waits for it.
-        return Handled::Cancelled { waiting };
+        return Handled::Cancelled { waiting, placed };
     }
     let reply = json!({"op":"reply","ticket":ticket,"result":outcome(result, reason)});
     Handled::Replied {
@@ -380,6 +455,7 @@ pub enum Handled {
     Stop,
     Cancelled {
         waiting: Vec<Value>,
+        placed: Option<String>,
     },
     /// `placed` is the text this call put on the clipboard, if it did, so the caller can mark it as received.
     Replied {
@@ -554,7 +630,7 @@ mod tests {
         host.deliveries
             .push_back(json!({"type":"cancelled","ticket":5}));
         let mut next = 0;
-        let Handled::Cancelled { waiting } = handle(
+        let Handled::Cancelled { waiting, .. } = handle(
             &mut host,
             &call("share", json!({"peer":"phone"})),
             &mut next,
@@ -568,6 +644,102 @@ mod tests {
         );
         assert!(host.sent.iter().any(|call| call["op"] == "cancel"));
         assert!(host.sent.iter().all(|call| call["op"] != "reply"));
+    }
+
+    #[test]
+    fn a_cancellation_that_cannot_be_deferred_stops_before_queued_shares_can_run() {
+        let mut host = Script::default();
+        let mut queued = call("share", json!({"peer":"phone"}));
+        queued["ticket"] = json!(6);
+        host.deliveries.push_back(queued);
+        host.deliveries
+            .extend(std::iter::repeat_n(json!({"type":"event"}), 31));
+        host.deliveries
+            .push_back(json!({"type":"cancelled","ticket":6}));
+
+        assert!(matches!(
+            handle(&mut host, &call("share", json!({"peer":"phone"})), &mut 0),
+            Handled::Stop
+        ));
+        assert!(host.opened.is_empty());
+    }
+
+    #[test]
+    fn an_excess_call_is_rejected_without_starting_it() {
+        let mut host = Script::default();
+        host.deliveries
+            .extend(std::iter::repeat_n(json!({"type":"event"}), 32));
+        let mut excess = call("share", json!({"peer":"phone"}));
+        excess["ticket"] = json!(6);
+        host.deliveries.push_back(excess);
+        host.deliveries.push_back(
+            json!({"type":"result","id":1,"result":{"status":"ok","value":{"available":false}}}),
+        );
+
+        let Handled::Replied { reply, waiting, .. } =
+            handle(&mut host, &call("share", json!({"peer":"phone"})), &mut 0)
+        else {
+            panic!("the active call can still finish");
+        };
+        assert_eq!(reply["result"]["message"], answer::NOTHING);
+        assert_eq!(waiting.len(), 32);
+        assert!(waiting.iter().all(|message| message["type"] == "event"));
+        assert!(host.sent.iter().any(|message| message["op"] == "reply"
+            && message["ticket"] == 6
+            && message["result"]["status"] == "error"
+            && message["result"]["code"] == "busy"));
+        assert!(host.opened.is_empty());
+    }
+
+    #[test]
+    fn a_share_cancelled_during_release_never_requests_a_data_stream() {
+        let mut host = Script::default();
+        host.deliveries.extend(
+            captured("sample")
+                .into_iter()
+                .take(2)
+                .enumerate()
+                .map(|(index, result)| json!({"type":"result","id":index + 1,"result":result})),
+        );
+        host.deliveries
+            .push_back(json!({"type":"cancelled","ticket":5}));
+        host.results
+            .push_back(json!({"status":"ok","value":{"claim":99}}));
+
+        assert!(matches!(
+            handle(&mut host, &call("share", json!({"peer":"phone"})), &mut 0),
+            Handled::Cancelled { .. }
+        ));
+        assert!(
+            host.sent
+                .iter()
+                .any(|message| message["method"] == "release")
+        );
+        assert!(host.sent.iter().all(|message| message["method"] != "send"));
+        assert!(host.opened.is_empty());
+    }
+
+    #[test]
+    fn a_cancelled_release_result_also_prevents_sharing() {
+        let mut host = Script::default();
+        host.results.extend(captured("sample").into_iter().take(2));
+        host.results.push_back(
+            json!({"status":"error","code":"cancelled","message":"not for diagnostics"}),
+        );
+        host.results
+            .push_back(json!({"status":"ok","value":{"claim":99}}));
+
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("share", json!({"peer":"phone"})), &mut 0)
+        else {
+            panic!("only the host's cleanup call was cancelled");
+        };
+        assert_eq!(
+            reply["result"],
+            json!({"status":"error","code":"cancelled","message":answer::CANCELLED})
+        );
+        assert!(host.sent.iter().all(|message| message["method"] != "send"));
+        assert!(host.opened.is_empty());
     }
 
     #[test]
@@ -668,12 +840,47 @@ mod tests {
     }
 
     #[test]
+    fn escape_heavy_received_text_fits_in_complete_append_frames() {
+        let text = "\0".repeat(8 * 1024) + "é🙂";
+        let mut host = Script::default();
+        host.incoming.push_back(wire::encode(&text).unwrap());
+        host.results
+            .push_back(json!({"status":"ok","value":{"put":"put-18446744073709551615"}}));
+        host.results
+            .extend(std::iter::repeat_n(json!({"status":"ok","value":true}), 8));
+        let mut next = u64::MAX - 16;
+        let Handled::Replied { reply, .. } =
+            handle(&mut host, &call("receive", json!({})), &mut next)
+        else {
+            panic!("a supported item is placed");
+        };
+
+        assert_eq!(reply["result"]["status"], "ok");
+        let mut rebuilt = String::new();
+        for request in host.sent.iter().filter(|call| call["method"] == "append") {
+            let bytes = serde_json::to_vec(request).unwrap().len();
+            assert!(bytes <= 48 * 1024, "append frame was {bytes} bytes");
+            assert_eq!(
+                request["args"]["offset"].as_u64(),
+                Some(rebuilt.len() as u64)
+            );
+            rebuilt.push_str(request["args"]["text"].as_str().unwrap());
+        }
+        assert!(
+            rebuilt == text,
+            "append pieces must reconstruct the original text"
+        );
+    }
+
+    #[test]
     fn receive_refuses_anything_that_is_not_exactly_one_text() {
         let mut with_trailing = wire::encode("abc").unwrap();
         with_trailing.push(0);
         let mut picture = vec![];
         picture.extend_from_slice(b"PCB1\x02\x00\x00\x00\x00");
-        for bytes in [b"hello".to_vec(), with_trailing, picture, vec![]] {
+        let mut bad_text = b"PCB1\x01\x00\x00\x00\x07".to_vec();
+        bad_text.extend_from_slice(b"sample\xff");
+        for bytes in [b"hello".to_vec(), with_trailing, picture, bad_text, vec![]] {
             let mut host = Script::default();
             host.incoming.push_back(bytes);
             let mut next = 0;
@@ -682,7 +889,10 @@ mod tests {
             else {
                 panic!("replied");
             };
-            assert_eq!(reply["result"]["message"], answer::NOT_ACCEPTED);
+            assert_eq!(
+                reply["result"],
+                json!({"status":"error","code":"failed","message":answer::NOT_ACCEPTED})
+            );
             assert!(host.sent.is_empty(), "nothing reached the clipboard");
         }
     }
