@@ -1,7 +1,6 @@
-//! Test: one page of its own, drawn by the application from plain elements, that tries what the application offers an
-//! extension through its contract: every element and event, a call of every service it may ask (`probes`), the
-//! notifications, the actions a key can be bound to, and, when its setting asks, ways to misbehave on purpose
-//! (`trouble`) that the application must survive while only this extension suffers.
+//! Test: one page of its own, drawn by the application from plain elements, that tries local interactions and services
+//! through the extension contract. Its drawing stays beside its input, statuses show their result here and on paired
+//! devices, and notifications are presented by the application. When its setting asks, it can also misbehave on purpose.
 #![cfg(any(target_family = "wasm", feature = "native", test))]
 
 mod host;
@@ -16,6 +15,11 @@ use serde_json::{Value, json};
 
 /// The setting that shows the buttons that misbehave on purpose.
 const SHOW_TROUBLE: &str = "show_trouble";
+/// The person's option that also places the page among the application's own pages, and the id of that placement.
+const PAGE_SETTING: &str = "test-page";
+/// The page this extension declares; it lives in its settings.
+const PAGE: &str = "test";
+const DEFAULT_STATUS_LABEL: &str = "Testing";
 /// How long the application may take to answer a call of this extension.
 const CALL_MS: u64 = 10_000;
 /// How long a question outside the window may wait for the person.
@@ -29,6 +33,7 @@ enum Asked {
     Config,
     Probe(usize),
     Notification,
+    Pages,
 }
 
 #[derive(Default)]
@@ -38,6 +43,10 @@ pub(crate) struct State {
     reveal: bool,
     said: String,
     rows: u32,
+    /// The proposed and last accepted words for the single status the test owns.
+    status_input: String,
+    status_label: Option<String>,
+    status_on: bool,
     spammed: u32,
     /// How many times one of its key-bindable actions ran (`bump`).
     keyed: u32,
@@ -47,9 +56,6 @@ pub(crate) struct State {
     told: String,
     /// The last answer of each probe, in `probes::PROBES` order.
     probed: Vec<Option<String>>,
-    /// Which way the two switching probes go next (`pages`, `withhold`).
-    offered: bool,
-    withheld: bool,
     /// Paired devices as the last answer of `peersus.peers` `list` named them: alias and name.
     peers: Vec<(String, String)>,
     show_trouble: bool,
@@ -67,12 +73,15 @@ pub(crate) struct State {
     /// Calls out, by id, and what each is for.
     calls: Vec<(u64, Asked)>,
     next: u64,
+    /// Whether the page was last placed among the application's pages; `None` until that is known to have been said.
+    placed: Option<bool>,
 }
 
 impl State {
     fn new() -> Self {
         Self {
             probed: vec![None; probes::PROBES.len()],
+            status_input: DEFAULT_STATUS_LABEL.into(),
             pointer: "No touch yet".into(),
             size: "Not measured yet".into(),
             wheel: "No wheel yet".into(),
@@ -85,11 +94,20 @@ impl State {
     }
 
     fn pending_probe(&self, index: usize) -> bool {
-        self.calls.iter().any(|(_, asked)| *asked == Asked::Probe(index))
+        self.calls
+            .iter()
+            .any(|(_, asked)| *asked == Asked::Probe(index))
     }
 
     /// A call to the application, remembered by its id until it is answered.
-    fn call(&mut self, asked: Asked, service: &str, method: &str, args: Value, timeout_ms: u64) -> Value {
+    fn call(
+        &mut self,
+        asked: Asked,
+        service: &str,
+        method: &str,
+        args: Value,
+        timeout_ms: u64,
+    ) -> Value {
         self.next = self.next.checked_add(1).unwrap_or(1);
         self.calls.push((self.next, asked));
         json!({"op":"call","id":self.next,"provider":"host","service":service,"version":1,
@@ -114,7 +132,9 @@ impl State {
                 _ => {}
             },
             Some("toggle") if id == "switch" => self.on = event["on"].as_bool().unwrap_or(false),
-            Some("toggle") if id == "reveal" => self.reveal = event["on"].as_bool().unwrap_or(false),
+            Some("toggle") if id == "reveal" => {
+                self.reveal = event["on"].as_bool().unwrap_or(false)
+            }
             Some("submit") if id == "say" => {
                 self.said = probes::cut(event["text"].as_str().unwrap_or_default(), 200);
             }
@@ -133,7 +153,12 @@ impl State {
                 }
             }
             Some("size") if id == "pad" => {
-                let number = |key: &str| event[key].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                let number = |key: &str| {
+                    event[key]
+                        .as_i64()
+                        .and_then(|n| i32::try_from(n).ok())
+                        .unwrap_or(0)
+                };
                 self.pad_x = number("x");
                 self.pad_width = Some(number("width"));
                 self.size = format!(
@@ -145,7 +170,10 @@ impl State {
                 );
             }
             Some("wheel") if id == "pad" => {
-                let dy = event["dy"].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                let dy = event["dy"]
+                    .as_i64()
+                    .and_then(|n| i32::try_from(n).ok())
+                    .unwrap_or(0);
                 self.wheel = format!("Wheel {}, {}", event["dx"].as_i64().unwrap_or(0), dy);
                 if self.wheel_steps.len() == WHEEL_STEPS {
                     self.wheel_steps.remove(0);
@@ -154,7 +182,11 @@ impl State {
             }
             Some("tick") if id == "clock" => self.ticks = self.ticks.saturating_add(1),
             Some("choose") if id == "chooser" => {
-                self.chosen = Some(event["device"].as_str().map(|device| probes::cut(device, 64)));
+                self.chosen = Some(
+                    event["device"]
+                        .as_str()
+                        .map(|device| probes::cut(device, 64)),
+                );
             }
             _ => {}
         }
@@ -174,52 +206,89 @@ impl State {
             Some(method) => method,
             None => return Vec::new(),
         };
+        if delivery["method"] == "event" && event["t"] == "submit" && event["id"] == "status-label"
+        {
+            self.status_input = event["text"].as_str().unwrap_or_default().trim().to_owned();
+            return vec![self.define_status()];
+        }
+        if delivery["method"] == "event" && event["t"] == "press" && event["id"] == "reset-status" {
+            self.status_input = DEFAULT_STATUS_LABEL.into();
+            return vec![self.define_status()];
+        }
         if let Some(index) = probes::pressed(kind) {
             let probe = &probes::PROBES[index];
-            let on = match probe.id {
-                "pages" => {
-                    self.offered = !self.offered;
-                    self.offered
-                }
-                "withhold" => {
-                    self.withheld = !self.withheld;
-                    self.withheld
-                }
-                _ => true,
+            let args = if probe.id == "define" {
+                json!({"id":"testing","label":self.status_input})
+            } else {
+                probes::args(probe)
             };
-            let args = probes::args(probe, on);
-            return vec![self.call(Asked::Probe(index), probe.service, probe.method, args, CALL_MS)];
+            return vec![self.call(
+                Asked::Probe(index),
+                probe.service,
+                probe.method,
+                args,
+                CALL_MS,
+            )];
         }
         let args = match kind {
             "notify" => json!({"text":"The Test extension says hello."}),
-            "question" => json!({"text":"The Test extension asks: which one?","reach":"outside","buttons":[
-                {"id":"this","label":"This one"},
-                {"id":"that","label":"That one"}
-            ]}),
+            "question" => {
+                json!({"text":"The Test extension asks: which one?","reach":"outside","buttons":[
+                    {"id":"this","label":"This one"},
+                    {"id":"that","label":"That one"}
+                ]})
+            }
             _ => return Vec::new(),
         };
         self.asked = self.asked.saturating_add(1);
         self.notifying = self.notifying.saturating_add(1);
-        vec![self.call(Asked::Notification, "peersus.notify", "show", args, NOTIFY_MS)]
+        vec![self.call(
+            Asked::Notification,
+            "peersus.notify",
+            "show",
+            args,
+            NOTIFY_MS,
+        )]
     }
 
-    /// The application's answer to a call this extension made. Any other delivery changes nothing.
-    fn told(&mut self, delivery: &Value) {
+    fn define_status(&mut self) -> Value {
+        let index = probes::PROBES
+            .iter()
+            .position(|probe| probe.id == "define")
+            .expect("the test extension declares its define probe");
+        let probe = &probes::PROBES[index];
+        self.call(
+            Asked::Probe(index),
+            probe.service,
+            probe.method,
+            json!({"id":"testing","label":self.status_input}),
+            CALL_MS,
+        )
+    }
+
+    /// The application's answer to a call this extension made, and the call it leads to: placing the page when its option
+    /// changed. Any other delivery changes nothing.
+    fn told(&mut self, delivery: &Value) -> Option<Value> {
         if delivery["type"] != "result" {
-            return;
+            return None;
         }
-        let Some(id) = delivery["id"].as_u64() else {
-            return;
-        };
-        let Some(position) = self.calls.iter().position(|(call, _)| *call == id) else {
-            return;
-        };
+        let id = delivery["id"].as_u64()?;
+        let position = self.calls.iter().position(|(call, _)| *call == id)?;
         let (_, asked) = self.calls.remove(position);
         let result = &delivery["result"];
         match asked {
             Asked::Config => {
                 if let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool() {
                     self.show_trouble = on;
+                }
+                if result["status"] == "ok" {
+                    return self.place(&result["value"]);
+                }
+            }
+            Asked::Pages => {
+                if result["status"] != "ok" {
+                    // Not placed after all: said again with the next answer of the settings.
+                    self.placed = None;
                 }
             }
             Asked::Probe(index) => {
@@ -229,7 +298,10 @@ impl State {
                     self.peers = peers
                         .iter()
                         .filter_map(|peer| {
-                            Some((probes::cut(peer["device"].as_str()?, 64), probes::cut(peer["name"].as_str()?, 80)))
+                            Some((
+                                probes::cut(peer["device"].as_str()?, 64),
+                                probes::cut(peer["name"].as_str()?, 80),
+                            ))
                         })
                         .collect();
                 }
@@ -238,20 +310,67 @@ impl State {
                 {
                     self.show_trouble = on;
                 }
-                self.probed[index] = Some(probes::summary(result));
+                if result["status"] == "ok" {
+                    match probes::PROBES[index].id {
+                        "define" => {
+                            if let Some(label) = result["value"]["label"].as_str() {
+                                self.status_label = Some(label.to_owned());
+                            }
+                        }
+                        "set" => self.status_on = true,
+                        "clear" => self.status_on = false,
+                        _ => {}
+                    }
+                }
+                self.probed[index] = Some(if probes::PROBES[index].id == "own" {
+                    probes::own_summary(result)
+                } else {
+                    probes::summary(result)
+                });
             }
             Asked::Notification => {
                 self.notifying = self.notifying.saturating_sub(1);
-                self.told = match (result["status"].as_str(), result["value"]["answer"].as_str()) {
+                self.told = match (
+                    result["status"].as_str(),
+                    result["value"]["answer"].as_str(),
+                ) {
                     (Some("ok"), Some("pressed")) => {
-                        format!("pressed {}", probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64))
+                        format!(
+                            "pressed {}",
+                            probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64)
+                        )
                     }
                     (Some("ok"), Some("dismissed")) => "closed".to_owned(),
                     (Some("ok"), _) => "shown".to_owned(),
-                    _ => format!("refused ({})", probes::cut(result["code"].as_str().unwrap_or_default(), 32)),
+                    _ => format!(
+                        "refused ({})",
+                        probes::cut(result["code"].as_str().unwrap_or_default(), 32)
+                    ),
                 };
             }
         }
+        None
+    }
+
+    /// Place the page among the application's pages, or take it out, when its option says otherwise than what was said last.
+    fn place(&mut self, config: &Value) -> Option<Value> {
+        let wanted = config["settings"][PAGE_SETTING].as_bool().unwrap_or(false);
+        if self.placed == Some(wanted) {
+            return None;
+        }
+        self.placed = Some(wanted);
+        let pages = if wanted {
+            json!([{"id":PAGE_SETTING,"page":PAGE,"placement":"primary"}])
+        } else {
+            json!([])
+        };
+        Some(self.call(
+            Asked::Pages,
+            "peersus.pages",
+            "set",
+            json!({ "pages": pages }),
+            CALL_MS,
+        ))
     }
 }
 
@@ -286,7 +405,9 @@ enum End {
 
 /// One delivery: the answer it carries, the trouble it asks for, the calls it leads to and the reply.
 fn step<H: Wire>(host: &mut H, state: &mut State, delivery: &Value) -> Result<(), End> {
-    state.told(delivery);
+    if let Some(call) = state.told(delivery) {
+        host.send(call).map_err(|_| End::Gone)?;
+    }
     if let Some(trouble) = trouble::asked(delivery) {
         let ticket = delivery["ticket"].as_u64().unwrap_or(0);
         match trouble::make(host, trouble, ticket) {

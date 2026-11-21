@@ -123,7 +123,8 @@ pub fn make<H: Wire>(host: &mut H, trouble: Trouble, ticket: u64) -> After {
             After::Answer
         }
         Trouble::Nonsense => {
-            let _ = host.send(json!("not an operation at all"))
+            let _ = host
+                .send(json!("not an operation at all"))
                 .and_then(|()| host.send(json!({"op":"dance","with":"nobody"})))
                 .and_then(|()| {
                     host.send(json!({"op":"reply","ticket":ticket.wrapping_add(1_000_000),
@@ -173,7 +174,9 @@ mod tests {
             None
         );
         assert_eq!(
-            asked(&json!({"type":"call","method":"event","args":{"event":{"t":"submit","id":"spin"}}})),
+            asked(
+                &json!({"type":"call","method":"event","args":{"event":{"t":"submit","id":"spin"}}})
+            ),
             None
         );
     }

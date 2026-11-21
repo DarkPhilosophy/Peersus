@@ -2,11 +2,11 @@
   "manifest_version": 1,
   "package": {
     "name": "Test",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "author": "Peersus contributors",
     "link": "https://github.com/DarkPhilosophy/Peersus",
-    "description": "A page of its own that tries what the application offers an extension: every page element and event, one call of every service it may ask, notifications, actions keys can be bound to and, when its setting asks, ways to misbehave on purpose.",
-    "changelog": "0.1.2: every button now asks the application through its contract and shows the answer (settings, licence, system, language, paired devices, other extensions, statuses, page placements, withheld actions, notifications); every element, colour and event of a page; the misbehaving buttons behind a setting, each saying what the application should do; a native library and a process build for validation beside the official WebAssembly one."
+    "description": "A page that tries the extension contract in context: controls and their results together, editable status, notifications, and deliberately misbehaving buttons behind a setting.",
+    "changelog": "0.1.3: status label can be defined, changed, hidden and reset with its result shown in place; touch drawing sits beside its pad, added rows stay by their button, and cross-page buttons were removed. 0.1.2: every button asks the application through its contract and shows the answer; every element, colour and event of a page; the misbehaving buttons behind a setting."
   },
   "platforms": [
     "linux",
@@ -90,28 +90,19 @@
     },
     {
       "provider": "host",
-      "service": "peersus.pages",
-      "version": 1,
-      "methods": [
-        "set"
-      ],
-      "events": []
-    },
-    {
-      "provider": "host",
-      "service": "peersus.actions",
-      "version": 1,
-      "methods": [
-        "withhold"
-      ],
-      "events": []
-    },
-    {
-      "provider": "host",
       "service": "peersus.notify",
       "version": 1,
       "methods": [
         "show"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
       ],
       "events": []
     }
@@ -146,7 +137,7 @@
       {
         "id": "test",
         "label": "Test",
-        "placement": "primary",
+        "placement": "settings",
         "icon": "plugins",
         "surface": "elements",
         "source": {
@@ -206,6 +197,16 @@
     ],
     "settings": [
       {
+        "id": "test-page",
+        "label": "Add Test to page",
+        "help": "Also show Test as its own page; keep the original Test in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      },
+      {
         "id": "show_trouble",
         "label": "Show the misbehaving buttons",
         "help": "Show the buttons that make Test misbehave on purpose (flood, nonsense, never answer, spin, fill memory, leave), each with what the application should do.",
@@ -235,8 +236,8 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Test draws a page that tries what the application offers an extension. Each button asks the application one thing and shows the answer: its settings, whether you accepted this licence and, with the permissions you grant, this device's system, your language, the paired devices you let it see, the other extensions, a status 'Testing' that paired devices watching statuses can see, and notifications. A setting shows buttons that make it misbehave on purpose.",
-        "changes": "After installing, a Test page appears. Nothing is read or shown until you press a button, and what needs a permission is refused until you grant it. Nothing is sent off this device except the 'Testing' status, which you turn on and off yourself. Nothing is stored. Removing the extension removes the page."
+        "explains": "Test draws controls and their feedback together. Its page can show settings, language, system, allowed peers and extensions; you can type a custom status label (Testing by default), show or hide it, and request notifications. Misbehaving buttons remain behind a setting.",
+        "changes": "Installing adds the Test page. A status you turn on is sent to paired devices and shown on their Devices pages until you turn it off or the extension stops; changing its label while it is on changes what they see. Notifications appear in the app, or via the system while it is in the background if permitted. Other probes need their own permissions. No Test page button adds a Settings page or hides an action. Removing Test removes its page and status."
       }
     ]
   }

@@ -8,8 +8,18 @@ use serde_json::{Value, json};
 
 /// The application's own pictures this page shows, by name.
 const ICONS: &[&str] = &[
-    "send", "receive", "peers", "plugins", "settings", "history", "keyboard", "pointer", "network", "device",
-    "languages", "backspace",
+    "send",
+    "receive",
+    "peers",
+    "plugins",
+    "settings",
+    "history",
+    "keyboard",
+    "pointer",
+    "network",
+    "device",
+    "languages",
+    "backspace",
 ];
 /// Every colour a box may be filled with, by its contract name.
 const COLOURS: &[&str] = &[
@@ -48,8 +58,12 @@ impl State {
         let mut children = vec![
             text("Test", "title"),
             text(
-                "Everything here is drawn by the application from what this extension answered, and every button asks \
-                 the application something through its contract. Version 0.1.2.",
+                concat!(
+                    "Everything here is drawn by the application from what this extension answered, and every button asks \
+                     the application something through its contract. Version ",
+                    env!("CARGO_PKG_VERSION"),
+                    "."
+                ),
                 "muted",
             ),
             self.elements(),
@@ -65,9 +79,6 @@ impl State {
                 "muted",
             ));
         }
-        children.extend((1..=self.rows).map(|n| {
-            row(vec![text(format!("Row {n}"), "body"), text("drawn inside the page", "muted")])
-        }));
         let page = json!({"k":"column","children":children});
         // While something waits for the application, the page asks to be drawn again by itself, so the answer shows.
         if self.waiting() {
@@ -92,51 +103,123 @@ impl State {
             None,
             json!({"horizontal":true,"gap":8,"wrap":true}),
             vec![
-                bx(None, json!({"padding":8,"opacity":5000,"background":"accent"}), vec![text("half seen", "body")]),
-                bx(None, json!({"padding":8,"radius":[16,0,16,0],"border":true}), vec![text("two round corners", "body")]),
+                bx(
+                    None,
+                    json!({"padding":8,"opacity":5000,"background":"accent"}),
+                    vec![text("half seen", "body")],
+                ),
+                bx(
+                    None,
+                    json!({"padding":8,"radius":[16,0,16,0],"border":true}),
+                    vec![text("two round corners", "body")],
+                ),
                 bx(
                     None,
                     json!({"height":px(64),"scroll":true,"padding":8,"border":true,"width":px(180)}),
-                    (1..=8).map(|n| text(format!("Line {n} scrolls"), "body")).collect(),
+                    (1..=8)
+                        .map(|n| text(format!("Line {n} scrolls"), "body"))
+                        .collect(),
                 ),
                 bx(
                     None,
                     json!({"height":px(64),"width":px(160),"border":true,"clip":true}),
                     vec![
                         text("Under", "muted"),
-                        bx(None, json!({"overlay":true,"at":[40000,20000],"padding":4,"background":"success"}),
-                            vec![text("over it", "body")]),
+                        bx(
+                            None,
+                            json!({"overlay":true,"at":[40000,20000],"padding":4,"background":"success"}),
+                            vec![text("over it", "body")],
+                        ),
                     ],
                 ),
             ],
         );
-        let icons = ICONS.iter().map(|name| json!({"k":"icon","name":name,"size":20})).collect();
-        let mut revealed = vec![json!({"k":"toggle","id":"reveal","label":"Open a part that grows in","on":self.reveal})];
+        let icons = ICONS
+            .iter()
+            .map(|name| json!({"k":"icon","name":name,"size":20}))
+            .collect();
+        let mut revealed = vec![
+            json!({"k":"toggle","id":"reveal","label":"Open a part that grows in","on":self.reveal}),
+        ];
         if self.reveal {
-            revealed.push(bx(None, json!({"reveal":true,"padding":8,"background":"surface","radius":[8,8,8,8]}),
-                vec![text("This grew out of the switch above.", "body")]));
+            revealed.push(bx(
+                None,
+                json!({"reveal":true,"padding":8,"background":"surface","radius":[8,8,8,8]}),
+                vec![text("This grew out of the switch above.", "body")],
+            ));
         }
+        let mut interactive_controls = vec![
+            bx(None, json!({"gap":8}), revealed),
+            bx(
+                None,
+                json!({"horizontal":true,"gap":8,"wrap":true}),
+                vec![
+                    button_node("grow", "Add a row"),
+                    button_node("clear", "Clear rows"),
+                    button_node("flood", "Too large"),
+                ],
+            ),
+        ];
+        interactive_controls.extend((1..=self.rows).map(|n| {
+            row(vec![
+                text(format!("Row {n}"), "body"),
+                text("drawn inside this card", "muted"),
+            ])
+        }));
         section(
             "Elements",
-            "Texts in every tone, the controls, boxes in every colour and shape, the application's pictures and a drawing.",
+            "Texts in every tone, controls, boxes in every colour and shape, and the application's pictures.",
             vec![
-                row(vec![text("Title", "title"), text("Body", "body"), text("Muted", "muted"), text("42%", "figure")]),
+                // Side by side and whole: a box that wraps moves what does not fit under the rest (a row would share the width out
+                // equally and break the figure inside its share on a phone).
+                bx(
+                    None,
+                    json!({"horizontal":true,"gap":12,"wrap":true}),
+                    vec![
+                        text("Title", "title"),
+                        text("Body", "body"),
+                        text("Muted", "muted"),
+                        text("42%", "figure"),
+                    ],
+                ),
                 json!({"k":"text","lines":2,"tone":"body","text":"A long text that may take at most two lines: whatever does not fit \
                     ends in an ellipsis, however wide the page is and however much more it would have to say about itself."}),
-                row(vec![button_node("count", "Press"), text(format!("Pressed {} times", self.pressed), "body")]),
+                row(vec![
+                    button_node("count", "Press"),
+                    text(format!("Pressed {} times", self.pressed), "body"),
+                ]),
                 json!({"k":"toggle","id":"switch","label":"A switch","on":self.on}),
                 json!({"k":"field","id":"say","placeholder":"Write something and send it","value":"","height":44}),
                 text(
-                    if self.said.is_empty() { "Nothing sent yet".to_owned() } else { format!("You sent: {}", self.said) },
+                    if self.said.is_empty() {
+                        "Nothing sent yet".to_owned()
+                    } else {
+                        format!("You sent: {}", self.said)
+                    },
                     "body",
                 ),
                 json!({"k":"divider"}),
-                bx(None, json!({"horizontal":true,"gap":8,"wrap":true}), swatches),
+                text(
+                    "Colour samples: each box names the theme colour it uses.",
+                    "muted",
+                ),
+                bx(
+                    None,
+                    json!({"horizontal":true,"gap":8,"wrap":true}),
+                    swatches,
+                ),
+                text(
+                    "Box samples: transparency, corners, scrolling and layering.",
+                    "muted",
+                ),
                 shapes,
-                bx(None, json!({"horizontal":true,"gap":12,"wrap":true,"center":true}), icons),
-                self.drawing(),
-                bx(None, json!({"gap":8}), revealed),
-                row(vec![button_node("grow", "Add a row"), button_node("clear", "Clear rows"), button_node("flood", "Too large")]),
+                text("Application icons.", "muted"),
+                bx(
+                    None,
+                    json!({"horizontal":true,"gap":12,"wrap":true,"center":true}),
+                    icons,
+                ),
+                bx(None, json!({"gap":8}), interactive_controls),
             ],
         )
     }
@@ -173,7 +256,10 @@ impl State {
             .map(|(device, name)| json!({"k":"avatar","device":device,"name":name,"size":32}))
             .collect();
         if avatars.is_empty() {
-            avatars.push(text("Press \"Paired devices\" below to see their pictures here.", "muted"));
+            avatars.push(text(
+                "Press \"Paired devices\" below to see their pictures here.",
+                "muted",
+            ));
         }
         let chosen = match &self.chosen {
             Some(Some(device)) => format!("Chosen: {device}"),
@@ -185,18 +271,39 @@ impl State {
             "Raw pointer, size and wheel events from a box with an id, the application's device chooser, pictures of paired \
              devices and a clock that ticks only while this page is shown.",
             vec![
-                json!({"k":"box","id":"pad","observe":["size","wheel"],
-                    "style":{"height":px(120),"padding":12,"radius":[12,12,12,12],"background":"surface","border":true},
-                    "children":[
-                        text("Touch, drag or scroll here", "body"),
-                        text(self.pointer.clone(), "muted"),
-                        text(self.size.clone(), "muted"),
-                        text(self.wheel.clone(), "muted"),
-                    ]}),
+                bx(
+                    None,
+                    json!({"horizontal":true,"wrap":true,"gap":16}),
+                    vec![
+                        json!({"k":"box","id":"pad","observe":["size","wheel"],
+                        "style":{"height":px(120),"padding":12,"radius":[12,12,12,12],"background":"surface","border":true},
+                        "children":[
+                            text("Touch, drag or scroll here", "body"),
+                            text(self.pointer.clone(), "muted"),
+                            text(self.size.clone(), "muted"),
+                            text(self.wheel.clone(), "muted"),
+                        ]}),
+                        bx(
+                            None,
+                            json!({"width":px(300),"gap":8}),
+                            vec![
+                                self.drawing(),
+                                text(
+                                    "The ring follows touch; the line follows scrolling. The green triangle is a sample shape.",
+                                    "muted",
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
                 json!({"k":"devices","id":"chooser","this_device":true,
                     "pick":{"presence":["online","sleeping","offline"],"allowed":false}}),
                 text(chosen, "body"),
-                bx(None, json!({"horizontal":true,"gap":8,"wrap":true,"center":true}), avatars),
+                bx(
+                    None,
+                    json!({"horizontal":true,"gap":8,"wrap":true,"center":true}),
+                    avatars,
+                ),
                 json!({"k":"interval","id":"clock","milliseconds":1000,
                     "child":text(format!("The page's clock ticked {} times", self.ticks), "body")}),
             ],
@@ -206,19 +313,51 @@ impl State {
     fn answers(&self) -> Value {
         let mut children = Vec::new();
         for (index, probe) in PROBES.iter().enumerate() {
-            let said = self.probed[index]
-                .clone()
-                .unwrap_or_else(|| if self.pending_probe(index) { "Asked…".to_owned() } else { "Not asked yet".to_owned() });
-            children.push(row(vec![button_node(&button(probe), probe.label), text(said, "body")]));
+            if probe.id == "define" {
+                children.push(text(
+                    "This device's status: type a label and press Enter to define or change it; Testing is the default. \
+                     Show turns it on; Hide turns it off. Paired devices see active statuses on their Devices page.",
+                    "muted",
+                ));
+                children.push(json!({"k":"field","id":"status-label","placeholder":"Status label (press Enter to apply)","value":"","height":44}));
+                children.push(text(
+                    match &self.status_label {
+                        Some(label) => format!(
+                            "This device: {label} ({})",
+                            if self.status_on { "on" } else { "off" }
+                        ),
+                        None => "No status defined on this device yet".to_owned(),
+                    },
+                    "body",
+                ));
+            }
+            let said = self.probed[index].clone().unwrap_or_else(|| {
+                if self.pending_probe(index) {
+                    "Asked…".to_owned()
+                } else {
+                    "Not asked yet".to_owned()
+                }
+            });
+            children.push(row(vec![
+                button_node(&button(probe), probe.label),
+                text(said, "body"),
+            ]));
             children.push(text(probe.expect, "muted"));
+            if probe.id == "define" {
+                children.push(button_node("reset-status", "Reset label to Testing"));
+            }
         }
         children.push(json!({"k":"divider"}));
         children.push(text(
-            "Notifications (permission: notify.show). Keys: on Settings › Binds, bind keys to this extension's actions: three \
-             count here, two ask for the notifications.",
+            "Notifications (permission: notify.show): Say something appears only in this window. Ask a question appears \
+             here when the window is in front, otherwise through the system when supported and permitted. Keys: on \
+             Settings › Binds, bind actions to count or ask for either notification.",
             "muted",
         ));
-        children.push(row(vec![button_node("notify", "Say something"), button_node("question", "Ask a question")]));
+        children.push(row(vec![
+            button_node("notify", "Say something"),
+            button_node("question", "Ask a question"),
+        ]));
         children.push(text(self.notified(), "body"));
         children.push(text(format!("Run by a key {} times", self.keyed), "body"));
         section(
@@ -242,7 +381,14 @@ impl State {
         for (_, id, label, expect) in TROUBLES {
             children.push(row(vec![button_node(id, label), text(*expect, "muted")]));
         }
-        children.push(text(format!("Flooded {} times, {} operations each", self.spammed, 2 * SPAM), "body"));
+        children.push(text(
+            format!(
+                "Flooded {} times, {} operations each",
+                self.spammed,
+                2 * SPAM
+            ),
+            "body",
+        ));
         section(
             "Misbehave on purpose",
             "Whatever this extension does here, only it may suffer for it: the window, the connections and the other \
