@@ -10,6 +10,8 @@ on:
   workflow_run:
     workflows: [Quality gates, Extension source submission, Generated documentation, Dependency advisory audit]
     types: [completed]
+  # By hand (Actions → Run workflow): refresh every open PR's labels, for example after a settings change.
+  workflow_dispatch:
 permissions:
   contents: read
   checks: read

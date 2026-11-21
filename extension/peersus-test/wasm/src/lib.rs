@@ -1,256 +1,350 @@
-//! A page of its own, drawn by the application from plain elements. It tries each element and each
-//! event, and the limits: one button answers with a tree far too large, which the application must
-//! refuse while it keeps showing the page as it was. A second set of buttons makes this extension
-//! misbehave on purpose (flood the application, answer nonsense, answer never, spin, fill its
-//! memory, leave): whatever it does, only this extension may suffer for it.
+//! Test: one page of its own, drawn by the application from plain elements, that tries what the application offers an
+//! extension through its contract: every element and event, a call of every service it may ask (`probes`), the
+//! notifications, the actions a key can be bound to, and, when its setting asks, ways to misbehave on purpose
+//! (`trouble`) that the application must survive while only this extension suffers.
+#![cfg(any(target_family = "wasm", feature = "native", test))]
+
+mod host;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native;
+mod page;
+mod probes;
+mod trouble;
+
+use host::Wire;
 use serde_json::{Value, json};
 
+/// The setting that shows the buttons that misbehave on purpose.
+const SHOW_TROUBLE: &str = "show_trouble";
+/// How long the application may take to answer a call of this extension.
+const CALL_MS: u64 = 10_000;
+/// How long a question outside the window may wait for the person.
+const NOTIFY_MS: u64 = 120_000;
+/// Most wheel steps the drawing keeps.
+const WHEEL_STEPS: usize = 18;
+
+/// What a call this extension made is for, by its id.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Asked {
+    Config,
+    Probe(usize),
+    Notification,
+}
+
 #[derive(Default)]
-pub struct State {
+pub(crate) struct State {
     pressed: u32,
     on: bool,
+    reveal: bool,
     said: String,
     rows: u32,
     spammed: u32,
-}
-
-/// A way to misbehave that a press asks for. None of them is an answer: each is something the
-/// application must survive, and the entry point does it instead of answering.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Trouble {
-    /// Thousands of operations nobody asked for, and then the ordinary answer.
-    Spam,
-    /// Bytes that are no operation, an operation that does not exist, an answer to a call that was
-    /// never delivered, and then an answer that is no page.
-    Nonsense,
-    /// No answer to this call, ever. Later calls are answered.
-    Late,
-    /// Work without end inside one turn.
-    Spin,
-    /// Memory taken until there is no more.
-    Fill,
-    /// The entry point returns an error.
-    Leave,
-}
-
-/// How many pairs of operations one press of "Flood" sends.
-pub const SPAM: u32 = 2000;
-
-/// The trouble this delivery asks for, if it is a press of one of those buttons.
-pub fn trouble(delivery: &Value) -> Option<Trouble> {
-    let event = &delivery["args"]["event"];
-    if delivery["type"] != "call" || delivery["method"] != "event" || event["t"] != "press" {
-        return None;
-    }
-    match event["id"].as_str()? {
-        "spam" => Some(Trouble::Spam),
-        "nonsense" => Some(Trouble::Nonsense),
-        "late" => Some(Trouble::Late),
-        "spin" => Some(Trouble::Spin),
-        "fill" => Some(Trouble::Fill),
-        "leave" => Some(Trouble::Leave),
-        _ => None,
-    }
+    /// How many times one of its key-bindable actions ran (`bump`).
+    keyed: u32,
+    /// Notifications asked for, how many have no answer yet, and the last answer.
+    asked: u32,
+    notifying: u32,
+    told: String,
+    /// The last answer of each probe, in `probes::PROBES` order.
+    probed: Vec<Option<String>>,
+    /// Which way the two switching probes go next (`pages`, `withhold`).
+    offered: bool,
+    withheld: bool,
+    /// Paired devices as the last answer of `peersus.peers` `list` named them: alias and name.
+    peers: Vec<(String, String)>,
+    show_trouble: bool,
+    /// The last pointer, size and wheel of the pad, in words, and what the drawing makes of them.
+    pointer: String,
+    size: String,
+    wheel: String,
+    pointer_share: Option<u32>,
+    pad_width: Option<i32>,
+    pad_x: i32,
+    wheel_steps: Vec<i32>,
+    ticks: u64,
+    /// The device chosen in the chooser: `Some(None)` is this device.
+    chosen: Option<Option<String>>,
+    /// Calls out, by id, and what each is for.
+    calls: Vec<(u64, Asked)>,
+    next: u64,
 }
 
 impl State {
-    /// The page after `event`.
-    pub fn answer(&mut self, event: &Value) -> Value {
-        match (event["t"].as_str(), event["id"].as_str()) {
-            (Some("press"), Some("count")) => self.pressed += 1,
-            (Some("press"), Some("grow")) => self.rows = (self.rows + 1).min(12),
-            (Some("press"), Some("clear")) => self.rows = 0,
-            (Some("press"), Some("flood")) => return flood(),
-            (Some("toggle"), Some("switch")) => self.on = event["on"].as_bool().unwrap_or(false),
-            (Some("submit"), Some("say")) => {
-                self.said = event["text"].as_str().unwrap_or_default().chars().take(200).collect()
+    fn new() -> Self {
+        Self {
+            probed: vec![None; probes::PROBES.len()],
+            pointer: "No touch yet".into(),
+            size: "Not measured yet".into(),
+            wheel: "No wheel yet".into(),
+            ..Self::default()
+        }
+    }
+
+    fn waiting(&self) -> bool {
+        !self.calls.is_empty()
+    }
+
+    fn pending_probe(&self, index: usize) -> bool {
+        self.calls.iter().any(|(_, asked)| *asked == Asked::Probe(index))
+    }
+
+    /// A call to the application, remembered by its id until it is answered.
+    fn call(&mut self, asked: Asked, service: &str, method: &str, args: Value, timeout_ms: u64) -> Value {
+        self.next = self.next.checked_add(1).unwrap_or(1);
+        self.calls.push((self.next, asked));
+        json!({"op":"call","id":self.next,"provider":"host","service":service,"version":1,
+            "method":method,"args":args,"timeout_ms":timeout_ms})
+    }
+
+    /// Its settings: read once it starts and each time its page opens, so a changed setting shows.
+    fn ask_config(&mut self) -> Value {
+        self.call(Asked::Config, "peersus.config", "get", json!({}), CALL_MS)
+    }
+
+    /// The page after `event`, which changes only what this extension keeps.
+    fn answer(&mut self, event: &Value) -> Value {
+        let id = event["id"].as_str().unwrap_or_default();
+        match event["t"].as_str() {
+            Some("press") => match id {
+                "count" => self.pressed = self.pressed.saturating_add(1),
+                "grow" => self.rows = (self.rows + 1).min(12),
+                "clear" => self.rows = 0,
+                "flood" => return page::flood(),
+                "spam" => self.spammed = self.spammed.saturating_add(1),
+                _ => {}
+            },
+            Some("toggle") if id == "switch" => self.on = event["on"].as_bool().unwrap_or(false),
+            Some("toggle") if id == "reveal" => self.reveal = event["on"].as_bool().unwrap_or(false),
+            Some("submit") if id == "say" => {
+                self.said = probes::cut(event["text"].as_str().unwrap_or_default(), 200);
             }
-            (Some("press"), Some("spam")) => self.spammed += 1,
+            Some("pointer") if id == "pad" => {
+                let x = event["x"].as_i64().unwrap_or(0);
+                let y = event["y"].as_i64().unwrap_or(0);
+                self.pointer = format!(
+                    "Pointer {} at {:.1}, {:.1}",
+                    event["phase"].as_str().unwrap_or("?"),
+                    x as f64 / 1000.0,
+                    y as f64 / 1000.0
+                );
+                if let Some(width) = self.pad_width.filter(|width| *width > 0) {
+                    let across = (x - i64::from(self.pad_x)).clamp(0, i64::from(width));
+                    self.pointer_share = u32::try_from(across * 10_000 / i64::from(width)).ok();
+                }
+            }
+            Some("size") if id == "pad" => {
+                let number = |key: &str| event[key].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                self.pad_x = number("x");
+                self.pad_width = Some(number("width"));
+                self.size = format!(
+                    "Measured {:.0} × {:.0} at {:.0}, {:.0}",
+                    f64::from(number("width")) / 1000.0,
+                    f64::from(number("height")) / 1000.0,
+                    f64::from(number("x")) / 1000.0,
+                    f64::from(number("y")) / 1000.0
+                );
+            }
+            Some("wheel") if id == "pad" => {
+                let dy = event["dy"].as_i64().and_then(|n| i32::try_from(n).ok()).unwrap_or(0);
+                self.wheel = format!("Wheel {}, {}", event["dx"].as_i64().unwrap_or(0), dy);
+                if self.wheel_steps.len() == WHEEL_STEPS {
+                    self.wheel_steps.remove(0);
+                }
+                self.wheel_steps.push(dy / 1000);
+            }
+            Some("tick") if id == "clock" => self.ticks = self.ticks.saturating_add(1),
+            Some("choose") if id == "chooser" => {
+                self.chosen = Some(event["device"].as_str().map(|device| probes::cut(device, 64)));
+            }
             _ => {}
         }
         self.page()
     }
 
-    fn page(&self) -> Value {
-        let mut rows: Vec<Value> = (1..=self.rows)
-            .map(|n| json!({"k":"row","children":[
-                {"k":"text","text":format!("Row {n}")},
-                {"k":"text","text":"drawn inside the page","tone":"muted"}
-            ]}))
-            .collect();
-        let mut children = vec![
-            json!({"k":"text","text":"Test","tone":"title"}),
-            json!({"k":"text","text":"Everything here is drawn by the application from what this extension answered.","tone":"muted"}),
-            json!({"k":"divider"}),
-            json!({"k":"row","children":[
-                {"k":"button","id":"count","label":"Press"},
-                {"k":"text","text":format!("Pressed {} times", self.pressed)}
+    /// The calls a delivery leads to, sent before it is answered so that the page that comes back already shows them as
+    /// asked: a probe pressed, a notification asked for by its button or a bound key, the settings when the page opens.
+    fn calls_for(&mut self, delivery: &Value) -> Vec<Value> {
+        if delivery["type"] != "call" {
+            return Vec::new();
+        }
+        let event = &delivery["args"]["event"];
+        let kind = match delivery["method"].as_str() {
+            Some("event") if event["t"] == "open" => return vec![self.ask_config()],
+            Some("event") if event["t"] == "press" => event["id"].as_str().unwrap_or_default(),
+            Some(method) => method,
+            None => return Vec::new(),
+        };
+        if let Some(index) = probes::pressed(kind) {
+            let probe = &probes::PROBES[index];
+            let on = match probe.id {
+                "pages" => {
+                    self.offered = !self.offered;
+                    self.offered
+                }
+                "withhold" => {
+                    self.withheld = !self.withheld;
+                    self.withheld
+                }
+                _ => true,
+            };
+            let args = probes::args(probe, on);
+            return vec![self.call(Asked::Probe(index), probe.service, probe.method, args, CALL_MS)];
+        }
+        let args = match kind {
+            "notify" => json!({"text":"The Test extension says hello."}),
+            "question" => json!({"text":"The Test extension asks: which one?","reach":"outside","buttons":[
+                {"id":"this","label":"This one"},
+                {"id":"that","label":"That one"}
             ]}),
-            json!({"k":"toggle","id":"switch","label":"A switch","on":self.on}),
-            json!({"k":"field","id":"say","placeholder":"Write something and send it"}),
-            json!({"k":"text","text": if self.said.is_empty() { "Nothing sent yet".to_owned() } else { format!("You sent: {}", self.said) }}),
-            json!({"k":"divider"}),
-            json!({"k":"row","children":[
-                {"k":"button","id":"grow","label":"Add a row"},
-                {"k":"button","id":"clear","label":"Clear rows"},
-                {"k":"button","id":"flood","label":"Too large"}
-            ]}),
-            json!({"k":"divider"}),
-            json!({"k":"text","text":"Misbehave on purpose. The application must stay as it is.","tone":"muted"}),
-            json!({"k":"row","children":[
-                {"k":"button","id":"spam","label":"Flood"},
-                {"k":"button","id":"nonsense","label":"Nonsense"},
-                {"k":"button","id":"late","label":"Never answer"}
-            ]}),
-            json!({"k":"row","children":[
-                {"k":"button","id":"spin","label":"Spin"},
-                {"k":"button","id":"fill","label":"Fill memory"},
-                {"k":"button","id":"leave","label":"Leave"}
-            ]}),
-            json!({"k":"text","text":format!("Flooded {} times, {} operations each", self.spammed, 2 * SPAM)}),
-        ];
-        children.append(&mut rows);
-        json!({"k":"column","children":children})
+            _ => return Vec::new(),
+        };
+        self.asked = self.asked.saturating_add(1);
+        self.notifying = self.notifying.saturating_add(1);
+        vec![self.call(Asked::Notification, "peersus.notify", "show", args, NOTIFY_MS)]
+    }
+
+    /// The application's answer to a call this extension made. Any other delivery changes nothing.
+    fn told(&mut self, delivery: &Value) {
+        if delivery["type"] != "result" {
+            return;
+        }
+        let Some(id) = delivery["id"].as_u64() else {
+            return;
+        };
+        let Some(position) = self.calls.iter().position(|(call, _)| *call == id) else {
+            return;
+        };
+        let (_, asked) = self.calls.remove(position);
+        let result = &delivery["result"];
+        match asked {
+            Asked::Config => {
+                if let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool() {
+                    self.show_trouble = on;
+                }
+            }
+            Asked::Probe(index) => {
+                if probes::PROBES[index].id == "peers"
+                    && let Some(peers) = result["value"].as_array()
+                {
+                    self.peers = peers
+                        .iter()
+                        .filter_map(|peer| {
+                            Some((probes::cut(peer["device"].as_str()?, 64), probes::cut(peer["name"].as_str()?, 80)))
+                        })
+                        .collect();
+                }
+                if probes::PROBES[index].id == "config"
+                    && let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool()
+                {
+                    self.show_trouble = on;
+                }
+                self.probed[index] = Some(probes::summary(result));
+            }
+            Asked::Notification => {
+                self.notifying = self.notifying.saturating_sub(1);
+                self.told = match (result["status"].as_str(), result["value"]["answer"].as_str()) {
+                    (Some("ok"), Some("pressed")) => {
+                        format!("pressed {}", probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64))
+                    }
+                    (Some("ok"), Some("dismissed")) => "closed".to_owned(),
+                    (Some("ok"), _) => "shown".to_owned(),
+                    _ => format!("refused ({})", probes::cut(result["code"].as_str().unwrap_or_default(), 32)),
+                };
+            }
+        }
     }
 }
 
-/// A tree far deeper than the application draws: it must keep what it showed and not draw this.
-/// Nested, and not long, so that making it costs this guest almost nothing of its turn.
-fn flood() -> Value {
-    let mut tree = json!({"k":"text","text":"too deep"});
-    for _ in 0..40 {
-        tree = json!({"k":"column","children":[tree]});
-    }
-    tree
-}
-
-/// Answer one delivery. `None` for anything that is not a call.
-pub fn handle(state: &mut State, delivery: &Value) -> Option<Value> {
+/// The answer to one call of the application. `None` for anything that is not a call.
+fn handle(state: &mut State, delivery: &Value) -> Option<Value> {
     if delivery["type"] != "call" {
         return None;
     }
     let ticket = delivery["ticket"].as_u64()?;
-    let result = if delivery["method"] == "event" {
-        json!({"status":"ok","value":state.answer(&delivery["args"]["event"])})
-    } else {
-        json!({"status":"error","code":"failed","message":"Nothing here answers that"})
+    let result = match delivery["method"].as_str() {
+        Some("event") => json!({"status":"ok","value":state.answer(&delivery["args"]["event"])}),
+        // Every one of its key-bindable actions that counts calls this; the count shows next time the page is drawn.
+        Some("bump") => {
+            state.keyed = state.keyed.saturating_add(1);
+            json!({"status":"ok","value":null})
+        }
+        // A bound key asked for a notification, which `calls_for` already sent.
+        Some("notify" | "question") => json!({"status":"ok","value":null}),
+        _ => json!({"status":"error","code":"failed","message":"Nothing here answers that"}),
     };
     Some(json!({"op":"reply","ticket":ticket,"result":result}))
 }
 
-#[cfg(target_family = "wasm")]
-mod import {
-    #[link(wasm_import_module = "peersus_v1")]
-    unsafe extern "C" {
-        #[link_name = "receive"]
-        pub fn receive(buffer: *mut u8, capacity: usize) -> i32;
-        #[link_name = "send"]
-        pub fn send(buffer: *const u8, length: usize) -> i32;
+/// Why the loop ends.
+#[derive(Debug, PartialEq, Eq)]
+enum End {
+    /// The application went away: nothing more can be sent or received.
+    Gone,
+    /// "Leave" was pressed.
+    Leave,
+}
+
+/// One delivery: the answer it carries, the trouble it asks for, the calls it leads to and the reply.
+fn step<H: Wire>(host: &mut H, state: &mut State, delivery: &Value) -> Result<(), End> {
+    state.told(delivery);
+    if let Some(trouble) = trouble::asked(delivery) {
+        let ticket = delivery["ticket"].as_u64().unwrap_or(0);
+        match trouble::make(host, trouble, ticket) {
+            trouble::After::Answer => {}
+            trouble::After::Skip => return Ok(()),
+            trouble::After::Leave => return Err(End::Leave),
+        }
+    }
+    for call in state.calls_for(delivery) {
+        host.send(call).map_err(|_| End::Gone)?;
+    }
+    if let Some(reply) = handle(state, delivery) {
+        host.send(reply).map_err(|_| End::Gone)?;
+    }
+    Ok(())
+}
+
+/// The whole life of the guest. Returns zero when the application goes away, non-zero when it leaves on purpose.
+#[cfg(any(target_family = "wasm", feature = "native"))]
+fn run<H: Wire>(host: &mut H) -> i32 {
+    let mut state = State::new();
+    let config = state.ask_config();
+    if host.send(config).is_err() {
+        return 0;
+    }
+    loop {
+        let Ok(delivery) = host.receive() else {
+            return 0;
+        };
+        match step(host, &mut state, &delivery) {
+            Ok(()) => {}
+            Err(End::Gone) => return 0,
+            Err(End::Leave) => return 1,
+        }
     }
 }
 
-/// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a
-/// broken protocol.
+/// The entry the interpreter calls.
 #[cfg(target_family = "wasm")]
 #[unsafe(no_mangle)]
 pub extern "C" fn peersus_main() -> i32 {
-    const LIMIT: usize = 48 * 1024;
-    let mut state = State::default();
-    let mut buffer = vec![0u8; LIMIT];
-    loop {
-        let count = unsafe { import::receive(buffer.as_mut_ptr(), buffer.len()) };
-        if count <= 0 || count as usize > LIMIT {
-            return 0;
-        }
-        let Ok(delivery) = serde_json::from_slice::<Value>(&buffer[..count as usize]) else {
-            return 1;
-        };
-        let ticket = delivery["ticket"].as_u64().unwrap_or(0);
-        // Every refusal of what is sent here is the point, so no result is looked at.
-        let say = |bytes: &[u8]| {
-            let _ = unsafe { import::send(bytes.as_ptr(), bytes.len()) };
-        };
-        match trouble(&delivery) {
-            Some(Trouble::Spam) => {
-                for n in 0..SPAM {
-                    say(format!(r#"{{"op":"call","id":{n},"provider":"host","service":"test.nobody","version":1,"method":"nothing","args":{{}},"timeout_ms":1000}}"#).as_bytes());
-                    say(br#"{"op":"publish","service":"test.page","version":1,"event":"nothing","data":{}}"#);
-                }
-            }
-            Some(Trouble::Nonsense) => {
-                say(b"\xff\xfe not an operation at all");
-                say(br#"{"op":"dance","with":"nobody"}"#);
-                say(format!(r#"{{"op":"reply","ticket":{},"result":{{"status":"ok","value":null}}}}"#, ticket.wrapping_add(1_000_000)).as_bytes());
-                say(format!(r#"{{"op":"reply","ticket":{ticket},"result":{{"status":"ok","value":{{"k":"no-such-element","children":7}}}}}}"#).as_bytes());
-                continue;
-            }
-            Some(Trouble::Late) => continue,
-            Some(Trouble::Spin) => {
-                let mut turns = 0u64;
-                loop {
-                    turns = core::hint::black_box(turns.wrapping_add(1));
-                }
-            }
-            Some(Trouble::Fill) => {
-                let mut held = Vec::new();
-                loop {
-                    held.push(vec![1u8; 1 << 20]);
-                    core::hint::black_box(&held);
-                }
-            }
-            Some(Trouble::Leave) => return 1,
-            None => {}
-        }
-        if let Some(reply) = handle(&mut state, &delivery) {
-            let Ok(bytes) = serde_json::to_vec(&reply) else {
-                return 1;
-            };
-            if bytes.len() > LIMIT || unsafe { import::send(bytes.as_ptr(), bytes.len()) } != 0 {
-                return 1;
-            }
-        }
+    run(&mut host::Host)
+}
+
+/// The entry the native host calls, with its table of the same functions the interpreter offers.
+///
+/// # Safety
+/// `host` is the native host's table, valid for the whole call.
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32 {
+    if !native::enter(host) {
+        return 1;
     }
+    let result = run(&mut host::Host);
+    native::leave();
+    result
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_event_changes_the_page_and_the_flood_is_far_past_the_limits() {
-        let mut state = State::default();
-        let open = state.answer(&json!({"t":"open"}));
-        assert_eq!(open["k"], "column");
-        state.answer(&json!({"t":"press","id":"count"}));
-        state.answer(&json!({"t":"toggle","id":"switch","on":true}));
-        let page = state.answer(&json!({"t":"submit","id":"say","text":"hi"}));
-        let text = page.to_string();
-        assert!(text.contains("Pressed 1 times") && text.contains("You sent: hi"));
-        assert_eq!(flood().to_string().matches("column").count(), 40);
-        let reply = handle(&mut state, &json!({"type":"call","ticket":3,"method":"event","args":{"event":{"t":"open"}}})).unwrap();
-        assert_eq!(reply["ticket"], 3);
-        assert_eq!(reply["result"]["status"], "ok");
-    }
-
-    #[test]
-    fn only_a_press_of_its_own_button_asks_for_trouble() {
-        let press = |id: &str| json!({"type":"call","ticket":1,"method":"event","args":{"event":{"t":"press","id":id}}});
-        for (id, wanted) in [
-            ("spam", Trouble::Spam),
-            ("nonsense", Trouble::Nonsense),
-            ("late", Trouble::Late),
-            ("spin", Trouble::Spin),
-            ("fill", Trouble::Fill),
-            ("leave", Trouble::Leave),
-        ] {
-            assert_eq!(trouble(&press(id)), Some(wanted));
-        }
-        assert_eq!(trouble(&press("count")), None);
-        assert_eq!(trouble(&json!({"type":"event","args":{"event":{"t":"press","id":"spin"}}})), None);
-        assert_eq!(trouble(&json!({"type":"call","method":"event","args":{"event":{"t":"submit","id":"spin"}}})), None);
-        let page = State::default().answer(&json!({"t":"open"})).to_string();
-        for id in ["spam", "nonsense", "late", "spin", "fill", "leave"] {
-            assert!(page.contains(&format!(r#""id":"{id}""#)), "{id}");
-        }
-    }
-}
+mod tests;
