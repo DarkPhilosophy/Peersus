@@ -1,8 +1,8 @@
-//! What one Location says to another, and nothing else: one position, shared once.
+//! What one Location says to another, and nothing else: one position, shared once, or the question of where the other is.
 //!
 //! The application carries a stream one way only: the device that shares writes it (`peersus.peers` `send`) and the device
-//! it shares with reads it (the exported `receive`). Nothing is asked and nothing answers: a position goes only when its
-//! person shares it.
+//! it shares with reads it (the exported `receive`). Nothing answers on a stream. A device that knows nothing of one it
+//! shares with may say so on a stream of its own ([`WANTED`]); what that leads to, if anything, is the other's own share.
 //!
 //! ```text
 //! {"position":{"latitude":44.4268,"longitude":26.1025,"accuracy":12.5,"age":30}}
@@ -23,6 +23,11 @@ pub const SERVICE: &str = "location.position";
 pub const VERSION: u32 = 1;
 /// Most bytes of one message: one short line.
 pub const MAX: usize = 512;
+/// The service by which one Location asks another where it is, and its version. It carries one fixed line and no more.
+pub const WANTED: &str = "location.wanted";
+pub const WANTED_VERSION: u32 = 1;
+/// The whole of the question. What is not exactly this is not understood.
+pub const WANTED_MESSAGE: &[u8] = br#"{"wanted":"position"}"#;
 
 /// A position as it is shared: where, and how old it was when it left.
 #[derive(Clone, Copy, Debug, PartialEq)]

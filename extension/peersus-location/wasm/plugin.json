@@ -112,6 +112,21 @@
         }
       },
       "events": {}
+    },
+    {
+      "service": "location.wanted",
+      "version": 1,
+      "description": "Carries the question a paired device asks when it knows nothing of where this one is, or only something old.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "receive": {
+          "capability": "location.sharing",
+          "description": "Takes the question and, if sharing is allowed both ways, shares the position this device already knows with the devices that take it."
+        }
+      },
+      "events": {}
     }
   ],
   "contributions": {

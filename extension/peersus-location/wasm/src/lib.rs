@@ -4,11 +4,14 @@
 //! from `peersus.config`) also places it among the application's pages (`peersus.pages`).
 //!
 //! This device's position is asked of the application (`peersus.location`, the person's `location.read`) only when the person
-//! presses a button, or every five minutes while the page is open when they turned that on. Sharing sends it once to every
-//! paired device that takes it now (`peersus.peers`: online, allowed, and its Location there accepts `location.position`);
-//! the application admits it there only from a device that device's person allowed Location for (`location.share`). What
-//! arrives is kept in memory only, one position per device, and is forgotten when the extension stops, the person presses
-//! Forget, or the device is no longer listed as allowed (unpaired, or Location no longer allowed for it). Nothing is asked of another device: a position goes only when its own person shares it.
+//! presses a button, or when a share is due: at most every five minutes while a paired device takes it. Sharing sends it once
+//! to every paired device that takes it now (`peersus.peers`: online, allowed, and its Location there accepts
+//! `location.position`); the application admits it there only from a device that device's person allowed Location for
+//! (`location.sharing`). What arrives is kept in memory only, one position per device, and is forgotten when the extension
+//! stops, the person presses Forget, or the device is no longer listed as allowed (unpaired, or Location no longer allowed
+//! for it). A device of which nothing is known here, or only something old, is asked where it is (`location.wanted`, under
+//! the same permission on both sides): it answers by sharing what it knows, so a map is not empty until every device's next
+//! turn. A question never makes a device look for itself sooner than it would have.
 mod atlas;
 mod borders;
 mod canvas_scene;
@@ -57,6 +60,10 @@ const TICK: u16 = 1_000;
 const LIST_EVERY: u64 = 10_000;
 /// Keep sharing sends again this often (page clock, milliseconds).
 const SHARE_EVERY: u64 = 5 * 60_000;
+/// What is known of a device is old once two of its turns went by without a share arriving (page clock, milliseconds).
+const STALE: u64 = 2 * SHARE_EVERY;
+/// A device's question is answered no more often than this (page clock, milliseconds).
+const ANSWER_EVERY: u64 = 30_000;
 /// Scale change of the dedicated zoom buttons.
 const CLOSER: f64 = 1.6;
 /// A burst of this many logical wheel pixels doubles the magnification.
@@ -116,6 +123,8 @@ struct Device {
     name: String,
     /// It takes a position now: online, allowed here, and its Location accepts it.
     ready: bool,
+    /// It takes the question of where it is now: online, allowed here, and its Location accepts that.
+    asks: bool,
 }
 
 /// A position and when (page clock) it was told: this device's by the application, a paired device's when it arrived.
@@ -233,6 +242,16 @@ pub struct State {
     sending: Vec<Sending>,
     /// Streams the application opened for it, to write that share's position on.
     outgoing: Vec<Sending>,
+    /// Questions asked of the application, not open yet: the call and the device it is for.
+    asking: Vec<(u64, String)>,
+    /// Questions the application opened a stream for: the claim to write it under, and the device.
+    asks: Vec<(u64, String)>,
+    /// When (page clock) each device was last asked where it is.
+    asked: BTreeMap<String, u64>,
+    /// A device asked where this one is: it is shared at the next listing, whether or not a share is due.
+    wanted: bool,
+    /// When (page clock) a device's question was last answered.
+    answered_at: Option<u64>,
     /// What came of the last share to each device: whether every byte reached it.
     delivered: BTreeMap<String, bool>,
     /// The last share reached no device: nobody could take it.
@@ -794,19 +813,32 @@ impl State {
             self.devices_denied = denied;
             if let Some(peers) = result["value"].as_array().filter(|_| ok) {
                 self.listed(peers);
-                if self.devices.iter().any(|d| d.ready)
-                    && self
+                let mut calls = self.ask_devices();
+                let wanted = std::mem::take(&mut self.wanted);
+                if self.devices.iter().any(|d| d.ready) {
+                    if self
                         .kept_at
                         .is_none_or(|at| self.now.saturating_sub(at) >= SHARE_EVERY)
-                {
-                    return self.find(Ask::Keep).into_iter().collect();
+                    {
+                        calls.extend(self.find(Ask::Keep));
+                    } else if wanted && let Own::Found(told) = &self.own {
+                        // Asked between two turns: what is known goes again, as old as it is now. The system is not
+                        // asked sooner than it would have been.
+                        let told = *told;
+                        calls.extend(self.share(told));
+                    }
                 }
+                return calls;
             } else {
                 // No device may be seen any more: nothing of one is shown either.
                 self.devices.clear();
                 self.seen.clear();
                 self.sending.clear();
                 self.outgoing.clear();
+                self.asking.clear();
+                self.asks.clear();
+                self.asked.clear();
+                self.wanted = false;
                 self.share_kept = false;
             }
         } else if id == self.asked_own {
@@ -866,6 +898,11 @@ impl State {
                     self.delivered.insert(sending.alias, false);
                 }
             }
+        } else if let Some(index) = self.asking.iter().position(|(number, _)| *number == id) {
+            let (_, alias) = self.asking.swap_remove(index);
+            if let Some(claim) = result["value"]["claim"].as_u64().filter(|_| ok) {
+                self.asks.push((claim, alias));
+            }
         }
         Vec::new()
     }
@@ -880,15 +917,17 @@ impl State {
                 let alias = peer["device"]
                     .as_str()
                     .filter(|alias| !alias.is_empty() && alias.len() <= ALIAS_MAX)?;
-                let ready = peer["presence"] != "offline"
-                    && peer["online"] == true
-                    && peer["accepts"].as_array().is_some_and(|accepts| {
-                        accepts.iter().any(|service| service == wire::SERVICE)
-                    });
+                let takes = |service: &str| {
+                    peer["accepts"]
+                        .as_array()
+                        .is_some_and(|accepts| accepts.iter().any(|accepted| accepted == service))
+                };
+                let online = peer["presence"] != "offline" && peer["online"] == true;
                 Some(Device {
                     alias: alias.to_owned(),
                     name: clipped(peer["name"].as_str().unwrap_or(words::SOMEONE), NAME_MAX),
-                    ready,
+                    ready: online && takes(wire::SERVICE),
+                    asks: online && takes(wire::WANTED),
                 })
             })
             .collect();
@@ -898,9 +937,51 @@ impl State {
         let ready = |s: &Sending| devices.iter().any(|d| d.ready && d.alias == s.alias);
         self.sending.retain(ready);
         self.outgoing.retain(ready);
+        let asks = |(_, alias): &(u64, String)| devices.iter().any(|d| d.asks && d.alias == *alias);
+        self.asking.retain(asks);
+        self.asks.retain(asks);
+        self.asked
+            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
         if !devices.iter().any(|d| d.ready) {
             self.share_kept = false;
         }
+    }
+
+    /// Ask every device that takes the question, and of which nothing is known here or only something old, where it is:
+    /// at once the first time, then no more often than a share is due. Nothing answers on that stream: a device that
+    /// agrees shares, as at its own turn.
+    fn ask_devices(&mut self) -> Vec<Value> {
+        let now = self.now;
+        let unknown: Vec<String> = self
+            .devices
+            .iter()
+            .filter(|device| device.asks)
+            .filter(|device| {
+                self.seen
+                    .get(&device.alias)
+                    .is_none_or(|told| now.saturating_sub(told.at) >= STALE)
+            })
+            .filter(|device| {
+                self.asked
+                    .get(&device.alias)
+                    .is_none_or(|at| now.saturating_sub(*at) >= SHARE_EVERY)
+            })
+            .map(|device| device.alias.clone())
+            .collect();
+        unknown
+            .into_iter()
+            .map(|alias| {
+                let (number, call) = self.call(
+                    PEERS,
+                    "send",
+                    json!({"device":alias,"service":wire::WANTED,"version":wire::WANTED_VERSION}),
+                    CALL_MS,
+                );
+                self.asked.insert(alias.clone(), now);
+                self.asking.push((number, alias));
+                call
+            })
+            .collect()
     }
 
     /// What a person did on the page, and the calls it leads to.
@@ -1516,6 +1597,13 @@ impl State {
             });
             self.delivered.insert(sending.alias, delivered);
         }
+        // A question is the same few bytes for every device, and what came of it is not said: its answer is a share.
+        for (claim, _) in std::mem::take(&mut self.asks) {
+            if let Ok(handle) = host.open(true, claim) {
+                self.deliver(host, handle, wire::WANTED_MESSAGE);
+                host.close(handle);
+            }
+        }
     }
 
     fn deliver<H: Wire + Data>(&mut self, host: &mut H, handle: Handle, bytes: &[u8]) -> bool {
@@ -1582,6 +1670,56 @@ impl State {
             },
         );
         Ok(())
+    }
+
+    /// A paired device asks where this one is. What it wrote is read and judged like anything a device sends, and nothing
+    /// answers on its stream. A question understood leads, no more often than [`ANSWER_EVERY`], to the devices being listed
+    /// and this device shared with those that take it now: what the person's permission lets it send at its own turn.
+    fn asked_for<H: Wire + Data>(
+        &mut self,
+        host: &mut H,
+        delivery: &Value,
+    ) -> (Vec<Value>, Option<Value>) {
+        let Some(ticket) = delivery["ticket"].as_u64() else {
+            return (Vec::new(), None);
+        };
+        let understood = match host.open(false, ticket) {
+            Ok(handle) => {
+                let read = read_limited(
+                    &mut Ready {
+                        host,
+                        kept: &mut self.waiting,
+                        wait: WAIT_MS,
+                    },
+                    handle,
+                    wire::MAX,
+                );
+                host.close(handle);
+                read.is_ok_and(|said| said == wire::WANTED_MESSAGE)
+            }
+            Err(_) => false,
+        };
+        let mut calls = Vec::new();
+        if understood
+            && self
+                .answered_at
+                .is_none_or(|at| self.now.saturating_sub(at) >= ANSWER_EVERY)
+        {
+            self.answered_at = Some(self.now);
+            self.wanted = true;
+            if self.asked_list == 0 {
+                calls.push(self.list());
+            }
+        }
+        let result = if understood {
+            json!({"status":"ok","value":true})
+        } else {
+            json!({"status":"error","code":"failed","message":"What was sent was not understood"})
+        };
+        (
+            calls,
+            Some(json!({"op":"reply","ticket":ticket,"result":result})),
+        )
     }
 }
 
@@ -1789,6 +1927,10 @@ fn step<H: CanvasIo>(
             (Vec::new(), None, false)
         }
         Some("result") => (state.told(delivery), None, false),
+        Some("call") if delivery["method"] == "receive" && delivery["service"] == wire::WANTED => {
+            let (calls, reply) = state.asked_for(host, delivery);
+            (calls, reply, false)
+        }
         Some("call") if delivery["method"] == "receive" => {
             (Vec::new(), state.receive(host, delivery), false)
         }

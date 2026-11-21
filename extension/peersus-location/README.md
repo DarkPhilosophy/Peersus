@@ -15,6 +15,12 @@ Tap a marker or its name to centre and zoom. **Locate this device** centres on a
   at startup and periodically even when the map is closed. With an eligible recipient it asks for a fresh position at most
   once per five minutes. Losing eligibility cancels pending deliveries. Old receive-only consent does not enable automatic
   transmission after an update.
+- **Asking**: a device of which nothing is known here, or only something more than ten minutes old, is asked where it is
+  (the exported `location.wanted` `receive`, under the same `location.sharing` on both sides): at once the first time,
+  then at most once per five minutes. The device asked answers, at most once per thirty seconds, by sharing the position it
+  already knows with the devices that take it; if its own turn is due it looks for a fresh one, as it would have anyway.
+  A question never makes a device ask its system for a position sooner than every five minutes. This is what fills the map
+  shortly after the application starts, instead of at each device's next turn.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
   person allowed Location for (`location.sharing`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
@@ -37,6 +43,12 @@ when the application delivers something else meanwhile, of which 64 at most are 
 application, which ends the stream when the time it gives the `receive` call is over. A share counts as delivered only when
 the application says that every byte reached the other device: each read of that acknowledgement (a few bytes, in a piece or
 two) is waited for three seconds at most, in the same way.
+
+The question is one stream with exactly this line, and nothing answers on it:
+
+```text
+{"wanted":"position"}
+```
 
 ## The map
 
