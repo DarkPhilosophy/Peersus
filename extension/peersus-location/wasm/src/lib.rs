@@ -1,6 +1,7 @@
 //! A page that says where this device is and, on a drawn map with this device in the middle when it is known (otherwise
-//! one of the devices that shared with it), where the paired devices that shared their location with it were: how far away,
-//! in which direction and how long ago. The page lives in this extension's settings; its own option (`location-page`, read
+//! one of the devices that shared with it), where the paired devices that shared their location with it were: how far away
+//! and in which direction, and of a position older than a turn allows ([`LAST_AFTER`]), that it is the last one known and
+//! how long ago. The page lives in this extension's settings; its own option (`location-page`, read
 //! from `peersus.config`) also places it among the application's pages (`peersus.pages`).
 //!
 //! This device's position is asked of the application (`peersus.location`, the person's `location.read`) only when the person
@@ -70,6 +71,20 @@ const ASK_AGAIN: u64 = 15_000;
 const ANSWER_EVERY: u64 = 10_000;
 /// A question that cannot be answered yet is kept this long (page clock, milliseconds).
 const WANTED_FOR: u64 = 60_000;
+/// Longest single wait for anything at all while there is nothing to do, in milliseconds. A guest has no clock. While a
+/// page is open its events say the time; otherwise time is counted from these waits: one that ran out surely took this
+/// long, and one a delivery cut short took an unknown part of it, which is kept apart as time that may have passed
+/// ([`State::unsure`]) and is never added to an age as if it were known. The shorter the wait, the less each delivery
+/// leaves uncounted.
+const IDLE_WAIT: u16 = 5_000;
+/// The paired devices are listed again this often while no page is open (counted time, milliseconds).
+const IDLE_LIST_EVERY: u64 = 30_000;
+/// Two events of a page further apart than this are not one measured stretch of time (milliseconds).
+const PAGE_GAP: u64 = 30_000;
+/// A position this old, in seconds, is no longer said as where its device is: it is the last one known, with its age. A
+/// device that keeps its turn ([`SHARE_EVERY`]) shares again before that, the minute over allowing for the time a turn
+/// takes, and nothing is said of an age that changes nothing.
+const LAST_AFTER: u64 = SHARE_EVERY / 1000 + 60;
 /// Scale change of the dedicated zoom buttons.
 const CLOSER: f64 = 1.6;
 /// A burst of this many logical wheel pixels doubles the magnification.
@@ -133,15 +148,17 @@ struct Device {
     asks: bool,
 }
 
-/// A position and when (page clock) it was told: this device's by the application, a paired device's when it arrived.
+/// A position and when (counted time) it was told: this device's by the application, a paired device's when it arrived.
 #[derive(Clone, Copy, Debug, PartialEq)]
 struct Told {
     shared: wire::Shared,
     at: u64,
+    /// The time that nothing measured ([`State::unsure`]) when it was told.
+    slack: u64,
 }
 
 impl Told {
-    /// What it is at `now`: the age it was told with, plus the time since.
+    /// What it is at `now`: the age it was told with, plus the time that surely passed since. Never older than it is.
     fn aged(&self, now: u64) -> wire::Shared {
         wire::Shared {
             fix: self.shared.fix,
@@ -150,6 +167,12 @@ impl Told {
                 .age
                 .saturating_add(now.saturating_sub(self.at) / 1000),
         }
+    }
+
+    /// How many seconds older than [`Told::aged`] says it may be, at most: the waits since it was told that nothing
+    /// measured, given the time `unsure` now.
+    fn loose(&self, unsure: u64) -> u64 {
+        unsure.saturating_sub(self.slack).div_ceil(1000)
     }
 }
 
@@ -181,11 +204,17 @@ struct Ready<'a, H> {
     host: &'a mut H,
     kept: &'a mut VecDeque<Value>,
     wait: i32,
+    /// Where the time these waits may have taken is kept ([`State::cut`]).
+    cut: &'a mut u64,
 }
 
 impl<H: Wire + Data> Ready<'_, H> {
     fn wait(&mut self, handle: Handle) -> Result<(), &'static str> {
         for _ in 0..=MOST_KEPT {
+            // However it ends, this wait takes `wait` at most, and nothing here says how long.
+            *self.cut = self
+                .cut
+                .saturating_add(u64::try_from(self.wait).unwrap_or(0));
             match self.host.poll(&[handle], self.wait)? {
                 Some(ready) if ready == handle => return Ok(()),
                 Some(_) => {
@@ -231,9 +260,19 @@ impl<H: Wire + Data> Data for Ready<'_, H> {
 #[derive(Default)]
 pub struct State {
     calls: u64,
-    /// Elapsed worker time, independent of the window process's clock origin.
+    /// Time that surely passed since the guest started, in milliseconds, whatever the window's own clock began at: what
+    /// a page's events measured while one was open, and every idle wait that ran out. Never ahead of the time that
+    /// really passed; behind it by `unsure` and `cut` at most.
     now: u64,
     ui_time: Option<u64>,
+    /// Waits something cut short since time was last measured, in milliseconds at most. The events of an open page may
+    /// still say how long they took; once nothing can, they are added to `unsure`.
+    cut: u64,
+    /// Time that may have passed beyond `now`, in milliseconds at most: waits cut short that nothing measured. It only
+    /// grows.
+    unsure: u64,
+    /// What the map last said of the age of each position on it ([`State::statuses`]).
+    said: Vec<Option<String>>,
     own: Own,
     asked_own: u64,
     focus_fix: bool,
@@ -524,17 +563,25 @@ fn map_label_bounds(frame: world::Frame) -> tile::layers::Rect {
     ])
 }
 
+/// The font of what a marker says of its position's age, under its name.
+const STATUS_FONT: f64 = 11.;
+
+/// Room beside a marker for its name and, under it, what is said of its position's age.
 fn marker_badge_bounds(
     name: &str,
+    status: Option<&str>,
     x: f64,
     y: f64,
     bounds: tile::layers::Rect,
     clear: impl Fn([f64; 4]) -> bool,
 ) -> Option<[f64; 4]> {
-    let width = (8. + tile::text_width(name, 15.)).max(40.);
-    let height = 26.;
+    let named = 8. + tile::text_width(name, 15.);
+    let width = named
+        .max(status.map_or(0., |status| 8. + tile::text_width(status, STATUS_FONT)))
+        .max(40.);
+    let height = if status.is_some() { 42. } else { 26. };
     let [left, top, right, bottom] = bounds.0.map(f64::from);
-    if width > 148. || width > right - left || height > bottom - top {
+    if named > 148. || width > 190. || width > right - left || height > bottom - top {
         return None;
     }
     let dot = [x - 16., y - 16., 32., 32.];
@@ -561,13 +608,16 @@ fn overlaps([x, y, w, h]: [f64; 4], [a, b, c, d]: [f64; 4]) -> bool {
     x < a + c + 4. && x + w + 4. > a && y < b + d + 4. && y + h + 4. > b
 }
 
-/// `place`, then how sure the system was and how old the position is.
-fn described(shared: &wire::Shared, place: String) -> String {
+/// `place`, then how sure the system was and, of a position older than a turn allows, what is said of its age.
+fn described(shared: &wire::Shared, place: String, last: Option<String>) -> String {
     let mut line = place;
     if let Some(accuracy) = shared.fix.accuracy {
         line.push_str(&format!(" ± {}", geo::distance(accuracy)));
     }
-    line.push_str(&format!(", {}", geo::age(shared.age)));
+    if let Some(last) = last {
+        line.push_str(", ");
+        line.push_str(&last);
+    }
     line
 }
 
@@ -792,6 +842,66 @@ impl State {
         }
     }
 
+    /// A position told now. The waits cut short before it are not its doubt: with no page to measure them they are
+    /// settled first, and those a page may still measure are left to it.
+    fn tell(&mut self, shared: wire::Shared) -> Told {
+        if self.ui_time.is_none() {
+            self.uncounted();
+        }
+        Told {
+            shared,
+            at: self.now,
+            slack: self.unsure,
+        }
+    }
+
+    /// The waits cut short since time was last measured are time nothing will measure any more.
+    fn uncounted(&mut self) {
+        self.unsure = self.unsure.saturating_add(std::mem::take(&mut self.cut));
+    }
+
+    /// A whole idle wait went by with nothing delivered: that much time surely passed, and what was cut short before
+    /// it stays unmeasured. With no page open this is also when the devices are listed again, every
+    /// [`IDLE_LIST_EVERY`]: for a share that is due, a device that came back, a question still to answer.
+    fn waited(&mut self) -> Option<Value> {
+        self.now = self.now.saturating_add(u64::from(IDLE_WAIT));
+        self.ui_time = None;
+        self.uncounted();
+        (self.asked_list == 0
+            && self
+                .listed_at
+                .is_none_or(|at| self.now.saturating_sub(at) >= IDLE_LIST_EVERY))
+        .then(|| self.list())
+    }
+
+    /// What is said of the age of a position: nothing while its device keeps its turn, and of one older than a turn
+    /// allows ([`LAST_AFTER`]) that it is the last one known and how old. The age is the time that surely passed. Once
+    /// the waits nothing measured since it was told may add up to a whole unit of what is said (a minute of an age in
+    /// minutes), the age is the least it can be and says so with a plus; less than that is within what the words
+    /// cannot tell apart anyway. A wait a page may still measure changes nothing of what is said.
+    fn last(&self, told: &Told) -> Option<String> {
+        let age = told.aged(self.now).age;
+        (age >= LAST_AFTER).then(|| {
+            if told.loose(self.unsure) < geo::age_unit(age) {
+                format!("last location {}", geo::age(age))
+            } else {
+                format!("last location {}", geo::age_or_more(age))
+            }
+        })
+    }
+
+    /// What the map says of the age of each position on it, this device's first.
+    fn statuses(&self) -> Vec<Option<String>> {
+        let own = match &self.own {
+            Own::Found(told) => Some(told),
+            _ => None,
+        };
+        own.into_iter()
+            .chain(self.seen.values())
+            .map(|told| self.last(told))
+            .collect()
+    }
+
     /// What the application answered to a call this extension made, and the calls it leads to.
     pub fn told(&mut self, delivery: &Value) -> Vec<Value> {
         let Some(id) = delivery["id"].as_u64().filter(|id| *id != 0) else {
@@ -900,10 +1010,7 @@ impl State {
                 .map(|_| wire::position(&result["value"]))
             {
                 Some(Ok(shared)) => {
-                    let told = Told {
-                        shared,
-                        at: self.now,
-                    };
+                    let told = self.tell(shared);
                     self.own = Own::Found(told);
                     if focus {
                         let view = world::View {
@@ -1044,14 +1151,20 @@ impl State {
     /// What a person did on the page, and the calls it leads to.
     fn act(&mut self, event: &Value) -> Vec<Value> {
         if let Some(at) = event["at"].as_u64() {
-            // A reopened window has a fresh clock. Only elapsed time advances
-            // retries and sharing; a new epoch never holds them back.
-            let elapsed = self
+            match self
                 .ui_time
                 .replace(at)
-                .map_or(0, |last| at.saturating_sub(last));
-            if elapsed <= 30_000 {
-                self.now = self.now.saturating_add(elapsed);
+                .and_then(|last| at.checked_sub(last))
+            {
+                // The page's own time says how long it was, whatever was waited for meanwhile. Only elapsed time
+                // advances retries and sharing.
+                Some(elapsed) if elapsed <= PAGE_GAP => {
+                    self.now = self.now.saturating_add(elapsed);
+                    self.cut = 0;
+                }
+                // The first event of a page, a reopened window (a fresh clock) or a long silence: nothing measured
+                // what went before, and a new epoch never holds anything back.
+                _ => self.uncounted(),
             }
         }
         let mut calls = Vec::new();
@@ -1105,6 +1218,12 @@ impl State {
             (Some("wheel"), Some("map")) => self.wheeled(event),
             (Some("canvas_size"), Some("map")) => self.sized(event),
             (Some("tick"), _) => {
+                // What the map says of a position's age changes with time alone.
+                let said = self.statuses();
+                if said != self.said {
+                    self.said = said;
+                    self.marker_stamp = self.marker_stamp.wrapping_add(1);
+                }
                 if let Some(focus) = self.camera.focus.as_ref() {
                     self.camera.view = focus.at(self.now);
                     if self.now.saturating_sub(focus.start) >= FOCUS_MS {
@@ -1190,10 +1309,11 @@ impl State {
     }
 
     fn own_line(&self) -> String {
-        if let Some(shared) = self.own_now() {
+        if let Own::Found(told) = &self.own {
+            let shared = told.aged(self.now);
             return format!(
                 "This device: {}",
-                described(&shared, geo::coordinates(&shared.fix))
+                described(&shared, geo::coordinates(&shared.fix), self.last(told))
             );
         }
         match &self.own {
@@ -1232,7 +1352,7 @@ impl State {
                 let state = match self.seen.get(&device.alias) {
                     Some(told) => {
                         let shared = told.aged(self.now);
-                        described(&shared, geo::coordinates(&shared.fix))
+                        described(&shared, geo::coordinates(&shared.fix), self.last(told))
                     }
                     None if device.ready => words::NOT_YET.to_owned(),
                     None => words::NOT_READY.to_owned(),
@@ -1671,6 +1791,7 @@ impl State {
                     host,
                     kept: &mut self.waiting,
                     wait: ACK_MS,
+                    cut: &mut self.cut,
                 },
                 handle,
             )
@@ -1712,6 +1833,7 @@ impl State {
                 host,
                 kept: &mut self.waiting,
                 wait: WAIT_MS,
+                cut: &mut self.cut,
             },
             handle,
             wire::MAX,
@@ -1721,13 +1843,8 @@ impl State {
         self.marker_stamp = self.marker_stamp.wrapping_add(1);
         // It shared: what was asked of it is answered, and the next question, if one is ever due, starts over.
         self.asked.remove(&alias);
-        self.seen.insert(
-            alias,
-            Told {
-                shared,
-                at: self.now,
-            },
-        );
+        let told = self.tell(shared);
+        self.seen.insert(alias, told);
         Ok(())
     }
 
@@ -1750,6 +1867,7 @@ impl State {
                         host,
                         kept: &mut self.waiting,
                         wait: WAIT_MS,
+                        cut: &mut self.cut,
                     },
                     handle,
                     wire::MAX,
@@ -2039,8 +2157,39 @@ fn step<H: CanvasIo>(
     Ok(())
 }
 
-/// The whole life of the guest: every delivery handled in the order it came (what was kept while a stream was waited for
-/// comes first). Returns zero when the application goes away, non-zero when it cannot be written to.
+/// Handle every delivery in the order it came (what was kept while a stream was waited for comes first), and count the
+/// time between them. Returns zero when the application goes away, non-zero when it cannot be written to.
+fn serve<H: CanvasIo>(host: &mut H, state: &mut State) -> i32 {
+    loop {
+        if state.waiting.is_empty() {
+            match host.poll(&[], i32::from(IDLE_WAIT)) {
+                Ok(None) => {
+                    if let Some(list) = state.waited()
+                        && host.send(list).is_err()
+                    {
+                        return 1;
+                    }
+                    continue;
+                }
+                // Cut short by a delivery: it took an unknown part of a whole wait.
+                Ok(Some(_)) => state.cut = state.cut.saturating_add(u64::from(IDLE_WAIT)),
+                Err(_) => return 1,
+            }
+        }
+        let Ok(delivery) = state.next(host) else {
+            return 0;
+        };
+        if step(host, state, &delivery).is_err() {
+            return 1;
+        }
+        if state.ui_time.is_none() {
+            // No page says the time: what was waited for stays unmeasured.
+            state.uncounted();
+        }
+    }
+}
+
+/// The whole life of the guest. Returns zero when the application goes away, non-zero when it cannot be written to.
 fn run<H: CanvasIo>(host: &mut H) -> i32 {
     let mut state = State::default();
     // Its settings first: the page is placed among the application's pages when the person asked for it, whether or not it
@@ -2052,28 +2201,7 @@ fn run<H: CanvasIo>(host: &mut H) -> i32 {
     if host.send(state.list()).is_err() {
         return 1;
     }
-    loop {
-        if state.waiting.is_empty() {
-            match host.poll(&[], 30_000) {
-                Ok(None) => {
-                    state.now = state.now.saturating_add(30_000);
-                    state.ui_time = None;
-                    if state.asked_list == 0 && host.send(state.list()).is_err() {
-                        return 1;
-                    }
-                    continue;
-                }
-                Ok(Some(_)) => {}
-                Err(_) => return 1,
-            }
-        }
-        let Ok(delivery) = state.next(host) else {
-            return 0;
-        };
-        if step(host, &mut state, &delivery).is_err() {
-            return 1;
-        }
-    }
+    serve(host, &mut state)
 }
 
 /// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a broken protocol.

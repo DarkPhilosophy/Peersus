@@ -54,14 +54,33 @@ pub fn coordinates(fix: &Fix) -> String {
     )
 }
 
+/// The unit an age of `seconds` is said in: how many seconds it is, and its word.
+fn unit(seconds: u64) -> (u64, &'static str) {
+    match seconds {
+        0..3600 => (60, "min"),
+        3600..86_400 => (3600, "h"),
+        _ => (86_400, "d"),
+    }
+}
+
+/// How many seconds the unit is that an age of `seconds` is said in: what [`age`] cannot tell apart.
+pub fn age_unit(seconds: u64) -> u64 {
+    unit(seconds).0
+}
+
 /// How long ago, in the largest whole unit.
 pub fn age(seconds: u64) -> String {
-    match seconds {
-        0..60 => "just now".to_owned(),
-        60..3600 => format!("{} min ago", seconds / 60),
-        3600..86_400 => format!("{} h ago", seconds / 3600),
-        _ => format!("{} d ago", seconds / 86_400),
+    if seconds < 60 {
+        return "just now".to_owned();
     }
+    let (size, word) = unit(seconds);
+    format!("{} {word} ago", seconds / size)
+}
+
+/// How long ago at least, in the largest whole unit: said of an age that may be more than was counted.
+pub fn age_or_more(seconds: u64) -> String {
+    let (size, word) = unit(seconds);
+    format!("{}+ {word} ago", seconds / size)
 }
 
 #[cfg(test)]
@@ -94,6 +113,18 @@ mod tests {
         assert_eq!(age(125), "2 min ago");
         assert_eq!(age(7_300), "2 h ago");
         assert_eq!(age(200_000), "2 d ago");
+        assert_eq!(age_or_more(725), "12+ min ago");
+        assert_eq!(age_or_more(7_300), "2+ h ago");
+        assert_eq!(age_or_more(200_000), "2+ d ago");
+        assert_eq!(
+            [
+                age_unit(59),
+                age_unit(3_599),
+                age_unit(3_600),
+                age_unit(86_400)
+            ],
+            [60, 60, 3_600, 86_400]
+        );
         assert_eq!(
             coordinates(&at(-33.8688, 151.2093)),
             "33.8688° S, 151.2093° E"

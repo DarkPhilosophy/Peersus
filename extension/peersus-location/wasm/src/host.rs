@@ -241,7 +241,6 @@ pub(crate) mod scripted {
         pub sent: Vec<Value>,
         pub incoming: VecDeque<Vec<u8>>,
         pub written: Vec<u8>,
-        pub next_canvas_status: Option<i32>,
         pub opened: Vec<(bool, u64)>,
         pub shutdowns: usize,
         pub closed: usize,

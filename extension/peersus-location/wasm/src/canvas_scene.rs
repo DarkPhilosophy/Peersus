@@ -129,6 +129,8 @@ pub struct Picture {
 pub struct Marker {
     pub id: String,
     pub name: String,
+    /// What its badge says of its position's age, under the name.
+    pub last: Option<String>,
     pub fix: geo::Fix,
     pub point: (f64, f64),
     pub badge: Option<[f64; 4]>,
@@ -226,17 +228,23 @@ fn markers(
     bounds: tile::layers::Rect,
     clear: impl Fn([f64; 4]) -> bool,
 ) -> Vec<Marker> {
-    let own = state
-        .own_now()
-        .map(|s| (OWN, "This device".to_owned(), s.fix));
+    let own = state.own_now().map(|s| {
+        let last = match &state.own {
+            super::Own::Found(told) => state.last(told),
+            _ => None,
+        };
+        (OWN, "This device".to_owned(), s.fix, last)
+    });
     let (found, points): (Vec<_>, Vec<_>) = own
         .into_iter()
-        .chain(
-            state
-                .seen
-                .iter()
-                .map(|(id, told)| (id.as_str(), state.name(id), told.shared.fix)),
-        )
+        .chain(state.seen.iter().map(|(id, told)| {
+            (
+                id.as_str(),
+                state.name(id),
+                told.shared.fix,
+                state.last(told),
+            )
+        }))
         .filter_map(|found| {
             let point = camera.point(found.2.longitude, found.2.latitude)?;
             Some((found, point))
@@ -250,9 +258,9 @@ fn markers(
         .collect();
     let dots: Vec<[f64; 4]> = shown.iter().map(|&(_, point)| dot(point)).collect();
     let mut markers: Vec<Marker> = Vec::with_capacity(shown.len());
-    for (index, ((id, name, fix), (x, y))) in shown.into_iter().enumerate() {
+    for (index, ((id, name, fix, last), (x, y))) in shown.into_iter().enumerate() {
         // A name stands clear of the other markers and of the names already placed, so neighbours are both read.
-        let badge = marker_badge_bounds(&name, x, y, bounds, |area| {
+        let free = |area| {
             clear(area)
                 && dots
                     .iter()
@@ -261,10 +269,16 @@ fn markers(
                 && markers
                     .iter()
                     .all(|marker| marker.badge.is_none_or(|placed| !overlaps(area, placed)))
-        });
+        };
+        // What is said of the age goes under the name where both have room; the name alone where only it has.
+        let whole = last
+            .as_deref()
+            .and_then(|last| marker_badge_bounds(&name, Some(last), x, y, bounds, &free));
+        let badge = whole.or_else(|| marker_badge_bounds(&name, None, x, y, bounds, &free));
         markers.push(Marker {
             id: id.to_owned(),
             name,
+            last: last.filter(|_| whole.is_some()),
             fix,
             point: (x, y),
             badge,
@@ -466,7 +480,7 @@ pub fn render(state: &State, stamp: Stamp, advance: bool, list: &mut List<'_>) -
     }
     for m in &markers {
         if let Some(badge) = m.badge {
-            p.label(&m.name, badge, 15., Some(p.label_backing()));
+            p.badge(&m.name, m.last.as_deref(), badge);
         }
         let (x, y) = m.point;
         p.circle(x, y, 15.);
@@ -562,6 +576,28 @@ impl Painter<'_, '_> {
                 size,
                 Color::Text,
                 [x + w / 2., y + h / 2. + size * 0.35],
+                Align::Center,
+            );
+        });
+    }
+
+    /// A marker's name and, under it, what is said of its position's age.
+    fn badge(&mut self, name: &str, last: Option<&str>, area: [f64; 4]) {
+        let backing = self.label_backing();
+        let Some(last) = last else {
+            return self.label(name, area, 15., Some(backing));
+        };
+        self.rect(area, backing);
+        let [x, y, w, h] = area.map(|v| v as f32);
+        let status = super::STATUS_FONT as f32;
+        self.list.clipped([x, y, w, h], |list| {
+            let middle = x + w / 2.;
+            list.text(name, 15., Color::Text, [middle, y + 18.25], Align::Center);
+            list.text(
+                last,
+                status,
+                Color::Text,
+                [middle, y + 33. + status * 0.35],
                 Align::Center,
             );
         });

@@ -279,17 +279,24 @@ impl Online {
         self.displayed.contains(&id)
     }
 
-    fn eviction(&self, visible: &[tile::Key]) -> Option<usize> {
-        let candidates = || {
-            self.tiles
-                .iter()
-                .enumerate()
-                .filter(|(_, tile)| !self.on_screen(tile.id))
+    /// The tile to give up so that `wanted` has room. One that is not on screen goes first: one the view no longer
+    /// touches, then one of another level. For a tile the view itself asks for, a tile on screen is given up in the same
+    /// order; one the view asks for never is. A new level that fits alone can then take the place of the level shown,
+    /// where waiting for room beside it would never end.
+    fn eviction(&self, visible: &[tile::Key], wanted: TileId) -> Option<usize> {
+        let given_up = |on_screen: bool| {
+            let candidates = || {
+                self.tiles
+                    .iter()
+                    .enumerate()
+                    .filter(move |(_, tile)| self.on_screen(tile.id) == on_screen)
+            };
+            candidates()
+                .find(|(_, tile)| !Self::still_covers(visible, tile.id))
+                .or_else(|| candidates().find(|(_, tile)| !visible.contains(&tile.id)))
+                .map(|(index, _)| index)
         };
-        candidates()
-            .find(|(_, tile)| !Self::still_covers(visible, tile.id))
-            .or_else(|| candidates().find(|(_, tile)| !visible.contains(&tile.id)))
-            .map(|(index, _)| index)
+        given_up(false).or_else(|| visible.contains(&wanted).then(|| given_up(true)).flatten())
     }
 
     fn evict(&mut self, index: usize) {
@@ -322,10 +329,16 @@ impl Online {
                 self.unavailable(Resource::Tile(loaded.tile), now);
                 return;
             }
-            let Some(index) = self.eviction(visible) else {
+            let Some(index) = self.eviction(visible, id) else {
                 self.unavailable(Resource::Tile(loaded.tile), now);
                 return;
             };
+            if self.on_screen(self.tiles[index].id) {
+                // The level that was shown is no longer whole. None of it is drawn in its place: the offline map stands
+                // in until the level the view asks for is whole.
+                self.displayed.clear();
+                self.published = None;
+            }
             self.evict(index);
         }
         if let Some(old) = self.tiles.iter().position(|cached| cached.id == id) {
@@ -1317,5 +1330,139 @@ mod tests {
         assert!(online.on_screen(exact));
         assert!(!online.on_screen(parent));
         assert!(!online.on_screen(child));
+    }
+
+    fn road(id: tile::Key) -> tile::Tile {
+        let mut decoder = tile::Decode::start(id, ROAD.to_vec()).unwrap();
+        while !decoder.step().unwrap() {}
+        decoder.finish()
+    }
+
+    fn downloaded(id: tile::Key) -> Loaded {
+        Loaded {
+            tile: TileLoad {
+                id,
+                previous: false,
+                fetch: Fetch::Normal,
+                quiet: false,
+            },
+            refresh_at: None,
+            saved: false,
+        }
+    }
+
+    /// A whole coarser level on screen for `ZOOMED`, filling the cache up to `room` bytes short of its limit, and the
+    /// finer tiles that view asks for.
+    fn a_full_cache_showing_the_coarser_level(room: usize) -> (Online, Vec<tile::Key>) {
+        let wanted = tile::visible(ZOOMED.0, ZOOMED.1, 14);
+        assert!(wanted.len() >= 2 && wanted.iter().all(|key| key.z == 14));
+        let mut online = Online {
+            authorization: Some("approved".into()),
+            metadata: Some(Metadata {
+                prefix: "/planet/test".into(),
+                zoom: 14,
+            }),
+            ..Online::default()
+        };
+        let mut coarser: Vec<_> = wanted.iter().map(|&key| at_most_zoom(key, 13)).collect();
+        coarser.sort();
+        coarser.dedup();
+        for &id in &coarser {
+            online.store(downloaded(id), road(id), &wanted, 0);
+        }
+        assert!(
+            online.with_drawing(ZOOMED.0, ZOOMED.1, |drawing| drawing
+                .is_some_and(|(_, complete)| complete)),
+            "the coarser level covers the whole view"
+        );
+        online.frame_shown(ZOOMED.0, ZOOMED.1);
+        assert!(coarser.iter().all(|&id| online.on_screen(id)));
+        // As large as real tiles of a dense place: the limit is reached with what is on screen alone.
+        let others: usize = online
+            .tiles
+            .iter()
+            .skip(1)
+            .map(|tile| tile.source_bytes)
+            .sum();
+        online.tiles[0].source_bytes = CACHED_SOURCE_BYTES - others - room;
+        (online, wanted)
+    }
+
+    const ZOOMED: (View, Frame) = (
+        View {
+            lon: 0.015,
+            lat: -0.015,
+            span: 0.045,
+            roll: 0.,
+        },
+        Frame(888, 449),
+    );
+
+    #[test]
+    fn a_new_level_that_fits_alone_replaces_the_level_on_screen_when_both_do_not_fit() {
+        let (view, frame) = ZOOMED;
+        let one = road(tile::Key { z: 14, x: 0, y: 0 }).source_bytes();
+        // Room for exactly one finer tile beside the level on screen.
+        let (mut online, wanted) = a_full_cache_showing_the_coarser_level(one);
+        for (nth, &id) in wanted.iter().enumerate() {
+            online.store(downloaded(id), road(id), &wanted, 0);
+            assert!(
+                online.current(id).is_some() && online.failed.is_empty(),
+                "finer tile {nth} of {} was refused",
+                wanted.len()
+            );
+            if nth == 1 {
+                // The level that was on screen is no longer whole, and the new one is not yet: nothing of the old one
+                // is drawn in its place, so the offline map stands in.
+                assert!(
+                    online
+                        .preview_drawing(view, frame, &Camera::new(view, frame))
+                        .is_none()
+                );
+                assert!(!online.with_drawing(view, frame, |drawing| {
+                    drawing.is_some_and(|(_, complete)| complete)
+                }));
+            }
+        }
+        assert!(
+            online.with_drawing(view, frame, |drawing| drawing
+                .is_some_and(|(_, complete)| complete)),
+            "the new level is whole"
+        );
+        let mut shown = online.shown_keys(view, frame);
+        let mut asked = wanted.clone();
+        shown.sort();
+        asked.sort();
+        assert_eq!(
+            shown, asked,
+            "the view is drawn from the level it asked for"
+        );
+        assert!(
+            online
+                .tiles
+                .iter()
+                .map(|tile| tile.source_bytes)
+                .sum::<usize>()
+                <= CACHED_SOURCE_BYTES
+        );
+    }
+
+    #[test]
+    fn a_tile_the_view_does_not_ask_for_never_costs_what_is_on_screen() {
+        let (mut online, wanted) = a_full_cache_showing_the_coarser_level(0);
+        let shown = online.displayed.clone();
+        let elsewhere = tile::Key {
+            z: 14,
+            x: wanted[0].x + 64,
+            y: wanted[0].y + 64,
+        };
+        assert!(!wanted.contains(&elsewhere));
+        online.store(downloaded(elsewhere), road(elsewhere), &wanted, 0);
+        assert!(
+            online.current(elsewhere).is_none(),
+            "there was no room for it"
+        );
+        assert_eq!(online.displayed, shown, "what is on screen is kept whole");
+        assert!(shown.iter().all(|&id| online.current(id).is_some()));
     }
 }

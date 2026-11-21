@@ -1,12 +1,23 @@
 use super::*;
 use host::scripted::{Script, ack};
 
+thread_local! {
+    /// What the next presentation of a canvas answers instead of taking the frame, once: set by a test of a frame the
+    /// helper refuses. Kept here and not in the scripted host, which is the SDK's file, copied byte for byte.
+    static NEXT_CANVAS_STATUS: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+}
+
+/// The helper answers the next presentation with `status` and takes no frame.
+fn next_canvas_answers(status: i32) {
+    NEXT_CANVAS_STATUS.set(Some(status));
+}
+
 impl CanvasIo for Script {
     fn open_canvas(&mut self, claim: u64) -> Option<Handle> {
         self.open(true, claim).ok()
     }
     fn present_canvas(&mut self, bytes: &[u8]) -> i32 {
-        if let Some(status) = self.next_canvas_status.take() {
+        if let Some(status) = NEXT_CANVAS_STATUS.take() {
             return status;
         }
         self.written.clear();
@@ -276,6 +287,7 @@ fn told(latitude: f64, longitude: f64) -> Told {
         shared: wire::position(&json!({"latitude":latitude,"longitude":longitude,"age":0}))
             .unwrap(),
         at: 0,
+        slack: 0,
     }
 }
 
@@ -1138,7 +1150,14 @@ fn a_device_unpaired_or_no_longer_allowed_is_forgotten_at_once() {
     let mut state = State::default();
     let shared = wire::position(&json!({"latitude":1.0,"longitude":2.0,"age":0})).unwrap();
     for alias in ["a1", "b2", "c3"] {
-        state.seen.insert(alias.to_owned(), Told { shared, at: 0 });
+        state.seen.insert(
+            alias.to_owned(),
+            Told {
+                shared,
+                at: 0,
+                slack: 0,
+            },
+        );
     }
     let mut no_longer = peer("b2", "Laptop", true);
     no_longer["allowed"] = json!(false);
@@ -1166,9 +1185,11 @@ fn options_say_why_a_paired_device_is_not_on_the_map() {
     // Nothing allowed for any device: the application lists none, and the page says what a device needs to be shown.
     state.listed(&[]);
     assert!(state.page().to_string().contains(words::NONE_ALLOWED));
-    // Allowed devices are said one by one: where one is, that one has not said yet, that one cannot say now.
+    // Allowed devices are said one by one: where one is, that one has not said yet, that one cannot say now. A position
+    // its device shared within its turn says no age.
     let shared = wire::position(&json!({"latitude":45.0,"longitude":25.0,"age":120})).unwrap();
-    state.seen.insert("a1".to_owned(), Told { shared, at: 0 });
+    let told = state.tell(shared);
+    state.seen.insert("a1".to_owned(), told);
     state.listed(&[
         peer("a1", "Phone", true),
         peer("b2", "Laptop", true),
@@ -1177,7 +1198,7 @@ fn options_say_why_a_paired_device_is_not_on_the_map() {
     assert_eq!(
         state.device_lines(),
         [
-            "Phone: 45.0000° N, 25.0000° E, 2 min ago".to_owned(),
+            "Phone: 45.0000° N, 25.0000° E".to_owned(),
             format!("Laptop: {}", words::NOT_YET),
             format!("Tablet: {}", words::NOT_READY),
         ]
@@ -1187,6 +1208,286 @@ fn options_say_why_a_paired_device_is_not_on_the_map() {
     // With Options closed the map is alone, as before.
     state.options = false;
     assert!(!state.page().to_string().contains("Laptop"));
+}
+
+/// A host for the main loop alone: each idle wait runs out, or is cut short by the delivery scripted for it. When the
+/// script is over the wait itself fails, so nothing more is counted.
+#[derive(Default)]
+struct Idle {
+    waits: VecDeque<Option<Value>>,
+    next: Option<Value>,
+    sent: Vec<Value>,
+    waited: Vec<i32>,
+}
+
+impl Wire for Idle {
+    fn receive(&mut self) -> Result<Value, &'static str> {
+        self.next.take().ok_or("The application is gone")
+    }
+    fn send(&mut self, value: Value) -> Result<(), &'static str> {
+        self.sent.push(value);
+        Ok(())
+    }
+}
+
+impl Data for Idle {
+    fn open(&mut self, _: bool, _: u64) -> Result<Handle, &'static str> {
+        Err("No stream is scripted")
+    }
+    fn read(&mut self, _: Handle, _: &mut [u8]) -> Result<usize, &'static str> {
+        Err("No stream is scripted")
+    }
+    fn write(&mut self, _: Handle, _: &[u8]) -> Result<usize, &'static str> {
+        Err("No stream is scripted")
+    }
+    fn shutdown(&mut self, _: Handle) -> Result<(), &'static str> {
+        Err("No stream is scripted")
+    }
+    fn close(&mut self, _: Handle) {}
+    fn poll(
+        &mut self,
+        handles: &[Handle],
+        timeout_ms: i32,
+    ) -> Result<Option<Handle>, &'static str> {
+        assert!(handles.is_empty(), "only the idle wait is scripted");
+        self.waited.push(timeout_ms);
+        match self.waits.pop_front() {
+            Some(None) => Ok(None),
+            Some(delivery) => {
+                self.next = delivery;
+                Ok(Some(0))
+            }
+            None => Err("The script is over"),
+        }
+    }
+}
+
+impl CanvasIo for Idle {
+    fn open_canvas(&mut self, _: u64) -> Option<Handle> {
+        None
+    }
+    fn present_canvas(&mut self, _: &[u8]) -> i32 {
+        canvas_sdk::PRESENT_OK
+    }
+}
+
+/// Something the application delivers that leads to nothing here: the answer to a call nobody waits for.
+fn unrelated() -> Value {
+    result(9_999, json!({"status":"ok","value":null}))
+}
+
+/// `seconds` with no page open, in which something is delivered every `every` seconds: the idle waits before each
+/// delivery run out, and the one it arrives in is cut short at its very end.
+fn idle_with_deliveries(seconds: u64, every: u64) -> VecDeque<Option<Value>> {
+    let wait = u64::from(IDLE_WAIT) / 1000;
+    assert!(seconds % every == 0 && every % wait == 0);
+    let mut waits = VecDeque::new();
+    for _ in 0..seconds / every {
+        waits.extend((1..every / wait).map(|_| None));
+        waits.push_back(Some(unrelated()));
+    }
+    waits
+}
+
+#[test]
+fn a_position_says_its_age_only_once_its_device_missed_a_turn() {
+    let mut state = State::default();
+    state.act(&size(0, 0, 900000, 600000));
+    state.view = world::View {
+        lon: 25.,
+        lat: 45.,
+        span: 5.,
+        roll: 0.,
+    };
+    state.listed(&[peer("a1", "Phone", true)]);
+    let shared = wire::position(&json!({"latitude":45.0,"longitude":25.0,"age":0})).unwrap();
+    let told = state.tell(shared);
+    state.seen.insert("a1".to_owned(), told);
+    state.own = Own::Found(told);
+    // Within its turn, and the minute a turn may take: where it is, and no age anywhere.
+    state.now = (LAST_AFTER - 1) * 1000;
+    assert_eq!(state.device_lines(), ["Phone: 45.0000° N, 25.0000° E"]);
+    assert_eq!(state.own_line(), "This device: 45.0000° N, 25.0000° E");
+    let (frame, picture) = art(&state);
+    assert!(frame.label("Phone") && frame.labels.iter().all(|l| !l.text.contains("ago")));
+    assert!(picture.markers.iter().all(|marker| marker.last.is_none()));
+    // Nothing arrived for longer than that: it is the last position known, and how old it is, in the lines and under the
+    // name on the map.
+    state.now = LAST_AFTER * 1000;
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 6 min ago"]
+    );
+    assert_eq!(
+        state.own_line(),
+        "This device: 45.0000° N, 25.0000° E, last location 6 min ago"
+    );
+    let (frame, picture) = art(&state);
+    assert!(frame.label("Phone") && frame.label("last location 6 min ago"));
+    let phone = picture.markers.iter().find(|m| m.id == "a1").unwrap();
+    assert_eq!(phone.last.as_deref(), Some("last location 6 min ago"));
+    // The map is painted again when what it says of an age changes, and only then.
+    let stamp = state.marker_stamp;
+    state.act(&json!({"t":"tick","id":"clock","at":1}));
+    assert_eq!(state.marker_stamp, stamp + 1);
+    state.act(&json!({"t":"tick","id":"clock","at":1_001}));
+    assert_eq!(state.marker_stamp, stamp + 1);
+    state.act(&json!({"t":"tick","id":"clock","at":30_001}));
+    assert_eq!(state.marker_stamp, stamp + 1, "still six minutes");
+    state.act(&json!({"t":"tick","id":"clock","at":60_001}));
+    assert_eq!(state.marker_stamp, stamp + 2);
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 7 min ago"]
+    );
+    // A new position from the device: it is where the device is again.
+    let told = state.tell(shared);
+    state.seen.insert("a1".to_owned(), told);
+    assert_eq!(state.device_lines(), ["Phone: 45.0000° N, 25.0000° E"]);
+}
+
+#[test]
+fn time_no_wait_measured_is_never_said_as_a_known_age() {
+    let shared = wire::position(&json!({"latitude":45.0,"longitude":25.0,"age":0})).unwrap();
+    let arrived = |state: &mut State| {
+        state.listed(&[peer("a1", "Phone", true)]);
+        let told = state.tell(shared);
+        state.seen.insert("a1".to_owned(), told);
+    };
+    // Nine minutes with no page open and something delivered every twenty seconds: every fourth wait is cut short.
+    let mut state = State::default();
+    arrived(&mut state);
+    let mut host = Idle {
+        waits: idle_with_deliveries(9 * 60, 20),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert!(host.waited.iter().all(|wait| *wait == i32::from(IDLE_WAIT)));
+    // Three of every four waits ran out: that much surely passed. The rest may have, and is not counted as passed.
+    assert_eq!(state.now, 27 * 15_000);
+    assert_eq!((state.unsure, state.cut), (27 * 5_000, 0));
+    // The listing of an idle guest was not held back by what kept arriving.
+    assert_eq!(calls_of(&host.sent, PEERS, "list"), 1);
+    // Six and three quarter minutes are sure and nine were possible: the age is the least it can be, and says so.
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 6+ min ago"]
+    );
+    // The same nine minutes with nothing delivered: every wait ran out, and the age is known.
+    let mut state = State::default();
+    arrived(&mut state);
+    let mut host = Idle {
+        waits: (0..9 * 60 / 5).map(|_| None).collect(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!((state.now, state.unsure, state.cut), (9 * 60_000, 0, 0));
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 9 min ago"]
+    );
+    // One wait cut short in seven minutes is far less than the minute the words are said in: no plus for it.
+    let mut state = State::default();
+    arrived(&mut state);
+    let mut waits = idle_with_deliveries(20, 20);
+    waits.extend((0..7 * 60 / 5).map(|_| None));
+    let mut host = Idle {
+        waits,
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(state.unsure, 5_000);
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 7 min ago"]
+    );
+    // A position that arrives after the doubt began carries none of it.
+    let mut state = State::default();
+    let mut host = Idle {
+        waits: idle_with_deliveries(60, 20),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(state.unsure, 15_000);
+    arrived(&mut state);
+    let mut host = Idle {
+        waits: (0..7 * 60 / 5).map(|_| None).collect(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(
+        state.device_lines(),
+        ["Phone: 45.0000° N, 25.0000° E, last location 7 min ago"]
+    );
+}
+
+#[test]
+fn the_time_an_open_page_says_leaves_no_doubt_and_a_fresh_clock_measures_nothing() {
+    let mut state = State::default();
+    // A page opens and its events say the time, a second apart, each cutting an idle wait short.
+    let page = |at: u64| Some(event(at, json!({"t":"tick","id":"clock","at":at})));
+    let mut host = Idle {
+        waits: (1..=100).map(|second| page(second * 1_000)).collect(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    // Only the wait before the first event was measured by nothing: what went before a page opened is not known.
+    assert_eq!(state.now, 99_000);
+    assert_eq!((state.unsure, state.cut), (u64::from(IDLE_WAIT), 0));
+    // The window is opened again: its clock starts over. Nothing is counted from the difference, and the wait it cut
+    // short stays in doubt.
+    let mut host = Idle {
+        waits: [page(500), page(1_500)].into(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(state.now, 100_000);
+    assert_eq!((state.unsure, state.cut), (2 * u64::from(IDLE_WAIT), 0));
+}
+
+#[test]
+fn an_idle_guest_lists_the_devices_every_half_minute_it_counted() {
+    let mut state = State::default();
+    let mut host = Idle {
+        waits: (0..3).map(|_| None).collect(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    // At once the first time; nothing more while that listing is not answered.
+    assert_eq!(calls_of(&host.sent, PEERS, "list"), 1);
+    let list = host.sent[0]["id"].as_u64().unwrap();
+    let mut waits: VecDeque<Option<Value>> =
+        [Some(result(list, json!({"status":"ok","value":[]})))].into();
+    waits.extend((0..3).map(|_| None));
+    let mut host = Idle {
+        waits,
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(
+        calls_of(&host.sent, PEERS, "list"),
+        0,
+        "25 s after the last"
+    );
+    let mut host = Idle {
+        waits: [None].into(),
+        ..Idle::default()
+    };
+    assert_eq!(serve(&mut host, &mut state), 1);
+    assert_eq!(
+        calls_of(&host.sent, PEERS, "list"),
+        1,
+        "30 s after the last"
+    );
+}
+
+/// How many calls of `service` and `method` are among `sent`.
+fn calls_of(sent: &[Value], service: &str, method: &str) -> usize {
+    sent.iter()
+        .filter(|sent| {
+            sent["op"] == "call" && sent["service"] == service && sent["method"] == method
+        })
+        .count()
 }
 
 #[test]
@@ -1213,7 +1514,11 @@ fn the_map_and_its_controls_fit_the_contract_with_every_device() {
         .unwrap();
         state.seen.insert(
             "d".repeat(ALIAS_MAX - 1) + &n.to_string(),
-            Told { shared, at: 0 },
+            Told {
+                shared,
+                at: 0,
+                slack: 0,
+            },
         );
     }
     state.listed(
@@ -1514,7 +1819,10 @@ fn the_device_name_flips_to_the_left_near_the_right_edge() {
     let frame = world::Frame(320, 420);
     let (x, y) = (255., 180.);
     let [left, _, width, _] =
-        marker_badge_bounds("Remote device", x, y, map_label_bounds(frame), |_| true).unwrap();
+        marker_badge_bounds("Remote device", None, x, y, map_label_bounds(frame), |_| {
+            true
+        })
+        .unwrap();
     assert!(left >= 0. && left + width < x - 16.);
 }
 
@@ -2844,7 +3152,7 @@ fn only_a_complete_replacement_changes_the_presented_map() {
     let completed = session.art().seq;
     let stamp = session.state.surface.painted;
     session.state.view.span *= 0.999_999;
-    session.host.next_canvas_status = Some(canvas_sdk::PRESENT_LIMITED);
+    next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
     session.state.pump_canvas(&mut session.host, true).unwrap();
     assert_eq!(
         session.art().seq,
@@ -2898,7 +3206,7 @@ fn native_pressure_preserves_the_whole_frame_and_restores_settled_resolution() {
     state.last_motion = Some(state.now);
     state.view.span /= 2.;
     for _ in 0..2 {
-        host.next_canvas_status = Some(canvas_sdk::PRESENT_LIMITED);
+        next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
         state.pump_canvas(&mut host, false).unwrap();
         assert_eq!(Art::parse(&host.written).seq, initial.seq);
         state.now += 34;
@@ -2940,7 +3248,7 @@ fn a_refused_offline_globe_preview_does_not_reduce_native_density() {
         })
     };
     state.act(&wheel(100));
-    host.next_canvas_status = Some(canvas_sdk::PRESENT_LIMITED);
+    next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
     state.pump_canvas(&mut host, false).unwrap();
     assert_eq!(Art::parse(&host.written).seq, initial.seq);
 
@@ -3040,7 +3348,7 @@ fn a_sharp_phone_zoom_repaints_the_camera_before_restoring_street_labels() {
         "coalesce rapid samples before the stream is full"
     );
 
-    session.host.next_canvas_status = Some(canvas_sdk::PRESENT_LIMITED);
+    next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
     session.action(wheel(at + 40));
     assert_eq!(
         session.art().seq,
