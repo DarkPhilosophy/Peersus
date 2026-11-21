@@ -144,6 +144,82 @@ impl Marker {
     }
 }
 
+/// Markers closer than this, centre to centre, cover one another: a dot is 32 across.
+const APART: f64 = 36.;
+
+/// Where each marker is drawn, given where each one's position falls on the screen. Markers that would cover one another
+/// are moved apart around the place they share, so two devices on one desk are two markers side by side and not one; a
+/// marker with room stays where it is. Parting them never takes out of the map (`bounds`) markers that were all in it.
+/// Only the drawing moves: what a marker is of, and the ring of how sure it is, do not.
+fn spread(points: &[(f64, f64)], bounds: tile::layers::Rect) -> Vec<(f64, f64)> {
+    let dot = |(x, y): (f64, f64)| [x - 16., y - 16., 32., 32.];
+    let mut placed = points.to_vec();
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    for (index, &(x, y)) in points.iter().enumerate() {
+        let near = |group: &&mut Vec<usize>| {
+            group
+                .iter()
+                .any(|&other| (x - points[other].0).hypot(y - points[other].1) < APART)
+        };
+        match groups.iter_mut().find(near) {
+            Some(group) => group.push(index),
+            None => groups.push(vec![index]),
+        }
+    }
+    for group in groups.iter().filter(|group| group.len() > 1) {
+        let count = group.len() as f64;
+        let (cx, cy) = group.iter().fold((0., 0.), |(x, y), &index| {
+            (x + points[index].0 / count, y + points[index].1 / count)
+        });
+        if let [first, second] = group[..] {
+            // Two keep the direction they lie in, so they part smoothly as the map is brought closer; on the very same
+            // spot they stand side by side.
+            let (dx, dy) = (
+                points[second].0 - points[first].0,
+                points[second].1 - points[first].1,
+            );
+            let length = dx.hypot(dy);
+            let (ux, uy) = if length > 0.5 {
+                (dx / length, dy / length)
+            } else {
+                (1., 0.)
+            };
+            placed[first] = (cx - ux * APART / 2., cy - uy * APART / 2.);
+            placed[second] = (cx + ux * APART / 2., cy + uy * APART / 2.);
+        } else {
+            // More stand evenly on a ring wide enough for each, the first at the top.
+            let radius = APART / 2. / (std::f64::consts::PI / count).sin();
+            for (turn, &index) in group.iter().enumerate() {
+                let angle =
+                    std::f64::consts::TAU * turn as f64 / count - std::f64::consts::FRAC_PI_2;
+                placed[index] = (cx + radius * angle.cos(), cy + radius * angle.sin());
+            }
+        }
+        if !group.iter().all(|&index| bounds.fits(dot(points[index]))) {
+            continue;
+        }
+        // All were in the map: the group as a whole is brought back in, by as little as that takes.
+        let [left, top, right, bottom] = bounds.0.map(f64::from);
+        let (mut low, mut high) = ((f64::MAX, f64::MAX), (f64::MIN, f64::MIN));
+        for &index in group {
+            let [x, y, width, height] = dot(placed[index]);
+            low = (low.0.min(x), low.1.min(y));
+            high = (high.0.max(x + width), high.1.max(y + height));
+        }
+        let back = |low: f64, high: f64, start: f64, end: f64| {
+            (start - low).max(0.) - (high - end).max(0.)
+        };
+        let (dx, dy) = (
+            back(low.0, high.0, left, right),
+            back(low.1, high.1, top, bottom),
+        );
+        for &index in group {
+            placed[index] = (placed[index].0 + dx, placed[index].1 + dy);
+        }
+    }
+    placed
+}
+
 fn markers(
     state: &State,
     camera: &world::Camera,
@@ -153,29 +229,48 @@ fn markers(
     let own = state
         .own_now()
         .map(|s| (OWN, "This device".to_owned(), s.fix));
-    own.into_iter()
+    let (found, points): (Vec<_>, Vec<_>) = own
+        .into_iter()
         .chain(
             state
                 .seen
                 .iter()
                 .map(|(id, told)| (id.as_str(), state.name(id), told.shared.fix)),
         )
-        .filter_map(|(id, name, fix)| {
-            let (x, y) = camera.point(fix.longitude, fix.latitude)?;
-            let dot = [x - 16., y - 16., 32., 32.];
-            if !bounds.fits(dot) || !clear(dot) {
-                return None;
-            }
-            let badge = marker_badge_bounds(&name, x, y, bounds, &clear);
-            Some(Marker {
-                id: id.to_owned(),
-                name,
-                fix,
-                point: (x, y),
-                badge,
-            })
+        .filter_map(|found| {
+            let point = camera.point(found.2.longitude, found.2.latitude)?;
+            Some((found, point))
         })
-        .collect()
+        .unzip();
+    let dot = |(x, y): (f64, f64)| [x - 16., y - 16., 32., 32.];
+    let shown: Vec<_> = found
+        .into_iter()
+        .zip(spread(&points, bounds))
+        .filter(|&(_, point)| bounds.fits(dot(point)) && clear(dot(point)))
+        .collect();
+    let dots: Vec<[f64; 4]> = shown.iter().map(|&(_, point)| dot(point)).collect();
+    let mut markers: Vec<Marker> = Vec::with_capacity(shown.len());
+    for (index, ((id, name, fix), (x, y))) in shown.into_iter().enumerate() {
+        // A name stands clear of the other markers and of the names already placed, so neighbours are both read.
+        let badge = marker_badge_bounds(&name, x, y, bounds, |area| {
+            clear(area)
+                && dots
+                    .iter()
+                    .enumerate()
+                    .all(|(other, dot)| other == index || !overlaps(area, *dot))
+                && markers
+                    .iter()
+                    .all(|marker| marker.badge.is_none_or(|placed| !overlaps(area, placed)))
+        });
+        markers.push(Marker {
+            id: id.to_owned(),
+            name,
+            fix,
+            point: (x, y),
+            badge,
+        });
+    }
+    markers
 }
 
 /// Raw canvas hit testing uses the same geometry painted into the last frame.

@@ -1123,6 +1123,68 @@ fn tapping_a_picture_centres_once_and_ticks_keep_the_marker() {
 }
 
 #[test]
+fn devices_on_one_spot_are_drawn_apart_with_names_that_cover_neither() {
+    let covers = |[x, y, w, h]: [f64; 4], [a, b, c, d]: [f64; 4]| {
+        x < a + c && x + w > a && y < b + d && y + h > b
+    };
+    let mut state = State::default();
+    state.act(&size(0, 0, 900000, 600000));
+    state.view = world::View {
+        lon: 26.10,
+        lat: 44.43,
+        span: 0.006,
+        roll: 0.,
+    };
+    // Alone, a marker is where its device is.
+    state.listed(&[peer("a1", "Phone", true)]);
+    state.seen.insert("a1".into(), told(44.43, 26.10));
+    let alone = art(&state).1.markers[0].point;
+    // A second device on the same desk: two markers side by side around that spot, each with its name.
+    state.listed(&[peer("a1", "Phone", true), peer("b2", "Tablet", true)]);
+    state.seen.insert("b2".into(), told(44.43, 26.10));
+    let (shown, picture) = art(&state);
+    let [first, second] = &picture.markers[..] else {
+        panic!("both devices are drawn");
+    };
+    assert!(!covers(first.dot(), second.dot()));
+    assert!((first.point.1 - alone.1).abs() < 1e-6 && (second.point.1 - alone.1).abs() < 1e-6);
+    assert!(((first.point.0 + second.point.0) / 2. - alone.0).abs() < 1e-6);
+    assert!(shown.label("Phone") && shown.label("Tablet"));
+    let (a, b) = (first.badge.unwrap(), second.badge.unwrap());
+    assert!(!covers(a, b) && !covers(a, second.dot()) && !covers(b, first.dot()));
+    // What each marker is of did not move: pressing one still goes to where the device is.
+    assert_eq!(
+        (first.fix.latitude, first.fix.longitude),
+        (second.fix.latitude, second.fix.longitude)
+    );
+    // A third on the same spot: none covers another.
+    state.listed(&[
+        peer("a1", "Phone", true),
+        peer("b2", "Tablet", true),
+        peer("c3", "Laptop", true),
+    ]);
+    state.seen.insert("c3".into(), told(44.43, 26.10));
+    // A drawn marker is a circle 32 across with its outline.
+    let points: Vec<(f64, f64)> = art(&state).1.markers.iter().map(|m| m.point).collect();
+    assert_eq!(points.len(), 3);
+    for (index, &(x, y)) in points.iter().enumerate() {
+        assert!(
+            points[index + 1..]
+                .iter()
+                .all(|&(a, b)| (x - a).hypot(y - b) > 32.)
+        );
+    }
+    // Far enough apart on the screen, each is where its device is again.
+    state.seen.clear();
+    state.listed(&[peer("a1", "Phone", true), peer("b2", "Tablet", true)]);
+    state.seen.insert("a1".into(), told(44.43, 26.10));
+    state.seen.insert("b2".into(), told(44.431, 26.10));
+    let picture = art(&state).1;
+    let near = picture.markers.iter().find(|m| m.id == "a1").unwrap();
+    assert!((near.point.0 - alone.0).abs() < 1e-6 && (near.point.1 - alone.1).abs() < 1e-6);
+}
+
+#[test]
 fn pressing_a_devices_name_on_the_map_takes_the_person_there() {
     let mut state = State::default();
     state.act(&size(0, 0, 900000, 600000));
