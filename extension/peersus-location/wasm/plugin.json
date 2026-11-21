@@ -123,7 +123,7 @@
       "methods": {
         "receive": {
           "capability": "location.sharing",
-          "description": "Takes the question and, if sharing is allowed both ways, shares the position this device already knows with the devices that take it."
+          "description": "Takes the question and, if sharing is allowed both ways, shares the position this device already knows with the device that asked."
         }
       },
       "events": {}

@@ -62,8 +62,14 @@ const LIST_EVERY: u64 = 10_000;
 const SHARE_EVERY: u64 = 5 * 60_000;
 /// What is known of a device is old once two of its turns went by without a share arriving (page clock, milliseconds).
 const STALE: u64 = 2 * SHARE_EVERY;
-/// A device's question is answered no more often than this (page clock, milliseconds).
-const ANSWER_EVERY: u64 = 30_000;
+/// A device that was asked where it is and has not shared since is asked again after this long, then after twice as long
+/// each time, and in the end as often as a share is due (page clock, milliseconds). One question may come to nothing: the
+/// device did not take a position from this one yet, or did not know where it was.
+const ASK_AGAIN: u64 = 15_000;
+/// One device's question is answered no more often than this (page clock, milliseconds).
+const ANSWER_EVERY: u64 = 10_000;
+/// A question that cannot be answered yet is kept this long (page clock, milliseconds).
+const WANTED_FOR: u64 = 60_000;
 /// Scale change of the dedicated zoom buttons.
 const CLOSER: f64 = 1.6;
 /// A burst of this many logical wheel pixels doubles the magnification.
@@ -246,12 +252,12 @@ pub struct State {
     asking: Vec<(u64, String)>,
     /// Questions the application opened a stream for: the claim to write it under, and the device.
     asks: Vec<(u64, String)>,
-    /// When (page clock) each device was last asked where it is.
-    asked: BTreeMap<String, u64>,
-    /// A device asked where this one is: it is shared at the next listing, whether or not a share is due.
-    wanted: bool,
-    /// When (page clock) a device's question was last answered.
-    answered_at: Option<u64>,
+    /// When (page clock) each device was last asked where it is, and how many times since it last shared.
+    asked: BTreeMap<String, (u64, u32)>,
+    /// The devices that asked where this one is and are not answered yet, and when (page clock) each last asked.
+    wanted: BTreeMap<String, u64>,
+    /// When (page clock) each device's question was last answered.
+    answered: BTreeMap<String, u64>,
     /// What came of the last share to each device: whether every byte reached it.
     delivered: BTreeMap<String, bool>,
     /// The last share reached no device: nobody could take it.
@@ -716,6 +722,10 @@ impl State {
             .map(|device| device.alias.clone())
             .collect();
         self.nobody = ready.is_empty();
+        // A share to every device is also the answer to those that asked.
+        for alias in &ready {
+            self.wanted.remove(alias);
+        }
         ready
             .into_iter()
             .map(|alias| {
@@ -725,6 +735,45 @@ impl State {
                     json!({"device":alias,"service":wire::SERVICE,"version":wire::VERSION}),
                     CALL_MS,
                 );
+                self.sending.push(Sending {
+                    number,
+                    alias,
+                    told,
+                });
+                call
+            })
+            .collect()
+    }
+
+    /// Answer the devices that asked where this one is and take a position now: one stream to each, for the position this
+    /// device already knows, as old as it is. The system is not asked where this device is: that waits for its turn. A
+    /// device that cannot be answered yet stays asked for a while ([`WANTED_FOR`]) and is answered by a later listing or
+    /// by the next share.
+    fn answer_wanted(&mut self) -> Vec<Value> {
+        let now = self.now;
+        self.wanted
+            .retain(|_, at| now.saturating_sub(*at) < WANTED_FOR);
+        let Own::Found(told) = &self.own else {
+            return Vec::new();
+        };
+        let told = *told;
+        let ready: Vec<String> = self
+            .wanted
+            .keys()
+            .filter(|alias| self.devices.iter().any(|d| d.ready && d.alias == **alias))
+            .cloned()
+            .collect();
+        ready
+            .into_iter()
+            .map(|alias| {
+                let (number, call) = self.call(
+                    PEERS,
+                    "send",
+                    json!({"device":alias,"service":wire::SERVICE,"version":wire::VERSION}),
+                    CALL_MS,
+                );
+                self.wanted.remove(&alias);
+                self.answered.insert(alias.clone(), now);
                 self.sending.push(Sending {
                     number,
                     alias,
@@ -814,23 +863,21 @@ impl State {
             if let Some(peers) = result["value"].as_array().filter(|_| ok) {
                 self.listed(peers);
                 let mut calls = self.ask_devices();
-                let wanted = std::mem::take(&mut self.wanted);
                 if self.devices.iter().any(|d| d.ready) {
                     if self
                         .kept_at
                         .is_none_or(|at| self.now.saturating_sub(at) >= SHARE_EVERY)
                     {
+                        // Its turn: the share that follows goes to every device, those that asked among them.
                         calls.extend(self.find(Ask::Keep));
-                    } else if wanted && let Own::Found(told) = &self.own {
-                        // Asked between two turns: what is known goes again, as old as it is now. The system is not
-                        // asked sooner than it would have been.
-                        let told = *told;
-                        calls.extend(self.share(told));
+                    } else {
+                        calls.extend(self.answer_wanted());
                     }
                 }
                 return calls;
-            } else {
-                // No device may be seen any more: nothing of one is shown either.
+            } else if denied {
+                // No device may be seen any more: nothing of one is shown either. Only a refusal says that: a listing
+                // the application could not answer just now (busy, late) takes nothing away, and is asked again.
                 self.devices.clear();
                 self.seen.clear();
                 self.sending.clear();
@@ -838,7 +885,8 @@ impl State {
                 self.asking.clear();
                 self.asks.clear();
                 self.asked.clear();
-                self.wanted = false;
+                self.wanted.clear();
+                self.answered.clear();
                 self.share_kept = false;
             }
         } else if id == self.asked_own {
@@ -942,14 +990,18 @@ impl State {
         self.asks.retain(asks);
         self.asked
             .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
+        self.wanted
+            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
+        self.answered
+            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
         if !devices.iter().any(|d| d.ready) {
             self.share_kept = false;
         }
     }
 
     /// Ask every device that takes the question, and of which nothing is known here or only something old, where it is:
-    /// at once the first time, then no more often than a share is due. Nothing answers on that stream: a device that
-    /// agrees shares, as at its own turn.
+    /// at once the first time, then after [`ASK_AGAIN`] and twice as long each time while it has not shared, in the end as
+    /// often as a share is due. Nothing answers on that stream: a device that agrees shares what it knows with this one.
     fn ask_devices(&mut self) -> Vec<Value> {
         let now = self.now;
         let unknown: Vec<String> = self
@@ -962,9 +1014,12 @@ impl State {
                     .is_none_or(|told| now.saturating_sub(told.at) >= STALE)
             })
             .filter(|device| {
-                self.asked
-                    .get(&device.alias)
-                    .is_none_or(|at| now.saturating_sub(*at) >= SHARE_EVERY)
+                self.asked.get(&device.alias).is_none_or(|&(at, times)| {
+                    let wait = ASK_AGAIN
+                        .saturating_mul(1 << times.saturating_sub(1).min(8))
+                        .min(SHARE_EVERY);
+                    now.saturating_sub(at) >= wait
+                })
             })
             .map(|device| device.alias.clone())
             .collect();
@@ -977,7 +1032,9 @@ impl State {
                     json!({"device":alias,"service":wire::WANTED,"version":wire::WANTED_VERSION}),
                     CALL_MS,
                 );
-                self.asked.insert(alias.clone(), now);
+                let times = self.asked.get(&alias).map_or(0, |&(_, times)| times);
+                self.asked
+                    .insert(alias.clone(), (now, times.saturating_add(1)));
                 self.asking.push((number, alias));
                 call
             })
@@ -1662,6 +1719,8 @@ impl State {
         host.close(handle);
         let shared = wire::parse(&read?).map_err(|_| "What was sent was not understood")?;
         self.marker_stamp = self.marker_stamp.wrapping_add(1);
+        // It shared: what was asked of it is answered, and the next question, if one is ever due, starts over.
+        self.asked.remove(&alias);
         self.seen.insert(
             alias,
             Told {
@@ -1673,8 +1732,9 @@ impl State {
     }
 
     /// A paired device asks where this one is. What it wrote is read and judged like anything a device sends, and nothing
-    /// answers on its stream. A question understood leads, no more often than [`ANSWER_EVERY`], to the devices being listed
-    /// and this device shared with those that take it now: what the person's permission lets it send at its own turn.
+    /// answers on its stream. A question understood leads, no more often than [`ANSWER_EVERY`] for one device, to the
+    /// devices being listed and the position this device already knows being shared with the device that asked, if it
+    /// takes one now: what the person's permission lets this device send it at its own turn.
     fn asked_for<H: Wire + Data>(
         &mut self,
         host: &mut H,
@@ -1699,14 +1759,19 @@ impl State {
             }
             Err(_) => false,
         };
+        let asker = delivery["args"]["peer"]
+            .as_str()
+            .filter(|alias| !alias.is_empty() && alias.len() <= ALIAS_MAX);
         let mut calls = Vec::new();
         if understood
+            && let Some(asker) = asker
             && self
-                .answered_at
-                .is_none_or(|at| self.now.saturating_sub(at) >= ANSWER_EVERY)
+                .answered
+                .get(asker)
+                .is_none_or(|at| self.now.saturating_sub(*at) >= ANSWER_EVERY)
+            && (self.wanted.contains_key(asker) || self.wanted.len() < MOST_SEEN)
         {
-            self.answered_at = Some(self.now);
-            self.wanted = true;
+            self.wanted.insert(asker.to_owned(), self.now);
             if self.asked_list == 0 {
                 calls.push(self.list());
             }

@@ -640,7 +640,7 @@ fn streams<'a>(host: &'a Script, service: &str) -> Vec<&'a Value> {
 }
 
 #[test]
-fn a_device_nothing_is_known_of_is_asked_at_once_and_then_only_as_often_as_a_share_is_due() {
+fn a_device_nothing_is_known_of_is_asked_at_once_and_again_until_it_shares() {
     let mut host = Script {
         acks: true,
         ..Script::default()
@@ -659,30 +659,53 @@ fn a_device_nothing_is_known_of_is_asked_at_once_and_then_only_as_often_as_a_sha
     run_all(&mut host, &mut state);
     assert!(host.opened.contains(&(true, 77)));
     assert_eq!(host.written, wire::WANTED_MESSAGE);
-    // Still nothing known of it: not asked again until a share would be due.
-    for at in [10_000, 60_000, SHARE_EVERY - 1] {
+    // It has not shared: asked again after a quarter of a minute, then after twice as long each time, and in the end as
+    // often as a share is due. A listing in between asks nothing.
+    let (mut at, mut times) = (0u64, 1usize);
+    for wait in [
+        15_000,
+        30_000,
+        60_000,
+        120_000,
+        240_000,
+        SHARE_EVERY,
+        SHARE_EVERY,
+    ] {
+        permissions(&mut host, &mut state, devices(), at + wait - 1);
+        assert_eq!(streams(&host, wire::WANTED).len(), times, "before {wait}");
+        at += wait;
         permissions(&mut host, &mut state, devices(), at);
+        times += 1;
+        assert_eq!(streams(&host, wire::WANTED).len(), times, "after {wait}");
     }
-    assert_eq!(streams(&host, wire::WANTED).len(), 1);
-    permissions(&mut host, &mut state, devices(), SHARE_EVERY);
-    assert_eq!(streams(&host, wire::WANTED).len(), 2);
-    // Its position arrived: nothing more is asked while that is fresh, and it is asked again once it is old.
-    let arrived = 2 * SHARE_EVERY;
-    state.seen.insert(
-        "a1".into(),
-        Told {
-            at: arrived,
-            ..told(1.0, 2.0)
-        },
+    // It shares: nothing more is asked while that is fresh.
+    let arrived = at + 1_000;
+    state.now = arrived;
+    host.incoming.push_back(
+        wire::encode(&wire::Shared {
+            fix: geo::Fix::new(46.7712, 23.6236, Some(30.0)).unwrap(),
+            age: 0,
+        })
+        .unwrap(),
     );
-    for at in [arrived, arrived + SHARE_EVERY, arrived + STALE - 1] {
-        permissions(&mut host, &mut state, devices(), at);
+    host.deliveries
+        .push_back(json!({"type":"call","ticket":9,"service":wire::SERVICE,
+        "method":"receive","args":{"peer":"a1"}}));
+    run_all(&mut host, &mut state);
+    assert!(state.seen.contains_key("a1"));
+    for later in [0, SHARE_EVERY, STALE - 1] {
+        permissions(&mut host, &mut state, devices(), arrived + later);
     }
-    assert_eq!(streams(&host, wire::WANTED).len(), 2);
+    assert_eq!(streams(&host, wire::WANTED).len(), times);
+    // Old, and nothing new arrived: asked again, at once and then after a quarter of a minute, as at the start.
     permissions(&mut host, &mut state, devices(), arrived + STALE);
-    assert_eq!(streams(&host, wire::WANTED).len(), 3);
+    assert_eq!(streams(&host, wire::WANTED).len(), times + 1);
+    permissions(&mut host, &mut state, devices(), arrived + STALE + 14_999);
+    assert_eq!(streams(&host, wire::WANTED).len(), times + 1);
+    permissions(&mut host, &mut state, devices(), arrived + STALE + 15_000);
+    assert_eq!(streams(&host, wire::WANTED).len(), times + 2);
     // No longer allowed to see any device: what was asked is forgotten with the rest.
-    state.now = arrived + STALE + 1;
+    state.now = arrived + STALE + 15_001;
     let list = state.list()["id"].as_u64().unwrap();
     host.deliveries.push_back(result(
         list,
@@ -693,47 +716,54 @@ fn a_device_nothing_is_known_of_is_asked_at_once_and_then_only_as_often_as_a_sha
 }
 
 #[test]
-fn a_question_is_answered_by_sharing_what_is_known_and_no_more_often_than_its_limit() {
+fn a_question_is_answered_to_the_device_that_asked_with_what_this_device_already_knows() {
     let mut host = Script {
         acks: true,
         ..Script::default()
     };
     let mut state = State::default();
-    let question = |ticket: u64| {
+    let devices = || json!([peer("a1", "Phone", true), peer("b2", "Laptop", true)]);
+    let question = |ticket: u64, from: &str| {
         json!({"type":"call","ticket":ticket,"caller":"host","service":wire::WANTED,
-            "version":wire::WANTED_VERSION,"method":"receive","args":{"peer":"a1"}})
+            "version":wire::WANTED_VERSION,"method":"receive","args":{"peer":from}})
+    };
+    let ask = |host: &mut Script, state: &mut State, ticket: u64, from: &str, at: u64| {
+        state.now = at;
+        host.incoming.push_back(wire::WANTED_MESSAGE.to_vec());
+        host.deliveries.push_back(question(ticket, from));
+        run_all(host, state);
+        let reply = host
+            .sent
+            .iter()
+            .find(|sent| sent["ticket"] == ticket)
+            .unwrap();
+        assert_eq!(reply["result"]["status"], "ok");
     };
     let listed = |host: &mut Script, state: &mut State| {
         let list = calls(host, PEERS, "list").last().unwrap()["id"]
             .as_u64()
             .unwrap();
-        host.deliveries.push_back(result(
-            list,
-            json!({"status":"ok","value":[peer("a1","Phone",true)]}),
-        ));
+        host.deliveries
+            .push_back(result(list, json!({"status":"ok","value":devices()})));
         run_all(host, state);
     };
-    // Its own turn: found and shared once.
-    permissions(&mut host, &mut state, json!([peer("a1", "Phone", true)]), 0);
+    // Its own turn: found and shared once, with both.
+    permissions(&mut host, &mut state, devices(), 0);
     let find = asked(&host, LOCATION, "current", 0);
     host.deliveries.push_back(result(find, found(1.0, 2.0, 0)));
     run_all(&mut host, &mut state);
-    assert_eq!(streams(&host, wire::SERVICE).len(), 1);
-    // A minute later the device asks: the devices are listed again and what is known goes again, a minute older. The
-    // system is not asked where this device is before its next turn.
-    state.now = 60_000;
+    assert_eq!(streams(&host, wire::SERVICE).len(), 2);
+    // A minute later one device asks: the devices are listed again and what is known goes to that device alone, a minute
+    // older. The system is not asked where this device is before its next turn.
     let lists = calls(&host, PEERS, "list").len();
-    host.incoming.push_back(wire::WANTED_MESSAGE.to_vec());
-    host.deliveries.push_back(question(7));
-    run_all(&mut host, &mut state);
-    let reply = host.sent.iter().find(|sent| sent["ticket"] == 7).unwrap();
-    assert_eq!(reply["result"]["status"], "ok");
+    ask(&mut host, &mut state, 7, "a1", 60_000);
     assert_eq!(calls(&host, PEERS, "list").len(), lists + 1);
     listed(&mut host, &mut state);
     let shares = streams(&host, wire::SERVICE);
-    assert_eq!(shares.len(), 2);
+    assert_eq!(shares.len(), 3);
+    assert_eq!(shares[2]["args"]["device"], "a1");
     assert_eq!(calls(&host, LOCATION, "current").len(), 1);
-    let share = shares[1]["id"].as_u64().unwrap();
+    let share = shares[2]["id"].as_u64().unwrap();
     host.deliveries
         .push_back(result(share, json!({"status":"ok","value":{"claim":91}})));
     run_all(&mut host, &mut state);
@@ -742,30 +772,61 @@ fn a_question_is_answered_by_sharing_what_is_known_and_no_more_often_than_its_li
         (sent.fix.latitude, sent.fix.longitude, sent.age),
         (1.0, 2.0, 60)
     );
-    // Asked again at once, and again before the limit: understood, and nothing more is done.
-    for (ticket, at) in [(8, 60_000), (9, 60_000 + ANSWER_EVERY - 1)] {
-        state.now = at;
-        host.incoming.push_back(wire::WANTED_MESSAGE.to_vec());
-        host.deliveries.push_back(question(ticket));
-        run_all(&mut host, &mut state);
-        let reply = host
-            .sent
-            .iter()
-            .find(|sent| sent["ticket"] == ticket)
-            .unwrap();
-        assert_eq!(reply["result"]["status"], "ok");
-    }
+    // The same device asks again before its limit: understood, and nothing more is done.
+    ask(&mut host, &mut state, 8, "a1", 60_000 + ANSWER_EVERY - 1);
     assert_eq!(calls(&host, PEERS, "list").len(), lists + 1);
-    assert_eq!(streams(&host, wire::SERVICE).len(), 2);
+    // Another device asks in that time: it is answered, and it alone.
+    ask(&mut host, &mut state, 9, "b2", 60_000 + ANSWER_EVERY - 1);
+    listed(&mut host, &mut state);
+    let shares = streams(&host, wire::SERVICE);
+    assert_eq!(shares.len(), 4);
+    assert_eq!(shares[3]["args"]["device"], "b2");
+    // After its limit the first is answered again.
+    ask(&mut host, &mut state, 10, "a1", 60_000 + ANSWER_EVERY);
+    listed(&mut host, &mut state);
+    assert_eq!(streams(&host, wire::SERVICE).len(), 5);
     // What is not exactly the question is refused and leads to nothing, however long after.
     state.now = 10 * SHARE_EVERY;
+    let lists = calls(&host, PEERS, "list").len();
     host.incoming
         .push_back(br#"{"wanted":"position","more":1}"#.to_vec());
-    host.deliveries.push_back(question(10));
+    host.deliveries.push_back(question(11, "a1"));
     run_all(&mut host, &mut state);
-    let reply = host.sent.iter().find(|sent| sent["ticket"] == 10).unwrap();
+    let reply = host.sent.iter().find(|sent| sent["ticket"] == 11).unwrap();
     assert_eq!(reply["result"]["status"], "error");
-    assert_eq!(calls(&host, PEERS, "list").len(), lists + 1);
+    assert_eq!(calls(&host, PEERS, "list").len(), lists);
+    assert!(state.wanted.is_empty());
+}
+
+#[test]
+fn a_question_that_cannot_be_answered_yet_is_answered_by_the_share_that_follows() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    let devices = || json!([peer("a1", "Phone", true)]);
+    // Its turn has begun and the system has not said yet where this device is.
+    permissions(&mut host, &mut state, devices(), 0);
+    let find = asked(&host, LOCATION, "current", 0);
+    // The device asks meanwhile: nothing can be sent, and the question is kept.
+    state.now = 2_000;
+    host.incoming.push_back(wire::WANTED_MESSAGE.to_vec());
+    host.deliveries
+        .push_back(json!({"type":"call","ticket":7,"service":wire::WANTED,
+        "method":"receive","args":{"peer":"a1"}}));
+    run_all(&mut host, &mut state);
+    let list = calls(&host, PEERS, "list").last().unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    host.deliveries
+        .push_back(result(list, json!({"status":"ok","value":devices()})));
+    run_all(&mut host, &mut state);
+    assert!(streams(&host, wire::SERVICE).is_empty());
+    assert!(state.wanted.contains_key("a1"));
+    // The system answers: the share of this turn goes to the device, and its question is answered by it.
+    host.deliveries.push_back(result(find, found(1.0, 2.0, 0)));
+    run_all(&mut host, &mut state);
+    assert_eq!(streams(&host, wire::SERVICE).len(), 1);
+    assert!(state.wanted.is_empty());
+    assert_eq!(calls(&host, LOCATION, "current").len(), 1);
 }
 
 #[test]
@@ -797,6 +858,47 @@ fn a_question_to_a_device_that_was_never_found_waits_for_its_own_turn() {
     run_all(&mut host, &mut state);
     assert_eq!(calls(&host, LOCATION, "current").len(), 1);
     assert!(streams(&host, wire::SERVICE).is_empty());
+}
+
+#[test]
+fn what_a_device_shared_stays_known_until_it_shares_again_however_long_that_takes() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    let listing = |host: &mut Script, state: &mut State, at: u64, answer: Value| {
+        state.now = at;
+        let list = state.list()["id"].as_u64().unwrap();
+        host.deliveries.push_back(result(list, answer));
+        run_all(host, state);
+    };
+    let devices = json!({"status":"ok","value":[peer("a1","Phone",true)]});
+    listing(&mut host, &mut state, 0, devices.clone());
+    state.seen.insert("a1".into(), told(44.43, 26.10));
+    // Hours without a new share, the device gone offline meanwhile: where it was last is still what is known.
+    let offline = json!({"status":"ok","value":[
+        {"device":"a1","name":"Phone","online":false,"presence":"offline","allowed":true}]});
+    for hour in 1..=6 {
+        listing(&mut host, &mut state, hour * 3_600_000, offline.clone());
+    }
+    assert!(state.seen.contains_key("a1"));
+    // A listing the application could not answer just now takes nothing away either.
+    for failure in ["timeout", "busy", "failed"] {
+        listing(
+            &mut host,
+            &mut state,
+            7 * 3_600_000,
+            json!({"status":"error","code":failure,"message":"later"}),
+        );
+        assert!(state.seen.contains_key("a1"), "{failure}");
+        assert_eq!(state.devices.len(), 1, "{failure}");
+    }
+    // A refusal does: Location may no longer see any device.
+    listing(
+        &mut host,
+        &mut state,
+        8 * 3_600_000,
+        json!({"status":"error","code":"denied","message":"no"}),
+    );
+    assert!(state.seen.is_empty() && state.devices.is_empty());
 }
 
 #[test]

@@ -16,11 +16,12 @@ Tap a marker or its name to centre and zoom. **Locate this device** centres on a
   once per five minutes. Losing eligibility cancels pending deliveries. Old receive-only consent does not enable automatic
   transmission after an update.
 - **Asking**: a device of which nothing is known here, or only something more than ten minutes old, is asked where it is
-  (the exported `location.wanted` `receive`, under the same `location.sharing` on both sides): at once the first time,
-  then at most once per five minutes. The device asked answers, at most once per thirty seconds, by sharing the position it
-  already knows with the devices that take it; if its own turn is due it looks for a fresh one, as it would have anyway.
-  A question never makes a device ask its system for a position sooner than every five minutes. This is what fills the map
-  shortly after the application starts, instead of at each device's next turn.
+  (the exported `location.wanted` `receive`, under the same `location.sharing` on both sides): at once, then again after
+  fifteen seconds and twice as long each time while it has not shared, in the end once per five minutes. The device asked
+  answers the device that asked, at most once per ten seconds, with the position it already knows; a question it cannot
+  answer yet is kept for a minute and answered by its next share. A question never makes a device ask its system for a
+  position sooner than every five minutes. This is what fills the map shortly after the application starts, instead of at
+  each device's next turn.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
   person allowed Location for (`location.sharing`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
