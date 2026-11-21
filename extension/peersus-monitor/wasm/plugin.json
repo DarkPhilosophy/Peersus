@@ -1,0 +1,173 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Monitor",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "How this device, or a paired device that allows it, is doing: processor, graphics, memory, storage, network and battery, each shown only if you allow it."
+  },
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "program": "peersus_monitor_wasm.wasm",
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
+  "capabilities": {
+    "monitor.share": "See the numbers of a paired device in Monitor, or let a paired device see the numbers of this one. Which numbers are shown is still decided apart, part by part, by what you allow Monitor to read on the device they come from."
+  },
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": [
+        "list",
+        "send"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.system",
+      "version": 1,
+      "methods": [
+        "processor",
+        "graphics",
+        "memory",
+        "storage",
+        "network",
+        "battery"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.notify",
+      "version": 1,
+      "methods": [
+        "show"
+      ],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "monitor.page",
+      "version": 1,
+      "description": "What the Monitor page shows, and what a person does on it.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "event": {
+          "description": "Answers what a person did on the Monitor page with the page as it is after it."
+        }
+      },
+      "events": {}
+    },
+    {
+      "service": "monitor.readings",
+      "version": 1,
+      "description": "Carries Monitor's questions and answers between two paired devices: what one device asks of the other, and the numbers the other is allowed to answer with.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "receive": {
+          "capability": "monitor.share",
+          "description": "Answers a paired device that asks for this device's numbers with the parts you allowed Monitor to read here, and takes the answer of a device this device asked."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "pages": [
+      {
+        "id": "mon",
+        "label": "Monitor",
+        "placement": "settings",
+        "icon": "overview",
+        "surface": "elements",
+        "source": {
+          "service": "monitor.page",
+          "method": "event"
+        }
+      }
+    ],
+    "settings": [
+      {
+        "id": "monitor-page",
+        "label": "Add Monitor to page",
+        "help": "Also show Monitor as its own page; keep the original Monitor in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {
+            "label": "Apache License 2.0 text",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Monitor shows a page with the processor, graphics, memory, storage, network and battery of this device, under a bar of this device and the paired devices you let it see. Each part is shown only after you allow it in this extension's permissions; a part you do not allow says so. Choose a paired device and Monitor shows that device's numbers instead, when both devices allow it: on each, its person allows Monitor for the other, and the device asked shares only the parts its own person allowed. It asks about once a second while the page is open and that device is chosen.",
+        "changes": "After installing, Monitor appears in this extension's settings, and a setting can also add it to the pages. Its permissions are per part and, for each paired device, to see it, send to it and share numbers with it. The readings are kept only while the page is open, for its graphs of the last minute; nothing is stored. Another device sees this device's numbers only after you allow Monitor for it here. Removing the extension removes the page.",
+        "body": [
+          {
+            "k": "heading",
+            "text": "Showing another device"
+          },
+          {
+            "k": "list",
+            "items": [
+              "Both people allow it. On this device and on the other one, Monitor must be allowed to see the other device, to send to it and to share numbers with it (the permission monitor.share). If one side does not allow it, the page says that device is not allowed or did not answer.",
+              "Part by part. The device that is asked answers only with the parts its own person allowed Monitor to read there. A part it does not allow is said to be not allowed; nothing is guessed or made up.",
+              "One question and one answer, nothing more. This device sends one short question; the other device sends one answer with a few numbers (how busy, how warm, how fast, how full), the names of its processor and graphics, and the name its system gives the disk received files go to. They travel straight between the two devices, through the application's encrypted connection, and Monitor sends nothing anywhere else.",
+              "Only while it is useful. About once a second, while the page is open and that device is chosen. It stops when you close the page or choose another device, and a device that does not answer three times in a row is left alone until you choose it again or open the page again."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
