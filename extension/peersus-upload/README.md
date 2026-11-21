@@ -1,6 +1,6 @@
 # Upload extension
 
-One extension identity, one source: a WASM guest (official) for Linux, Android and macOS; the same source also builds a native library and a process (not recommended). On Send, choose one file and approve sending its name and contents to one destination: poo.wang with a saved API key, or Catbox without one. Only the connection to the provider is encrypted; the provider receives the file as it is and the result link may be public.
+One extension identity, one source: the official WASM guest, plus an optional native library and process (not recommended). On Send, choose one file and approve sending its name and contents to one destination: poo.wang with a saved API key, or Catbox without one. Only the connection to the provider is encrypted; the provider receives the file as it is and the result link may be public.
 
 ## Platforms and prerequisites
 
@@ -15,9 +15,11 @@ The credential action declares `input: "secret_text"`: the host renders a masked
 
 **poo.wang (API key required).** Use **API key…** in this extension's settings to save a key. On startup and when these settings are opened or a key is changed, the host reports whether a usable key is saved; the guest hides the poo.wang action when the answer is no. Saving a key, starting a poo.wang upload, or clicking **Check now** asks the host to send the bearer key to `https://poo.wang/api/me`. Only the HTTP status reaches the guest. A 401 or 403 before upload means the key was rejected and stops the upload before a file snapshot or consent; an inconclusive check does not block the attempt.
 
+The host must confirm a save or removal before any follow-up key check. If a save has already completed, cancelling stops remaining work but does not undo that save. While another action is pending, passive settings redraws can use the last page; opening settings or pressing **Check now** reports that the extension is busy rather than claiming to have refreshed.
+
 After consent, the host sends the file as a multipart `files` field to `https://poo.wang/api/upload` with the bearer key. For files over 3 MiB, it starts a session at `https://poo.wang/api/upload/session` with the key and file name and size. The requests under `/api/upload/session/part` and `/api/upload/session/complete` use opaque session authorization, not the saved API key. The app limits the selected file to 250 MiB and the service also enforces the account's own limits. Both paths request expiration after 24 hours and do not publish to Showcase. The result must be one link matching `https://poo.wang/f/<id>`.
 
-The poo.wang website supports anonymous uploads up to 25 MiB per file and 10 per day per anonymous session, with the default link expiry of 24 hours. Its upload and session-start API routes reject an anonymous request without an approved browser `Origin`, and the host cannot supply that header or browser cookies. This extension does not attempt keyless uploads to poo.wang.
+This extension does not attempt keyless uploads to poo.wang; its browser-based anonymous upload is a separate flow.
 
 **Catbox (anonymous).** The Catbox action never asks about, reads or sends a saved API key, even if a poo.wang key is saved. Selecting Catbox as the only destination also skips poo.wang key lookups in startup and settings. After consent, the host sends a multipart POST to `https://catbox.moe/user/api.php` with `reqtype=fileupload` and the file in `fileToUpload`, without `userhash` or a bearer. Catbox allows uploads up to 200 MB, but the app permits only 6 MiB per request part and Catbox does not accept split uploads. Larger files are refused before a snapshot or consent. The host must identify its HTTPS client: Catbox can close the connection before returning an HTTP response when `User-Agent` is absent. The extension cannot set that header.
 
@@ -25,30 +27,33 @@ Catbox replies with a plain-text link. The guest accepts only `https://files.cat
 
 Provider refusals and malformed results never trigger a retry or show a link. A disabled destination, missing selection, missing or rejected poo.wang key, or disallowed file size reports the upload as unavailable. A missing host permission still reports a permission denial, and a cancelled selection or consent reports cancellation.
 
+If startup cannot read the configured destination or update the available actions, it reports the startup error without proceeding with uploads or key changes. In particular, a missing or invalid destination is never treated as **Choose on Send**, and no key lookup is made. After correcting the startup problem, restart the extension.
+
 ## Execution format
 
-The **WASM guest is the official build** of this extension and is packaged for Linux, Android and macOS; the store refuses a submission without it. Why WASM: one module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
+The **WASM guest is the official build**. The store requires Linux, Android and macOS WASM packages; Windows WASM is optional and included by this recipe. One module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
 
 The same guest source also builds as a native library (`cargo build --release --features native` in `wasm/`, packaged with `--native-library libpeersus_upload_wasm.so` as `upload-linux-native_library.tar.gz`) and, linked into the native host, as a process (`upload-linux-process.tar.gz`); every submission builds and validates both. They speak the identical protocol through the native host's function table instead of WebAssembly imports, so behaviour is the same; only the isolation is weaker. The store installs the WASM build only: the other two travel with the signed release for a person to install by hand, with limited support.
 
-The portable WASM module is packaged for Linux, Android, macOS and Windows. This recipe's shared library and process variants are Linux-only. Packaging a Windows or macOS archive is not a test of the file picker, credentials or upload on that operating system.
+The shared library and process variants are Linux-only. The complete file-picker, credential and live upload workflow has not been verified here on macOS or Windows. Those WASM packages are not evidence of end-to-end support.
 
 ## Build and test
 
 In `wasm/`:
 
 ```sh
-cargo build --release --target wasm32-unknown-unknown --locked
+cargo build --release --target wasm32-unknown-unknown --locked --target-dir target
 cargo test --locked
 ```
 
 The guest's unit tests drive its protocol with scripted host answers: malformed results, snapshot and authorization ownership, bounds, the key's three outcomes, parts and cancellation.
 
-The application carries the tests that run the compiled guest itself. From the application workspace root, with the guest built as above:
+The application carries the tests that run the compiled guest itself. Run this from the **application workspace root**, pointing `guest` to the submission's `wasm/` directory. Use an absolute path if the submission is checked out separately, or `"$PWD/plugins/peersus-upload/wasm"` for the local working copy:
 
 ```sh
-PEERSUS_UPLOAD_WASM="$PWD/plugins/peersus-upload/wasm/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
-PEERSUS_UPLOAD_MANIFEST="$PWD/plugins/peersus-upload/wasm/plugin.json" \
+guest="$PWD/extension/peersus-upload/wasm"
+PEERSUS_UPLOAD_WASM="$guest/target/wasm32-unknown-unknown/release/peersus_upload_wasm.wasm" \
+PEERSUS_UPLOAD_MANIFEST="$guest/plugin.json" \
   cargo test -p peersus-plugin-runtime --test process \
   real_upload_guest_uses_host_services_and_returns_the_verified_link -- --ignored
 ```

@@ -170,7 +170,7 @@
         "kind": "notice",
         "title": "What this extension does",
         "explains": "Upload sends the name and contents of one selected file only after you approve the destination. poo.wang receives it at https://poo.wang/api/upload or in parts at https://poo.wang/api/upload/session/part. Only poo.wang receives your saved key, for checks at https://poo.wang/api/me and for the upload or session creation. Catbox receives the file at https://catbox.moe/user/api.php without a key or account. The extension never receives the file contents or saved key.",
-        "changes": "Choose on Send offers both destinations when a usable poo.wang key is saved. Selecting Catbox alone never looks up a saved key. Catbox needs a host that identifies its HTTPS client, takes up to 6 MiB here, and returns a public link on https://files.catbox.moe. poo.wang uploads expire after 24 hours; its browser-only anonymous upload is not available here. A missing input, unusable key, disabled destination or file outside the size limit makes the upload unavailable, not a permission denial."
+        "changes": "Choose on Send offers both destinations when a usable poo.wang key is saved. Selecting only Catbox never looks up a key; an unreadable destination stops uploads and key operations. Catbox needs an identified HTTPS client, takes up to 6 MiB here, and returns a public link on https://files.catbox.moe. poo.wang uses a saved key here and uploads expire after 24 hours. Missing prerequisites or disallowed file sizes are unavailable, not permission denials. Cancelling stops remaining key checks; it does not undo a completed save or upload."
       }
     ]
   }

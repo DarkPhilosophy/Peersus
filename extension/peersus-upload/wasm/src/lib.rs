@@ -7,6 +7,7 @@ mod native;
 
 use host::Wire;
 use serde_json::{Value, json};
+use std::collections::VecDeque;
 const PART: u64 = 3 * 1024 * 1024;
 const MAX_FILE: u64 = 250 * 1024 * 1024;
 /// The destination this extension was written for first: an account and its API key, files that burn after a day.
@@ -43,7 +44,7 @@ enum Destination {
     Account,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ActionError {
     Cancelled,
     Denied,
@@ -78,9 +79,9 @@ struct Job<'a, W> {
     file: Option<Value>,
     authorization: Option<Value>,
     cancelled: bool,
-    /// Calls that arrived while the extension was asking its first question, kept to be answered right after it. `None` once
-    /// it has started: from then on a call that arrives in the middle of another is refused as busy.
-    early: Option<Vec<Value>>,
+    starting: bool,
+    /// Bounded startup calls, retained until dispatched or withdrawn, even during another queued call.
+    early: VecDeque<Value>,
     /// The settings line as it was known when this call began (nothing while the extension starts). A call that only asks for
     /// that line while this one waits, for a person or for the provider, is answered with it at once.
     shown: Value,
@@ -97,7 +98,8 @@ impl<'a, W: Wire> Job<'a, W> {
             file: None,
             authorization: None,
             cancelled: false,
-            early: None,
+            starting: false,
+            early: VecDeque::new(),
             shown: Value::Null,
             refused: None,
         }
@@ -105,7 +107,7 @@ impl<'a, W: Wire> Job<'a, W> {
     /// The questions asked before any call is served. A press made in that moment is not lost and not called busy.
     fn starting(wire: &'a mut W) -> Self {
         Job {
-            early: Some(Vec::new()),
+            starting: true,
             ..Job::new(wire, 0, 0)
         }
     }
@@ -150,19 +152,30 @@ impl<W: Wire> Job<'_, W> {
                     }
                     return Ok(message["result"]["value"].clone());
                 }
-                Some("cancelled") if message["ticket"].as_u64() == Some(self.ticket) => {
+                Some("cancelled") => {
+                    let Some(ticket) = message["ticket"].as_u64() else {
+                        continue;
+                    };
+                    self.early
+                        .retain(|queued| queued["ticket"].as_u64() != Some(ticket));
+                    if ticket != self.ticket {
+                        continue;
+                    }
                     self.cancelled = true;
-                    self.wire.send(json!({"op":"cancel","id":id}))?;
+                    let _ = self.wire.send(json!({"op":"cancel","id":id}));
                     return Err(ActionError::Cancelled);
                 }
                 Some("call") => {
-                    let line = !self.shown.is_null()
+                    let redraw = !self.shown.is_null()
                         && message["service"] == "upload.file"
-                        && message["method"] == "status";
-                    match &mut self.early {
-                        _ if line => self.wire.send(json!({"op":"reply","ticket":message["ticket"],"result":{"status":"ok","value":self.shown}}))?,
-                        Some(early) if early.len() < EARLY => early.push(message),
-                        _ => self.wire.send(json!({"op":"reply","ticket":message["ticket"],"result":{"status":"error","code":"busy","message":"This extension is busy with another action"}}))?,
+                        && message["method"] == "status"
+                        && message["args"]["event"]["t"] == "tick";
+                    if redraw {
+                        self.wire.send(json!({"op":"reply","ticket":message["ticket"],"result":{"status":"ok","value":self.shown}}))?;
+                    } else if self.starting && self.early.len() < EARLY {
+                        self.early.push_back(message);
+                    } else {
+                        self.wire.send(json!({"op":"reply","ticket":message["ticket"],"result":{"status":"error","code":"busy","message":"This extension is busy with another action"}}))?;
                     }
                 }
                 _ => {}
@@ -213,15 +226,15 @@ impl<W: Wire> Job<'_, W> {
     }
     /// Ask whether the application holds a usable key. Hide the action only when it confirms there is no usable key.
     /// A verdict is of the key it was asked about: it goes when the key does.
-    fn refresh(&mut self, key: &mut Key) {
+    fn refresh(&mut self, key: &mut Key) -> Result<(), ActionError> {
         if self.destination == Destination::Catbox {
-            self.withhold(&["upload", "configure"]);
-            return;
+            return self.withhold(&["upload", "configure"]);
         }
-        let saved = self
-            .call("peersus.http", "saved", json!({"origin":ORIGIN}))
-            .ok()
-            .and_then(|answer| answer["saved"].as_bool());
+        let saved = match self.call("peersus.http", "saved", json!({"origin":ORIGIN})) {
+            Ok(answer) => answer["saved"].as_bool(),
+            Err(ActionError::Cancelled) => return Err(ActionError::Cancelled),
+            Err(_) => None,
+        };
         if saved != key.saved {
             key.forget();
         }
@@ -232,29 +245,37 @@ impl<W: Wire> Job<'_, W> {
             (_, Some(false)) => &["upload"],
             _ => &[],
         };
-        self.withhold(withheld);
+        self.withhold(withheld)
     }
 
-    fn withhold(&mut self, withheld: &[&str]) {
-        let _ = self.ask(
+    fn withhold(&mut self, withheld: &[&str]) -> Result<(), ActionError> {
+        self.ask(
             "peersus.actions",
             "withhold",
             json!({"actions":withheld}),
             5_000,
-        );
+        )?;
+        Ok(())
     }
 
-    fn read_destination(&mut self) -> Destination {
-        let config = self.ask("peersus.config", "get", json!({}), 5_000);
-        match config
-            .as_ref()
-            .ok()
-            .and_then(|c| c["settings"]["destination"].as_str())
-        {
-            Some("Catbox") => Destination::Catbox,
-            Some("poo.wang") => Destination::Account,
-            _ => Destination::Both,
+    fn read_destination(&mut self) -> Result<Destination, ActionError> {
+        let config = self.ask("peersus.config", "get", json!({}), 5_000)?;
+        match config["settings"]["destination"].as_str() {
+            Some("Choose on Send") => Ok(Destination::Both),
+            Some("Catbox") => Ok(Destination::Catbox),
+            Some("poo.wang") => Ok(Destination::Account),
+            _ => Err(ActionError::Unavailable(
+                "The upload destination is unavailable",
+            )),
         }
+    }
+
+    fn initialize(&mut self, key: &mut Key) -> Result<Destination, ActionError> {
+        // The host supplies the effective setting, including defaults. Never inspect a key
+        // or offer a destination if we cannot distinguish Catbox-only from another mode.
+        self.destination = self.read_destination()?;
+        self.refresh(key)?;
+        Ok(self.destination)
     }
 
     fn settings_page(&self, key: &Key) -> Value {
@@ -281,11 +302,16 @@ impl<W: Wire> Job<'_, W> {
             Ok(value) => value,
             Err(error) => return error.outcome("configuration-failed"),
         };
-        self.refresh(key);
-        // The key may be another one now, whatever was known of the one before.
+        // The host may have saved or removed the key. Never carry the previous verdict over,
+        // and never undo or recheck a successful save after the action is withdrawn.
+        key.saved = None;
         key.forget();
-        match self.verify(key) {
-            Ok(()) => configured(key.verdict.unwrap_or("none"), value),
+        if value["configured"].as_bool() != Some(true) {
+            return ActionError::Failed("Invalid credential configuration reply")
+                .outcome("configuration-failed");
+        }
+        match self.refresh(key).and_then(|()| self.verify(key)) {
+            Ok(()) => configured(key.verdict.unwrap_or("none")),
             Err(error) => error.outcome("configuration-failed"),
         }
     }
@@ -295,13 +321,13 @@ impl<W: Wire> Job<'_, W> {
         if self.destination == Destination::Catbox {
             return json!({"status":"ok","value":self.settings_page(key)});
         }
-        match (event["t"].as_str(), event["id"].as_str()) {
+        let updated = match (event["t"].as_str(), event["id"].as_str()) {
             (Some("open"), _) => self.refresh(key),
-            (Some("press"), Some("check")) => {
-                self.refresh(key);
-                let _ = self.verify(key);
-            }
-            _ => {}
+            (Some("press"), Some("check")) => self.refresh(key).and_then(|()| self.verify(key)),
+            _ => Ok(()),
+        };
+        if let Err(error) = updated {
+            return error.outcome("configuration-failed");
         }
         json!({"status":"ok","value":self.settings_page(key)})
     }
@@ -311,10 +337,7 @@ impl<W: Wire> Job<'_, W> {
         let context = context
             .filter(|&context| context != 0)
             .ok_or(ActionError::Unavailable(NEED_FILE))?;
-        self.refresh(key);
-        if self.cancelled {
-            return Err(ActionError::Cancelled);
-        }
+        self.refresh(key)?;
         if key.saved == Some(false) {
             return Err(ActionError::Unavailable(NEED_KEY));
         }
@@ -565,24 +588,20 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 fn run() -> i32 {
-    let mut host = host::Host;
+    serve(&mut host::Host)
+}
+
+fn serve<W: Wire>(wire: &mut W) -> i32 {
     let mut key = Key::default();
-    // Asked once before anything else, so that the upload is not offered while there is no key to send a file with.
-    let (destination, mut next, early) = {
-        let mut job = Job::starting(&mut host);
-        job.destination = job.read_destination();
-        job.refresh(&mut key);
-        (
-            job.destination,
-            job.next,
-            job.early.take().unwrap_or_default(),
-        )
+    let (initialized, mut next, mut early) = {
+        let mut job = Job::starting(wire);
+        let initialized = job.initialize(&mut key);
+        (initialized, job.next, job.early)
     };
-    let mut early = early.into_iter();
     loop {
-        let message = match early.next() {
+        let message = match early.pop_front() {
             Some(message) => message,
-            None => match host.receive() {
+            None => match wire.receive() {
                 Ok(message) => message,
                 Err(_) => return 0,
             },
@@ -596,11 +615,18 @@ fn run() -> i32 {
         let method = message["method"]
             .as_str()
             .filter(|_| message["service"] == "upload.file");
-        let mut job = Job::new(&mut host, ticket, next);
-        job.destination = destination;
-        job.shown = job.settings_page(&key);
-        let result = job.action(&mut key, method, &message["args"]);
+        let mut job = Job::new(wire, ticket, next);
+        job.early = std::mem::take(&mut early);
+        let result = match initialized {
+            Ok(destination) => {
+                job.destination = destination;
+                job.shown = job.settings_page(&key);
+                job.action(&mut key, method, &message["args"])
+            }
+            Err(error) => error.outcome("configuration-failed"),
+        };
         next = job.next;
+        early = job.early;
         // A call that was withdrawn is not answered: the application no longer waits for it.
         if !job.cancelled
             && job
@@ -616,12 +642,11 @@ fn run() -> i32 {
 /// The answer to saving a key, from the host's answer and the provider's verdict on it. A key the provider refuses is a failed action, so
 /// that the person is told at once and not left believing it works; a provider that could not say is not a failure of the key. Nothing here
 /// is the key or anything the provider sent: only the verdict, which is one of three fixed words.
-fn configured(verdict: &'static str, mut value: Value) -> Value {
+fn configured(verdict: &'static str) -> Value {
     if verdict == "rejected" {
         return json!({"status":"error","code":"key-rejected","message":"The provider did not accept this API key"});
     }
-    value["key"] = json!(verdict);
-    json!({"status":"ok","value":value})
+    json!({"status":"ok","value":{"configured":true,"key":verdict}})
 }
 
 /// What is known of the key: whether the application holds a usable one (`None`: it would not say), and what the provider last
@@ -679,7 +704,6 @@ impl Key {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::VecDeque;
 
     struct Script {
         replies: VecDeque<Value>,
@@ -902,13 +926,13 @@ mod tests {
     }
     #[test]
     fn only_a_rejected_key_fails_the_action_and_nothing_in_the_answer_is_the_key_or_the_body() {
-        let valid = configured("valid", json!({"configured":true}));
+        let valid = configured("valid");
         assert_eq!(valid["status"], "ok");
         assert_eq!(valid["value"], json!({"configured":true,"key":"valid"}));
-        let unverified = configured("unverified", json!({"configured":true}));
+        let unverified = configured("unverified");
         assert_eq!(unverified["status"], "ok");
         assert_eq!(unverified["value"]["key"], "unverified");
-        let rejected = configured("rejected", json!({"configured":true}));
+        let rejected = configured("rejected");
         assert_eq!(rejected["status"], "error");
         assert_eq!(rejected["code"], "key-rejected");
     }
@@ -953,6 +977,7 @@ mod tests {
     fn asked(wire: &Told) -> Vec<String> {
         wire.sent
             .iter()
+            .filter(|call| call["op"] == "call")
             .map(|call| {
                 format!(
                     "{}/{}",
@@ -1128,9 +1153,8 @@ mod tests {
             Ok(json!({})),
         ]);
         let mut job = Job::starting(&mut wire);
-        job.destination = job.read_destination();
         let mut key = Key::default();
-        job.refresh(&mut key);
+        assert!(matches!(job.initialize(&mut key), Ok(Destination::Catbox)));
         let page = job.status(&mut key, &json!({"t":"open"}));
         assert_eq!(page["value"]["text"], CATBOX_WORDS);
         assert_eq!(
@@ -1157,7 +1181,7 @@ mod tests {
                 verdict: Some("valid"),
                 why: None,
             };
-            Job::new(&mut wire, 0, 0).refresh(&mut key);
+            Job::new(&mut wire, 0, 0).refresh(&mut key).unwrap();
             assert_eq!(key.saved, saved);
             // What the provider said was of the key that was there.
             assert_eq!(key.verdict, (saved == Some(true)).then_some("valid"));
@@ -1171,9 +1195,9 @@ mod tests {
             assert!(wire.sent[1]["timeout_ms"].as_u64().unwrap() <= 30_000);
         }
     }
-    /// A wire on which a call from the application arrives before the answer to the extension's own first question.
+    /// Inject inbound messages once a given number of host requests have been sent.
     struct Arrives {
-        call: Option<Value>,
+        events: VecDeque<(usize, Value)>,
         then: Told,
     }
     impl Wire for Arrives {
@@ -1181,36 +1205,50 @@ mod tests {
             self.then.send(value)
         }
         fn receive(&mut self) -> Result<Value, &'static str> {
-            match self.call.take() {
-                Some(call) => Ok(call),
-                None => self.then.receive(),
+            let sent = self
+                .then
+                .sent
+                .iter()
+                .filter(|value| value["op"] == "call")
+                .count();
+            if self.events.front().is_some_and(|(after, _)| *after <= sent)
+                && let Some((_, event)) = self.events.pop_front()
+            {
+                return Ok(event);
             }
+            self.then.receive()
+        }
+    }
+    fn arrives(
+        events: impl IntoIterator<Item = (usize, Value)>,
+        answers: Vec<Result<Value, &'static str>>,
+    ) -> Arrives {
+        Arrives {
+            events: events.into_iter().collect(),
+            then: told(answers),
         }
     }
     #[test]
     fn a_call_that_arrives_while_the_extension_starts_is_kept_and_one_in_the_middle_of_another_is_refused()
      {
         let call = json!({"type":"call","ticket":9,"service":"upload.file","method":"choose","args":{"context":42}});
-        let mut wire = Arrives {
-            call: Some(call.clone()),
-            then: told(vec![Ok(json!({"saved":true})), Ok(json!({}))]),
-        };
+        let mut wire = arrives(
+            [(1, call.clone())],
+            vec![Ok(json!({"saved":true})), Ok(json!({}))],
+        );
         let mut key = Key::default();
         let mut job = Job::starting(&mut wire);
-        job.refresh(&mut key);
+        job.refresh(&mut key).unwrap();
         // Kept whole for the loop that serves calls; nothing was said to the application about it.
-        assert_eq!(job.early, Some(vec![call.clone()]));
+        assert_eq!(job.early, VecDeque::from([call.clone()]));
         assert_eq!(key.saved, Some(true));
         assert!(wire.then.sent.iter().all(|sent| sent["op"] == "call"));
 
         // Once started, a second call in the middle of the first is told the extension is busy, by its own ticket.
-        let mut wire = Arrives {
-            call: Some(call),
-            then: told(vec![Ok(json!({"saved":true})), Ok(json!({}))]),
-        };
+        let mut wire = arrives([(1, call)], vec![Ok(json!({"saved":true})), Ok(json!({}))]);
         let mut job = Job::new(&mut wire, 1, 0);
-        job.refresh(&mut key);
-        assert_eq!(job.early, None);
+        job.refresh(&mut key).unwrap();
+        assert!(job.early.is_empty());
         let refusal = &wire.then.sent[1];
         assert_eq!(refusal["op"], "reply");
         assert_eq!(refusal["ticket"], 9);
@@ -1219,10 +1257,7 @@ mod tests {
         // The settings line draws itself every two seconds. While another call waits (for the person to write a key, or for
         // the provider), that is answered at once with the line as it was known, and is no error for the application to say.
         let line = json!({"type":"call","ticket":12,"service":"upload.file","method":"status","args":{"event":{"t":"tick","id":"key","at":1}}});
-        let mut wire = Arrives {
-            call: Some(line),
-            then: told(vec![Ok(json!({"configured":true}))]),
-        };
+        let mut wire = arrives([(1, line)], vec![Ok(json!({"configured":true}))]);
         let known = key.page();
         let mut job = Job::new(&mut wire, 1, 0);
         job.shown = known.clone();
@@ -1233,11 +1268,173 @@ mod tests {
             json!({"op":"reply","ticket":12,"result":{"status":"ok","value":known}})
         );
     }
+
+    #[test]
+    fn cancelled_startup_uploads_are_not_dispatched() {
+        let upload = json!({"type":"call","ticket":9,"service":"upload.file","method":"choose_anonymous","args":{"context":42}});
+        let cancelled = json!({"type":"cancelled","ticket":9});
+        let mut wire = arrives(
+            [(1, upload), (1, cancelled)],
+            vec![
+                Ok(json!({"settings":{"destination":"Catbox"}})),
+                Ok(json!({})),
+            ],
+        );
+        assert_eq!(serve(&mut wire), 0);
+        assert_eq!(
+            asked(&wire.then),
+            ["peersus.config/get", "peersus.actions/withhold"]
+        );
+        assert!(wire.then.sent.iter().all(|message| message["op"] == "call"));
+    }
+
+    #[test]
+    fn a_later_startup_job_can_be_withdrawn_while_the_first_one_waits() {
+        let upload = |ticket| json!({"type":"call","ticket":ticket,"service":"upload.file","method":"choose_anonymous","args":{"context":42}});
+        let mut wire = arrives(
+            [
+                (1, upload(9)),
+                (1, upload(10)),
+                (3, json!({"type":"cancelled","ticket":10})),
+            ],
+            vec![
+                Ok(json!({"settings":{"destination":"Catbox"}})),
+                Ok(json!({})),
+                Err("unavailable"),
+            ],
+        );
+        assert_eq!(serve(&mut wire), 0);
+        assert_eq!(
+            asked(&wire.then),
+            [
+                "peersus.config/get",
+                "peersus.actions/withhold",
+                "peersus.files/selected"
+            ]
+        );
+        let replied: Vec<_> = wire
+            .then
+            .sent
+            .iter()
+            .filter(|message| message["op"] == "reply")
+            .filter_map(|message| message["ticket"].as_u64())
+            .collect();
+        assert_eq!(replied, [9]);
+    }
+
+    #[test]
+    fn settings_open_and_check_now_do_not_succeed_from_a_cached_page() {
+        for event in [json!({"t":"open"}), json!({"t":"press","id":"check"})] {
+            let call = json!({"type":"call","ticket":12,"service":"upload.file","method":"status","args":{"event":event}});
+            let mut wire = arrives([(1, call)], vec![Ok(json!({"configured":true}))]);
+            let mut job = Job::new(&mut wire, 1, 0);
+            job.shown = Key::default().page();
+            job.call("peersus.http", "configure", json!({"origin":ORIGIN}))
+                .unwrap();
+            assert_eq!(wire.then.sent[1]["ticket"], 12);
+            assert_eq!(wire.then.sent[1]["result"]["code"], "busy");
+            assert_eq!(asked(&wire.then), ["peersus.http/configure"]);
+        }
+    }
+
+    #[test]
+    fn unreadable_destination_never_checks_a_key_or_dispatches_an_upload() {
+        let upload = json!({"type":"call","ticket":9,"service":"upload.file","method":"choose","args":{"context":42}});
+        for config in [
+            Err("unavailable"),
+            Ok(json!({"settings":{}})),
+            Ok(json!({"settings":{"destination":true}})),
+            Ok(json!({"settings":{"destination":"unknown"}})),
+        ] {
+            let mut wire = arrives([(1, upload.clone())], vec![config]);
+            assert_eq!(serve(&mut wire), 0);
+            assert_eq!(asked(&wire.then), ["peersus.config/get"]);
+            assert_eq!(wire.then.sent[1]["ticket"], 9);
+            assert_eq!(wire.then.sent[1]["result"]["code"], "unavailable");
+        }
+    }
+
+    #[test]
+    fn refused_action_offers_stop_startup_and_are_reported_to_the_caller() {
+        let upload = json!({"type":"call","ticket":9,"service":"upload.file","method":"choose_anonymous","args":{"context":42}});
+        let mut wire = arrives(
+            [(1, upload)],
+            vec![
+                Ok(json!({"settings":{"destination":"Catbox"}})),
+                Err("unavailable"),
+            ],
+        );
+        assert_eq!(serve(&mut wire), 0);
+        assert_eq!(
+            asked(&wire.then),
+            ["peersus.config/get", "peersus.actions/withhold"]
+        );
+        assert_eq!(
+            wire.then.sent[1]["args"]["actions"],
+            json!(["upload", "configure"])
+        );
+        assert_eq!(wire.then.sent[2]["result"]["code"], "unavailable");
+    }
+
+    #[test]
+    fn withdrawing_configuration_during_refresh_stops_follow_up_after_the_save() {
+        for (after, answers, expected) in [
+            (
+                2,
+                vec![Ok(json!({"configured":true}))],
+                vec!["peersus.http/configure", "peersus.http/saved"],
+            ),
+            (
+                3,
+                vec![Ok(json!({"configured":true})), Ok(json!({"saved":true}))],
+                vec![
+                    "peersus.http/configure",
+                    "peersus.http/saved",
+                    "peersus.actions/withhold",
+                ],
+            ),
+        ] {
+            let mut wire = arrives([(after, json!({"type":"cancelled","ticket":1}))], answers);
+            let mut key = Key {
+                saved: Some(true),
+                verdict: Some("valid"),
+                why: None,
+            };
+            let mut job = Job::new(&mut wire, 1, 0);
+            let reply = job.configure(&mut key);
+            assert!(job.cancelled);
+            assert_eq!(reply["code"], "cancelled");
+            assert_eq!(key.verdict, None);
+            assert_eq!(asked(&wire.then), expected);
+            assert_eq!(
+                wire.then.sent.last().unwrap(),
+                &json!({"op":"cancel","id":after})
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_configure_acknowledgement_stops_before_the_key_is_checked() {
+        for value in [
+            json!(true),
+            json!([]),
+            json!({}),
+            json!(null),
+            json!({"configured":false}),
+            json!({"configured":"true"}),
+        ] {
+            let mut wire = told(vec![Ok(value)]);
+            let reply = Job::new(&mut wire, 1, 0).configure(&mut Key::default());
+            assert_eq!(reply["status"], "error");
+            assert_eq!(reply["code"], "configuration-failed");
+            assert_eq!(asked(&wire), ["peersus.http/configure"]);
+        }
+    }
     #[test]
     fn saving_a_key_asks_the_provider_about_it_and_removing_one_asks_nobody() {
         let mut key = Key::default();
         let mut wire = told(vec![
-            Ok(json!({"configured":true})),
+            Ok(json!({"configured":true,"unrelated":"synthetic host field"})),
             Ok(json!({"saved":true})),
             Ok(json!({})),
             Ok(json!({"status":200})),
@@ -1267,12 +1464,12 @@ mod tests {
         assert_eq!(wire.sent[2]["args"], json!({"actions":[]}));
 
         let mut wire = told(vec![
-            Ok(json!({"configured":false})),
+            Ok(json!({"configured":true})),
             Ok(json!({"saved":false})),
             Ok(json!({})),
         ]);
         let removed = Job::new(&mut wire, 1, 0).configure(&mut key);
-        assert_eq!(removed["value"], json!({"configured":false,"key":"none"}));
+        assert_eq!(removed["value"], json!({"configured":true,"key":"none"}));
         assert_eq!(
             key,
             Key {
