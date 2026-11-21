@@ -1,0 +1,16 @@
+[package]
+name = "peersus-render"
+description = "Bounded CPU rendering for a separately supervised Peersus extension"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+freya-skia-safe = { workspace = true, features = ["textlayout"] }
+peersus-api.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

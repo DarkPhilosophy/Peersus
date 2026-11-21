@@ -1,0 +1,222 @@
+diff -r a/src/server/peersus_site.rs b/src/server/peersus_site.rs
+--- a/src/server/peersus_site.rs
++++ b/src/server/peersus_site.rs
+@@ -0,0 +1,142 @@
++//! Peersus: the project's website, served under the same name as the relay.
++//!
++//! The files are read once, when the relay starts, from the folder the environment variable `PEERSUS_SITE_DIR` names: the
++//! output of the website's `site/build.py`. A new site is put in that folder and the relay restarted; the relay itself is
++//! not rebuilt for it. Without the variable, or with a folder that cannot be read, the relay serves only its own pages.
++//! Links are not followed, only known kinds of file are served, and the count and total size are bounded.
++
++use std::path::Path;
++
++use bytes::Bytes;
++
++/// Most files served from the folder.
++const MOST_FILES: usize = 512;
++/// Most bytes, all files together.
++const MOST_BYTES: u64 = 32 * 1024 * 1024;
++/// How deep the folder's own folders may go.
++const MOST_DEPTH: usize = 8;
++
++/// One file to serve: the request path, its content type and its bytes.
++pub(super) struct SiteFile {
++    pub(super) path: &'static str,
++    pub(super) content_type: &'static str,
++    pub(super) body: Bytes,
++}
++
++/// The site's files, `index.html` also as `/`. Empty when no folder is configured or it cannot be read.
++pub(super) fn load() -> Vec<SiteFile> {
++    let Some(root) = std::env::var_os("PEERSUS_SITE_DIR") else {
++        return Vec::new();
++    };
++    let root = Path::new(&root);
++    let mut files = Vec::new();
++    let mut total = 0;
++    walk(root, root, 0, &mut files, &mut total);
++    tracing::info!(files = files.len(), bytes = total, "Peersus site loaded");
++    files
++}
++
++fn walk(root: &Path, folder: &Path, depth: usize, files: &mut Vec<SiteFile>, total: &mut u64) {
++    if depth > MOST_DEPTH {
++        return;
++    }
++    let Ok(entries) = std::fs::read_dir(folder) else {
++        return;
++    };
++    let mut entries: Vec<_> = entries.flatten().collect();
++    entries.sort_by_key(|entry| entry.file_name());
++    for entry in entries {
++        let Ok(kind) = entry.file_type() else {
++            continue;
++        };
++        let path = entry.path();
++        if kind.is_symlink() {
++            continue;
++        }
++        if kind.is_dir() {
++            walk(root, &path, depth + 1, files, total);
++            continue;
++        }
++        let (Some(content_type), Ok(relative)) = (content_type(&path), path.strip_prefix(root)) else {
++            continue;
++        };
++        let Some(relative) = relative.to_str() else {
++            continue;
++        };
++        if files.len() >= MOST_FILES {
++            return;
++        }
++        let Ok(body) = std::fs::read(&path) else {
++            continue;
++        };
++        *total += body.len() as u64;
++        if *total > MOST_BYTES {
++            return;
++        }
++        let body = Bytes::from(body);
++        // Leaked once, at start, for a bounded number of files: the server keeps its routes for its whole life.
++        let route: &'static str = Box::leak(format!("/{}", relative.replace('\\', "/")).into_boxed_str());
++        if route == "/index.html" {
++            files.push(SiteFile {
++                path: "/",
++                content_type,
++                body: body.clone(),
++            });
++        }
++        files.push(SiteFile {
++            path: route,
++            content_type,
++            body,
++        });
++    }
++}
++
++/// Whether a site folder is named: then a page asked for over plain HTTP is sent to HTTPS.
++pub(super) fn configured() -> bool {
++    static CONFIGURED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *CONFIGURED.get_or_init(|| std::env::var_os("PEERSUS_SITE_DIR").is_some())
++}
++
++/// A `Host` header that is only a name and maybe a port: letters, digits, dots, dashes and one colon, so that repeating
++/// it in a redirect can carry nothing else.
++pub(super) fn plain_host(host: &str) -> bool {
++    !host.is_empty()
++        && host.len() <= 260
++        && host.matches(':').count() <= 1
++        && host
++            .bytes()
++            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b':'))
++}
++
++fn content_type(path: &Path) -> Option<&'static str> {
++    Some(match path.extension()?.to_str()? {
++        "html" => "text/html; charset=utf-8",
++        "css" => "text/css; charset=utf-8",
++        "js" => "text/javascript; charset=utf-8",
++        "json" => "application/json",
++        "svg" => "image/svg+xml",
++        "png" => "image/png",
++        "webp" => "image/webp",
++        "ico" => "image/x-icon",
++        "txt" => "text/plain; charset=utf-8",
++        "xml" => "application/xml",
++        "sig" => "application/octet-stream",
++        "ttf" => "font/ttf",
++        _ => return None,
++    })
++}
++
++#[cfg(test)]
++mod tests {
++    use super::plain_host;
++
++    #[test]
++    fn only_a_name_and_a_port_are_repeated_in_a_redirect() {
++        for host in ["peersus.axxa.dev", "peersus.axxa.dev:80", "localhost", "127.0.0.1:3340"] {
++            assert!(plain_host(host), "{host}");
++        }
++        for host in ["", "a/b", "evil.example/@x", "a b", "a\r\nLocation: x", "[::1]:80", "a:b:c", "ä.example"] {
++            assert!(!plain_host(host), "{host:?}");
++        }
++    }
++}
+diff -r a/src/server.rs b/src/server.rs
+--- a/src/server.rs
++++ b/src/server.rs
+@@ -66,6 +66,7 @@
+ pub mod clients;
+ pub mod http_server;
+ mod metrics;
++mod peersus_site;
+ pub(crate) mod resolver;
+ pub mod streams;
+ #[cfg(feature = "test-utils")]
+@@ -94,7 +95,9 @@
+     ),
+     (
+         "Content-Security-Policy",
+-        "default-src 'none'; frame-ancestors 'none'; form-action 'none'; base-uri 'self'; block-all-mixed-content; plugin-types 'none'",
++        // Peersus: the site's own scripts, styles, pictures and typeface, and its own pages framed by its own pages (the home
++        // page's phone); nothing from anywhere else.
++        "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'none'; base-uri 'self'; block-all-mixed-content",
+     ),
+ ];
+ 
+@@ -742,6 +744,25 @@
+                 if let Some(cfg) = relay_config.limits.client_rx {
+                     builder = builder.client_rx_ratelimit(cfg);
+                 }
++                // Peersus: the project's site under the same name, read from `PEERSUS_SITE_DIR` at start. Registered after
++                // the relay's own routes, so its `index.html` and `robots.txt` replace the stock ones; the relay's
++                // endpoints (`/relay`, `/ping`, `/generate_204`, `/healthz`) are not files and stay the relay's.
++                for file in peersus_site::load() {
++                    let (content_type, body) = (file.content_type, file.body);
++                    builder = builder.request_handler(
++                        Method::GET,
++                        file.path,
++                        Box::new(move |_r, response: ResponseBuilder| {
++                            let body: BytesBody = Box::new(Full::new(body.clone()));
++                            response
++                                .status(StatusCode::OK)
++                                .header("Content-Type", content_type)
++                                .header("Cache-Control", "public, max-age=300")
++                                .body(body)
++                                .map_err(|err| Box::new(err) as HyperError)
++                        }),
++                    );
++                }
+                 let (http_addr, tls_config) = match relay_config.tls {
+                     Some(tls_config) => {
+                         let server_tls_config = match tls_config.cert {
+@@ -1174,6 +1195,27 @@
+             (&Method::GET, "/generate_204") => {
+                 Box::pin(async move { serve_no_content_handler(req, Response::builder()) })
+             }
++            // Peersus: with a site configured, a page asked for over plain HTTP is sent to the same address over HTTPS
++            // (a person typing the bare name). Only a host made of name characters is repeated back.
++            (&Method::GET, path) if peersus_site::configured() => {
++                let host = req
++                    .headers()
++                    .get(http::header::HOST)
++                    .and_then(|host| host.to_str().ok())
++                    .filter(|host| peersus_site::plain_host(host))
++                    .map(|host| host.split(':').next().unwrap_or(host).to_owned());
++                let r = match host {
++                    Some(host) => Response::builder()
++                        .status(StatusCode::MOVED_PERMANENTLY)
++                        .header(http::header::LOCATION, format!("https://{host}{path}"))
++                        .body(Box::new(Full::from(&b""[..])) as BytesBody),
++                    None => Response::builder()
++                        .status(StatusCode::NOT_FOUND)
++                        .body(Box::new(Full::from(NOTFOUND)) as BytesBody),
++                }
++                .map_err(|err| Box::new(err) as HyperError);
++                Box::pin(async move { r })
++            }
+             _ => {
+                 // Return 404 not found response.
+                 let body: BytesBody = Box::new(Full::from(NOTFOUND));
