@@ -1,0 +1,30 @@
+[package]
+name = "peersus-location-wasm"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "Apache-2.0"
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+# Matching development hosts only; normal modules have no diagnostic import.
+development-diagnostics = []
+
+[lints.rust]
+# The shared host glue also supports optional native guests; Location is WASM-only.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("native"))'] }
+
+[dependencies]
+# Named for its traits only (a strict reading of a message); `serde_json` already brings it.
+serde = "1"
+serde_json = "1"
+hex = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+strip = true

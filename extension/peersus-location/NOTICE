@@ -1,0 +1,44 @@
+Peersus
+Copyright 2026 axxa.dev (DarkPhilosophy)
+
+This product includes software developed by axxa.dev
+(https://github.com/DarkPhilosophy).
+
+Anyone who redistributes Peersus, or a work derived from it, in source or
+object form, must include a readable copy of this notice with it, in a NOTICE
+file, in the documentation, or in a display of the application where such
+notices normally appear (Apache License 2.0, section 4(d)).
+
+The name "Peersus", its logo and its icon are not licensed for use as the name
+or mark of a derived product (Apache License 2.0, section 6).
+
+Third-party components keep their own licences and notices; they are listed in
+the application, under Settings, About.
+
+The Location extension draws its map of the world from land outlines it carries
+with it, taken from Natural Earth 4.1.0 "ne_110m_land" (physical, 1:110m):
+
+  https://naciscdn.org/naturalearth/110m/physical/ne_110m_land.zip
+  zip sha256 1926c621afd6ac67c3f36639bb1236134a48d82226dc675d3e3df53d02d2a3de
+  ne_110m_land.shp sha256 8689e6932b8e370e2ca4587cf3ba21e460b1235db37b6ed3c172c35b4a6088de
+
+Natural Earth's vector map data is in the public domain: no permission is
+needed to use it, and crediting the authors is unnecessary. The outlines are
+reduced (successive points on one line dropped, coordinates to a hundredth of a
+degree) and written as wasm/src/world/land.txt; tools/world-data.py regenerates
+that file from the shapefile above. The regional overlay uses Natural Earth's
+ne_50m_admin_0_boundary_lines_land, ne_10m_roads and ne_10m_populated_places_simple
+from https://naturalearth.s3.amazonaws.com/ (50m_cultural and 10m_cultural).
+tools/atlas-data.py verifies each archive's SHA-256 and generates the grid
+index and city records in wasm/src/world. No map view is fetched or reported.
+tools/borders.py builds regional and globe simplifications of those same 50m
+land boundaries, keeping their full detail for close views.
+
+Offline street extracts for Bucharest and Monaco: © OpenStreetMap contributors,
+https://www.openstreetmap.org/copyright . The derived street databases
+(bucharest.bin and monaco.bin) are available under ODbL 1.0:
+https://opendatacommons.org/licenses/odbl/1-0/ . Source extracts are from
+Geofabrik (Europe: Romania and Monaco); tools/streets-data.py records source
+checksums, selection bounds and the complete transformation. Natural Earth's
+public-domain 50m country label positions and land areas are separate from the
+OSM data; tools/countries.py generates them from ne_50m_admin_0_countries.
