@@ -233,7 +233,7 @@ fn raw_art(state: &State) -> (Vec<u8>, canvas_scene::Picture) {
         metrics,
         view: state.view.kept(),
         settled: state.settled,
-        markers: 0,
+        markers: (0, None),
         online: None,
         detail: tile::Detail::Full,
     };
@@ -1812,6 +1812,387 @@ fn a_device_press_moves_through_intermediate_views_to_the_available_detail() {
         assert!((lon - 21.23).abs() < 1e-10 && (lat - 45.75).abs() < 1e-10);
         assert!(state.focus.is_none());
     }
+}
+
+/// Drive the guest's actual page and stream handlers; marker geometry comes from an accepted frame.
+#[derive(Default)]
+struct MarkerMap {
+    state: State,
+    host: Script,
+    ticket: u64,
+}
+
+impl MarkerMap {
+    fn action(&mut self, page_id: &str, input: Value) {
+        self.ticket += 1;
+        let mut delivery = event(self.ticket, input);
+        delivery["args"]["page"] = json!(page_id);
+        step(&mut self.host, &mut self.state, &delivery).unwrap();
+    }
+
+    fn open(&mut self, page_id: &str, metrics: Value) {
+        self.action(page_id, json!({"t":"open"}));
+        self.action(page_id, metrics);
+        let id = calls(&self.host, canvas_sdk::SERVICE, "open")
+            .last()
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        self.answer(id, json!({"status":"ok","value":{"claim":self.ticket}}));
+    }
+
+    fn mounted() -> Self {
+        let mut map = Self::default();
+        map.open(PAGE, size(0, 0, 900_000, 600_000));
+        map.tick(1_000);
+        map.state.listed(&[peer("phone", "Phone", false)]);
+        map
+    }
+
+    fn tick(&mut self, at: u64) {
+        self.action(PAGE, json!({"t":"tick","id":"clock","at":at}));
+    }
+
+    fn answer(&mut self, id: u64, answer: Value) {
+        step(&mut self.host, &mut self.state, &result(id, answer)).unwrap();
+    }
+
+    fn share(&mut self, lon: f64) {
+        self.ticket += 1;
+        let mut shared = told(0., lon).shared;
+        shared.age = LAST_AFTER;
+        self.host.incoming.push_back(wire::encode(&shared).unwrap());
+        let delivery = json!({"type":"call","ticket":self.ticket,"method":"receive",
+            "service":wire::SERVICE,"args":{"peer":"phone"}});
+        step(&mut self.host, &mut self.state, &delivery).unwrap();
+    }
+
+    fn marker(&self, id: &str) -> &canvas_scene::Marker {
+        self.state
+            .surface
+            .picture
+            .markers
+            .iter()
+            .find(|marker| marker.id == id)
+            .unwrap()
+    }
+
+    fn projected(&self, lon: f64) -> (f64, f64) {
+        world::Camera::new(self.state.view.kept(), self.state.frame())
+            .point(lon, 0.)
+            .unwrap()
+    }
+}
+
+#[test]
+fn an_existing_marker_and_its_badge_glide_monotonically_and_then_stop_repainting() {
+    let mut map = MarkerMap::mounted();
+    map.action(PAGE, json!({"t":"press","id":"options"}));
+    map.share(-45.);
+    let old = map.projected(-45.);
+    let target = map.projected(25.);
+    let badge_x = map.marker("phone").badge.unwrap()[0];
+    assert_eq!(
+        map.marker("phone").point,
+        old,
+        "first sighting is immediate"
+    );
+    assert_eq!(map.state.page()["milliseconds"], TICK);
+    map.tick(1_100); // Settle the first position's age label before counting glide frames.
+    let before = map.state.surface.seq;
+
+    map.share(25.);
+    assert_eq!(map.marker("phone").point, old);
+    assert!(map.state.page().to_string().contains("25.0000° E"));
+    map.tick(2_000);
+    assert!(page(&map.host, map.ticket).contains("25.0000° E"));
+    assert_eq!(map.marker("phone").point, old);
+    assert_eq!(map.state.page()["milliseconds"], 100);
+
+    let mut last = old.0;
+    for at in (2_100..3_000).step_by(100) {
+        map.tick(at);
+        let marker = map.marker("phone");
+        assert!(last < marker.point.0 && marker.point.0 < target.0);
+        assert_eq!(marker.point.1, old.1);
+        let linear_lon = -45. + 70. * (at - 2_000) as f64 / 1_000.;
+        if at == 2_200 {
+            assert!(marker.fix.longitude < linear_lon, "ease in");
+        } else if at == 2_800 {
+            assert!(marker.fix.longitude > linear_lon, "ease out");
+        }
+        let badge = marker.badge.unwrap();
+        assert!((badge[0] - badge_x - (marker.point.0 - old.0)).abs() < 1e-9);
+        let art = Art::parse(&map.host.written);
+        assert!(art.label("Phone") && art.label("last location 6 min ago"));
+        last = marker.point.0;
+    }
+    map.tick(3_000);
+    assert_eq!(map.marker("phone").point, target);
+    assert_eq!(map.marker("phone").fix, map.state.seen["phone"].shared.fix);
+    assert!(map.state.peer_glides.is_empty());
+    let seq = map.state.surface.seq;
+    assert_eq!(seq - before, 11, "one origin frame and ten moving frames");
+    assert_eq!(map.state.page()["milliseconds"], TICK);
+    map.tick(3_100);
+    assert_eq!(
+        map.state.surface.seq, seq,
+        "no frame after the accepted endpoint"
+    );
+    assert_eq!(map.state.last_page.as_ref().unwrap()["milliseconds"], TICK);
+}
+
+#[test]
+fn retargeting_uses_the_last_presented_position_and_a_refused_endpoint_is_retried() {
+    let mut map = MarkerMap::mounted();
+    map.share(-45.);
+    map.share(25.);
+    map.tick(2_000);
+    map.tick(2_200);
+    let shown = map.marker("phone").point;
+    next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
+    map.tick(2_500);
+    assert_eq!(map.marker("phone").point, shown);
+
+    map.share(-65.);
+    assert_eq!(map.state.peer_glides.len(), 1);
+    map.tick(2_600);
+    assert_eq!(
+        map.marker("phone").point,
+        shown,
+        "a refused sample was never drawn"
+    );
+    let target = map.projected(-65.);
+    map.tick(2_900);
+    let halfway = map.marker("phone").point;
+    assert!(target.0 < halfway.0 && halfway.0 < shown.0);
+    map.share(-65.); // The same destination must not restart a glide.
+    next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
+    map.tick(3_600);
+    assert!(
+        map.state.peer_glides.is_empty(),
+        "time advances even on refusal"
+    );
+    assert_eq!(map.marker("phone").point, halfway);
+    assert_eq!(map.state.page()["milliseconds"], 100);
+
+    map.tick(3_700);
+    assert_eq!(map.marker("phone").point, target);
+    assert_eq!(map.state.page()["milliseconds"], TICK);
+}
+
+#[test]
+fn a_marker_glides_from_its_actual_dot_when_leaving_an_overlapping_group() {
+    let mut map = MarkerMap::mounted();
+    let keep = map.state.find(Ask::Keep).unwrap();
+    map.answer(keep["id"].as_u64().unwrap(), found(0., 0., 0));
+    map.share(0.);
+    let shared = map.marker("phone").point;
+    assert!(
+        shared.0 > map.projected(0.).0,
+        "the phone is drawn beside this device"
+    );
+
+    map.share(25.);
+    map.tick(2_000);
+    assert_eq!(map.marker("phone").point, shared);
+    map.tick(2_500);
+    assert!(shared.0 < map.marker("phone").point.0);
+    assert!(map.marker("phone").point.0 < map.projected(25.).0);
+    map.tick(3_000);
+    assert_eq!(map.marker("phone").point, map.projected(25.));
+}
+
+#[test]
+fn a_glide_takes_the_short_turn_across_the_date_line() {
+    let mut map = MarkerMap::mounted();
+    map.state.view.lon = 180.;
+    map.share(179.);
+    map.share(-179.);
+    map.tick(2_000);
+    assert_eq!(map.marker("phone").point, map.projected(179.));
+    map.tick(2_500);
+    assert_eq!(map.marker("phone").point, map.projected(180.));
+    map.tick(3_000);
+    assert_eq!(map.marker("phone").point, map.projected(-179.));
+}
+
+#[test]
+fn forgetting_a_device_cancels_its_glide_and_its_next_sighting_is_immediate() {
+    for removal in ["forget", "unpair", "denied"] {
+        let mut map = MarkerMap::mounted();
+        map.share(-45.);
+        map.share(25.);
+        map.tick(2_000);
+        map.tick(2_300);
+        assert!(map.state.peer_glides.contains_key("phone"));
+        if removal == "forget" {
+            map.action(PAGE, json!({"t":"press","id":"forget"}));
+        } else {
+            let result = if removal == "unpair" {
+                json!({"status":"ok","value":[]})
+            } else {
+                json!({"status":"error","code":"denied"})
+            };
+            let id = map.state.list()["id"].as_u64().unwrap();
+            map.answer(id, result);
+        }
+        assert!(map.state.seen.is_empty() && map.state.peer_glides.is_empty());
+        map.tick(2_400);
+        assert!(map.state.surface.picture.markers.is_empty());
+        map.state.listed(&[peer("phone", "Phone", false)]);
+        map.share(-35.);
+        assert_eq!(map.marker("phone").point, map.projected(-35.));
+    }
+}
+
+#[test]
+fn opening_a_map_shows_current_fixes_without_replaying_another_pages_glide() {
+    let mut map = MarkerMap::mounted();
+    map.share(-45.);
+    map.share(25.);
+    map.tick(2_000);
+    map.tick(2_300);
+    let moving = map.marker("phone").point;
+    map.open(PAGE_SETTING, size(0, 0, 900_000, 600_000));
+    assert_eq!(map.marker("phone").point, map.projected(25.));
+    map.tick(2_500);
+    let still_gliding = map.marker("phone").point;
+    assert!(moving.0 < still_gliding.0 && still_gliding.0 < map.projected(25.).0);
+    map.open(PAGE, size(0, 0, 900_000, 600_000));
+    assert_eq!(map.marker("phone").point, map.projected(25.));
+    assert!(map.state.peer_glides.is_empty());
+}
+
+#[test]
+fn a_closed_map_keeps_new_fixes_without_animating_or_asking_for_canvas_work() {
+    let mut map = MarkerMap::default();
+    map.share(-45.);
+    map.share(25.);
+    assert!(map.state.peer_glides.is_empty());
+    assert!(calls(&map.host, canvas_sdk::SERVICE, "open").is_empty());
+    map.open(PAGE, size(0, 0, 900_000, 600_000));
+    assert_eq!(map.marker("phone").point, map.projected(25.));
+    map.tick(1_000);
+    map.share(-45.);
+    map.tick(2_000);
+    assert!(map.state.peer_glides.contains_key("phone"));
+    map.state.waited();
+    assert!(map.state.peer_glides.is_empty());
+    map.share(-65.);
+    assert!(map.state.peer_glides.is_empty());
+    map.open(PAGE, size(0, 0, 900_000, 600_000));
+    assert_eq!(map.marker("phone").point, map.projected(-65.));
+}
+
+#[test]
+fn a_glide_uses_the_same_page_and_idle_clocks_as_a_still_map() {
+    let mut still = MarkerMap::mounted();
+    let mut moving = MarkerMap::mounted();
+    moving.share(-45.);
+    for map in [&mut still, &mut moving] {
+        map.share(25.);
+        map.tick(2_000);
+    }
+    assert!(still.state.peer_glides.is_empty());
+    assert!(moving.state.peer_glides.contains_key("phone"));
+
+    let clock = |state: &State| (state.now, state.cut, state.unsure, state.ui_time);
+    let tick = |at| Some(event(at, json!({"t":"tick","id":"clock","at":at})));
+    for next in [
+        Some(unrelated()),
+        tick(2_300),
+        Some(unrelated()),
+        tick(5), // A new page-clock epoch cannot measure what the old one left in doubt.
+        tick(705),
+        None,
+    ] {
+        for (map, next) in [(&mut still, next.clone()), (&mut moving, next)] {
+            let mut host = Idle {
+                waits: [next].into(),
+                ..Idle::default()
+            };
+            assert_eq!(serve(&mut host, &mut map.state), 1);
+            assert!(host.waited.iter().all(|&ms| ms == i32::from(IDLE_WAIT)));
+        }
+        assert_eq!(clock(&moving.state), clock(&still.state));
+    }
+    assert_eq!(clock(&moving.state), (7_000, 0, 10_000, None));
+    assert!(moving.state.peer_glides.is_empty());
+}
+
+#[test]
+fn local_fixes_glide_and_only_an_explicit_locate_moves_the_camera() {
+    let mut map = MarkerMap::mounted();
+    map.action(PAGE, json!({"t":"press","id":"options"}));
+    let locate = |map: &mut MarkerMap, lon: f64| {
+        map.action(PAGE, json!({"t":"press","id":"find"}));
+        let id = map.state.asked_own;
+        map.answer(id, found(0., lon, 0));
+    };
+    let own = canvas_scene::OWN;
+    locate(&mut map, 0.);
+    assert_eq!(map.marker(own).point, map.projected(0.));
+    let camera = map.state.view;
+    let keep = map.state.find(Ask::Keep).unwrap();
+    map.answer(keep["id"].as_u64().unwrap(), found(0., 0.5, 0));
+    assert!(map.state.own_line().contains("0.5000° E"));
+    map.tick(2_000);
+    assert!(page(&map.host, map.ticket).contains("0.5000° E"));
+    map.tick(2_500);
+    assert_eq!(map.state.view, camera);
+    assert!(map.projected(0.).0 < map.marker(own).point.0);
+    assert!(map.marker(own).point.0 < map.projected(0.5).0);
+    map.tick(3_000);
+    assert_eq!(map.marker(own).point, map.projected(0.5));
+
+    // Re-centre on the known position before testing a subsequent, explicit lookup.
+    map.action(PAGE, json!({"t":"press","id":"centre"}));
+    let old = map.state.view;
+    let centre = map.marker(own).point;
+    locate(&mut map, 1.);
+    assert_eq!(map.state.view, old, "no camera jump when the fix arrives");
+    map.tick(4_000);
+    map.tick(4_500);
+    assert!(old.lon < map.state.view.lon && map.state.view.lon < 1.);
+    assert_eq!(
+        map.marker(own).point,
+        centre,
+        "the camera and marker move together"
+    );
+    map.tick(5_000);
+    assert_eq!(map.state.view.centre(), (1., 0.));
+    assert_eq!(map.marker(own).point, centre);
+    assert!(map.state.own_glide.is_none());
+}
+
+#[test]
+fn large_rasters_pace_glide_samples_without_losing_the_endpoint() {
+    let mut map = MarkerMap::default();
+    map.open(PAGE, size(0, 0, 3_000_000, 2_400_000));
+    map.tick(1_000);
+    map.share(-45.);
+    map.tick(1_100);
+    let before = map.state.surface.seq;
+    map.share(25.);
+    map.tick(2_000);
+    let seq = map.state.surface.seq;
+    map.tick(2_100);
+    assert_eq!(
+        map.state.surface.seq, seq,
+        "28.8 MB per frame needs more than 100 ms"
+    );
+    map.tick(2_200);
+    assert_eq!(map.state.surface.seq, seq + 1);
+    for at in (2_300..=3_000).step_by(100) {
+        map.tick(at);
+    }
+    assert_eq!(map.marker("phone").point, map.projected(25.));
+    assert_eq!(
+        map.state.surface.seq - before,
+        6,
+        "one origin frame and five moving frames"
+    );
 }
 
 #[test]

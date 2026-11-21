@@ -114,7 +114,8 @@ pub struct Stamp {
     pub metrics: Metrics,
     pub view: world::View,
     pub settled: u64,
-    pub markers: u64,
+    /// The latest position/status revision and, while gliding, the page's sample time.
+    pub markers: (u64, Option<u64>),
     pub online: Option<u64>,
     pub detail: tile::Detail,
 }
@@ -133,6 +134,8 @@ pub struct Marker {
     pub last: Option<String>,
     pub fix: geo::Fix,
     pub point: (f64, f64),
+    /// How far layout moved the dot from the projected fix to uncover neighbours.
+    offset: (f64, f64),
     pub badge: Option<[f64; 4]>,
 }
 
@@ -143,6 +146,53 @@ impl Marker {
     pub fn dot(&self) -> [f64; 4] {
         let (x, y) = self.point;
         [x - 16., y - 16., 32., 32.]
+    }
+
+    pub fn origin(&self) -> MarkerOrigin {
+        MarkerOrigin {
+            fix: self.fix,
+            offset: self.offset,
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct MarkerOrigin {
+    fix: geo::Fix,
+    offset: (f64, f64),
+}
+
+/// One timeline per device, with an origin only on each page that actually drew it.
+pub struct Glide {
+    pub from: [Option<MarkerOrigin>; 2],
+    pub start: Option<u64>,
+}
+
+impl Glide {
+    pub fn advance(&mut self, now: u64) -> bool {
+        now.saturating_sub(*self.start.get_or_insert(now)) < super::MARKER_GLIDE_MS
+    }
+
+    pub fn remove_page(&mut self, page: usize) -> bool {
+        self.from[page] = None;
+        self.from.iter().any(Option::is_some)
+    }
+
+    fn sample(&self, page: usize, now: u64, to: geo::Fix) -> Option<(MarkerOrigin, f64)> {
+        let mut from = self.from[page]?;
+        let elapsed = self.start.map_or(0, |at| now.saturating_sub(at));
+        if elapsed >= super::MARKER_GLIDE_MS {
+            return None;
+        }
+        let t = super::eased(elapsed, super::MARKER_GLIDE_MS);
+        if elapsed != 0 {
+            from.fix.latitude += (to.latitude - from.fix.latitude) * t;
+            from.fix.longitude = world::wrap(
+                from.fix.longitude + world::wrap(to.longitude - from.fix.longitude) * t,
+            );
+        }
+        from.fix.accuracy = to.accuracy;
+        Some((from, t))
     }
 }
 
@@ -228,37 +278,64 @@ fn markers(
     bounds: tile::layers::Rect,
     clear: impl Fn([f64; 4]) -> bool,
 ) -> Vec<Marker> {
-    let own = state.own_now().map(|s| {
-        let last = match &state.own {
-            super::Own::Found(told) => state.last(told),
-            _ => None,
-        };
-        (OWN, "This device".to_owned(), s.fix, last)
+    let own = state.own.marker().map(|told| {
+        (
+            OWN,
+            "This device".to_owned(),
+            told,
+            state.own_glide.as_ref(),
+        )
     });
-    let (found, points): (Vec<_>, Vec<_>) = own
-        .into_iter()
-        .chain(state.seen.iter().map(|(id, told)| {
-            (
-                id.as_str(),
-                state.name(id),
-                told.shared.fix,
-                state.last(told),
-            )
-        }))
-        .filter_map(|found| {
-            let point = camera.point(found.2.longitude, found.2.latitude)?;
-            Some((found, point))
+    let entries = own.into_iter().chain(
+        state
+            .seen
+            .iter()
+            .map(|(id, told)| (id.as_str(), state.name(id), told, state.peer_glides.get(id))),
+    );
+    let mut points = Vec::new();
+    let targets: Vec<_> = entries
+        .map(|(id, name, told, glide)| {
+            let fix = told.shared.fix;
+            let index = camera.point(fix.longitude, fix.latitude).map(|point| {
+                let index = points.len();
+                points.push(point);
+                index
+            });
+            (id, name, told, glide, index)
         })
-        .unzip();
-    let dot = |(x, y): (f64, f64)| [x - 16., y - 16., 32., 32.];
-    let shown: Vec<_> = found
-        .into_iter()
-        .zip(spread(&points, bounds))
-        .filter(|&(_, point)| bounds.fits(dot(point)) && clear(dot(point)))
         .collect();
-    let dots: Vec<[f64; 4]> = shown.iter().map(|&(_, point)| dot(point)).collect();
+    let placed = spread(&points, bounds);
+    let page = usize::from(state.primary_surface);
+    let dot = |(x, y): (f64, f64)| [x - 16., y - 16., 32., 32.];
+    let shown: Vec<_> = targets
+        .into_iter()
+        .filter_map(|(id, name, told, glide, index)| {
+            let target = told.shared.fix;
+            let spread = |i: usize| (placed[i].0 - points[i].0, placed[i].1 - points[i].1);
+            let (fix, point, offset) = if let Some((from, t)) =
+                glide.and_then(|glide| glide.sample(page, state.now, target))
+            {
+                let (x, y) = camera.point(from.fix.longitude, from.fix.latitude)?;
+                // Ease the old layout offset too: a device that left or joined a group
+                // of overlapping dots still starts at the dot that was actually drawn.
+                let (a, b) = from.offset;
+                let (c, d) = index.map_or((0., 0.), spread);
+                let offset = (a + (c - a) * t, b + (d - b) * t);
+                (from.fix, (x + offset.0, y + offset.1), offset)
+            } else {
+                let i = index?;
+                (target, placed[i], spread(i))
+            };
+            (bounds.fits(dot(point)) && clear(dot(point)))
+                .then(|| (id, name, fix, state.last(told), point, offset))
+        })
+        .collect();
+    let dots: Vec<[f64; 4]> = shown
+        .iter()
+        .map(|&(_, _, _, _, point, _)| dot(point))
+        .collect();
     let mut markers: Vec<Marker> = Vec::with_capacity(shown.len());
-    for (index, ((id, name, fix, last), (x, y))) in shown.into_iter().enumerate() {
+    for (index, (id, name, fix, last, (x, y), offset)) in shown.into_iter().enumerate() {
         // A name stands clear of the other markers and of the names already placed, so neighbours are both read.
         let free = |area| {
             clear(area)
@@ -281,6 +358,7 @@ fn markers(
             last: last.filter(|_| whole.is_some()),
             fix,
             point: (x, y),
+            offset,
             badge,
         });
     }

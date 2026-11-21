@@ -26,7 +26,7 @@ mod streets;
 mod tile;
 mod wire;
 mod world;
-use canvas_scene::{CanvasIo, Hit};
+use canvas_scene::{CanvasIo, Glide, Hit, Marker};
 use host::{Data, Handle, Wire, read_ack, read_limited, write_all};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, VecDeque};
@@ -91,12 +91,13 @@ const CLOSER: f64 = 1.6;
 const WHEEL_PIXELS_PER_DOUBLING: u16 = 160;
 const STREET_FOCUS: f64 = 0.006;
 const FOCUS_MS: u64 = 500;
+const MARKER_GLIDE_MS: u64 = 1_000;
 const DETAIL_AFTER_MOTION_MS: u64 = 150;
 // Do not turn a render timeout into a raster too small to read the street network.
 const MIN_PREVIEW_RASTER_SCALE: u32 = 240;
 // A soft cap below the Canvas stream's rolling byte budget leaves room for
 // headers, settled frames, and other work on the same worker.
-const GESTURE_BYTES_PER_SECOND: u64 = 224 * 1024 * 1024;
+const MOTION_BYTES_PER_SECOND: u64 = 224 * 1024 * 1024;
 /// How wide the map of the world opens when the person turns it on: a region, not the whole world.
 fn focus_span(lon: f64, lat: f64) -> f64 {
     if streets::covered(lon, lat) {
@@ -130,11 +131,21 @@ mod words {
 enum Own {
     #[default]
     Unknown,
-    Finding,
+    Finding(Option<Told>),
     /// Found: the position, how old the system said it was, and when (page clock) it was told.
     Found(Told),
     /// Not found, in words to show.
     Not(String),
+}
+
+impl Own {
+    /// Keep the last dot on the map while the system looks for a replacement.
+    fn marker(&self) -> Option<&Told> {
+        match self {
+            Self::Found(told) | Self::Finding(Some(told)) => Some(told),
+            _ => None,
+        }
+    }
 }
 
 /// A paired device as `peersus.peers` lists it.
@@ -274,6 +285,7 @@ pub struct State {
     /// What the map last said of the age of each position on it ([`State::statuses`]).
     said: Vec<Option<String>>,
     own: Own,
+    own_glide: Option<Glide>,
     asked_own: u64,
     focus_fix: bool,
     /// Keep sharing asked: send as soon as this device is found, unless it is turned off before.
@@ -283,6 +295,7 @@ pub struct State {
     asked_list: u64,
     listed_at: Option<u64>,
     seen: BTreeMap<String, Told>,
+    peer_glides: BTreeMap<String, Glide>,
     /// Streams asked of the application for the last share, not open yet.
     sending: Vec<Sending>,
     /// Streams the application opened for it, to write that share's position on.
@@ -314,7 +327,6 @@ pub struct State {
     primary_surface: bool,
     other_surface: Viewport,
     focus_surface: bool,
-    other_focus: Option<world::View>,
     camera: Viewport,
     canvas_buffer: Vec<u8>,
     retire_canvas: Option<Handle>,
@@ -342,6 +354,7 @@ pub struct Viewport {
     cache: std::cell::RefCell<map_cache::Cache>,
     surface: canvas_scene::Surface,
     last_page: Option<Value>,
+    event_at: Option<u64>,
     /// Last map gesture reflected in this viewport's frame, not the worker's clock.
     settled: u64,
     last_motion: Option<u64>,
@@ -354,6 +367,16 @@ pub struct Viewport {
     map_at: Option<(f64, f64, f64, f64)>,
 }
 
+impl Viewport {
+    fn drawn_marker(&self, id: &str, now: u64) -> Option<&Marker> {
+        // There is no page-close event. Do not use pictures left by a page that stopped ticking
+        // while the other one is still mounted.
+        if now.saturating_sub(self.event_at?) > 2 * u64::from(TICK) {
+            return None;
+        }
+        self.surface.picture.markers.iter().find(|m| m.id == id)
+    }
+}
 #[derive(Clone, Copy)]
 struct TouchGesture {
     origin: world::View,
@@ -366,14 +389,18 @@ struct TouchGesture {
 struct Focus {
     from: world::View,
     target: world::View,
-    start: u64,
+    start: Option<u64>,
+    duration: u64,
 }
 
-impl Focus {
-    fn at(&self, now: u64) -> world::View {
-        let t = now.saturating_sub(self.start).min(FOCUS_MS) as f64 / FOCUS_MS as f64;
-        self.from.towards(self.target, t * t * (3. - 2. * t))
-    }
+fn eased(elapsed: u64, duration: u64) -> f64 {
+    let t = elapsed.min(duration) as f64 / duration as f64;
+    t * t * (3. - 2. * t)
+}
+
+fn different_place(a: geo::Fix, b: geo::Fix) -> bool {
+    a.latitude != b.latitude
+        || (a.longitude != b.longitude && (a.longitude - b.longitude).abs() != 360.)
 }
 
 impl std::ops::Deref for State {
@@ -749,10 +776,10 @@ impl State {
                 self.kept_at = Some(self.now);
             }
         }
-        if self.own == Own::Finding {
+        if matches!(self.own, Own::Finding(_)) {
             return None;
         }
-        self.own = Own::Finding;
+        self.own = Own::Finding(self.own.marker().copied());
         let (id, call) = self.call(LOCATION, "current", json!({}), FIND_MS);
         self.asked_own = id;
         Some(call)
@@ -836,10 +863,7 @@ impl State {
 
     /// What this device's position is now: the age the system said, plus the time since.
     fn own_now(&self) -> Option<wire::Shared> {
-        match &self.own {
-            Own::Found(told) => Some(told.aged(self.now)),
-            _ => None,
-        }
+        self.own.marker().map(|told| told.aged(self.now))
     }
 
     /// A position told now. The waits cut short before it are not its doubt: with no page to measure them they are
@@ -866,6 +890,10 @@ impl State {
     fn waited(&mut self) -> Option<Value> {
         self.now = self.now.saturating_add(u64::from(IDLE_WAIT));
         self.ui_time = None;
+        self.own_glide = None;
+        self.peer_glides.clear();
+        self.camera.focus = None;
+        self.other_surface.focus = None;
         self.uncounted();
         (self.asked_list == 0
             && self
@@ -892,14 +920,102 @@ impl State {
 
     /// What the map says of the age of each position on it, this device's first.
     fn statuses(&self) -> Vec<Option<String>> {
-        let own = match &self.own {
-            Own::Found(told) => Some(told),
-            _ => None,
-        };
-        own.into_iter()
+        self.own
+            .marker()
+            .into_iter()
             .chain(self.seen.values())
             .map(|told| self.last(told))
             .collect()
+    }
+
+    /// Start (or retarget) one glide from each page's last accepted drawing. A previously hidden
+    /// marker has no origin on that page, so it will appear at its fix when it first fits.
+    fn marker_glide(&self, id: &str, target: geo::Fix) -> Option<Glide> {
+        let mut pages = [&self.camera, &self.other_surface];
+        if self.primary_surface {
+            pages.swap(0, 1);
+        }
+        let from = pages.map(|page| {
+            let marker = page.drawn_marker(id, self.now)?;
+            different_place(marker.fix, target).then(|| marker.origin())
+        });
+        from.iter()
+            .any(Option::is_some)
+            .then_some(Glide { from, start: None })
+    }
+
+    fn gliding(&self) -> bool {
+        let slot = usize::from(self.primary_surface);
+        self.own_glide
+            .iter()
+            .chain(self.peer_glides.values())
+            .any(|g| g.from[slot].is_some())
+    }
+
+    fn advance_glides(&mut self) {
+        let now = self.now;
+        // A fix delivery has no timestamp. The first page sample starts the full glide,
+        // even if it arrived just after the previous (normally one-second) tick.
+        self.peer_glides.retain(|_, glide| glide.advance(now));
+        if self
+            .own_glide
+            .as_mut()
+            .is_some_and(|glide| !glide.advance(now))
+        {
+            self.own_glide = None;
+        }
+        for page in [&mut self.camera, &mut self.other_surface] {
+            if let Some(focus) = &mut page.focus {
+                focus.start.get_or_insert(now);
+            }
+        }
+    }
+
+    fn clear_page_glides(&mut self) {
+        let slot = usize::from(self.primary_surface);
+        self.peer_glides.retain(|_, glide| glide.remove_page(slot));
+        if self
+            .own_glide
+            .as_mut()
+            .is_some_and(|glide| !glide.remove_page(slot))
+        {
+            self.own_glide = None;
+        }
+    }
+
+    fn locate_view(&mut self, fix: geo::Fix) {
+        let slot = usize::from(self.focus_surface);
+        let follows_glide = self
+            .own_glide
+            .as_ref()
+            .is_some_and(|glide| glide.from[slot].is_some());
+        let page = if self.focus_surface == self.primary_surface {
+            &mut self.camera
+        } else {
+            &mut self.other_surface
+        };
+        let target = world::View {
+            lon: fix.longitude,
+            lat: fix.latitude,
+            span: focus_span(fix.longitude, fix.latitude),
+            roll: page.view.roll,
+        }
+        .kept();
+        if let Some(painted) = page.surface.painted
+            && follows_glide
+            && painted.view != target
+        {
+            page.view = painted.view;
+            page.focus = Some(Focus {
+                from: painted.view,
+                target,
+                start: None,
+                duration: MARKER_GLIDE_MS,
+            });
+        } else {
+            page.view = target;
+            page.focus = None;
+        }
     }
 
     /// What the application answered to a call this extension made, and the calls it leads to.
@@ -990,6 +1106,7 @@ impl State {
                 // the application could not answer just now (busy, late) takes nothing away, and is asked again.
                 self.devices.clear();
                 self.seen.clear();
+                self.peer_glides.clear();
                 self.sending.clear();
                 self.outgoing.clear();
                 self.asking.clear();
@@ -1010,29 +1127,29 @@ impl State {
                 .map(|_| wire::position(&result["value"]))
             {
                 Some(Ok(shared)) => {
+                    if self
+                        .own
+                        .marker()
+                        .is_some_and(|old| focus || different_place(old.shared.fix, shared.fix))
+                    {
+                        self.own_glide = self.marker_glide(canvas_scene::OWN, shared.fix);
+                    }
                     let told = self.tell(shared);
                     self.own = Own::Found(told);
                     if focus {
-                        let view = world::View {
-                            lon: shared.fix.longitude,
-                            lat: shared.fix.latitude,
-                            span: focus_span(shared.fix.longitude, shared.fix.latitude),
-                            roll: self.view.roll,
-                        }
-                        .kept();
-                        if self.focus_surface == self.primary_surface {
-                            self.view = view;
-                        } else {
-                            self.other_focus = Some(view);
-                        }
+                        self.locate_view(shared.fix);
                     }
                     if share {
                         return self.share(told);
                     }
                 }
-                _ if denied => self.own = Own::Not(words::NOT_ALLOWED.to_owned()),
+                _ if denied => {
+                    self.own_glide = None;
+                    self.own = Own::Not(words::NOT_ALLOWED.to_owned());
+                }
                 // The application's own words of why it could not, when it gave some.
                 _ => {
+                    self.own_glide = None;
                     self.own = Own::Not(
                         result["message"]
                             .as_str()
@@ -1089,6 +1206,8 @@ impl State {
         let devices = &self.devices;
         self.seen
             .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
+        self.peer_glides
+            .retain(|alias, _| self.seen.contains_key(alias));
         let ready = |s: &Sending| devices.iter().any(|d| d.ready && d.alias == s.alias);
         self.sending.retain(ready);
         self.outgoing.retain(ready);
@@ -1166,7 +1285,9 @@ impl State {
                 // what went before, and a new epoch never holds anything back.
                 _ => self.uncounted(),
             }
+            self.advance_glides();
         }
+        self.camera.event_at = Some(self.now);
         let mut calls = Vec::new();
         let before = self.view;
         if matches!(
@@ -1178,6 +1299,7 @@ impl State {
         match (event["t"].as_str(), event["id"].as_str()) {
             (Some("open"), _) => {
                 // A newly mounted map has no gesture of its own.
+                self.clear_page_glides();
                 self.settled = 0;
                 self.last_motion = None;
                 self.dragging = None;
@@ -1193,6 +1315,7 @@ impl State {
             (Some("press"), Some("find")) => calls.extend(self.find(Ask::Show)),
             (Some("press"), Some("forget")) => {
                 self.seen.clear();
+                self.peer_glides.clear();
                 self.marker_stamp = self.marker_stamp.wrapping_add(1);
             }
             (Some("press"), Some("options")) => {
@@ -1225,8 +1348,11 @@ impl State {
                     self.marker_stamp = self.marker_stamp.wrapping_add(1);
                 }
                 if let Some(focus) = self.camera.focus.as_ref() {
-                    self.camera.view = focus.at(self.now);
-                    if self.now.saturating_sub(focus.start) >= FOCUS_MS {
+                    let elapsed = self.now.saturating_sub(focus.start.unwrap_or(self.now));
+                    self.camera.view = focus
+                        .from
+                        .towards(focus.target, eased(elapsed, focus.duration));
+                    if elapsed >= focus.duration {
                         self.focus = None;
                     }
                 }
@@ -1290,11 +1416,6 @@ impl State {
             std::mem::swap(&mut self.camera, &mut self.other_surface);
             self.primary_surface = primary;
         }
-        if self.primary_surface == self.focus_surface
-            && let Some(view) = self.other_focus.take()
-        {
-            self.view = view;
-        }
         let event = &delivery["args"]["event"];
         let calls = self.act(event);
         let page = self.page();
@@ -1317,7 +1438,7 @@ impl State {
             );
         }
         match &self.own {
-            Own::Finding => words::FINDING.to_owned(),
+            Own::Finding(_) => words::FINDING.to_owned(),
             Own::Not(said) => said.clone(),
             Own::Unknown | Own::Found(_) => words::UNKNOWN.to_owned(),
         }
@@ -1474,7 +1595,8 @@ impl State {
             self.focus = Some(Focus {
                 from: self.view,
                 target,
-                start: self.now,
+                start: Some(self.now),
+                duration: FOCUS_MS,
             });
         }
     }
@@ -1731,6 +1853,7 @@ impl State {
         );
         let tick = if updating
             || self.focus.is_some()
+            || self.gliding()
             || self.cache.borrow().pending()
             || self.surface.retry_at != 0
             || self.frame_stamp().is_some_and(|stamp| {
@@ -1843,6 +1966,17 @@ impl State {
         self.marker_stamp = self.marker_stamp.wrapping_add(1);
         // It shared: what was asked of it is answered, and the next question, if one is ever due, starts over.
         self.asked.remove(&alias);
+        if self
+            .seen
+            .get(&alias)
+            .is_some_and(|old| different_place(old.shared.fix, shared.fix))
+        {
+            if let Some(glide) = self.marker_glide(&alias, shared.fix) {
+                self.peer_glides.insert(alias.clone(), glide);
+            } else {
+                self.peer_glides.remove(&alias);
+            }
+        }
         let told = self.tell(shared);
         self.seen.insert(alias, told);
         Ok(())
@@ -1925,14 +2059,16 @@ impl State {
             metrics: self.surface.metrics?,
             view: self.view.kept(),
             settled: self.settled,
-            markers: self.marker_stamp,
+            markers: (self.marker_stamp, self.gliding().then_some(self.now)),
             online: self.online_enabled.then(|| self.online.revision()),
             detail: tile::Detail::Full,
         };
         if self.sharp_gesture() {
             stamp.detail = tile::Detail::Gesture;
         } else if let Some(pressure) = &self.surface.raster_pressure
-            && (self.map_moving() || pressure.full_refused == Some(stamp))
+            && (self.map_moving()
+                || stamp.markers.1.is_some()
+                || pressure.full_refused == Some(stamp))
         {
             stamp.metrics = stamp.metrics.at_scale(pressure.scale);
             stamp.detail = tile::Detail::Pressure;
@@ -1978,16 +2114,17 @@ impl State {
             }
             return Ok(());
         };
-        if stamp.detail == tile::Detail::Gesture
-            && self.surface.painted.is_some_and(|previous| {
-                previous.detail == tile::Detail::Gesture
+        if self.surface.painted.is_some_and(|previous| {
+            stamp.markers.1.is_some()
+                || previous.markers.1.is_some()
+                || (stamp.detail == tile::Detail::Gesture
+                    && previous.detail == tile::Detail::Gesture
                     && previous.metrics == stamp.metrics
-                    && previous.markers == stamp.markers
-            })
-        {
+                    && previous.markers == stamp.markers)
+        }) {
             let [width, height] = stamp.metrics.raster.pixels.map(u64::from);
             let spacing = (width * height * 4 * 1000)
-                .div_ceil(GESTURE_BYTES_PER_SECOND)
+                .div_ceil(MOTION_BYTES_PER_SECOND)
                 .max(24);
             if self.now.saturating_sub(self.surface.painted_at) < spacing {
                 return Ok(());
@@ -2162,6 +2299,8 @@ fn step<H: CanvasIo>(
 fn serve<H: CanvasIo>(host: &mut H, state: &mut State) -> i32 {
     loop {
         if state.waiting.is_empty() {
+            // Poll timeouts and Canvas presents do not renew WASM fuel. Let each page
+            // delivery pay for its glide frame rather than drawing on idle wake-ups.
             match host.poll(&[], i32::from(IDLE_WAIT)) {
                 Ok(None) => {
                     if let Some(list) = state.waited()

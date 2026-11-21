@@ -5,6 +5,12 @@ Devices that have shared a position appear as initials and name badges painted b
 turn says no age; a position older than a turn allows says so under the name (see *How old a position is*).
 Tap a marker or its name to centre and zoom. **Locate this device** centres on a successful local fix. Sharing is controlled under **Permissions**, not in the map options.
 
+When a visible marker gets a new position, its initials, name and age line glide to it together over about a second.
+If another fix arrives mid-glide, it starts again from the position already on screen. New markers and reopened maps
+show the latest position directly, and **Options** shows the new coordinates without waiting for the glide.
+Background updates leave the map where it is. If **Locate this device** gets a changed fix for an already visible local
+marker, the camera glides with it. The first fix is centred directly.
+
 ## What it asks, and when
 
 - **Where this device is** comes from the application's `peersus.location` service (`current`, the person's `location.read`),

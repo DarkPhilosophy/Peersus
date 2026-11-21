@@ -152,7 +152,7 @@ impl View {
 }
 
 /// A longitude in the half turn from -180 to 180, the date line itself at 180.
-fn wrap(lon: f64) -> f64 {
+pub(super) fn wrap(lon: f64) -> f64 {
     let turn = (lon + 180.0).rem_euclid(360.0) - 180.0;
     if turn == -180.0 { 180.0 } else { turn }
 }
