@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Apparaatverbinding</string>
+    <string name="available_title">Beschikbaar voor bestandsoverdrachten</string>
+    <string name="available_body">Gekoppelde apparaten kunnen verbinding maken. Open de app om de achtergrondmodus te beheren.</string>
+    <string name="requests_channel">Inkomende overdrachtsverzoeken</string>
+    <string name="offer_accept">Accepteren</string>
+    <string name="offer_cancel">Annuleren</string>
+    <string name="received_channel">Ontvangen bestanden</string>
+    <string name="notices_channel">Meldingen</string>
+    <string name="notifications_disabled">Meldingen zijn uitgeschakeld. Je kunt ze inschakelen in de Android-appinstellingen.</string>
+    <plurals name="received_title">
+        <item quantity="one">Bestand ontvangen</item>
+        <item quantity="other">Bestanden ontvangen</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Ontvangen bestanden: %1$d. Open de app om ze te bekijken.</item>
+        <item quantity="other">Ontvangen bestanden: %1$d. Open de app om ze te bekijken.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Inkomende bestandsoverdracht</item>
+        <item quantity="other">Inkomende bestandsoverdrachten</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Bestanden die op je toestemming wachten: %1$d. Tik om ze te bekijken.</item>
+        <item quantity="other">Bestanden die op je toestemming wachten: %1$d. Tik om ze te bekijken.</item>
+    </plurals>
+</resources>

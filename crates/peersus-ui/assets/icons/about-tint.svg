@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Derived from IconPark (https://github.com/bytedance/IconPark), Apache-2.0, Copyright 2019-present Bytedance Inc. Changed: split by layer, colours replaced by currentColor. -->
+  <circle cx="24" cy="14" r="3.6" fill="currentColor" />
+  <rect x="20.5" y="20" width="7" height="17" rx="2" fill="currentColor" />
+</svg>

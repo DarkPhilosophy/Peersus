@@ -1,0 +1,96 @@
+{
+  "depsSha256": "765be0ad1aff9088cdaad44d06ea9253293aec89a9647a5f5f4e13cdd6750e02",
+  "externals": {
+    "third_party/externals/brotli": {
+      "url": "https://skia.googlesource.com/external/github.com/google/brotli.git",
+      "rev": "6d03dfbedda1615c4cba1211f8d81735575209c8",
+      "archive": "https://skia.googlesource.com/external/github.com/google/brotli/+archive/6d03dfbedda1615c4cba1211f8d81735575209c8.tar.gz",
+      "sha256": "5420389d50a1c359bc7ac88093deafa8234e2c9256b59a4880f31b35fc7b9d06",
+      "hash": "sha256-wnHEQY/NYS48sMPElUWSeLsETyQbWw2sMScc4geaPFA="
+    },
+    "third_party/externals/d3d12allocator": {
+      "url": "https://skia.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator.git",
+      "rev": "169895d529dfce00390a20e69c2f516066fe7a3b",
+      "archive": "https://skia.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator/+archive/169895d529dfce00390a20e69c2f516066fe7a3b.tar.gz",
+      "sha256": "5f295c1f706a9d8afc948b1c32d374027ce240276bb52b364024a52f150ca3c0",
+      "hash": "sha256-5DbR/3Lb0eMBpHNf7MtZOb1C0QrNlx/ZvPVbCxxF9eQ="
+    },
+    "third_party/externals/expat": {
+      "url": "https://chromium.googlesource.com/external/github.com/libexpat/libexpat.git",
+      "rev": "6154446fccefbf3ca644894f598969113b0c7bcd",
+      "archive": "https://chromium.googlesource.com/external/github.com/libexpat/libexpat/+archive/6154446fccefbf3ca644894f598969113b0c7bcd.tar.gz",
+      "sha256": "6df320b1a70b8ddcf804104ae4b34a375ec3ac3b8662400998dc292a556ec45f",
+      "hash": "sha256-V8mzuJJj7kO24YNN7nBL913lzB911QUvy0CJzsTcF90="
+    },
+    "third_party/externals/freetype": {
+      "url": "https://chromium.googlesource.com/chromium/src/third_party/freetype2.git",
+      "rev": "264b5fbf5b912b39f98d038bf75d39be0a73f21b",
+      "archive": "https://chromium.googlesource.com/chromium/src/third_party/freetype2/+archive/264b5fbf5b912b39f98d038bf75d39be0a73f21b.tar.gz",
+      "sha256": "ed3f186b626a87865337ccf0333e6c19059b5019c9e55186fdcbe47b4f3d162d",
+      "hash": "sha256-UeV2TAEDylx72nRVrzIVquzfduHgHWvO2Lw+OTWZrqE="
+    },
+    "third_party/externals/harfbuzz": {
+      "url": "https://chromium.googlesource.com/external/github.com/harfbuzz/harfbuzz.git",
+      "rev": "9cb1fee51069b206effb4736e443b038d230789d",
+      "archive": "https://chromium.googlesource.com/external/github.com/harfbuzz/harfbuzz/+archive/9cb1fee51069b206effb4736e443b038d230789d.tar.gz",
+      "sha256": "639e8ddb84872cd8944ba74d7b3cbf381494e38cc518283868eee9ac3985caeb",
+      "hash": "sha256-EYItQuWvB4q2Q2iJfMyEtX9MTm3rEFlcwZ+NQEAVy0M="
+    },
+    "third_party/externals/icu": {
+      "url": "https://chromium.googlesource.com/chromium/deps/icu.git",
+      "rev": "d578f2e8b7bd5938e21cfb6bf15c079e0aa5b738",
+      "archive": "https://chromium.googlesource.com/chromium/deps/icu/+archive/d578f2e8b7bd5938e21cfb6bf15c079e0aa5b738.tar.gz",
+      "sha256": "7aeaf9dd9d796a424fb12ce262ea9a0478804df2f5980defc986f828517495a3",
+      "hash": "sha256-DsktUjKFFbeSqlFZTBqbZgvuJLOKvssCym2M3tcOJtw="
+    },
+    "third_party/externals/libjpeg-turbo": {
+      "url": "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git",
+      "rev": "e14cbfaa85529d47f9f55b0f104a579c1061f9ad",
+      "archive": "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo/+archive/e14cbfaa85529d47f9f55b0f104a579c1061f9ad.tar.gz",
+      "sha256": "045d7f6e46433dba8cc52adae5dc59c1c1001bab49c89d76008a89cff335a69c",
+      "hash": "sha256-Ig+tmprZDvlf/M72/DTar2pbxat9ZElgSqdXdoM0lPs="
+    },
+    "third_party/externals/libpng": {
+      "url": "https://skia.googlesource.com/third_party/libpng.git",
+      "rev": "d5515b5b8be3901aac04e5bd8bd5c89f287bcd33",
+      "archive": "https://skia.googlesource.com/third_party/libpng/+archive/d5515b5b8be3901aac04e5bd8bd5c89f287bcd33.tar.gz",
+      "sha256": "50ba7d5179e7ad7bb8ef2740d8b8fd471c1aa8552501bcea0c8a75da84501c95",
+      "hash": "sha256-N507gFyjXXsJ3dyQN0SlVy80WXlbNlZs/cnqLaCmFTk="
+    },
+    "third_party/externals/libwebp": {
+      "url": "https://chromium.googlesource.com/webm/libwebp.git",
+      "rev": "845d5476a866141ba35ac133f856fa62f0b7445f",
+      "archive": "https://chromium.googlesource.com/webm/libwebp/+archive/845d5476a866141ba35ac133f856fa62f0b7445f.tar.gz",
+      "sha256": "8548b7b25666de8102fb620e9e6da86366d95b81aaf0b705b526b04aadb5952b",
+      "hash": "sha256-xuRpEwOnaLGZmrPvfUn3DSoJANd94CG+JXcN7Mdmk5I="
+    },
+    "third_party/externals/vulkanmemoryallocator": {
+      "url": "https://chromium.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator",
+      "rev": "eb744ea7a2b17040121b4bbb4d6f9e8a77e3cae7",
+      "archive": "https://chromium.googlesource.com/external/github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/+archive/eb744ea7a2b17040121b4bbb4d6f9e8a77e3cae7.tar.gz",
+      "sha256": "03367bd37654993c94c4fc0a1715afe1a0331c9d8e5f242b241e50a3b8a0933f",
+      "hash": "sha256-LBZJcom7G7maF9wpUVeVEJQAJwGy6365INk3VD0/0PM="
+    },
+    "third_party/externals/spirv-cross": {
+      "url": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross",
+      "rev": "b8fcf307f1f347089e3c46eb4451d27f32ebc8d3",
+      "archive": "https://chromium.googlesource.com/external/github.com/KhronosGroup/SPIRV-Cross/+archive/b8fcf307f1f347089e3c46eb4451d27f32ebc8d3.tar.gz",
+      "sha256": "04a593d0776c5f2311ec0caf1679820f29528e6690530e714241aa391d4b646a",
+      "hash": "sha256-H43M9DXfEuyKuvo6rjb5k0KEbYOSFodbPJh8ZKY4PQg="
+    },
+    "third_party/externals/wuffs": {
+      "url": "https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c.git",
+      "rev": "e3f919ccfe3ef542cfc983a82146070258fb57f8",
+      "archive": "https://skia.googlesource.com/external/github.com/google/wuffs-mirror-release-c/+archive/e3f919ccfe3ef542cfc983a82146070258fb57f8.tar.gz",
+      "sha256": "fcc3bd84fca59855205078fe9639aea685ccddad3b562dc103a0a7e66350a4f6",
+      "hash": "sha256-373d2F/STcgCHEq+PO+SCHrKVOo6uO1rqqwRN5eeBCw="
+    },
+    "third_party/externals/zlib": {
+      "url": "https://chromium.googlesource.com/chromium/src/third_party/zlib",
+      "rev": "646b7f569718921d7d4b5b8e22572ff6c76f2596",
+      "archive": "https://chromium.googlesource.com/chromium/src/third_party/zlib/+archive/646b7f569718921d7d4b5b8e22572ff6c76f2596.tar.gz",
+      "sha256": "a35b27c0bdf321985e63ae844c2c7e4c8f6f77a883916c16257bef5cf075cb2e",
+      "hash": "sha256-jNj6SuTZ5/a7crtYhxW3Q/TlfRMNMfYIVxDlr7bYdzQ="
+    }
+  }
+}

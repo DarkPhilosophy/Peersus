@@ -1,0 +1,27 @@
+[package]
+name = "peersus-plugin-canvas"
+description = "Canvas renderer for dedicated WebAssembly extension workers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "peersus-wasm-canvas-host"
+path = "src/main.rs"
+
+[dependencies]
+peersus-api.workspace = true
+peersus-plugin-runtime.workspace = true
+peersus-render.workspace = true
+
+[dev-dependencies]
+peersus-plugin.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+wat.workspace = true
+
+[lints]
+workspace = true

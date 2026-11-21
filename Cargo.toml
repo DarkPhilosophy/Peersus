@@ -1,0 +1,296 @@
+[workspace]
+resolver = "3"
+members = ["crates/peersus-api", "crates/peersus-plugin", "crates/peersus-plugin-runtime", "crates/peersus-plugin-canvas", "crates/peersus-render", "crates/peersus-plugin-android", "crates/peersus-core", "crates/peersus-net", "crates/peersus-app", "crates/peersus-clipboard-platform", "crates/peersus-store-fetch", "crates/peersus-ui", "crates/peersus-ui-android", "crates/peersus-diagnostics", "xtask"]
+default-members = ["crates/peersus-app"]
+exclude = ["vendor/winit", "vendor/netwatch", "vendor/sctk-adwaita", "vendor/freya-core", "vendor/freya-components", "vendor/torin", "vendor/rav1e", "vendor/mundy", "vendor/atspi", "vendor/atspi-common", "vendor/atspi-proxies", "vendor/accesskit_atspi_common", "vendor/accesskit_unix", "vendor/zbus-lockstep", "vendor/zbus-lockstep-macros", "vendor/keyring", "vendor/tokio-rustls-acme"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+license = "Apache-2.0"
+publish = false
+
+[workspace.dependencies]
+peersus-api = { path = "crates/peersus-api" }
+peersus-core = { path = "crates/peersus-core" }
+peersus-plugin = { path = "crates/peersus-plugin" }
+peersus-plugin-runtime = { path = "crates/peersus-plugin-runtime" }
+peersus-plugin-canvas = { path = "crates/peersus-plugin-canvas" }
+peersus-render = { path = "crates/peersus-render" }
+peersus-net = { path = "crates/peersus-net" }
+peersus-ui = { path = "crates/peersus-ui" }
+peersus-diagnostics = { path = "crates/peersus-diagnostics" }
+peersus-clipboard-platform = { path = "crates/peersus-clipboard-platform" }
+# The Android entry's parts. `winit` is the version freya-android is built against, with its default features
+# as the trial that ran on a device had them (the raw window handle one is what the renderer makes its surface
+# with; x11 and wayland are for other systems and are not built for Android). The activity feature is chosen
+# where it is needed, in the Android crate, and not here, since the desktop build has no use for it.
+winit = "0.30.13"
+freya-android = "=0.6.0-alpha.1"
+# The native text-input adapter queues platform events and observes focus; both versions are the ones freya-android already resolves.
+freya-core = "=0.6.0-alpha.1"
+freya-winit = "=0.6.0-alpha.1"
+# The toolkit's clipboard is `copypasta`, which on Android is a no-op; the Android entry supplies a real provider and so names the trait.
+# The version is the one `freya-clipboard` already resolves to in the lockfile, so the build gains no new package.
+copypasta = "=0.10.2"
+tracing = "0.1.41"
+# The one way Rust reaches Java on Android (the document picker): the version the activity crate documents.
+jni = "0.21.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+wat = "1"
+# Reads a plugin manifest written as `plugin.toml`. Parsing only: nothing here writes TOML. The
+# version is the one already in the lockfile, so the build gains no new package.
+toml = { version = "1.1", default-features = false, features = ["std", "serde", "parse"] }
+thiserror = "2"
+sha2 = "0.11"
+hmac = "0.13"
+subtle = "2"
+zeroize = { version = "1", features = ["derive"] }
+iroh = "1.4.1"
+iroh-base = "1.4.1"
+data-encoding = "2.11.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "fs", "io-util", "net", "signal"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+tempfile = "3"
+# Reads a plugin package given as one .tar.gz (or plain .tar) file. No `xattr`: extended
+# attributes of an archive entry are never applied to anything here. The inflater is `flate2`,
+# declared once below, pure Rust. Nothing is written with either: only read.
+tar = { version = "0.4.46", default-features = false }
+rand = "0.10"
+# Development only, never in a product program: the system allocator with its bytes counted, installed by the measuring
+# examples so that a benchmark can say what the heap held (`cargo xtask bench`). The `unsafe` an allocator needs lives in
+# this crate, not in the workspace.
+cap = { version = "0.1.2", features = ["stats"] }
+hex = "0.4"
+clap = { version = "4", features = ["derive"] }
+keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
+# Reuse keyring's encrypted Linux transport for a read that never calls Unlock or Prompt.
+dbus-secret-service = { version = "4.1.0", features = ["crypto-rust", "vendored"] }
+# Native registration of the bundled macOS user agent, and prompt-free Keychain access by its owner.
+smappservice-rs = "0.1.3"
+security-framework = "3"
+objc2 = "0.6"
+windows-service = "0.8.1"
+winreg = "0.56"
+fs2 = "0.4"
+rustix = { version = "1", features = ["process", "fs", "net", "time"] }
+# Windows has no `openat`: received files and walked folders are reached RELATIVE to an open
+# folder handle there through `cap-std`, links refused, as `rustix` does on Unix.
+cap-std = "4.0.3"
+cap-fs-ext = "4.0.3"
+# A virtual mouse and keyboard through uinput, for `peersus.input` on Linux: a safe interface to the device.
+evdev = "0.13.2"
+# The same `peersus.input` on Windows (SendInput) and macOS (Quartz events) through a maintained safe
+# interface (MIT). Only there, without its X11/Wayland backends.
+enigo = { version = "=0.6.1", default-features = false }
+# Windows monitor enumeration through a safe platform adapter (Apache-2.0).
+display-info = "=0.5.10"
+# Windows job objects, so a plugin's own child processes end with it (MIT OR Apache-2.0).
+win32job = "=2.1.0"
+# The pointer and keyboard captured at the edges of this desktop, for the layout of devices: the
+# InputCapture portal (ashpd) and the input it hands over (reis, libei's protocol). The window asks the
+# GlobalShortcuts portal for the person's bindings while it is not in front, when they switch that on.
+ashpd = { version = "0.14.0", default-features = false, features = ["input_capture", "global_shortcuts", "location", "tokio"] }
+reis = { version = "0.7.1", features = ["tokio"] }
+peersus-app = { path = "crates/peersus-app" }
+# PNG, and JPEG for the one place that reads a picture a person chose on their own disk (the profile
+# picture). Features add across the whole build, so JPEG is compiled in everywhere; what keeps a
+# plugin from reading it is that the clipboard plugin names the PNG decoder and never asks the data
+# which kind it is, so a picture another device sends is only ever read as PNG. No other format.
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
+# Text only, and without `image-data`: that feature is what makes the library decode whatever
+# picture another application puts on the clipboard, with no limit. A central entry must never
+# turn it back on. NOT BOUNDED all the same: reading text still collects whatever is offered
+# before any limit applies.
+arboard = { version = "=3.7.0", default-features = false, features = ["wayland-data-control"] }
+# The same copy arboard already resolves. Named here only for its `watch` module (a real selection-change
+# event over ext/wlr data-control), which arboard does not expose; 0.9.3 has no such module.
+wl-clipboard-rs = { version = "=0.9.5", default-features = false }
+# Also already resolved through arboard. Named here for XFixes, the event that says the X11
+# selection changed: how a copy is noticed on GNOME, which offers no data-control. Pure Rust, no
+# libxcb, so the plugin stays free of unsafe code.
+x11rb = { version = "=0.13.2", default-features = false, features = ["xfixes"] }
+# Only to build, in tests, a small PNG whose embedded colour profile expands to far more than
+# it weighs.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+# The interface toolkit: Freya, on its latest line (0.6, an alpha), pinned exactly because a
+# pre-release moves between any two versions. Kept current at the owner's request (2026-11-15:
+# 0.6.0-alpha.1 for its touch and scrolling fixes on Android and desktop).
+freya = { version = "=0.6.0-alpha.1", features = ["engine", "icons-lucide"] }
+# The toolkit's own headless runner (same version, same project): lays out and draws a window
+# into memory with no display, for the interface's automated screen tests and frame timings.
+# Reached only through the interface's `headless` feature; a product build does not contain it.
+freya-testing = "=0.6.0-alpha.1"
+# On-demand desktop renderer comparison: OS counters, never an allocator hook.
+cpu-time = "=1.0.0"
+memory-stats = "=1.2.0"
+# Named only to switch on one feature of the renderer's bindings: compile FreeType from source
+# instead of looking for its development headers in the operating system. Features only add,
+# so this reaches the whole graph. The renderer itself (Skia) is built from source too: set
+# FORCE_SKIA_BUILD=1 so that no prebuilt archive from a third-party account is ever downloaded.
+freya-skia-safe = { version = "=0.105.0-beta.1", features = ["embed-freetype"] }
+# The system file chooser on desktop (through the desktop portal). Used ASYNCHRONOUSLY only: the
+# blocking calls would freeze the window while the dialog is open. Default features, which is
+# what the toolkit already pulls in, so no second copy enters the build.
+rfd = "0.18"
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls", "multipart", "stream", "json"] }
+# Already in the build through reqwest; named only so that a failed HTTPS request can say it was the secure connection that
+# was refused (its error type), without adding a feature or a second copy.
+rustls = { version = "=0.23.46", default-features = false }
+url = "=2.5.8"
+# Read-only binary metadata: no decompression or executable loading.
+object = { version = "=0.41.0", default-features = false, features = ["read_core", "elf", "pe", "macho", "std"] }
+wasmparser = { version = "=0.263.0", default-features = false, features = ["std"] }
+# Verifies the maintainer's signature over the extension catalog. VERIFY ONLY: no `rand_core`/signing
+# feature, so this application can never produce a signature and holds no key. Already in the build
+# through the transport stack, so no second implementation of the primitive enters.
+ed25519-dalek = { version = "=3.0.0", default-features = false }
+# Draws the pairing code. Nothing but the matrix: MIT, no dependencies, `forbid(unsafe_code)`.
+qrcodegen = "=1.8.0"
+# Reads a pairing picture back, in tests only, to prove that what is drawn can be scanned.
+rqrr = { version = "=0.11.0", default-features = false }
+
+# winit 0.30.13 with these changes. In its Android backend, both of which AdbBridge already carries: (1) at `MainEvent::Destroy` the event
+# loop exits, since `NativeActivity.onDestroy` waits for `android_main` to return and, with the loop kept alive, blocks Android's main thread
+# for ten seconds or more (an ANR: the window freezes, "not responding"); (2) the event loop may be built again on Android, where there is
+# one looper per NativeActivity and not one per process, so that an activity made after another was destroyed has a window. In its Wayland
+# backend, both backported from winit 0.31: (3) a window move, resize or window menu started by a finger uses the touch's serial, which the
+# compositor requires, instead of the mouse's last button, so a window can be dragged by touch; (4) graphics-tablet tools (a pen, or the
+# pointer another device drives here through a virtual tablet) act as the window's pointer: entering, moving, the tip as the left button and
+# the barrel buttons as the right and middle ones, where before the tool moved over the window but could not click it. Nothing else differs
+# from the published crate (see vendor/winit, with its own LICENSE); drop (1)-(2) when winit forwards `onDestroy` itself and (3)-(4) with 0.31.
+[patch.crates-io]
+winit = { path = "vendor/winit" }
+# Backport the maintained netlink dependency set without changing the transport's
+# netwatch 0.19 API. See vendor/netwatch/PATCHES.md for provenance and removal.
+netwatch = { path = "vendor/netwatch" }
+# Retain the compatible Wayland toolkit while backporting the maintained title
+# font renderer. See vendor/sctk-adwaita/PATCHES.md.
+sctk-adwaita = { path = "vendor/sctk-adwaita" }
+# Preserve consumer APIs while replacing the unmaintained token-pasting macro.
+# Each local package records its upstream revision and minimal manifest change.
+freya-core = { path = "vendor/freya-core" }
+freya-components = { path = "vendor/freya-components" }
+# A child of a wrapping box is measured against a whole line, so a text that does not fit the rest of it goes to the next line
+# whole instead of breaking inside its words. See vendor/torin/PATCHES.md.
+torin = { path = "vendor/torin" }
+# Poll the runner and measure the layout after each buffered input event again (0.5.1 did; 0.5.2 does it once per buffer).
+# See vendor/freya-winit/PATCHES.md.
+freya-winit = { path = "vendor/freya-winit" }
+# Terminate Linux font enumeration when a system font has no family property.
+freya-skia-bindings = { path = "vendor/freya-skia-bindings" }
+rav1e = { path = "vendor/rav1e" }
+# The test relay's certificate state without the unmaintained chrono. See vendor/tokio-rustls-acme/PATCHES.md.
+tokio-rustls-acme = { path = "vendor/tokio-rustls-acme" }
+# Preserve portal preference support while migrating its Linux wire format.
+mundy = { path = "vendor/mundy" }
+# Keep accessibility and XML signature validation while adopting maintained wire types.
+atspi = { path = "vendor/atspi" }
+atspi-common = { path = "vendor/atspi-common" }
+atspi-proxies = { path = "vendor/atspi-proxies" }
+accesskit_atspi_common = { path = "vendor/accesskit_atspi_common" }
+accesskit_unix = { path = "vendor/accesskit_unix" }
+zbus-lockstep = { path = "vendor/zbus-lockstep" }
+zbus-lockstep-macros = { path = "vendor/zbus-lockstep-macros" }
+# Preserve existing native credential lookup semantics; omit the unused async backend.
+keyring = { path = "vendor/keyring" }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+correctness = "deny"
+
+# Development builds keep file and line numbers for backtraces of this project's own code and no debug information for
+# libraries (the Cargo book's advice). Measured on the workstation (HDD): a change in the window rebuilt in 18 s instead
+# of 47-103 s, and its build folder is 4.4 GB instead of 8.4 GB; on its NVMe, 3 s (E-109). A debugger session that needs variables sets
+# `CARGO_PROFILE_DEV_DEBUG=true` for that build.
+[profile.dev]
+debug = "line-tables-only"
+[profile.dev.package."*"]
+debug = false
+
+# The picture decoder is exercised on pictures near the memory limit in tests. Unoptimised it
+# takes tens of seconds to decode one; optimised, a fraction of one. Only these libraries are
+# affected, never this project's own code, so what the tests prove is unchanged.
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
+[profile.dev.package.flate2]
+opt-level = 3
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+[profile.dev.package.crc32fast]
+opt-level = 3
+[profile.dev.package.adler2]
+opt-level = 3
+[profile.dev.package.simd-adler32]
+opt-level = 3
+# Every extension page runs in the wasmi interpreter, and every frame is laid out and drawn by the
+# toolkit. Unoptimised, a zoom or drag on an extension page (Layout) costs a visible delay per
+# event in development builds. Libraries only, never this project's own code.
+# The interpreter's fast dispatch is a chain of sibling calls that LLVM only turns into jumps when nothing runs after
+# the call: with the development profile's checks left on it recursed and overflowed the stack, so they are off for
+# the interpreter alone, which is tested upstream with them off.
+[profile.dev.package.wasmi]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false
+[profile.dev.package.wasmi_core]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false
+[profile.dev.package.wasmi_ir]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false
+[profile.dev.package.wasmi_collections]
+opt-level = 3
+# Every page a plugin draws and every sample of a finger on it pass through JSON, in the owner, the
+# windows and the plugin hosts: unoptimized, that alone is most of a core while a layout is dragged.
+[profile.dev.package.serde_json]
+opt-level = 3
+[profile.dev.package.torin]
+opt-level = 3
+[profile.dev.package.ragnarok]
+opt-level = 3
+[profile.dev.package.freya-core]
+opt-level = 3
+[profile.dev.package.freya-engine]
+opt-level = 3
+[profile.dev.package.freya-components]
+opt-level = 3
+[profile.dev.package.freya-skia-safe]
+opt-level = 3
+# Every message between two devices passes through the encrypted transport and the asynchronous runtime under it.
+# Libraries only, never this project's own code.
+[profile.dev.package.noq-proto]
+opt-level = 3
+[profile.dev.package.noq]
+opt-level = 3
+[profile.dev.package.noq-udp]
+opt-level = 3
+[profile.dev.package.iroh]
+opt-level = 3
+[profile.dev.package.iroh-relay]
+opt-level = 3
+[profile.dev.package.rustls]
+opt-level = 3
+[profile.dev.package.ring]
+opt-level = 3
+[profile.dev.package.tokio]
+opt-level = 3
+[profile.dev.package.bytes]
+opt-level = 3
+[profile.dev.package.mio]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"

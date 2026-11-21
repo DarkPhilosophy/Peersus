@@ -1,0 +1,39 @@
+name: Bug report
+description: Report a reproducible defect with non-sensitive diagnostics.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, invitations, device identifiers or private files. Security vulnerabilities follow SECURITY.md instead.
+  - type: input
+    id: revision
+    attributes:
+      label: Revision and build
+      description: Commit, build flavor, operating system and architecture. Redact personal identifiers.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic data and state any relevant extension and permission settings.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: Include exact errors only after removing sensitive values.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Verification and screenshots
+      description: Commands attempted, results, or redacted screenshots. Identify untested paths.

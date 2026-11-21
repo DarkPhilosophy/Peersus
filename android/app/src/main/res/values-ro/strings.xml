@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Conectivitatea dispozitivelor</string>
+    <string name="available_title">Disponibil pentru transferuri de fișiere</string>
+    <string name="available_body">Dispozitivele asociate se pot conecta. Deschide aplicația pentru a gestiona modul în fundal.</string>
+    <string name="requests_channel">Cereri de transfer primite</string>
+    <string name="offer_accept">Acceptă</string>
+    <string name="offer_cancel">Anulează</string>
+    <string name="received_channel">Fișiere primite</string>
+    <string name="notices_channel">Anunțuri</string>
+    <string name="notifications_disabled">Notificările sunt oprite. Le poți activa în setările Android ale aplicației.</string>
+    <plurals name="received_title">
+        <item quantity="one">Fișier primit</item>
+        <item quantity="few">Fișiere primite</item>
+        <item quantity="other">Fișiere primite</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Fișiere primite: %1$d. Deschide aplicația pentru a le vedea.</item>
+        <item quantity="few">Fișiere primite: %1$d. Deschide aplicația pentru a le vedea.</item>
+        <item quantity="other">Fișiere primite: %1$d. Deschide aplicația pentru a le vedea.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Transfer de fișier primit</item>
+        <item quantity="few">Transferuri de fișiere primite</item>
+        <item quantity="other">Transferuri de fișiere primite</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Fișiere care așteaptă aprobarea ta: %1$d. Atinge pentru a verifica.</item>
+        <item quantity="few">Fișiere care așteaptă aprobarea ta: %1$d. Atinge pentru a verifica.</item>
+        <item quantity="other">Fișiere care așteaptă aprobarea ta: %1$d. Atinge pentru a verifica.</item>
+    </plurals>
+</resources>
