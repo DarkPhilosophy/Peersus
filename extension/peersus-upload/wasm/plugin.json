@@ -144,7 +144,7 @@
       {
         "id": "destination",
         "label": "Upload destination",
-        "help": "Choose which destination is offered for selected files on Send. Catbox needs no API key.",
+        "help": "Choose which destination is offered for selected files on Send. poo.wang needs a usable API key; Catbox never uses one.",
         "scope": "global",
         "kind": {
           "type": "choice",
@@ -169,8 +169,8 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Upload sends one file you explicitly select to one of two cloud destinations, only after you allow that file to that address. The first needs an API key you save; the second, Catbox, needs no account and no key at all. The file bytes and any API key stay in the trusted host; this guest only asks the host to act.",
-        "changes": "Choose the destination in this extension's settings. Choose on Send offers Catbox and, when a key is saved, poo.wang. Selecting Catbox alone does not read a saved key. Catbox accepts files up to 6 MiB in this application. Checking a poo.wang key sends it only to that provider. Each upload requires approval of the destination and the selected file; a result link may be public."
+        "explains": "Upload sends the name and contents of one selected file only after you approve the destination. poo.wang receives it at https://poo.wang/api/upload or in parts at https://poo.wang/api/upload/session/part. Only poo.wang receives your saved key, for checks at https://poo.wang/api/me and for the upload or session creation. Catbox receives the file at https://catbox.moe/user/api.php without a key or account. The extension never receives the file contents or saved key.",
+        "changes": "Choose on Send offers both destinations when a usable poo.wang key is saved. Selecting Catbox alone never looks up a saved key. Catbox needs a host that identifies its HTTPS client, takes up to 6 MiB here, and returns a public link on https://files.catbox.moe. poo.wang uploads expire after 24 hours; its browser-only anonymous upload is not available here. A missing input, unusable key, disabled destination or file outside the size limit makes the upload unavailable, not a permission denial."
       }
     ]
   }
