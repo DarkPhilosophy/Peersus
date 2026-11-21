@@ -1,6 +1,6 @@
 # Clipboard extension
 
-Explicit text sharing and permission-gated clipboard synchronization between paired devices, shipped as a WASM guest (official) for Linux, Android and macOS; the same source also builds a native library and a process (not recommended). Peer access is brokered by the application; the extension cannot choose an arbitrary network destination. Outbound success requires the application's matching delivered-byte acknowledgement, not merely a successful local socket write. This confirms transport delivery, not that a remote user has read the text.
+Explicit text sharing and permission-gated clipboard synchronization between paired devices, shipped as a WASM guest (official) for Linux, Android, macOS and Windows; the same source also builds a native library and a process (not recommended). Peer access is brokered by the application; the extension cannot choose an arbitrary network destination. Outbound success requires the application's matching delivered-byte acknowledgement, not merely a successful local socket write. This confirms transport delivery, not that a remote user has read the text.
 
 ## Platforms and dependencies
 
@@ -9,16 +9,17 @@ The extension never touches the system clipboard itself. It asks the application
 - Linux: the application's clipboard owner needs a working X11 or Wayland session; compositor support affects background observation.
 - macOS: the application's pasteboard adapter. An X server does not isolate it from the real pasteboard.
 - Android: the application's own adapter (foreground reading, the share sheet, and the optional privileged helper of the community build).
+- Windows: the application's desktop clipboard adapter reads and writes text.
 
 Build requirements are a stable Rust toolchain with the `wasm32-unknown-unknown` target; the guest has its own lockfile (`wasm/Cargo.lock`) and depends on no application crate. This plugin is licensed under Apache-2.0; keep the exported LICENSE and NOTICE files. `submission.toml` declares the build recipe; CI resolves and records the trusted host SDK commit before executing it.
 
 ## Execution format
 
-The **WASM guest is the official build** of this extension and is packaged for Linux, Android and macOS; the store refuses a submission without it. Why WASM: one module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
+The **WASM guest is the official build** of this extension and is packaged for Linux, Android, macOS and Windows; the store requires the first three. Why WASM: one module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
 
 The same guest source also builds as a native library (`cargo build --release --features native` in `wasm/`, packaged with `--native-library libpeersus_clipboard_wasm.so` as `clipboard-linux-native_library.tar.gz`) and, linked into the native host, as a process (`clipboard-linux-process.tar.gz`); every submission builds and validates both. They speak the identical protocol through the native host's function table instead of WebAssembly imports, so behaviour is the same; only the isolation is weaker. The store installs the WASM build only: the other two travel with the signed release for a person to install by hand, with limited support.
 
-macOS support is limited: the same WASM package runs, but host services implemented only for Linux report that they are unsupported there. Windows has no extension host yet.
+On macOS and Windows, the host uses periodic clipboard snapshots for automatic synchronization instead of native copy notifications. A copy replaced before the next snapshot can be missed. The Windows package is the same module as on the other platforms and the application's Windows path compiles; it has not been run on a Windows device.
 
 ## Build and test
 

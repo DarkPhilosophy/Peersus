@@ -1,6 +1,6 @@
 schema = 1
 id = "clipboard"
-artifacts = ["clipboard-linux.tar.gz", "clipboard-android.tar.gz", "clipboard-macos.tar.gz", "clipboard-linux-native_library.tar.gz", "clipboard-linux-process.tar.gz"]
+artifacts = ["clipboard-linux.tar.gz", "clipboard-android.tar.gz", "clipboard-macos.tar.gz", "clipboard-windows.tar.gz", "clipboard-linux-native_library.tar.gz", "clipboard-linux-process.tar.gz"]
 
 build = [
   ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
@@ -16,6 +16,7 @@ package = [
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "clipboard"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "clipboard"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "clipboard"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "windows", "--id", "clipboard"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "clipboard", "--native-library", "libpeersus_clipboard_wasm.so"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "clipboard", "--process", "peersus-clipboard-process"],
 ]
