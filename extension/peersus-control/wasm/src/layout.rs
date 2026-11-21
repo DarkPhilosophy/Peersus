@@ -3,6 +3,29 @@ use crate::{State, host::Wire, remote::answer};
 use serde::Deserialize;
 use serde_json::{Value, json};
 const INITIAL_HEIGHT: f64 = 360.;
+// The arrangement service bounds every shared-plane edge (peersus-core::layout::MAX_COORDINATE).
+const MAX_PLANE_AT: i64 = 1 << 40;
+// Absolute box offsets accepted by peersus-api's page element validator, in milli-pixels.
+const MAX_PAGE_AT: i32 = 16_384_000;
+const DEVICES_PER_PAGE: usize = 4;
+
+fn placement_fits(at: [i64; 2], extent: [i64; 2]) -> bool {
+    at.into_iter()
+        .zip(extent)
+        .all(|(start, span)| (-MAX_PLANE_AT..=MAX_PLANE_AT - span).contains(&start))
+}
+
+fn page_coordinate(value: &Value) -> Result<f64, &'static str> {
+    value
+        .as_i64()
+        .and_then(|n| i32::try_from(n).ok())
+        .map(|n| f64::from(n) / 1000.)
+        .ok_or(answer::NOT_UNDERSTOOD)
+}
+
+fn last_menu_page(peers: usize) -> usize {
+    peers.saturating_sub(1) / DEVICES_PER_PAGE
+}
 #[derive(Clone, Deserialize, PartialEq)]
 struct Display {
     x: i32,
@@ -109,8 +132,8 @@ impl Item {
             .iter()
             .map(|d| Rect {
                 device: index,
-                x: at[0] + i64::from(d.x) - i64::from(left),
-                y: at[1] + i64::from(d.y) - i64::from(top),
+                x: at[0] + (i64::from(d.x) - i64::from(left)),
+                y: at[1] + (i64::from(d.y) - i64::from(top)),
                 w: i64::from(d.width),
                 h: i64::from(d.height),
             })
@@ -153,7 +176,9 @@ impl Ui {
         let items: Vec<Item> =
             serde_json::from_value(value["devices"].clone()).map_err(|_| answer::NOT_UNDERSTOOD)?;
         if items.len() > 65
-            || items.iter().any(|i| i.displays.len() > 16)
+            || items.iter().any(|i| {
+                i.displays.len() > 16 || i.at.is_some_and(|at| !placement_fits(at, i.extent()))
+            })
             || !value["placements"].is_array()
         {
             return Err(answer::NOT_UNDERSTOOD);
@@ -277,7 +302,7 @@ impl Ui {
             "Every device touches this one: the pointer crosses through the shared edge.".into(),
         )
     }
-    fn snap(&self, index: usize, wanted: [i64; 2], scale: f64) -> [i64; 2] {
+    fn snap(&self, index: usize, wanted: [i64; 2], scale: f64) -> Option<[i64; 2]> {
         let size = self.items[index].extent();
         let threshold = (16. / scale) as u64;
         let mut best: [Option<(u64, i64)>; 2] = [None, None];
@@ -310,29 +335,46 @@ impl Ui {
                 }
             }
         }
-        [
+        let at = [
             best[0].map_or(wanted[0], |(_, n)| n),
             best[1].map_or(wanted[1], |(_, n)| n),
-        ]
+        ];
+        // A screen at the edge can suggest a snap outside the plane. Keep a valid unsnapped
+        // position in that case, and never replace the last preview with an invalid position.
+        [at, wanted]
+            .into_iter()
+            .find(|&at| placement_fits(at, size))
+    }
+    fn peer_count(&self) -> usize {
+        self.items.iter().filter(|item| !item.local).count()
     }
     fn menu_height(&self) -> f64 {
-        let count = self.items.iter().filter(|item| !item.local).count();
-        let page = self.menu_page.min(count.saturating_sub(1) / 4);
+        let count = self.peer_count();
+        let page = self.menu_page.min(last_menu_page(count));
         if self.choosing {
-            52. + count.saturating_sub(page * 4).min(4) as f64 * 48.
-                + if count > 4 { 44. } else { 0. }
+            52. + count
+                .saturating_sub(page * DEVICES_PER_PAGE)
+                .min(DEVICES_PER_PAGE) as f64
+                * 48.
+                + if count > DEVICES_PER_PAGE { 44. } else { 0. }
         } else {
             44.
         }
     }
+    fn menu_width(width: f64) -> f64 {
+        220f64.min((width - 16.).max(1.)).round()
+    }
     fn menu_position(&self, height: f64) -> [f64; 2] {
+        let width = self.bounds[2].max(1.);
+        let menu_width = Self::menu_width(width);
+        let right = (width - menu_width).max(0.);
+        let bottom = (self.height() - height).max(0.);
         if self.choosing
             && let Some(at) = self.menu_anchor
         {
-            return at;
+            let fit = |at: f64, end: f64| if at <= end { at } else { (end - 8.).max(0.) };
+            return [fit(at[0], right), fit(at[1], bottom)];
         }
-        let width = self.bounds[2].max(1.);
-        let menu_width = 220f64.min((width - 16.).max(1.));
         let (scale, origin) = self.view();
         let overlap = |at: [f64; 2]| {
             let mut area = 0.;
@@ -357,13 +399,10 @@ impl Ui {
             }
             area
         };
-        let bottom = (self.height() - height - 8.).max(8.);
-        let candidates = [
-            [8., 8.],
-            [(width - menu_width - 8.).max(8.), 8.],
-            [8., bottom],
-            [(width - menu_width - 8.).max(8.), bottom],
-        ];
+        let inset = |end: f64| (end - 8.).max(8.).min(end);
+        let (left, top) = (8f64.min(right), 8f64.min(bottom));
+        let (right, bottom) = (inset(right), inset(bottom));
+        let candidates = [[left, top], [right, top], [left, bottom], [right, bottom]];
         candidates
             .into_iter()
             .min_by(|a, b| overlap(*a).total_cmp(&overlap(*b)))
@@ -409,11 +448,18 @@ impl Ui {
                 }
             }
             Some("size") if id == "canvas" => {
+                let length = |key: &str| {
+                    event[key]
+                        .as_i64()
+                        .filter(|n| (0..=i64::from(MAX_PAGE_AT)).contains(n))
+                        .map(|n| n as f64 / 1000.)
+                        .ok_or(answer::NOT_UNDERSTOOD)
+                };
                 let next = [
-                    event["x"].as_f64().unwrap_or(0.) / 1000.,
-                    event["y"].as_f64().unwrap_or(0.) / 1000.,
-                    event["width"].as_f64().unwrap_or(600000.) / 1000.,
-                    event["height"].as_f64().unwrap_or(INITIAL_HEIGHT * 1000.) / 1000.,
+                    page_coordinate(&event["x"])?,
+                    page_coordinate(&event["y"])?,
+                    length("width")?,
+                    length("height")?,
                 ];
                 let resized = (next[2] - self.bounds[2]).abs() >= 0.5
                     || (next[3] - self.bounds[3]).abs() >= 0.5;
@@ -433,8 +479,8 @@ impl Ui {
                     return Ok(Value::Null);
                 }
                 let next = (scale * if dy > 0 { 1.15 } else { 1. / 1.15 }).clamp(0.005, 2.);
-                let x = event["x"].as_f64().unwrap_or(0.) / 1000. - self.bounds[0];
-                let y = event["y"].as_f64().unwrap_or(0.) / 1000. - self.bounds[1];
+                let x = page_coordinate(&event["x"])? - self.bounds[0];
+                let y = page_coordinate(&event["y"])? - self.bounds[1];
                 self.zoom = Some((
                     next,
                     [
@@ -450,17 +496,20 @@ impl Ui {
                 "devices" => {
                     let at = self.menu_position(self.menu_height());
                     self.choosing = !self.choosing;
-                    self.menu_anchor = if self.choosing {
-                        Some([
-                            at[0],
-                            at[1].min((self.height() - self.menu_height() - 8.).max(8.)),
-                        ])
+                    self.menu_anchor = self.choosing.then_some(at);
+                }
+                "devices-next" | "devices-previous" => {
+                    let last = last_menu_page(self.peer_count());
+                    let page = self.menu_page.min(last);
+                    self.menu_page = if id == "devices-next" {
+                        (page + 1).min(last)
                     } else {
-                        None
+                        page.saturating_sub(1)
                     };
                 }
-                "devices-next" => self.menu_page += 1,
-                "devices-previous" => self.menu_page = self.menu_page.saturating_sub(1),
+                // Saving reads every placement, including the drag preview, so no removal
+                // may be committed until the gesture finishes or restores the original.
+                _ if self.grab.is_some() => return Ok(Value::Null),
                 _ => {
                     if let Some(index) = id
                         .strip_prefix("remove-")
@@ -490,10 +539,7 @@ impl Ui {
                 } else {
                     [0., 0.]
                 };
-                let point = [
-                    event["x"].as_f64().unwrap_or(0.) / 1000.,
-                    event["y"].as_f64().unwrap_or(0.) / 1000.,
-                ];
+                let point = [page_coordinate(&event["x"])?, page_coordinate(&event["y"])?];
                 self.pointer = Some([point[0] - self.bounds[0], point[1] - self.bounds[1]]);
                 match event["phase"].as_str() {
                     Some("down") => {
@@ -549,7 +595,10 @@ impl Ui {
                                     was[0] + ((point[0] - from[0]) / scale) as i64,
                                     was[1] + ((point[1] - from[1]) / scale) as i64,
                                 ];
-                                let next = Some(self.snap(index, wanted, scale));
+                                let Some(at) = self.snap(index, wanted, scale) else {
+                                    return Ok(Value::Null);
+                                };
+                                let next = Some(at);
                                 if self.items[index].at == next {
                                     return Ok(Value::Null);
                                 }
@@ -575,13 +624,16 @@ impl Ui {
                                         - size[1] as f64 / 2.)
                                         .round() as i64,
                                 ];
-                                self.items[index].at = Some(self.snap(index, wanted, scale));
                                 self.grab = Some(Grab::Menu {
                                     index,
                                     from,
                                     was,
                                     moved,
                                 });
+                                let Some(at) = self.snap(index, wanted, scale) else {
+                                    return Ok(Value::Null);
+                                };
+                                self.items[index].at = Some(at);
                             }
                             None => return Ok(Value::Null),
                         }
@@ -621,14 +673,17 @@ impl Ui {
                                     self.items[index].at = was;
                                 } else {
                                     if !moved && was.is_none() {
-                                        self.items[index].at = Some([
+                                        let at = [
                                             self.monitors()
                                                 .iter()
                                                 .map(Rect::right)
                                                 .max()
                                                 .unwrap_or(0),
                                             0,
-                                        ]);
+                                        ];
+                                        if placement_fits(at, self.items[index].extent()) {
+                                            self.items[index].at = Some(at);
+                                        }
                                     }
                                     if !self.verdict().0 {
                                         self.items[index].at = was
@@ -671,18 +726,14 @@ impl Ui {
                 if pos < 0. || pos > limit {
                     continue;
                 }
-                let at = if axis == 0 {
-                    [(pos * 1000.) as i32, 0]
-                } else {
-                    [0, (pos * 1000.) as i32]
-                };
+                let milli = (pos * 1000.) as i32;
+                let mut at = [0; 2];
+                at[axis] = milli;
                 canvas.push(bx(None,json!({"at":at,"width":if axis==0 {px(1.)}else{fill()},"height":if axis==0 {px(self.height())}else{px(1.)},"background":if plane==0. {"muted"}else{"border"}}),vec![]));
-                if pos > 36. {
-                    let label_at = if axis == 0 {
-                        [(pos * 1000.) as i32 + 4000, 4000]
-                    } else {
-                        [4000, (pos * 1000.) as i32 + 2000]
-                    };
+                let offset = if axis == 0 { 4000 } else { 2000 };
+                if pos > 36. && milli <= MAX_PAGE_AT - offset {
+                    let mut label_at = [4000; 2];
+                    label_at[axis] = milli + offset;
                     canvas.push(bx(
                         None,
                         json!({"at":label_at}),
@@ -747,8 +798,11 @@ impl Ui {
             .enumerate()
             .filter(|(_, item)| !item.local)
             .collect();
-        let page = self.menu_page.min(peers.len().saturating_sub(1) / 4);
-        let shown = peers.iter().skip(page * 4).take(4).collect::<Vec<_>>();
+        let page = self.menu_page.min(last_menu_page(peers.len()));
+        let shown = peers
+            .iter()
+            .skip(page * DEVICES_PER_PAGE)
+            .take(DEVICES_PER_PAGE);
         let height = self.menu_height();
         let at = self.menu_position(height);
         let mut menu = vec![button(
@@ -777,18 +831,18 @@ impl Ui {
             if peers.is_empty() {
                 menu.push(text("No paired devices."));
             }
-            if peers.len() > 4 {
+            if peers.len() > DEVICES_PER_PAGE {
                 let mut navigation = Vec::new();
                 if page > 0 {
                     navigation.push(button("devices-previous", "Previous"));
                 }
-                if (page + 1) * 4 < peers.len() {
+                if page < last_menu_page(peers.len()) {
                     navigation.push(button("devices-next", "Next"));
                 }
                 menu.push(bx(None, json!({"horizontal":true,"gap":8}), navigation));
             }
         }
-        canvas.push(bx(Some("device-menu"),json!({"at":[(at[0]*1000.) as i32,(at[1]*1000.) as i32],"width":px(220f64.min((width-16.).max(1.))),"padding":8,"gap":8,"radius":[10,10,10,10],"background":"raised","border":true}),menu));
+        canvas.push(bx(Some("device-menu"),json!({"at":[(at[0]*1000.) as i32,(at[1]*1000.) as i32],"width":px(Self::menu_width(width)),"padding":8,"gap":8,"radius":[10,10,10,10],"background":"raised","border":true}),menu));
         let mut plane = bx(
             Some("canvas"),
             json!({"width":fill(),"height":{"unit":"flex","value":1},"clip":true,"radius":[12,12,12,12],"border":true,"background":"surface"}),
@@ -833,6 +887,119 @@ mod tests {
         ui.bounds = [10., 20., 600., INITIAL_HEIGHT];
         ui.zoom = Some((1., [0., 0.]));
         ui
+    }
+
+    fn canvas(tree: &Value) -> &[Value] {
+        tree["child"]["children"][2]["children"].as_array().unwrap()
+    }
+
+    fn menu(tree: &Value) -> &Value {
+        canvas(tree)
+            .iter()
+            .find(|node| node["id"] == "device-menu")
+            .unwrap()
+    }
+
+    #[test]
+    fn invalid_normalized_edges_leave_the_loaded_scene_unchanged() {
+        let mut ui = ready();
+        let mut incoming = scene();
+        incoming["devices"][1]["displays"] = json!([
+            {"x":-100,"y":-100,"width":100,"height":100},
+            {"x":0,"y":0,"width":100,"height":100}
+        ]);
+        for at in [[i64::MAX - 100, 0], [0, i64::MAX - 100], [i64::MIN, 0]] {
+            incoming["devices"][1]["at"] = json!(at);
+            incoming["placements"] = json!([{"device":"scoped","x":at[0],"y":at[1]}]);
+            assert_eq!(ui.load(incoming.clone()), Err(answer::NOT_UNDERSTOOD));
+            assert_eq!(ui.items[1].at, Some([100, 0]));
+            assert_eq!(ui.expected, scene()["placements"]);
+        }
+    }
+
+    #[test]
+    fn a_drag_past_the_usable_plane_does_not_preview_or_save_a_new_position() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        // This device's right edge is exactly at the arrangement service's limit.
+        let x = (1_i64 << 40) - 100;
+        let mut edge = scene();
+        edge["devices"][1]["at"] = json!([x, 0]);
+        edge["placements"][0]["x"] = json!(x);
+        ui.load(edge).unwrap();
+        ui.zoom = Some((1., [x as f64, 0.]));
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "down",
+            10_000,
+            20_000,
+        );
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "move",
+            50_000,
+            20_000,
+        );
+        assert_eq!(ui.items[1].at, Some([x, 0]));
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "up",
+            50_000,
+            20_000,
+        );
+        assert_eq!(ui.items[1].at, Some([x, 0]));
+        assert!(
+            host.sent.is_empty(),
+            "an invalid preview must not be submitted"
+        );
+    }
+
+    #[test]
+    fn an_unserializable_measurement_does_not_replace_the_canvas_bounds() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        let known = ui.bounds;
+        for [width, height] in [[16_384_001, 360_000], [600_000, 16_384_001], [-1, 360_000]] {
+            let size = json!({"t":"size","id":"canvas","x":0,"y":0,"width":width,"height":height});
+            assert_eq!(
+                ui.event(&mut state, &mut host, &size, None),
+                Err(answer::NOT_UNDERSTOOD)
+            );
+            assert_eq!(ui.bounds, known);
+        }
+    }
+
+    #[test]
+    fn the_largest_canvas_keeps_edge_grid_lines_without_out_of_range_labels() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.zoom = Some((2., [8., 8.]));
+        let size =
+            json!({"t":"size","id":"canvas","x":0,"y":0,"width":16_384_000,"height":16_384_000});
+        let tree = ui.event(&mut state, &mut host, &size, None).unwrap();
+        let nodes = canvas(&tree);
+        for edge in [json!([16_384_000, 0]), json!([0, 16_384_000])] {
+            assert!(nodes.iter().any(|node| node["style"]["at"] == edge));
+        }
+        assert!(
+            nodes
+                .iter()
+                .all(|node| node["style"]["at"].as_array().is_none_or(|at| at
+                    .iter()
+                    .all(|axis| axis.as_i64().unwrap().unsigned_abs() <= 16_384_000)))
+        );
     }
 
     #[test]
@@ -1166,6 +1333,126 @@ mod tests {
     }
 
     #[test]
+    fn an_open_devices_menu_stays_on_the_resized_canvas() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.bounds = [0., 0., 1400., 800.];
+        ui.choosing = true;
+        ui.menu_anchor = Some([1172., 692.]);
+        assert_eq!(menu(&ui.tree())["style"]["at"], json!([1_172_000, 692_000]));
+        let size = json!({"t":"size","id":"canvas","x":0,"y":0,"width":600_000,"height":360_000});
+        let tree = ui.event(&mut state, &mut host, &size, None).unwrap();
+        let at = menu(&tree)["style"]["at"].as_array().unwrap();
+        let right = at[0].as_i64().unwrap() + 220_000;
+        let bottom = at[1].as_i64().unwrap() + 100_000;
+        assert!(right <= 600_000 && bottom <= 360_000);
+    }
+
+    #[test]
+    fn previous_steps_back_from_the_visible_page_after_the_peer_list_shrinks() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        let mut peers = scene()["devices"].as_array().unwrap().clone();
+        peers.extend((2..=13).map(|n| {
+            json!({
+                "device":format!("device-{n}"),"name":format!("Peer {n}"),
+                "displays":[],"at":null,"local":false
+            })
+        }));
+        ui.load(json!({"devices":peers,"placements":scene()["placements"]}))
+            .unwrap();
+        let press = |ui: &mut Ui, state: &mut State, host: &mut Script, id| {
+            ui.event(state, host, &json!({"t":"press","id":id}), None)
+                .unwrap()
+        };
+        let first = |tree: &Value| menu(tree)["children"][1]["id"].clone();
+        press(&mut ui, &mut state, &mut host, "devices");
+        for (index, row) in ["menu-device-5", "menu-device-9", "menu-device-13"]
+            .into_iter()
+            .enumerate()
+        {
+            let tree = press(&mut ui, &mut state, &mut host, "devices-next");
+            assert_eq!(first(&tree), row, "page {}", index + 1);
+        }
+
+        peers.truncate(6); // local and five peers, so the visible page is now the second
+        ui.load(json!({"devices":peers,"placements":scene()["placements"]}))
+            .unwrap();
+        assert_eq!(first(&ui.tree()), "menu-device-5");
+        let tree = press(&mut ui, &mut state, &mut host, "devices-previous");
+        assert_eq!(first(&tree), "menu-device-1");
+        press(&mut ui, &mut state, &mut host, "devices-next");
+        let tree = press(&mut ui, &mut state, &mut host, "devices-previous");
+        assert_eq!(
+            first(&tree),
+            "menu-device-1",
+            "an unchanged list still moves back one page"
+        );
+    }
+
+    #[test]
+    fn remove_is_ignored_until_a_drag_preview_is_finished() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        let mut two_peers = scene();
+        two_peers["devices"].as_array_mut().unwrap().push(json!({
+            "device":"other","name":"Other", "displays":[],"at":[500, 0],"local":false
+        }));
+        two_peers["placements"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"device":"other","x":500,"y":0}));
+        ui.load(two_peers.clone()).unwrap();
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "down",
+            100_000,
+            20_000,
+        );
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "move",
+            140_000,
+            20_000,
+        );
+        assert_eq!(ui.items[1].at, Some([140, 0]));
+        let remove = json!({"t":"press","id":"remove-2"});
+        assert!(
+            ui.event(&mut state, &mut host, &remove, None)
+                .unwrap()
+                .is_null()
+        );
+        assert_eq!(ui.items[2].at, Some([500, 0]));
+        assert!(host.sent.is_empty(), "the drag is only a preview");
+
+        pointer(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "desktop-1",
+            "cancel",
+            140_000,
+            20_000,
+        );
+        two_peers["devices"][2]["at"] = Value::Null;
+        two_peers["placements"] = scene()["placements"].clone();
+        host.results
+            .push_back(json!({"status":"ok","value":two_peers}));
+        ui.event(&mut state, &mut host, &remove, None).unwrap();
+        assert_eq!(host.sent[0]["args"]["placements"], scene()["placements"]);
+        assert_eq!(ui.items[2].at, None);
+    }
+
+    #[test]
     fn drag_samples_keep_the_latest_position_without_serializing_more_than_one_frame_per_16ms() {
         let mut ui = ready();
         let mut state = State::default();
@@ -1274,8 +1561,8 @@ mod tests {
     #[test]
     fn snapping_uses_screen_space_threshold_and_overlap_is_rejected() {
         let mut ui = ready();
-        assert_eq!(ui.snap(1, [113, 4], 1.), [100, 0]);
-        assert_eq!(ui.snap(1, [113, 4], 2.), [113, 0]);
+        assert_eq!(ui.snap(1, [113, 4], 1.), Some([100, 0]));
+        assert_eq!(ui.snap(1, [113, 4], 2.), Some([113, 0]));
         assert!(ui.verdict().0);
         ui.items[1].at = Some([50, 0]);
         assert!(!ui.verdict().0);

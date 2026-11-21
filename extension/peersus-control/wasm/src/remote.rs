@@ -36,11 +36,15 @@ pub const MOST_LINE: usize = 1024;
 const MOST_TYPED: usize = 256;
 /// Most inputs replayed in one call to the application: its own bound.
 const MOST_BATCH: usize = 64;
+/// Both deferred deliveries and any readiness look-ahead stay within this bound.
+const MOST_WAITING: usize = 64;
+/// There can be at most 256 paired devices; never accumulate detached handoffs across churn.
+const MOST_HANDOFFS: usize = 256;
 /// A connection is closed and a new one opened after this many batches, so no one connection
 /// outlives the time the other side gives a call.
 pub const ROTATE_AFTER: u32 = 200;
-/// ...or once it is this old, by the application's clock, or has been silent this long: the other
-/// side gives the call that reads it fifteen seconds, and a held key sends nothing while it is held.
+/// ...or once it is this old by the application's clock. A held key may send nothing for
+/// longer than the fifteen seconds the other side gives its receive call.
 pub const ROTATE_MS: u64 = 5_000;
 /// The last line of a rotated connection: the same gesture goes on in the next one, so what the
 /// receiver holds (a pressed button, the pen near the screen) must not be let go between them.
@@ -122,8 +126,52 @@ pub struct Outgoing {
     pub batches: u32,
     /// Every byte written on this connection, end marker included: what its acknowledgement must count.
     pub sent: u64,
-    /// When its first batch was written, by the application's clock (`at`), where the caller sends one.
-    pub opened_at: Option<u64>,
+    /// The first forwarded desktop input sample on the owner's clock.
+    opened_at: Option<u64>,
+    /// The most recent sample on that same clock.
+    latest_at: u64,
+}
+
+impl Outgoing {
+    fn record_time(&mut self, at: u64) {
+        self.opened_at.get_or_insert(at);
+        self.latest_at = self.latest_at.max(at);
+    }
+
+    fn rotation_wait_ms(&self) -> i32 {
+        if self.batches >= ROTATE_AFTER {
+            return 0;
+        }
+        let age = self.opened_at.map_or(0, |opened| self.latest_at - opened);
+        ROTATE_MS.saturating_sub(age) as i32
+    }
+
+    fn forwarded_args(delivery: &Value) -> Option<&Value> {
+        (delivery["type"] == "call" && delivery["method"] == "input").then_some(&delivery["args"])
+    }
+
+    /// An explicit end or switch can release on this stream, without a new connection.
+    fn finishes_on(&self, delivery: &Value) -> bool {
+        let Some(args) = Self::forwarded_args(delivery) else {
+            return false;
+        };
+        let Some(peer) = args["peer"].as_str().filter(|_| args["events"].is_array()) else {
+            return false;
+        };
+        peer != self.device || args["end"] == true
+    }
+
+    /// A batch from the same forwarding source measures the wait; other readiness does not.
+    fn measure_delivery(&mut self, delivery: &Value) -> bool {
+        if let Some(args) = Self::forwarded_args(delivery)
+            && args["peer"].as_str() == Some(self.device.as_str())
+            && let Some(at) = args["at"].as_u64().filter(|&at| at >= self.latest_at)
+        {
+            self.record_time(at);
+            return true;
+        }
+        false
+    }
 }
 
 impl State {
@@ -209,7 +257,9 @@ impl State {
     /// that is not a delivery is dropped; one delivery too many is refused.
     fn keep(&mut self, message: Value) -> Result<(), &'static str> {
         match message["type"].as_str() {
-            Some("call") | Some("cancelled") | Some("event") if self.waiting.len() < 64 => {
+            Some("call") | Some("cancelled") | Some("event")
+                if self.waiting.len() < MOST_WAITING =>
+            {
                 self.waiting.push(message);
                 Ok(())
             }
@@ -238,6 +288,7 @@ impl State {
             batches: 0,
             sent: 0,
             opened_at: None,
+            latest_at: 0,
         })
     }
 
@@ -389,12 +440,12 @@ impl State {
             }
             outgoing.sent += lines.len() as u64;
             outgoing.batches += 1;
-            // The application's clock, where it sends one: forwarded desktop input has no page clock to rotate by.
-            let aged = args["at"].as_u64().is_some_and(|at| {
-                at.saturating_sub(*outgoing.opened_at.get_or_insert(at)) >= ROTATE_MS
-            });
-            if (outgoing.batches >= ROTATE_AFTER || aged) && !end {
-                // Said before the end, so the other side keeps a held drag held across the rotation.
+            if let Some(at) = args["at"].as_u64() {
+                outgoing.record_time(at);
+            }
+            if outgoing.opened_at.is_none() && outgoing.batches >= ROTATE_AFTER && !end {
+                // A page gesture has no forwarding clock. For forwarded input, `next` checks
+                // ready ends before acting on the time or batch limit.
                 return self.rotate(host);
             }
         }
@@ -420,35 +471,95 @@ impl State {
         ticket: u64,
         args: &Value,
     ) -> Result<(), &'static str> {
-        let owner = args["peer"]
-            .as_str()
-            .ok_or(answer::NOT_UNDERSTOOD)?
-            .to_owned();
-        // On unless the person turned it off; a reply that cannot be read keeps the default.
-        let config = self.call(host, CONFIG, "get", json!({})).ok();
-        let setting = |id: &str| {
-            config
-                .as_ref()
-                .and_then(|config| config["settings"][id].as_bool())
-                .unwrap_or(true)
+        let owner = args["peer"].as_str().ok_or(answer::NOT_UNDERSTOOD)?;
+        let opened = self.pointer_options(host).and_then(|(own, named)| {
+            host.open(false, ticket)
+                .map(|handle| (handle, own, named))
+                .map_err(|_| answer::NOT_UNDERSTOOD)
+        });
+        let (handle, own, named) = match opened {
+            Ok(opened) => opened,
+            Err(reason) => {
+                // Refusal before or during attachment cannot take over a continued press.
+                if let Some(predecessor) = self
+                    .incoming
+                    .values_mut()
+                    .rev()
+                    .find(|i| i.target.owner == owner)
+                {
+                    predecessor.handoff_failed = true;
+                } else if self.handoffs.remove(owner) {
+                    let _ = self.release(host, owner, false);
+                }
+                return Err(reason);
+            }
         };
-        // "Independent pointer" stays on unless the person turned it off; whether this computer
-        // can really draw one per device is the host's word, asked once per connection.
-        let own = setting("independent") && self.independent_pointer(host)?;
-        let named = own && setting("name-tag");
-        let handle = host
-            .open(false, ticket)
-            .map_err(|_| answer::NOT_UNDERSTOOD)?;
+        self.handoffs.remove(owner);
         self.incoming.insert(
             handle,
             Incoming {
                 ticket,
-                target: Target { owner, own, named },
+                target: Target {
+                    owner: owner.to_owned(),
+                    own,
+                    named,
+                },
                 pending: Vec::new(),
                 ended: Ended::Closed,
+                handoff_failed: false,
             },
         );
         Ok(())
+    }
+
+    fn pointer_options<H: Wire>(&mut self, host: &mut H) -> Result<(bool, bool), &'static str> {
+        // Defaults are for settings omitted from a successful read, never for a failed read.
+        let config = self.call(host, CONFIG, "get", json!({}))?;
+        let settings = config["settings"]
+            .as_object()
+            .ok_or(answer::NOT_UNDERSTOOD)?;
+        let setting = |id: &str| {
+            settings.get(id).map_or(Ok(true), |value| {
+                value.as_bool().ok_or(answer::NOT_UNDERSTOOD)
+            })
+        };
+        let independent = setting("independent")?;
+        let name_tag = setting("name-tag")?;
+        // "Independent pointer" stays on unless the person turned it off; whether this computer
+        // can really draw one per device is the host's word, asked once per connection.
+        let own = independent && self.independent_pointer(host)?;
+        Ok((own, own && name_tag))
+    }
+
+    /// A ready release must use the old connection, not depend on a new admission. The
+    /// mixed poll may have chosen data ahead of control, so inspect control without waiting.
+    /// Retain FIFO order within control deliveries, including between input batches.
+    fn end_waiting<H: Wire + Data>(&mut self, host: &mut H) -> Result<bool, &'static str> {
+        let Some(outgoing) = &self.outgoing else {
+            return Ok(false);
+        };
+        if self
+            .waiting
+            .iter()
+            .any(|delivery| outgoing.finishes_on(delivery))
+        {
+            return Ok(true);
+        }
+        for _ in self.waiting.len()..MOST_WAITING {
+            if host.poll(&[], 0)? != Some(0) {
+                break;
+            }
+            let delivery = host.receive()?;
+            let end = self
+                .outgoing
+                .as_ref()
+                .is_some_and(|out| out.finishes_on(&delivery));
+            self.keep(delivery)?;
+            if end {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     /// Await one bounded piece of work. Queue reads and data reads remain separate so a
@@ -463,41 +574,65 @@ impl State {
                 handles.push(handle);
             }
         }
-        // A connection left open rotates after a silence, since nothing else would: a key held on this computer and
-        // forwarded to the other sends nothing while it is held, and the other side's call would end and let it go.
-        let open = self.outgoing.is_some();
-        if handles.is_empty() && !self.waiting.is_empty() {
-            return Ok(Some(self.waiting.remove(0)));
-        }
-        if handles.is_empty() && !open {
-            return host.receive().map(Some);
-        }
         let timeout = if !self.waiting.is_empty() {
             0
-        } else if open {
-            ROTATE_MS as i32
         } else {
-            -1
+            self.outgoing
+                .as_ref()
+                .map_or(-1, Outgoing::rotation_wait_ms)
         };
-        let ready = host.poll(&handles, timeout)?;
-        if let Some(handle) = ready.filter(|&handle| handle > 0) {
-            if let Some(reply) = self.advance(host, handle) {
-                host.send(reply)?;
+        let ready = if handles.is_empty() && timeout == -1 {
+            return host.receive().map(Some);
+        } else if handles.is_empty() && !self.waiting.is_empty() {
+            None
+        } else {
+            host.poll(&handles, timeout)?
+        };
+        let stream = ready.filter(|&handle| handle > 0);
+        let mut delivery = if ready == Some(0) && self.waiting.is_empty() {
+            Some(host.receive()?)
+        } else {
+            None
+        };
+        let idle_timeout = ready.is_none() && timeout > 0;
+        let next = self.waiting.first().or(delivery.as_ref());
+        let forwarded = self
+            .outgoing
+            .as_ref()
+            .is_some_and(|out| out.opened_at.is_some());
+        let rotate = self.outgoing.as_mut().is_some_and(|out| {
+            idle_timeout
+                || (forwarded
+                    && (stream.is_some()
+                        || next.is_some_and(|delivery| !out.measure_delivery(delivery))
+                        || out.rotation_wait_ms() == 0))
+        });
+        // A successful early `continues` preserves held input, but only a normal close
+        // releases it. Inspect ready control before rotating rather than restarting an
+        // interrupted wait or making an already-pending end need a fresh connection.
+        if rotate {
+            let finish_pending = if forwarded && !idle_timeout {
+                if let Some(ready) = delivery.take() {
+                    self.keep(ready)?;
+                }
+                self.end_waiting(host)?
+            } else {
+                false
+            };
+            if !finish_pending {
+                let _ = self.rotate(host);
             }
-            return Ok(None);
+        }
+        // Give a deferred delivery a turn after at most one read, even on a busy stream.
+        if let Some(handle) = stream
+            && let Some(reply) = self.advance(host, handle)
+        {
+            host.send(reply)?;
         }
         if !self.waiting.is_empty() {
-            return Ok(Some(self.waiting.remove(0)));
+            delivery = Some(self.waiting.remove(0));
         }
-        match ready {
-            Some(0) => host.receive().map(Some),
-            None if open && timeout > 0 => {
-                // A rotation that fails abandoned the connection; the next input opens another.
-                let _ = self.rotate(host);
-                Ok(None)
-            }
-            _ => Ok(None),
-        }
+        Ok(delivery)
     }
 
     fn advance<H: Wire + Data>(&mut self, host: &mut H, handle: Handle) -> Option<Value> {
@@ -510,6 +645,34 @@ impl State {
         Some(self.complete_receive(host, handle, incoming, result.map(|_| ())))
     }
 
+    fn release<H: Wire>(
+        &mut self,
+        host: &mut H,
+        owner: &str,
+        keep: bool,
+    ) -> Result<(), &'static str> {
+        self.call(
+            host,
+            INPUT,
+            "release",
+            json!({"owner": owner, "keep": keep}),
+        )
+        .map(|_| ())
+        .map_err(|_| answer::NOT_REPLAYED)
+    }
+
+    fn hand_off(&mut self, incoming: &Incoming) -> bool {
+        let owner = incoming.target.owner.as_str();
+        if self.incoming.values().any(|i| i.target.owner == owner) {
+            return true; // An accepted successor takes over even if another candidate failed.
+        }
+        if incoming.handoff_failed || self.handoffs.len() == MOST_HANDOFFS {
+            return false; // Release rather than forgetting responsibility for a press.
+        }
+        self.handoffs.insert(owner.to_owned());
+        true
+    }
+
     fn complete_receive<H: Wire + Data>(
         &mut self,
         host: &mut H,
@@ -518,20 +681,25 @@ impl State {
         result: Result<(), &'static str>,
     ) -> Value {
         host.close(handle);
-        let result = match result {
-            Ok(_) if incoming.ended == Ended::Continues => Ok(()),
-            result => {
-                let keep = result.is_ok() && incoming.ended == Ended::Rests;
-                let released = self.call(
-                    host,
-                    INPUT,
-                    "release",
-                    json!({"owner": incoming.target.owner, "keep": keep}),
-                );
-                result
-                    .map(|_| ())
-                    .and(released.map(|_| ()).map_err(|_| answer::NOT_REPLAYED))
-            }
+        // Only the earliest open handle for an owner may replay. Cancelling a queued
+        // replacement cannot release its live predecessor, but records a failed candidate.
+        let predecessor = if result == Err(answer::CANCELLED) {
+            self.incoming
+                .range_mut(..handle)
+                .rev()
+                .find_map(|(_, i)| (i.target.owner == incoming.target.owner).then_some(i))
+        } else {
+            None
+        };
+        let result = if let Some(predecessor) = predecessor {
+            predecessor.handoff_failed = true;
+            result
+        } else if result.is_ok() && incoming.ended == Ended::Continues && self.hand_off(&incoming) {
+            Ok(())
+        } else {
+            let keep = result.is_ok() && incoming.ended == Ended::Rests;
+            let released = self.release(host, &incoming.target.owner, keep);
+            result.and(released)
         };
         crate::host::diagnostic(6, diagnostic_outcome(&result), incoming.ticket, 0, 0);
         json!({"op":"reply","ticket":incoming.ticket,"result":outcome(result)})
@@ -632,6 +800,8 @@ pub(crate) struct Incoming {
     target: Target,
     pending: Vec<u8>,
     ended: Ended,
+    /// A replacement failed; release at a continuing EOF if no accepted successor remains.
+    handoff_failed: bool,
 }
 
 /// The code a failure is reported with: the application's own vocabulary, which is all it reads. A device that cannot be
@@ -882,44 +1052,6 @@ mod tests {
     }
 
     #[test]
-    fn forwarded_input_rotates_its_connection_by_the_applications_clock() {
-        let mut host = Script {
-            acks: true,
-            ..Script::default()
-        };
-        let mut state = State::default();
-        host.results.push_back(ok(json!({"claim":1})));
-        let batch = |at: u64| json!({"peer":"pc","events":[{"t":"key","key":"a"}],"at":at});
-        state.input(&mut host, &batch(1_000)).unwrap();
-        state
-            .input(&mut host, &batch(1_000 + ROTATE_MS - 1))
-            .unwrap();
-        assert_eq!(
-            host.shutdowns, 0,
-            "younger than the rotation age: kept open"
-        );
-        state.input(&mut host, &batch(1_000 + ROTATE_MS)).unwrap();
-        assert_eq!(host.shutdowns, 1, "old enough: rotated after this batch");
-        assert!(state.outgoing.is_none());
-        assert!(
-            String::from_utf8(host.written.clone())
-                .unwrap()
-                .ends_with(&format!("{CONTINUES}\n")),
-            "rotated, not ended: what is held stays held"
-        );
-        // The next batch opens a new connection, aged from its own first batch.
-        host.results.push_back(ok(json!({"claim":2})));
-        state
-            .input(&mut host, &batch(1_000 + ROTATE_MS + 10))
-            .unwrap();
-        assert_eq!(host.opened, vec![(true, 1), (true, 2)]);
-        assert_eq!(
-            state.outgoing.as_ref().unwrap().opened_at,
-            Some(1_010 + ROTATE_MS)
-        );
-    }
-
-    #[test]
     fn a_connection_left_open_through_a_silence_is_rotated_by_the_wait() {
         let mut host = Script {
             acks: true,
@@ -947,6 +1079,99 @@ mod tests {
                 .unwrap()
                 .ends_with(&format!("{CONTINUES}\n"))
         );
+    }
+
+    #[test]
+    fn a_timed_forwarding_batch_keeps_the_stream_and_shortens_its_next_wait() {
+        let mut host = Script {
+            acks: true,
+            ..Script::default()
+        };
+        let mut state = State::default();
+        host.results.push_back(ok(json!({"claim":1})));
+        state
+            .input(
+                &mut host,
+                &json!({"peer":"pc","at":1000,"events":[{"t":"key_code","code":42,"down":true}]}),
+            )
+            .unwrap();
+        let next = json!({
+            "type":"call","ticket":1,"method":"input",
+            "args":{"peer":"pc","at":2000,"events":[{"t":"move","dx":1,"dy":0}]}
+        });
+        host.deliveries.push_back(next.clone());
+        assert_eq!(state.next(&mut host), Ok(Some(next.clone())));
+        assert_eq!(
+            super::handle(&mut host, &mut state, &next).unwrap()["result"]["status"],
+            "ok"
+        );
+        assert_eq!(host.opened, [(true, 1)]);
+        assert_eq!(host.shutdowns, 0, "measured work keeps its existing stream");
+
+        host.silent = true;
+        state.next(&mut host).unwrap();
+        assert_eq!(host.waits[1], ROTATE_MS as i32 - 1000);
+        assert!(state.outgoing.is_none());
+    }
+
+    #[test]
+    fn a_forwarded_end_or_switch_closes_the_live_stream_without_rotating() {
+        for deferred in [false, true] {
+            for (peer, end) in [("pc", true), ("next-pc", false)] {
+                let mut host = Script {
+                    acks: true,
+                    ..Script::default()
+                };
+                let mut state = State::default();
+                host.results.push_back(ok(json!({"claim":1})));
+                state.input(
+                    &mut host,
+                    &json!({"peer":"pc","at":1000,"events":[{"t":"key_code","code":42,"down":true}]}),
+                ).unwrap();
+                let events = if end {
+                    json!([])
+                } else {
+                    json!([{"t":"move","dx":1,"dy":0}])
+                };
+                let delivery = json!({
+                    "type":"call","ticket":1,"method":"input",
+                    "args":{"peer":peer,"events":events,"end":end}
+                });
+                host.deliveries.push_back(delivery.clone());
+                if deferred {
+                    host.results.push_back(ok(json!([])));
+                    state.call(&mut host, PEERS, "list", json!({})).unwrap();
+                }
+                if !end {
+                    host.results.push_back(ok(json!({"claim":2})));
+                }
+                assert_eq!(state.next(&mut host), Ok(Some(delivery.clone())));
+                assert_eq!(
+                    host.shutdowns, 0,
+                    "the old stream must be available to finish"
+                );
+                let reply = super::handle(&mut host, &mut state, &delivery).unwrap();
+                assert_eq!(reply["result"]["status"], "ok");
+                assert_eq!(host.shutdowns, 1);
+                assert!(state.retained.is_none());
+                assert!(
+                    !String::from_utf8_lossy(&host.written)
+                        .lines()
+                        .any(|line| line == CONTINUES)
+                );
+                if end {
+                    assert_eq!(host.opened, [(true, 1)]);
+                    assert!(state.outgoing.is_none());
+                } else {
+                    assert_eq!(
+                        host.opened,
+                        [(true, 1), (true, 2)],
+                        "no new connection to the old target"
+                    );
+                    assert_eq!(state.outgoing.as_ref().unwrap().device, peer);
+                }
+            }
+        }
     }
 
     #[test]
@@ -1412,6 +1637,28 @@ mod tests {
     }
 
     #[test]
+    fn a_failed_settings_read_does_not_accept_a_receive_with_pointer_defaults() {
+        for (code, reason) in [("denied", answer::DENIED), ("failed", answer::REFUSED)] {
+            let mut host = Script::default();
+            let mut state = State::default();
+            host.results
+                .push_back(json!({"status":"error","code":code}));
+            host.results
+                .push_back(ok(json!({"independent_pointer":true})));
+            let reply = super::handle(
+                &mut host,
+                &mut state,
+                &json!({"type":"call","ticket":1,"method":"receive","args":{"peer":"controller"}}),
+            )
+            .unwrap();
+
+            assert_eq!(reply["result"]["message"], reason);
+            assert!(host.opened.is_empty());
+            assert_eq!(host.sent.len(), 1, "no capability query or injection");
+        }
+    }
+
+    #[test]
     fn a_receive_is_refused_when_the_capability_has_no_answer() {
         for inspect_reply in [
             json!({"status":"error","code":"failed","message":"unsupported method"}),
@@ -1477,45 +1724,678 @@ mod multiplex_tests {
         streams: BTreeMap<Handle, VecDeque<Vec<u8>>>,
         ready: VecDeque<Handle>,
         closed: Vec<Handle>,
+        receive_error: Option<&'static str>,
+        refuse_ticket: Option<u64>,
     }
     impl Wire for Concurrent {
         fn receive(&mut self) -> Result<Value, &'static str> {
-            self.wire.receive()
+            self.wire
+                .receive()
+                .map_err(|error| self.receive_error.unwrap_or(error))
         }
         fn send(&mut self, value: Value) -> Result<(), &'static str> {
             self.wire.send(value)
         }
     }
     impl Data for Concurrent {
-        fn open(&mut self, _: bool, ticket: u64) -> Result<Handle, &'static str> {
+        fn open(&mut self, claim: bool, ticket: u64) -> Result<Handle, &'static str> {
+            if !claim && self.refuse_ticket == Some(ticket) {
+                return Err("The data connection could not be opened");
+            }
+            if claim {
+                self.wire.open(claim, ticket)?;
+            }
             Ok(i32::try_from(ticket).unwrap())
         }
         fn read(&mut self, handle: Handle, into: &mut [u8]) -> Result<usize, &'static str> {
-            let bytes = self
-                .streams
-                .get_mut(&handle)
-                .unwrap()
+            let Some(stream) = self.streams.get_mut(&handle) else {
+                return self.wire.read(handle, into);
+            };
+            let bytes = stream
                 .pop_front()
                 .ok_or("an idle controller must never be read")?;
             assert!(bytes.len() <= into.len());
             into[..bytes.len()].copy_from_slice(&bytes);
             Ok(bytes.len())
         }
-        fn write(&mut self, _: Handle, _: &[u8]) -> Result<usize, &'static str> {
-            unreachable!()
+        fn write(&mut self, handle: Handle, from: &[u8]) -> Result<usize, &'static str> {
+            self.wire.write(handle, from)
         }
-        fn shutdown(&mut self, _: Handle) -> Result<(), &'static str> {
-            unreachable!()
+        fn shutdown(&mut self, handle: Handle) -> Result<(), &'static str> {
+            self.wire.shutdown(handle)
         }
         fn close(&mut self, handle: Handle) {
             self.closed.push(handle);
         }
         fn poll(&mut self, handles: &[Handle], _: i32) -> Result<Option<Handle>, &'static str> {
-            let ready = self.ready.pop_front();
-            if let Some(handle) = ready {
-                assert!(handles.contains(&handle));
+            // The host's rotating readiness cursor may select data ahead of already readable control.
+            if self
+                .ready
+                .front()
+                .is_some_and(|handle| handles.contains(handle))
+            {
+                Ok(self.ready.pop_front())
+            } else if !self.wire.deliveries.is_empty() {
+                Ok(Some(0))
+            } else if !self.wire.incoming.is_empty() {
+                Ok(handles.first().copied())
+            } else {
+                Ok(None)
             }
-            Ok(ready)
+        }
+    }
+
+    #[test]
+    fn forwarded_input_rotates_its_connection_by_the_applications_clock() {
+        let mut host = Concurrent::default();
+        host.wire.acks = true;
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"claim":1}}));
+        let batch = |at: u64| json!({"peer":"pc","events":[{"t":"key","key":"a"}],"at":at});
+        state.input(&mut host, &batch(1_000)).unwrap();
+        state
+            .input(&mut host, &batch(1_000 + ROTATE_MS - 1))
+            .unwrap();
+        assert_eq!(
+            host.wire.shutdowns, 0,
+            "younger than the rotation age: kept open"
+        );
+        state.input(&mut host, &batch(1_000 + ROTATE_MS)).unwrap();
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(
+            host.wire.shutdowns, 1,
+            "old enough: rotated at the next scheduling turn"
+        );
+        assert!(state.outgoing.is_none());
+        assert_eq!(
+            String::from_utf8_lossy(&host.wire.written).lines().last(),
+            Some(CONTINUES)
+        );
+        // The next batch opens a new connection, aged from its own first batch.
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"claim":2}}));
+        state
+            .input(&mut host, &batch(1_000 + ROTATE_MS + 10))
+            .unwrap();
+        assert_eq!(host.wire.opened, [(true, 1), (true, 2)]);
+        assert_eq!(
+            state.outgoing.as_ref().unwrap().opened_at,
+            Some(1_010 + ROTATE_MS)
+        );
+    }
+
+    #[test]
+    fn unmeasured_readiness_rotates_a_forwarded_key_stream_before_dispatch() {
+        for deferred in [false, true] {
+            let mut host = Concurrent::default();
+            host.wire.acks = true;
+            let mut state = State::default();
+            host.wire
+                .results
+                .push_back(json!({"status":"ok","value":{"claim":1}}));
+            state.input(
+                &mut host,
+                &json!({"peer":"pc","at":1000,"events":[{"t":"key_code","code":42,"down":true}]}),
+            ).unwrap();
+            let other = json!({"type":"event","service":"unrelated"});
+            host.wire.deliveries.push_back(other.clone());
+            if deferred {
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":[]}));
+                state.call(&mut host, PEERS, "list", json!({})).unwrap();
+            }
+
+            assert_eq!(state.next(&mut host), Ok(Some(other)));
+            assert!(
+                state.outgoing.is_none(),
+                "unrelated work cannot extend the hold stream's wait"
+            );
+            assert_eq!(state.retained.as_deref(), Some("pc"));
+            assert_eq!(
+                String::from_utf8_lossy(&host.wire.written).lines().last(),
+                Some(CONTINUES)
+            );
+        }
+    }
+
+    #[test]
+    fn a_ready_end_or_switch_uses_the_live_stream_even_when_poll_selects_data() {
+        for deferred in [false, true] {
+            for (peer, end, events) in [
+                ("pc", true, json!([])),
+                ("pc", true, json!([{"t":"key_code","code":42,"down":false}])),
+                ("next-pc", false, json!([{"t":"move","dx":1,"dy":0}])),
+            ] {
+                let mut host = Concurrent::default();
+                host.wire.acks = true;
+                let mut state = State::default();
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+                state
+                    .receive(&mut host, 1, &json!({"peer":"controller"}))
+                    .unwrap();
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"claim":2}}));
+                state.input(
+                &mut host,
+                &json!({"peer":"pc","at":1000,"events":[{"t":"key_code","code":42,"down":true}]}),
+            ).unwrap();
+                host.streams
+                    .insert(1, VecDeque::from([b"{\"t\":\"move\",\"dx\":".to_vec()]));
+                host.ready.push_back(1);
+                let delivery = json!({
+                    "type":"call","ticket":3,"method":"input",
+                    "args":{"peer":peer,"at":1200,"end":end,"events":events}
+                });
+                host.wire.deliveries.push_back(delivery.clone());
+                if !end {
+                    host.wire
+                        .results
+                        .push_back(json!({"status":"ok","value":{"claim":4}}));
+                }
+                if deferred {
+                    let other = json!({"type":"event","service":"unrelated"});
+                    state.keep(other.clone()).unwrap();
+                    assert_eq!(state.next(&mut host), Ok(Some(other)));
+                    assert_eq!(
+                        host.wire.shutdowns, 0,
+                        "an earlier deferred delivery cannot hide the pending end"
+                    );
+                }
+
+                assert_eq!(state.next(&mut host), Ok(Some(delivery.clone())));
+                assert_eq!(
+                    host.wire.shutdowns, 0,
+                    "the live stream must not rotate first"
+                );
+                assert_eq!(
+                    host.streams[&1].len(),
+                    0,
+                    "suppressing rotation does not defer the selected read"
+                );
+                assert_eq!(
+                    super::handle(&mut host, &mut state, &delivery).unwrap()["result"]["status"],
+                    "ok"
+                );
+                assert_eq!(host.closed, [2]);
+                assert!(
+                    !String::from_utf8_lossy(&host.wire.written)
+                        .lines()
+                        .any(|line| line == CONTINUES)
+                );
+                let expected = if end {
+                    vec![(true, 2)]
+                } else {
+                    vec![(true, 2), (true, 4)]
+                };
+                assert_eq!(
+                    host.wire.opened, expected,
+                    "never reconnect to the old target to release"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ready_inbound_input_progresses_during_repeated_outgoing_ends() {
+        let mut host = Concurrent::default();
+        host.wire.acks = true;
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+        state
+            .receive(&mut host, 1, &json!({"peer":"controller"}))
+            .unwrap();
+        host.streams.insert(
+            1,
+            VecDeque::from([
+                b"{\"t\":\"button\",\"button\":\"left\",\"down\":true}\n".to_vec(),
+                b"{\"t\":\"button\",".to_vec(),
+                b"\"button\":\"left\",".to_vec(),
+                b"\"down\":false}\n".to_vec(),
+            ]),
+        );
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"applied":1}}));
+        host.ready.push_back(1);
+        assert_eq!(state.next(&mut host), Ok(None));
+
+        // The mixed wait can select control to start each session, then data ahead of
+        // the ready end. The inbound release spans those three reads before its 15 s limit.
+        for (claim, at) in [(10, 1000), (11, 5000), (12, 10_000)] {
+            let start = json!({
+                "type":"call","ticket":claim * 2,"method":"input",
+                "args":{"peer":"pc","at":at,"events":[{"t":"key_code","code":42,"down":true}]}
+            });
+            host.wire.deliveries.push_back(start.clone());
+            host.wire
+                .results
+                .push_back(json!({"status":"ok","value":{"claim":claim}}));
+            assert_eq!(state.next(&mut host), Ok(Some(start.clone())));
+            assert_eq!(
+                super::handle(&mut host, &mut state, &start).unwrap()["result"]["status"],
+                "ok"
+            );
+
+            let end = json!({
+                "type":"call","ticket":claim * 2 + 1,"method":"input",
+                "args":{"peer":"pc","at":at + 100,"events":[],"end":true}
+            });
+            host.wire.deliveries.push_back(end.clone());
+            if claim == 12 {
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"applied":1}}));
+            }
+            host.ready.push_back(1);
+            assert_eq!(state.next(&mut host), Ok(Some(end.clone())));
+            assert_eq!(
+                super::handle(&mut host, &mut state, &end).unwrap()["result"]["status"],
+                "ok"
+            );
+        }
+
+        let injected: Vec<_> = host
+            .wire
+            .sent
+            .iter()
+            .filter(|message| message["method"] == "inject")
+            .map(|message| message["args"].clone())
+            .collect();
+        assert_eq!(
+            injected,
+            [
+                json!({"owner":"controller","events":[{"t":"button","button":"left","down":true}]}),
+                json!({"owner":"controller","events":[{"t":"button","button":"left","down":false}]}),
+            ],
+            "the receiver must replay the actual release without waiting for cancellation"
+        );
+        assert_eq!(
+            host.closed,
+            [10, 11, 12],
+            "only the outgoing sessions ended"
+        );
+        assert!(
+            host.wire
+                .sent
+                .iter()
+                .all(|message| message["method"] != "release")
+        );
+    }
+
+    #[test]
+    fn refusing_a_replacement_releases_the_input_its_predecessor_handed_over() {
+        for after_eof in [true, false] {
+            for (config, inspect, attachment_fails, expected) in [
+                (
+                    json!({"status":"error","code":"denied"}),
+                    None,
+                    false,
+                    answer::DENIED,
+                ),
+                (
+                    json!({"status":"ok","value":{"settings":{"name-tag":"invalid"}}}),
+                    None,
+                    false,
+                    answer::NOT_UNDERSTOOD,
+                ),
+                (
+                    json!({"status":"ok","value":{"settings":{}}}),
+                    Some(json!({"status":"error","code":"failed"})),
+                    false,
+                    answer::REFUSED,
+                ),
+                (
+                    json!({"status":"ok","value":{"settings":{"independent":false}}}),
+                    None,
+                    true,
+                    answer::NOT_UNDERSTOOD,
+                ),
+            ] {
+                let mut host = Concurrent::default();
+                let mut state = State::default();
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+                state
+                    .receive(&mut host, 1, &json!({"peer":"controller"}))
+                    .unwrap();
+                host.streams.insert(
+                    1,
+                    VecDeque::from([
+                        format!(
+                            "{{\"t\":\"button\",\"button\":\"left\",\"down\":true}}\n{CONTINUES}\n"
+                        )
+                        .into_bytes(),
+                        Vec::new(),
+                    ]),
+                );
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"applied":1}}));
+                host.ready.push_back(1);
+                assert_eq!(state.next(&mut host), Ok(None));
+                if after_eof {
+                    host.ready.push_back(1);
+                    assert_eq!(state.next(&mut host), Ok(None));
+                }
+                let release_count = |host: &Concurrent| {
+                    host.wire
+                        .sent
+                        .iter()
+                        .filter(|m| m["method"] == "release")
+                        .count()
+                };
+                assert_eq!(release_count(&host), 0);
+
+                host.wire.results.push_back(config);
+                host.wire.results.extend(inspect);
+                host.refuse_ticket = attachment_fails.then_some(2);
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{"released":true}}));
+                let reply = super::handle(&mut host, &mut state,
+                    &json!({"type":"call","ticket":2,"method":"receive","args":{"peer":"controller"}})).unwrap();
+                assert_eq!(reply["result"]["message"], expected);
+                if !after_eof {
+                    assert_eq!(
+                        release_count(&host),
+                        0,
+                        "do not release an active predecessor"
+                    );
+                    host.ready.push_back(1);
+                    assert_eq!(state.next(&mut host), Ok(None));
+                }
+                assert_eq!(
+                    release_count(&host),
+                    1,
+                    "release inherited input on refusal, after_eof={after_eof}"
+                );
+                let release = host
+                    .wire
+                    .sent
+                    .iter()
+                    .find(|m| m["method"] == "release")
+                    .unwrap();
+                assert_eq!(release["args"], json!({"owner":"controller","keep":false}));
+                assert_eq!(host.closed, [1]);
+            }
+        }
+    }
+
+    #[test]
+    fn a_cancelled_queued_replacement_does_not_accept_a_later_handoff() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        for ticket in [1, 2] {
+            host.wire
+                .results
+                .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+            state
+                .receive(&mut host, ticket, &json!({"peer":"controller"}))
+                .unwrap();
+        }
+        host.streams.insert(
+            1,
+            VecDeque::from([
+                format!("{{\"t\":\"button\",\"button\":\"left\",\"down\":true}}\n{CONTINUES}\n")
+                    .into_bytes(),
+                Vec::new(),
+            ]),
+        );
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"applied":1}}));
+        host.ready.push_back(1);
+        assert_eq!(state.next(&mut host), Ok(None));
+        super::handle(
+            &mut host,
+            &mut state,
+            &json!({"type":"cancelled","ticket":2}),
+        );
+        assert_eq!(host.closed, [2]);
+        assert!(host.wire.sent.iter().all(|m| m["method"] != "release"));
+
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
+        host.ready.push_back(1);
+        assert_eq!(state.next(&mut host), Ok(None));
+        let release = host
+            .wire
+            .sent
+            .iter()
+            .find(|m| m["method"] == "release")
+            .expect("a broken handoff must release its predecessor");
+        assert_eq!(release["args"], json!({"owner":"controller","keep":false}));
+        let last = host.wire.sent.last().unwrap();
+        assert_eq!(last["ticket"], 1);
+        assert_eq!(last["result"]["status"], "ok");
+    }
+
+    fn assert_accepted_replacement_inherits_the_held_button(cancel_queued: bool) {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        let accepted = || json!({"status":"ok","value":{"settings":{"independent":false}}});
+        let receive = |ticket| {
+            json!({
+                "type":"call","ticket":ticket,"method":"receive","args":{"peer":"controller"}
+            })
+        };
+        host.wire.results.push_back(accepted());
+        assert!(super::handle(&mut host, &mut state, &receive(1)).is_none());
+        host.streams.insert(
+            1,
+            VecDeque::from([
+                format!("{{\"t\":\"button\",\"button\":\"left\",\"down\":true}}\n{CONTINUES}\n")
+                    .into_bytes(),
+                Vec::new(),
+            ]),
+        );
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"applied":1}}));
+        host.ready.push_back(1);
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(
+            host.wire.sent.last().unwrap()["args"]["events"][0]["down"],
+            true
+        );
+
+        if cancel_queued {
+            host.wire.results.push_back(accepted());
+            assert!(super::handle(&mut host, &mut state, &receive(2)).is_none());
+        } else {
+            host.wire
+                .results
+                .push_back(json!({"status":"error","code":"denied"}));
+            let refused = super::handle(&mut host, &mut state, &receive(2)).unwrap();
+            assert_eq!(refused["result"]["message"], answer::DENIED);
+        }
+        host.wire.results.push_back(accepted());
+        assert!(super::handle(&mut host, &mut state, &receive(3)).is_none());
+        if cancel_queued {
+            assert!(
+                super::handle(
+                    &mut host,
+                    &mut state,
+                    &json!({"type":"cancelled","ticket":2})
+                )
+                .is_none()
+            );
+            assert_eq!(host.closed, [2]);
+        }
+        assert!(
+            host.wire
+                .sent
+                .iter()
+                .all(|message| message["method"] != "release")
+        );
+        host.ready.push_back(1);
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(host.closed.last().copied(), Some(1));
+        assert!(
+            host.wire
+                .sent
+                .iter()
+                .all(|message| message["method"] != "release"),
+            "a failed candidate must not cut the hold when a valid successor exists"
+        );
+        assert_eq!(host.wire.sent.last().unwrap()["result"]["status"], "ok");
+
+        host.streams.insert(
+            3,
+            VecDeque::from([b"{\"t\":\"move\",\"dx\":1,\"dy\":0}\n".to_vec(), Vec::new()]),
+        );
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"applied":1}}));
+        host.ready.push_back(3);
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(
+            host.wire.sent.last().unwrap()["args"],
+            json!({"owner":"controller","events":[{"t":"move","dx":1,"dy":0}]})
+        );
+        assert!(
+            host.wire
+                .sent
+                .iter()
+                .all(|message| message["method"] != "release"),
+            "the successor moves with the original press held"
+        );
+
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"released":true}}));
+        host.ready.push_back(3);
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(host.closed.last().copied(), Some(3));
+        let releases: Vec<_> = host
+            .wire
+            .sent
+            .iter()
+            .filter(|message| message["method"] == "release")
+            .collect();
+        assert_eq!(releases.len(), 1);
+        assert_eq!(
+            releases[0]["args"],
+            json!({"owner":"controller","keep":false})
+        );
+    }
+
+    #[test]
+    fn an_accepted_replacement_inherits_held_input_after_an_earlier_refusal() {
+        assert_accepted_replacement_inherits_the_held_button(false);
+    }
+
+    #[test]
+    fn an_accepted_replacement_inherits_held_input_when_an_earlier_queue_entry_is_cancelled() {
+        assert_accepted_replacement_inherits_the_held_button(true);
+    }
+
+    #[test]
+    fn disconnect_exits_cleanly_but_an_invalid_host_message_fails_the_guest() {
+        for (receive_error, exit) in [("The host disconnected", 0), ("Invalid host response", 1)] {
+            let mut host = Concurrent {
+                receive_error: Some(receive_error),
+                ..Concurrent::default()
+            };
+            for value in [json!({"settings":{}}), json!({})] {
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":value}));
+            }
+            assert_eq!(crate::run(&mut host), exit, "{receive_error}");
+        }
+    }
+
+    #[test]
+    fn a_queued_delivery_gets_a_turn_before_a_readable_stream_drains() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+        state
+            .receive(&mut host, 1, &json!({"peer":"controller"}))
+            .unwrap();
+        host.streams.insert(
+            1,
+            VecDeque::from([
+                b"{\"t\":\"move\",\"dx\":1,\"dy\":0}\n".to_vec(),
+                b"{\"t\":\"move\",\"dx\":2,\"dy\":0}\n".to_vec(),
+            ]),
+        );
+        host.ready.extend([1, 1]);
+        let deferred = json!({"type":"cancelled","ticket":2});
+        // The delivery reaches the guest while it awaits a result of its own.
+        host.wire.deliveries.push_back(deferred.clone());
+        for _ in 0..3 {
+            host.wire
+                .results
+                .push_back(json!({"status":"ok","value":{}}));
+        }
+        state.call(&mut host, PEERS, "list", json!({})).unwrap();
+
+        assert_eq!(state.next(&mut host), Ok(Some(deferred)));
+        assert_eq!(host.wire.sent.last().unwrap()["args"]["events"][0]["dx"], 1);
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(host.wire.sent.last().unwrap()["args"]["events"][0]["dx"], 2);
+    }
+
+    #[test]
+    fn cancelling_a_queued_replacement_does_not_release_the_active_streams_owner() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        for ticket in [1, 2] {
+            host.wire
+                .results
+                .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+            state
+                .receive(&mut host, ticket, &json!({"peer":"controller"}))
+                .unwrap();
+        }
+        host.streams.insert(
+            1,
+            VecDeque::from([b"{\"t\":\"button\",\"button\":\"left\",\"down\":true}\n".to_vec()]),
+        );
+        host.ready.push_back(1);
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{}}));
+        assert_eq!(state.next(&mut host), Ok(None));
+        assert_eq!(
+            host.wire.sent.last().unwrap()["args"]["events"][0]["down"],
+            true
+        );
+
+        for (ticket, releases) in [(2, 0), (1, 1)] {
+            if releases > 0 {
+                host.wire
+                    .results
+                    .push_back(json!({"status":"ok","value":{}}));
+            }
+            let cancellation = json!({"type":"cancelled","ticket":ticket});
+            assert!(super::handle(&mut host, &mut state, &cancellation).is_none());
+            assert_eq!(host.closed.last().copied(), Some(ticket as Handle));
+            let release_calls: Vec<_> = host
+                .wire
+                .sent
+                .iter()
+                .filter(|message| message["method"] == "release")
+                .collect();
+            assert_eq!(release_calls.len(), releases);
+            if let Some(release) = release_calls.first() {
+                assert_eq!(release["args"], json!({"owner":"controller","keep":false}));
+            }
         }
     }
 

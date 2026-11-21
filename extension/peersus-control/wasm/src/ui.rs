@@ -30,6 +30,8 @@ pub struct Ui {
     /// How far the wheel has been turned, for its ridges to follow the finger.
     scrolled: i32,
     last_input: Option<u64>,
+    /// Human input on a held control, even before that control sends any input.
+    last_gesture_at: Option<u64>,
     refreshed: u64,
     clock: u64,
     /// When the connection now open was opened: it is rotated well before the other side's call
@@ -43,7 +45,8 @@ struct Pad {
     at: u64,
     travelled: f64,
     dragging: bool,
-    side: &'static str,
+    tap_side: &'static str,
+    drag_side: &'static str,
     armed: bool,
 }
 /// The chosen device that can no longer be controlled, and what the page says of it.
@@ -59,7 +62,7 @@ const TAP_TRAVEL: f64 = 8.;
 const TAP_THEN_HOLD_MS: u64 = 300;
 /// A held Backspace first repeats after this, then at every tick of the page's clock.
 const REPEAT_AFTER_MS: u64 = 500;
-/// A press, drag or scroll with no input for this long lost its end: it is let go.
+/// A press, drag or scroll with no gesture activity for this long lost its end: it is let go.
 const STUCK_MS: u64 = 30_000;
 fn text(value: &str) -> Value {
     json!({"k":"text","text":value,"tone":"muted"})
@@ -288,13 +291,18 @@ impl Ui {
     }
     /// A gesture ended with nothing held: the connection is closed so the other computer is free,
     /// and its pointer stays where it is.
-    fn rest<H: Wire + Data>(&mut self, state: &mut State, host: &mut H) {
+    fn rest<H: Wire + Data>(
+        &mut self,
+        state: &mut State,
+        host: &mut H,
+    ) -> Result<(), &'static str> {
         if self.holding() {
-            return;
+            return Ok(());
         }
         self.opened = None;
         self.last_input = None;
-        let _ = state.rest(host);
+        self.last_gesture_at = None;
+        state.rest(host)
     }
     fn end<H: Wire + Data>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
         self.pad = None;
@@ -304,6 +312,7 @@ impl Ui {
         // Ending lets go of everything on the other computer, locked buttons with it.
         self.locked.clear();
         self.last_input = None;
+        self.last_gesture_at = None;
         self.opened = None;
         state.finish(host)
     }
@@ -332,14 +341,15 @@ impl Ui {
                     .is_some_and(|last| at.saturating_sub(last) >= 2000);
                 let stuck = self.busy()
                     && self
-                        .last_input
+                        .last_gesture_at
                         .is_some_and(|last| at.saturating_sub(last) >= STUCK_MS);
                 // Ending a gesture nobody holds is housekeeping: the person did nothing that could fail, so a close the
                 // other device never acknowledged is not said to them.
                 if stuck {
                     // A drag whose finger's lift was lost lets go of its button.
                     if let Some(pad) = self.pad.take().filter(|pad| pad.dragging) {
-                        let _ = self.send(state, host, vec![button_input(pad.side, false)], at);
+                        let _ =
+                            self.send(state, host, vec![button_input(pad.drag_side, false)], at);
                     }
                     let _ = self.end(state, host);
                 } else if !self.holding() && idle {
@@ -349,13 +359,7 @@ impl Ui {
                     // touching anything, so it does not move the stuck-input clock: a Backspace whose lift
                     // was lost stops erasing after `STUCK_MS` like any other lost gesture.
                     self.erasing = Some(at.max(next));
-                    let touched = self.last_input;
-                    let sent =
-                        self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at);
-                    if self.last_input.is_some() {
-                        self.last_input = touched;
-                    }
-                    sent?;
+                    self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at)?;
                 }
                 if self
                     .opened
@@ -365,9 +369,9 @@ impl Ui {
                     let _ = state.rotate(host);
                 }
                 // The list is read again in the background: one read that fails keeps the list as it was.
-                if at.saturating_sub(self.refreshed) >= 2000
-                    && self.refresh(state, host, at).unwrap_or(false)
-                {
+                let refreshed = at.saturating_sub(self.refreshed) >= 2000
+                    && self.refresh(state, host, at).unwrap_or(false);
+                if stuck || refreshed {
                     return Ok(self.tree());
                 }
             }
@@ -397,7 +401,7 @@ impl Ui {
                     remote::typed(value)
                 };
                 self.send(state, host, inputs, at)?;
-                self.rest(state, host);
+                self.rest(state, host)?;
             }
             // The pad's measured bounds: which half of it a tap lands on says which button it is.
             Some("size") if id == "pad" => {
@@ -442,13 +446,14 @@ impl Ui {
                             inputs.push(button_input(button, true));
                         }
                         self.send(state, host, inputs, at)?;
-                        self.rest(state, host);
+                        let _ = self.rest(state, host);
                         return Ok(self.tree());
                     }
                     // Held, Backspace erases once and then again at every tick, as a keyboard repeats a held key.
                     "backspace" => {
                         match phase {
                             "down" => {
+                                self.last_gesture_at = Some(at);
                                 self.erasing = Some(at.saturating_add(REPEAT_AFTER_MS));
                                 inputs.push(json!({"t":"key","key":"backspace"}));
                             }
@@ -457,7 +462,7 @@ impl Ui {
                         }
                         self.send_or_settle(state, host, inputs, at, phase)?;
                         if phase != "down" {
-                            self.rest(state, host);
+                            let _ = self.rest(state, host);
                         }
                         return Ok(self.tree());
                     }
@@ -467,18 +472,20 @@ impl Ui {
                     "pad" => {
                         match phase {
                             "down" => {
+                                self.last_gesture_at = Some(at);
                                 let tapped = self
                                     .last_tap
                                     .take()
                                     .filter(|(tap, _)| at.saturating_sub(*tap) <= TAP_THEN_HOLD_MS);
-                                let side = tapped.map_or_else(|| self.side(x), |(_, side)| side);
+                                let tap_side = self.side(x);
                                 self.pad = Some(Pad {
                                     x,
                                     y,
                                     at,
                                     travelled: 0.,
                                     dragging: false,
-                                    side,
+                                    tap_side,
+                                    drag_side: tapped.map_or(tap_side, |(_, side)| side),
                                     armed: tapped.is_some(),
                                 });
                             }
@@ -487,13 +494,14 @@ impl Ui {
                                     let dx = (f64::from(x) - f64::from(pad.x)) / 1000.;
                                     let dy = (f64::from(y) - f64::from(pad.y)) / 1000.;
                                     if dx != 0. || dy != 0. {
+                                        self.last_gesture_at = Some(at);
                                         // Only a press that follows a tap drags; a swipe on its own only moves, however
                                         // long the finger rested before it. With a button locked, the pad only moves.
                                         let starts =
                                             self.locked.is_empty() && !pad.dragging && pad.armed;
                                         if starts {
                                             pad.dragging = true;
-                                            inputs.push(button_input(pad.side, true));
+                                            inputs.push(button_input(pad.drag_side, true));
                                         }
                                         pad.travelled += dx.hypot(dy);
                                         pad.x = x;
@@ -511,19 +519,19 @@ impl Ui {
                             "up" | "cancel" => {
                                 if let Some(pad) = self.pad.take() {
                                     if pad.dragging {
-                                        inputs.push(button_input(pad.side, false));
+                                        inputs.push(button_input(pad.drag_side, false));
                                     } else if self.locked.is_empty()
                                         && phase == "up"
                                         && pad.travelled < TAP_TRAVEL
                                         && at.saturating_sub(pad.at) <= TAP_MS
                                     {
                                         inputs.extend([
-                                            button_input(pad.side, true),
-                                            button_input(pad.side, false),
+                                            button_input(pad.tap_side, true),
+                                            button_input(pad.tap_side, false),
                                         ]);
-                                        // A second quick tap is a double click; only a first tap may start a drag.
+                                        // Only a first tap can arm the next gesture.
                                         if !pad.armed {
-                                            self.last_tap = Some((at, pad.side));
+                                            self.last_tap = Some((at, pad.tap_side));
                                         }
                                     }
                                 }
@@ -534,7 +542,7 @@ impl Ui {
                         if matches!(phase, "down" | "up" | "cancel") {
                             self.send_or_settle(state, host, inputs, at, phase)?;
                             if phase != "down" {
-                                self.rest(state, host);
+                                let _ = self.rest(state, host);
                             }
                             return Ok(self.tree());
                         }
@@ -542,12 +550,17 @@ impl Ui {
                     "wheel" => {
                         match phase {
                             "down" => {
+                                self.last_gesture_at = Some(at);
                                 self.wheel = Some(y);
                                 self.owed = 0;
                             }
                             "move" => {
-                                if let Some(previous) = self.wheel.replace(y) {
-                                    let moved = y.saturating_sub(previous);
+                                if let Some(previous) = self.wheel.as_mut() {
+                                    let moved = y.saturating_sub(*previous);
+                                    *previous = y;
+                                    if moved != 0 {
+                                        self.last_gesture_at = Some(at);
+                                    }
                                     self.scrolled = self.scrolled.wrapping_add(moved);
                                     self.owed = self.owed.saturating_add(moved);
                                     let notches = self.owed / 24000;
@@ -563,7 +576,7 @@ impl Ui {
                         // The wheel is drawn as it turns: its ridges follow the finger.
                         self.send_or_settle(state, host, inputs, at, phase)?;
                         if matches!(phase, "up" | "cancel") {
-                            self.rest(state, host);
+                            let _ = self.rest(state, host);
                         }
                         return Ok(self.tree());
                     }
@@ -571,7 +584,7 @@ impl Ui {
                 }
                 self.send_or_settle(state, host, inputs, at, phase)?;
                 if matches!(phase, "up" | "cancel") {
-                    self.rest(state, host);
+                    let _ = self.rest(state, host);
                 }
             }
             _ => return Err(remote::answer::NOT_UNDERSTOOD),
@@ -668,7 +681,7 @@ impl Ui {
             .pad
             .as_ref()
             .filter(|pad| pad.dragging)
-            .map(|pad| pad.side);
+            .map(|pad| pad.drag_side);
         let half = |side: &str, caption: &str| {
             bx(
                 None,
@@ -847,6 +860,50 @@ mod tests {
     }
 
     #[test]
+    fn a_stationary_wheel_press_expires_and_does_not_hold_open_the_keyboard_stream() {
+        let (mut ui, mut state, mut host) = ready();
+        host.results.clear(); // a stationary wheel press must not open a connection
+        event(&mut ui, &mut state, &mut host, "wheel", "down", 0, 0, 100);
+        host.results
+            .push_back(json!({"status":"ok","value":ui.devices}));
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"tick","at":100 + STUCK_MS - 1}),
+        )
+        .unwrap();
+        assert!(ui.holding(), "the quiet press is still within its lease");
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"tick","at":100 + STUCK_MS}),
+        )
+        .unwrap();
+        assert!(!ui.holding(), "a lost lift expires without sending input");
+        assert!(host.opened.is_empty());
+        event(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "wheel",
+            "move",
+            0,
+            1000,
+            101 + STUCK_MS,
+        );
+        assert!(!ui.holding(), "a late move cannot begin a new wheel press");
+        claim(&mut host);
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"submit","id":"keyboard","text":"a"}),
+        )
+        .unwrap();
+        assert_eq!(rests(&host), 1);
+        assert!(state.outgoing.is_none());
+    }
+
+    #[test]
     fn a_drag_whose_lift_never_arrives_is_let_go_and_its_connection_closed() {
         let (mut ui, mut state, mut host) = ready();
         event(
@@ -876,12 +933,25 @@ mod tests {
         host.results.push_back(
             json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
         );
-        ui.event(
-            &mut state,
-            &mut host,
-            &json!({"t":"tick","at":600 + STUCK_MS}),
-        )
-        .unwrap();
+        let held = ui.tree();
+        let settled = ui
+            .event(
+                &mut state,
+                &mut host,
+                &json!({"t":"tick","at":600 + STUCK_MS}),
+            )
+            .unwrap();
+        assert_ne!(settled, held);
+        assert_eq!(
+            settled,
+            ui.tree(),
+            "return the resting tree with no peer changes"
+        );
+        assert_eq!(
+            host.sent.last().unwrap()["method"],
+            "list",
+            "still refresh normally"
+        );
         assert!(state.outgoing.is_none());
         assert!(ui.pad.is_none());
         assert_eq!(written(&host).last(), Some(&button_input("left", false)));
@@ -1179,6 +1249,46 @@ mod tests {
         event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 4100);
         assert!(state.outgoing.is_none());
         assert_eq!(host.shutdowns, 2);
+    }
+
+    #[test]
+    fn keyboard_submission_reports_missing_or_short_acknowledgement() {
+        for short in [false, true] {
+            let (mut ui, mut state, mut host) = ready();
+            host.acks = false;
+            host.silent = !short;
+            if short {
+                host.incoming.push_back(ack(0));
+            }
+            let submit = json!({"t":"submit","id":"keyboard","text":"abc"});
+            assert_eq!(
+                ui.event(&mut state, &mut host, &submit),
+                Err(remote::answer::STOPPED)
+            );
+            assert_eq!(written(&host), vec![json!({"t":"text","text":"abc"})]);
+            assert_eq!(host.closed, 1);
+            assert!(state.outgoing.is_none());
+        }
+    }
+
+    #[test]
+    fn wheel_lift_and_cancellation_redraw_at_rest_even_without_an_acknowledgement() {
+        for phase in ["up", "cancel"] {
+            let (mut ui, mut state, mut host) = ready();
+            host.acks = false;
+            event(&mut ui, &mut state, &mut host, "wheel", "down", 0, 0, 10);
+            let held = event(
+                &mut ui, &mut state, &mut host, "wheel", "move", 0, 24_000, 20,
+            );
+            host.incoming.push_back(ack(0));
+            let settled = event(
+                &mut ui, &mut state, &mut host, "wheel", phase, 0, 24_000, 30,
+            );
+            assert_ne!(settled, held);
+            assert_eq!(settled, ui.tree());
+            assert!(!ui.holding());
+            assert!(state.outgoing.is_none());
+        }
     }
 
     #[test]
@@ -1552,6 +1662,31 @@ mod tests {
     }
 
     #[test]
+    fn consecutive_stationary_taps_click_their_own_halves() {
+        let (mut ui, mut state, mut host) = ready();
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"size","id":"pad","x":0,"y":0,"width":100_000,"height":80_000}),
+        )
+        .unwrap();
+        event(&mut ui, &mut state, &mut host, "pad", "down", 90_000, 0, 10);
+        event(&mut ui, &mut state, &mut host, "pad", "up", 90_000, 0, 20);
+        claim(&mut host);
+        event(&mut ui, &mut state, &mut host, "pad", "down", 10_000, 0, 30);
+        event(&mut ui, &mut state, &mut host, "pad", "up", 10_000, 0, 40);
+        assert_eq!(
+            written(&host),
+            [
+                button_input("right", true),
+                button_input("right", false),
+                button_input("left", true),
+                button_input("left", false),
+            ]
+        );
+    }
+
+    #[test]
     fn a_tap_then_a_press_swiped_soon_after_drags_with_the_tapped_button() {
         let (mut ui, mut state, mut host) = ready();
         ui.event(
@@ -1682,12 +1817,19 @@ mod tests {
                 json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
             );
             ui.event(state, host, &json!({"t":"tick","id":"idle","at":at}))
-                .unwrap();
+                .unwrap()
         };
         // A repeat is sent, but it is not a touch: the clock still runs from the press at 100.
         tick(&mut ui, &mut state, &mut host, 600);
         assert_eq!(written(&host), vec![key.clone(), key.clone()]);
-        tick(&mut ui, &mut state, &mut host, 100 + STUCK_MS);
+        let held = ui.tree();
+        let settled = tick(&mut ui, &mut state, &mut host, 100 + STUCK_MS);
+        assert_ne!(settled, held);
+        assert_eq!(
+            settled,
+            ui.tree(),
+            "the erased key must be redrawn unpressed"
+        );
         assert!(ui.erasing.is_none(), "the lost lift is let go");
         assert!(state.outgoing.is_none(), "and the connection closed");
         assert_eq!(

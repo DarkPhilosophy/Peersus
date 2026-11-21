@@ -209,7 +209,7 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application.",
+        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application. New incoming connections are refused if the extension cannot read its pointer settings.",
         "changes": "After installing, a Remote page and a Layout editor appear. What you do on the Remote page is sent to the computer you choose and moves its pointer and types there; a paired device you allow can control this computer the same way."
       }
     ]
