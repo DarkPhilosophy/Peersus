@@ -5,7 +5,7 @@
     "version": "0.1.0",
     "author": "Peersus contributors",
     "link": "https://github.com/DarkPhilosophy/Peersus",
-    "description": "Share where this device is with your paired devices, and see on a drawn map where the ones that shared with it were, how far and in which direction."
+    "description": "Explore cities and streets on one interactive globe, with an offline basemap and optional online street detail."
   },
   "platforms": [
     "linux",
@@ -19,9 +19,32 @@
     "abi": 1
   },
   "capabilities": {
-    "location.share": "Receive the location a paired device shares with this one, and show it on the Location page. This device's own location is sent only when you share it."
+    "location.sharing": "Enable location sharing with this paired device. While Location is running, it may obtain and send a fresh position when both devices allow sharing. Turn this off to stop."
   },
   "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.http",
+      "version": 1,
+      "methods": [
+        "restore-read",
+        "get-resource",
+        "read-resource",
+        "release-read",
+        "resource-cache",
+        "clear-resource-cache"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.canvas",
+      "version": 1,
+      "methods": [
+        "open"
+      ],
+      "events": []
+    },
     {
       "provider": "host",
       "service": "peersus.peers",
@@ -38,6 +61,24 @@
       "version": 1,
       "methods": [
         "current"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
       ],
       "events": []
     }
@@ -66,7 +107,7 @@
       ],
       "methods": {
         "receive": {
-          "capability": "location.share",
+          "capability": "location.sharing",
           "description": "Takes the position a paired device shared and keeps it, in memory only, to show on the Location page."
         }
       },
@@ -78,12 +119,48 @@
       {
         "id": "where",
         "label": "Location",
-        "placement": "primary",
-        "icon": "peers",
+        "placement": "settings",
+        "icon": "location",
         "surface": "elements",
         "source": {
           "service": "location.page",
           "method": "event"
+        }
+      }
+    ],
+    "settings": [
+      {
+        "id": "online-streets",
+        "label": "OpenStreetMap street detail",
+        "help": "Show online streets, buildings and place names at close zoom, from OpenFreeMap. OpenFreeMap sees which areas the map shows, also around a device you centre on. Off until you turn it on and approve OpenFreeMap.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        },
+        "public_read": {
+          "origin": "https://tiles.openfreemap.org",
+          "root": "/planet"
+        }
+      },
+      {
+        "id": "cache-online-areas",
+        "label": "Keep viewed map areas",
+        "help": "Keep downloaded map areas on this device (up to 128 MB) to avoid downloads when revisiting. Options shows their count and size and can clear them. When off, only the current view stays in memory; no saved areas are read or written. Previously saved areas stay until cleared.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": true
+        }
+      },
+      {
+        "id": "location-page",
+        "label": "Add Location to page",
+        "help": "Also show Location as its own page; keep the original Location in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
         }
       }
     ]
@@ -106,8 +183,26 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Location adds a page that shows where this device is and, on a drawn map, where the paired devices that shared their location with it were, how far away and in which direction. This device is in the middle of the map when it knows where it is; otherwise one of the devices that shared with it is. It asks your system where this device is only when you press a button on the page (or, if you turn it on, every five minutes while the page is open), and sends that position only to the paired devices you allowed.",
-        "changes": "After installing, Location appears among the pages. To find this device it needs the permission to know where this device is; your system may also ask you once. To share, it needs, for each paired device, the permissions to see it, to send to it and to share locations with it, and Location must be installed and allowed for this device on the other one too. Received locations are kept in memory only and are forgotten when the application stops, when you press Forget, or as soon as you unpair that device or stop allowing Location for it.",
+        "explains": "Location has an offline globe and an opt-in mode for online street detail. Enable location sharing separately for each device in Permissions to exchange positions automatically while the extension runs. Browsing the map does not enable sharing. Locate this device displays a local fix; it does not grant sharing permission.",
+        "changes": "Location is available in extension settings. Adding it to navigation is a separate choice. Locating this device requires permission and the system may also ask. Sharing requires permission for each receiving device. Received positions stay in memory and are forgotten on stop, Forget, unpairing or loss of that device's permission.",
+        "links": [
+          {
+            "label": "OpenStreetMap contributors and data licence",
+            "url": "https://www.openstreetmap.org/copyright"
+          },
+          {
+            "label": "OpenMapTiles vector data",
+            "url": "https://openmaptiles.org/"
+          },
+          {
+            "label": "OpenFreeMap terms",
+            "url": "https://openfreemap.org/tos/"
+          },
+          {
+            "label": "OpenFreeMap privacy policy",
+            "url": "https://openfreemap.org/privacy/"
+          }
+        ],
         "body": [
           {
             "k": "heading",
@@ -116,10 +211,12 @@
           {
             "k": "list",
             "items": [
-              "Only when you share. Pressing Share my location sends this device's position once; Keep sharing sends it again every five minutes while the page is open, and stops when you turn it off or leave the page.",
+              "Enable location sharing in Permissions for each device. When a permitted recipient is connected and ready, this extension requests a fix, initially and then at most once every five minutes. Both devices need Location. Turning the sharing permission off stops further sends to that device.",
               "Only to devices you allowed. A paired device receives it only if you allowed Location for it here, and its own person allowed Location for this device there.",
-              "Only the position. Latitude, longitude, how sure your system was and how old the fix is: no name, address, history or anything else. It travels straight between the two devices, through the application's encrypted connection; Location sends nothing anywhere else.",
-              "How your system finds it is your system's own. Satellites, or the wireless networks it sees, which your system may look up with an online service of its own; Location receives only the position."
+              "Only the position goes to paired devices you allowed: latitude, longitude, how sure your system was and how old the fix is. It travels through the application's encrypted connection, never to the map provider.",
+              "How your system finds it is your system's own. Satellites, or the wireless networks it sees, which your system may look up with an online service of its own; Location receives only the position.",
+              "The globe works offline by default. Country and city labels and regional roads use public-domain Natural Earth data. The bundled Bucharest and Monaco street data is © OpenStreetMap contributors (ODbL 1.0).",
+              "Online street detail is optional and separately approved. When it is on, OpenFreeMap receives the addresses of the tiles of every area the map shows, including the area around a device you centre on, and can see your network address. Location does not send GPS fixes, shared positions or peer identities to OpenFreeMap. Downloaded tiles are kept on this device, at most 128 MB, unless you turn keeping off; Options says how many are kept and clears them, and removing Location removes them. OpenFreeMap and OpenMapTiles use OpenStreetMap data (ODbL 1.0)."
             ]
           }
         ]

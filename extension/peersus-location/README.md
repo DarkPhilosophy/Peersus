@@ -1,28 +1,22 @@
 # Location extension
 
-One extension identity with one WASM guest for Linux, Android, macOS and Windows. A page, among the application's pages, that
-says where this device is and draws, north up, where the paired devices that shared their location with it were: how far
-away, in which direction, how sure their system was and how long ago. This device is in the middle of the map when it knows
-where it is; when it does not (not asked yet, not allowed, or a system that cannot say, as on macOS and Windows today), one
-of the devices that shared with it is in the middle, and each device's line says its coordinates in place of a distance and
-direction from here.
+An optional device map for Linux, Android, macOS and Windows. Opening the page shows a globe, without asking for a location.
+Devices that have shared a position appear as initials and name badges painted by Location.
+Tap a marker or its name to centre and zoom. **Locate this device** centres on a successful local fix. Sharing is controlled under **Permissions**, not in the map options.
 
 ## What it asks, and when
 
 - **Where this device is** comes from the application's `peersus.location` service (`current`, the person's `location.read`),
-  asked only when the person presses *Share my location* or *Show where this device is*, or every five minutes while the page
-  is open when *Keep sharing* is on. The application asks the system each time and keeps nothing: on Linux the desktop's
-  location portal, which follows the person's own location setting; on Android the system's location manager, which asks the
-  person for its own permission the first time; elsewhere nothing, and the page says so.
-- **Sharing** sends that one position, once, to every paired device that takes it now (`peersus.peers` `send`, the person's
-  `peers.watch` and `peers.send` for that device): online, allowed here, and with Location there accepting
-  `location.position`. Nothing is asked of another device, and nothing answers: a position goes only when its own person
-  shares it. A share sends the position it was asked for: looking where this device is afterwards changes nothing of what
-  goes, a later share replaces an earlier one that had not left yet, and turning *Keep sharing* off takes back what only
-  it asked for and has not left (this device still being found, or the streams not open yet), never a share the person
-  pressed for. *Keep sharing* asks again five minutes after it last asked, found or not.
+  requested when you select *Locate this device*, or when an eligible recipient is ready for sharing. Linux uses the desktop
+  location portal; Android uses the system location manager. System permission and a usable fix are separate from the
+  application's `location.read` grant. A failed lookup does not place a guessed marker.
+- **Sharing**: enable `location.sharing` separately for each paired device. `peers.watch` and `peers.send` are also required,
+  and the receiving device must run Location and accept the service from this device. The worker checks for eligible peers
+  at startup and periodically even when the map is closed. With an eligible recipient it asks for a fresh position at most
+  once per five minutes. Losing eligibility cancels pending deliveries. Old receive-only consent does not enable automatic
+  transmission after an update.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
-  person allowed Location for (`location.share`). One position per device is kept, in memory only, and forgotten when the
+  person allowed Location for (`location.sharing`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
   or Location no longer allowed for it).
 
@@ -46,10 +40,31 @@ two) is waited for three seconds at most, in the same way.
 
 ## The map
 
-The map is drawn by the extension from the application's generic drawing element, with no tiles and no online map service:
-each position at its true distance and direction from the middle (an azimuthal equidistant map), so the rings (every 1, 2 or
-5 times a power of ten metres, at most three) hold at every scale. A shaded circle is how sure that device's system was. The
-names are those the person gave the devices, written beside their dots.
+The compiled extension carries Natural Earth's public-domain coastlines, land borders, regional roads and populated places.
+The globe uses the same orthographic projection and hides the far hemisphere at every zoom level. Coastlines, roads, city
+labels and device markers share that camera; zoom changes its scale, not the projection.
+Roads and boundaries are indexed in five-degree cells. At regional scales only intersecting cells are visited; major roads
+appear first and town labels are ranked and spaced apart. Named local streets are available inside the bundled Bucharest
+and Monaco areas (OpenStreetMap, ODbL 1.0); other parts of the world have regional detail only without enabling online data.
+The data and reproducible generators are listed in `NOTICE`. No map requests are made until the map provider is approved.
+
+**Online street detail.** In Location’s extension settings, **OpenStreetMap street detail** is off until the person turns it on, with Public HTTPS allowed and OpenFreeMap approved; the approval is reused after restarting. Regional zoom shows vector roads, water and built-up areas. Closer zoom adds local streets, place labels, parks and buildings where the source provides them. The map uses one tile level at a time and keeps a covering level visible until its replacement is ready. The provider sees the address of every tile requested, so the areas shown, and the network address; no GPS fix or paired-device identity is included in a request. If the source is unavailable, the offline globe remains usable. Online data is from © OpenMapTiles and © OpenStreetMap contributors via OpenFreeMap.
+
+**Kept map areas.** With **Keep viewed map areas** on (the default), the application keeps the map index and downloaded tiles on this device, up to 128 MB. Saved areas show immediately without waiting for a download, even offline. Location refreshes older copies in the background and continues showing the saved map until replacement tiles are ready. **Options** on the map shows how many areas are kept and their size; **Clear saved map areas** removes them. Removing Location also removes them. With this setting off, Location neither reads nor saves copies on disk; it holds the current view’s tiles in memory and leaves already saved areas untouched until cleared.
+
+The right-side zoom scale can be tapped or dragged. Its caption is an estimated camera height above the surface, not GPS altitude.
+The orthographic view has no physical altitude, so the estimate uses a downward-looking 60° perspective camera with the same
+scale at the centre: `elevation = (R / r) × min(width, height) / (2 × tan(30°))`, where `R` is Earth's mean radius and `r` is the
+projected globe radius in logical pixels. The location icon centres on a known device and restores north-up.
+
+The horizontal scale at the bottom is a ground-distance ruler calibrated at the map centre. It chooses a fitting 1, 2 or 5 times
+a power of ten and draws its length as `2r × sin(distance / (2R))` logical pixels. The same scale is valid at any bearing.
+Labels avoid the ruler's backing, and the ruler stays hidden until there is enough measured room to show it whole.
+
+At country and wider views, dragging rotates the globe through its poles and keeps a point under the finger on the visible hemisphere. At regional and closer scales the rectangular crop works as a local map. A two-finger twist turns either view: about the centre of the globe or about the gesture's midpoint on the local map.
+
+Location draws the entire map, including offline and online features, labels, device markers, and both scales, into a single Canvas. The supervised WASM helper renders the display list and the window composites the completed raster. The window reports the logical size, device scale, palette, and gestures.
+Location uses the current WASM Canvas contract on all supported platforms.
 
 ## Build and test
 
@@ -58,5 +73,13 @@ cargo test --manifest-path wasm/Cargo.toml --locked
 cargo build --manifest-path wasm/Cargo.toml --locked --release --target wasm32-unknown-unknown
 ```
 
-`submission.toml` is what the store's source check runs: the WASM guest, the native library and process tiers, and one
-package per platform.
+From the Peersus checkout root, the runtime's replay suite (including rotation) uses the same release guest:
+
+```sh
+PEERSUS_TEST_LOCATION_MODULE="$PWD/plugins/peersus-location/wasm/target/wasm32-unknown-unknown/release/peersus_location_wasm.wasm" \
+  cargo test --locked -p peersus-plugin-runtime --lib tests::location:: -- --ignored --nocapture
+```
+
+`submission.toml` builds and tests the WASM guest and produces one WASM package per platform.
+Before building, the source recipe checks that `wasm/src/canvas_sdk.rs` is a byte-for-byte copy of the SDK's
+`templates/guest/canvas.rs`. Update the SDK file first, then refresh the vendored copy.
