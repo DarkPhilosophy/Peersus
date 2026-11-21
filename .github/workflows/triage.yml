@@ -3,14 +3,20 @@ on:
   pull_request_target:
     branches: [main, extension]
     types: [opened, reopened, synchronize, ready_for_review, edited]
+  # A reviewer finishing can make a PR ready for the maintainer. (Resolving a thread has no workflow event;
+  # the next review, push or CI completion rechecks it.)
+  pull_request_review:
+    types: [submitted]
   workflow_run:
     workflows: [Quality gates, Extension source submission, Generated documentation, Dependency advisory audit]
     types: [completed]
+  # By hand (Actions → Run workflow): refresh every open PR's labels, for example after a settings change.
+  workflow_dispatch:
 permissions:
   contents: read
   checks: read
   statuses: read
-  pull-requests: read
+  pull-requests: write
   issues: write
 concurrency:
   group: triage-${{ github.repository }}
@@ -31,4 +37,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          REQUIRED_REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
         run: python3 scripts/triage-pull-request.py
