@@ -1,18 +1,23 @@
 name: Extension source submission
 # Build untrusted source without secrets. Validate its output on a DIFFERENT runner.
+# Started when a maintainer adds the `run:ci` label to the PR (remove and add it again to rerun after a push).
+# Still a pull_request run bound to the PR head, as admission requires; contributors cannot add labels.
 on:
   pull_request:
     branches: [extension]
+    types: [labeled]
     paths:
       - 'extension/**'
 permissions:
   contents: read
   pull-requests: read
 concurrency:
-  group: extension-check-${{ github.event.pull_request.number }}
+  # Per label, so adding some other label to the PR never cancels a running check.
+  group: extension-check-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
   cancel-in-progress: true
 jobs:
   plan:
+    if: github.event.label.name == 'run:ci'
     name: One plugin source submission
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -29,6 +34,16 @@ jobs:
       - id: sdk
         working-directory: trusted
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      # Before any build: the reviewers read this exact commit and every current thread is resolved.
+      # Reviewer logins: repository variable REQUIRED_REVIEWERS, comma-separated, or the script's default.
+      - name: Reviewers finished and their threads addressed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
+        run: python3 trusted/scripts/verify-review-readiness.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD" --reviewers "$REVIEWERS"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
@@ -78,6 +93,10 @@ jobs:
           rustup default "$version"
           cargo install cargo-audit --version 0.22.2 --locked --root "$RUNNER_TEMP/extension-tools"
           echo "$RUNNER_TEMP/extension-tools/bin" >> "$GITHUB_PATH"
+      - name: Require a licence-and-notice agreement in the manifest
+        env:
+          SOURCE: ${{ needs.plan.outputs.directory }}
+        run: python3 trusted/scripts/check-extension-manifest.py "submission/$SOURCE"
       - name: Execute build, tests and packaging without credentials
         env:
           SOURCE: ${{ needs.plan.outputs.directory }}
@@ -115,3 +134,147 @@ jobs:
           path: ${{ runner.temp }}/review/
           if-no-files-found: error
           retention-days: 30
+  impact:
+    # Separate from the untrusted build and data-only validation. Run only the reviewed
+    # Linux WASM program through trusted interpreters, never submitted source or native code.
+    name: Resource impact against the published version
+    needs: [plan, validate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      FORCE_SKIA_BUILD: '1'
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.sdk }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-reviewed-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/review
+      - name: Resolve the published baseline and prepare reviewed data
+        id: prepared
+        working-directory: trusted
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          results="$RUNNER_TEMP/extension-benchmark"
+          previous=$(python3 scripts/extension-impact.py --candidate "$RUNNER_TEMP/review" --repository "$REPOSITORY" \
+            --runtime-inputs "$RUNNER_TEMP/benchmark-inputs" --out "$results")
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+      - name: Build the trusted release window and WASM workers
+        id: built
+        working-directory: trusted
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+          sh scripts/install-linux-deps.sh
+          sudo apt-get install -y xvfb libgl1-mesa-dri libegl1 libxkbcommon-x11-0
+          cargo xtask bench-extension-build
+      - name: Sample both versions three times on this runner, alternating the order
+        id: sampled
+        working-directory: trusted
+        env:
+          PREVIOUS: ${{ steps.prepared.outputs.previous }}
+        run: |
+          export PEERSUS_BENCH_RESULTS="$RUNNER_TEMP/extension-benchmark"
+          failed=0
+          measure() {
+            if ! target/debug/xtask bench "--extension=$RUNNER_TEMP/benchmark-inputs/$1" --no-build \
+              "--save=extension-$1-$run" "--package-report=$PEERSUS_BENCH_RESULTS/extension-$1.json"; then
+              echo "::warning::Missing extension $1 sample $run; see the benchmark log"
+              failed=1
+            fi
+          }
+          for run in 1 2 3; do
+            if [ "$PREVIOUS" != new ] && [ "$run" != 2 ]; then measure baseline; fi
+            measure change
+            if [ "$PREVIOUS" != new ] && [ "$run" = 2 ]; then measure baseline; fi
+          done
+          exit "$failed"
+      - name: Judge Linux WASM startup and idle, and the sizes of all packages
+        if: ${{ !cancelled() }}
+        working-directory: trusted
+        env:
+          PREVIOUS: ${{ steps.prepared.outputs.previous }}
+          PREPARED: ${{ steps.prepared.outcome }}
+          BUILT: ${{ steps.built.outcome }}
+          SAMPLED: ${{ steps.sampled.outcome }}
+          ACCEPTED: ${{ contains(github.event.pull_request.labels.*.name, 'impact:accepted') }}
+        run: |
+          export PEERSUS_BENCH_RESULTS="$RUNNER_TEMP/extension-benchmark"
+          mkdir -p "$PEERSUS_BENCH_RESULTS"
+          report="$PEERSUS_BENCH_RESULTS/impact.md"
+          status=1
+          if [ -x target/debug/xtask ]; then
+            base=--base=extension-baseline-1,extension-baseline-2,extension-baseline-3
+            if [ "$PREVIOUS" = new ]; then base=--no-baseline; fi
+            status=0
+            target/debug/xtask bench-compare "$base" --head=extension-change-1,extension-change-2,extension-change-3 \
+              --markdown="$report" || status=$?
+          fi
+          if [ "$BUILT" != success ] || [ ! -f "$report" ]; then
+            printf '## Resource impact: INCONCLUSIVE — benchmark could not run\n\nInputs: `%s`. Build: `%s`. Samples: `%s`. See the failed step in the run log.\n' \
+              "$PREPARED" "$BUILT" "$SAMPLED" > "$report"
+            status=1
+          fi
+          if [ "$PREVIOUS" = new ] && [ "$BUILT" = success ] && [ "$SAMPLED" = success ] \
+            && grep -q '^## Resource impact: INCONCLUSIVE ' "$report"; then
+            printf '\nFirst release: the store has no predecessor. All three submitted samples completed; this is not a benchmark pass.\n' >> "$report"
+            status=0
+          elif [ "$BUILT" = success ] && [ "$SAMPLED" = success ] && [ "$status" != 0 ] && [ "$ACCEPTED" = true ] \
+            && grep -q '^## Resource impact: REGRESSION — [1-9][0-9]* blocking' "$report"; then
+            printf '\nBlocking regression accepted by a maintainer (label `impact:accepted`); the verdict is unchanged.\n' >> "$report"
+            status=0
+          fi
+          printf '\nPublished baseline: `%s`. Same trusted Linux host, Xvfb and sample interval. No user data or runtime grants; no extension actions were invoked. Optional native builds are compared by size only.\n' \
+            "${PREVIOUS:-unavailable}" >> "$report"
+          cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: extension-impact-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/extension-benchmark/impact.md
+            ${{ runner.temp }}/extension-benchmark/extension-*.json
+          if-no-files-found: ignore
+          retention-days: 30
+  impact-description:
+    # Trust only the default-branch writer, and only to edit the marked benchmark section.
+    # Fork PRs cannot use a write token; their report stays in the benchmark job summary.
+    needs: impact
+    if: ${{ always() && github.event.pull_request.head.repo.full_name == github.repository && (needs.impact.result == 'success' || needs.impact.result == 'failure') }}
+    name: Resource impact in the PR description
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: resource-impact-description-${{ github.event.pull_request.number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-impact-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/results
+      - name: Update the marked benchmark section
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 scripts/update-resource-impact.py --repository "$REPOSITORY" --pr "$PR" \
+            --head "$HEAD" --base "$BASE" --report "$RUNNER_TEMP/results/impact.md" \
+            || echo "::warning::The benchmark section could not be updated; see the benchmark job summary"

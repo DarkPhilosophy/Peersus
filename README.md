@@ -4,12 +4,15 @@ This branch is the source-submission and review home for Peersus plugins. It is 
 
 ## The plugins
 
-| Plugin | Stable installation ID | Source platforms | Purpose |
+| Plugin | Stable installation ID | Submitted packages | Purpose |
 | --- | --- | --- | --- |
-| `peersus-clipboard` | `clipboard` | Clipboard adapters; submitted package: Linux native process | Explicit text sharing and opt-in clipboard synchronization between permitted paired devices |
-| `peersus-upload` | `upload` | Submitted packages: Linux native process and Android WASM | Choose one file, approve an external upload destination and obtain a shareable link |
+| `peersus-clipboard` | `clipboard` | WASM for Linux, Android, macOS; Linux `.so` and an optional standalone executable | Explicit text sharing and opt-in clipboard synchronization between permitted paired devices |
+| `peersus-upload` | `upload` | WASM for Linux, Android, macOS; Linux `.so` (not recommended) | Upload one selected file to an approved destination and obtain a shareable link |
+| `peersus-control` | `control` | WASM for Linux, Android, macOS; Linux `.so` (not recommended) | A phone as touchpad and keyboard for a paired computer |
 
-There are **two plugins in total**, not three. Native and WASM implementations of upload are platform implementations inside **one plugin**, with one stable ID, one submission and one catalog listing. A platform artifact may be named `upload-android.tar.gz`, but its internal root must remain `upload/`; changing that root creates a different plugin identity and is refused.
+Each plugin has one stable ID, one submission and one catalog listing. A platform artifact may be named `upload-android.tar.gz`, but its internal root must remain `upload/`; changing that root creates a different plugin identity and is refused.
+
+**WASM is mandatory.** Every submission must build, test and package its WebAssembly guest for Linux, Android and macOS; Windows WASM may also be included. A native library (`.so`) is an optional, not recommended second choice. A standalone executable (`process`) is optional, not recommended and unsupported. An author may add either native archive, both or neither, as `<id>-<platform>-<kind>.tar.gz`. Only WASM is installed by the Store. See [support tiers](https://github.com/DarkPhilosophy/Peersus/blob/main/docs/api/manifests.md#support-tiers).
 
 Presence in this branch is not by itself an installation, a security certification or permission to read a person's files or clipboard. The signed catalog identifies the versions the maintainer has admitted. Installation and device permissions remain explicit user choices.
 
@@ -56,7 +59,7 @@ An updated commit invalidates earlier consent. Dismissed, stale and bot reviews 
 Start with the behavior and trust boundary, not with an archive:
 
 1. Choose one stable ID and the operating systems you actually implement. Keep all platform implementations under the same source directory. A source directory can be named `fly-me` or `peersus-fly-me`; both map to installation ID `fly-me`, which must also be the recipe ID and archive root.
-2. Choose a supervised process, an ABI-1 native module or an ABI-1 WASM module. Use the pinned SDK's process implementation or module header and examples for the wire contract; renaming an ordinary executable does not implement the broker protocol.
+2. Implement the required ABI-1 WASM guest first. If you also choose a native library or standalone executable, use the pinned SDK header and examples for the wire contract; renaming an ordinary executable does not implement the broker protocol.
 3. Define your services, methods and events in `plugin.json`. Declare imports and capabilities truthfully. UI actions must target a service and method your implementation actually handles. Start from the first-party manifests, but remove services, permissions, companions and UI contributions your plugin does not implement.
 4. Implement startup, request handling, bounded data transfer, cancellation and shutdown. Separate normal cancellation, denied permission and a real failure; do not return success merely because a dialog closed.
 5. Test the real behavior without personal files or production credentials. Document required external programs, platform limitations and any third-party destination in your own README.
@@ -86,18 +89,18 @@ The archive layout is different from this source layout: it contains `fly-me/` a
 
 A self-contained plugin can use its own build system. It does not need to be written in Rust. A source submission may run arbitrary build code, which is why build jobs have **no signing secrets, no write token and no persisted Git credentials**. Do not rely on privileged installation, personal accounts or a developer workstation.
 
-A Rust example for `fly-me`:
+A Rust example for `fly-me` that submits only WASM:
 
 ```toml
 schema = 1
 id = "fly-me"
-build = [["cargo", "build", "--locked", "--release"]]
+build = [["cargo", "build", "--locked", "--release", "--target", "wasm32-unknown-unknown"]]
 test = [["cargo", "test", "--locked"]]
 package = [["python3", "{source}/package.py", "--out", "{out}"]]
-artifacts = ["fly-me-linux.tar.gz"]
+artifacts = ["fly-me-linux.tar.gz", "fly-me-android.tar.gz", "fly-me-macos.tar.gz"]
 ```
 
-`package.py` is your real packaging implementation, not an installer. It must write the archive listed in `artifacts`. Include every platform implementation in the same source directory and declare all output archives in this same recipe. Existing bundled Rust plugins can use the explicitly declared `workspace_member` integration with the pinned SDK workspace; do not assume a workspace-inheriting Cargo manifest builds standalone.
+`package.py` is your real packaging implementation, not an installer. It must write the WASM archives listed in `artifacts`; the portable module can be reused for each platform. Add build, test and packaging commands and list the matching archives only for the optional variants you choose to submit. Declare all outputs in the same recipe. Existing bundled Rust plugins can use the explicitly declared `workspace_member` integration with the pinned SDK workspace; do not assume a workspace-inheriting Cargo manifest builds standalone.
 
 CI runs build, test and packaging in order. A failed command fails the submission. A **different fresh job** validates the resulting archives as data; it never loads a native library, executes a package or trusts a validation report written by the build job.
 
@@ -118,7 +121,7 @@ python3 scripts/validate-extension-build.py \
   --out /path/to/new-review
 ```
 
-The build helper exports the committed SDK into a disposable workspace; it does not build against uncommitted SDK changes or replace files in your application checkout. A `workspace_member`, when needed, is an SDK-declared workspace member with the same directory name as the source plugin. For example, `extension/peersus-upload` overlays `crates/peersus-upload` in that disposable SDK, not the live checkout.
+The build helper exports the committed SDK into a disposable workspace; it does not build against uncommitted SDK changes or replace files in the application checkout. Independent submissions are staged under `plugin/<source-name>/` in that disposable SDK, so their own workspace can reference the pinned host SDK without becoming an application workspace member. Application `main` contains no extension source. The legacy `workspace_member` form is accepted only when that exact member exists in the pinned SDK; new independent submissions do not need it.
 
 These commands execute your plugin's build recipe as your local account. Only run them for source you trust. CI uses an expendable build runner and then a separate validation runner; a local shell is not a security sandbox.
 
@@ -137,13 +140,13 @@ fly-me/
 
 The manifest describes exported/imported services, execution ABI, supported platforms, contributions and package metadata. `package.name` is a display name, **not another installation ID**. Metadata embedded in the actual program must agree with the manifest. Include upstream license notices and respect all declared bounds.
 
-Store admission supports **three execution forms**: an explicitly declared `{"kind":"process"}`, a native library with ABI 1, or a WASM module with ABI 1. A process declaration has no `abi` field. Processes and native libraries run with the application's operating-system user privileges; a separate process provides crash isolation, **not a security sandbox**. A catalog signature authenticates reviewed package bytes, not confinement.
+Each archive explicitly declares its execution kind: `{"kind":"wasm","abi":1}` for the required WASM, `{"kind":"native_library","abi":1}` for an optional library, or `{"kind":"process"}` for an optional standalone executable. Native code runs with the application's operating-system user privileges; a separate process provides crash isolation, **not a security sandbox**. A catalog signature authenticates reviewed package bytes, not confinement.
 
 The source-platform table above does not promise that every platform build is already admitted. The current independent native-package validator handles ELF builds for Linux and Android; WASM modules are architecture-independent and explicitly declare their supported operating systems. Native macOS/Windows packages require their corresponding binary-format validation before admission. Do not label a Linux shared library as a macOS artifact, or use `architecture = "any"` for a native binary.
 
-For process submissions, the validator requires a genuine ELF executable or PIE with an entry point inside an executable, file-backed load segment, supported machine architecture and explicit Linux/Android platform declarations. A shared library, object file or WASM module cannot pass by changing its manifest to `process`. The first-party Linux packaging helper selects `platforms: ["linux"]` for the Linux build; source support for macOS does not mislabel that archive as a macOS build.
+If you supply a process archive, the validator requires a genuine ELF executable or PIE with an entry point inside an executable, file-backed load segment, supported machine architecture and explicit Linux/Android platform declarations. Relabeling a library, object file or WASM module does not make it a process executable. The Linux packager sets `platforms: ["linux"]` for a Linux artifact; do not label it for other operating systems.
 
-The first-party recipes build and test the real clipboard and upload programs. `scripts/package-native-extension.py` packages the compiled process, preserves declared companions, embeds matching package metadata and includes license notices. Upload's recipe additionally packages the real Android WASM implementation under the same `upload/` root. Neither recipe signs, installs or publishes anything.
+`scripts/package-native-extension.py` packages one built artifact at a time, preserving declared companions, embedding matching package metadata and including license notices. Package WASM without a native flag; use `--native-library` or `--process` only for an optional archive the recipe actually declares. The packager never signs, installs or publishes anything.
 
 Processes use the SDK's existing supervisor bootstrap and framed broker protocol. Never print bootstrap values or persist them in a package. Broker imports and permissions govern broker-mediated operations; they do not remove a native process's ambient operating-system access. Implement explicit consent and truthful failure/cancellation handling for that access.
 
@@ -182,7 +185,7 @@ The same separation applies to PRs targeting `main`: automated checks and triage
 
 The maintainer reviews the **exact source revision and exact validated build artifacts**, not a later rebuild. Signing and publication are separate privileged jobs. They must not check out or execute contributor code with signing or publication credentials. The official catalog must preserve one entry per stable plugin ID and select the appropriate platform artifact within that entry.
 
-The admission workflow takes four explicit values: the submission PR number, successful source-check run ID, exact source head commit, and the SHA-256 of `review.json`. It downloads `extension-reviewed-<PR>-<commit>`, never a contributor-provided release or a fresh privileged rebuild. The trusted gate checks that the PR changes only its own plugin directory, still has that head commit, and has an independent human maintainer approval for it. A bot approval, author self-approval, dismissed review, stale approval or green run from a PR that modified workflow files is insufficient.
+The admission workflow takes four explicit values: the submission PR number, successful source-check run ID, exact source head commit, and the SHA-256 of `review.json`. It downloads `extension-reviewed-<PR>-<commit>`, never a contributor-provided release or a fresh privileged rebuild. The trusted gate checks that the PR changes only its own plugin directory, still has that head commit, and has an independent human maintainer approval for it (a repository admin's own submission: an admin's approval of the admission run's protected environment instead, since GitHub lets no author approve their own PR). A bot approval, author self-approval, dismissed review, stale approval or green run from a PR that modified workflow files is insufficient.
 
 Every archive is independently revalidated before signing. `catalog-sign --review ...` then emits a schema-2 catalog with **one entry per plugin** and platform/architecture variants inside that entry. Clients still read legacy schema-1 catalogs; unsupported variants do not become duplicate listings. Signing a catalog and staging a website are not the same as deploying that website or configuring production trust.
 

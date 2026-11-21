@@ -1,0 +1,243 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Test",
+    "version": "0.1.2",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "A page of its own that tries what the application offers an extension: every page element and event, one call of every service it may ask, notifications, actions keys can be bound to and, when its setting asks, ways to misbehave on purpose.",
+    "changelog": "0.1.2: every button now asks the application through its contract and shows the answer (settings, licence, system, language, paired devices, other extensions, statuses, page placements, withheld actions, notifications); every element, colour and event of a page; the misbehaving buttons behind a setting, each saying what the application should do; a native library and a process build for validation beside the official WebAssembly one."
+  },
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "program": "peersus_test_wasm.wasm",
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
+  "capabilities": {},
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.extension",
+      "version": 1,
+      "methods": [
+        "tos",
+        "outside_store"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.platform",
+      "version": 1,
+      "methods": [
+        "inspect"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.language",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": [
+        "list"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.plugins",
+      "version": 1,
+      "methods": [
+        "list"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.status",
+      "version": 1,
+      "methods": [
+        "define",
+        "set",
+        "clear",
+        "own"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.actions",
+      "version": 1,
+      "methods": [
+        "withhold"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.notify",
+      "version": 1,
+      "methods": [
+        "show"
+      ],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "test.page",
+      "version": 1,
+      "description": "What the Test page shows, and what a person does on it.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "event": {
+          "description": "Answers what a person did on the Test page with the page as it is after it."
+        },
+        "bump": {
+          "description": "Counts one run of one of its key-bindable actions; the Test page shows the count."
+        },
+        "notify": {
+          "description": "Asks the application for a notification inside the window, as the page's Say something does."
+        },
+        "question": {
+          "description": "Asks the application for a question that also reaches outside the window, as the page's Ask a question does."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "pages": [
+      {
+        "id": "test",
+        "label": "Test",
+        "placement": "primary",
+        "icon": "plugins",
+        "surface": "elements",
+        "source": {
+          "service": "test.page",
+          "method": "event"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "count-key",
+        "label": "Count a key press",
+        "help": "Adds one to the count of key presses on the Test page.",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        },
+        "chord": "ctrl+alt+k"
+      },
+      {
+        "id": "count-long",
+        "label": "Count, with a long description",
+        "help": "Adds one to the count on the Test page, like the first, and carries a description long enough to show how a long one scrolls inside its own short box on the Binds page instead of making its row tall; at most 280 characters are accepted.",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        }
+      },
+      {
+        "id": "count-plain",
+        "label": "Count, with no description",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        }
+      },
+      {
+        "id": "notify-inside",
+        "label": "Say something in the window",
+        "help": "Shows a notification inside the window only, as the page's Say something does. Needs the notification permission.",
+        "target": {
+          "service": "test.page",
+          "method": "notify"
+        },
+        "chord": "ctrl+alt+n"
+      },
+      {
+        "id": "notify-outside",
+        "label": "Ask a question outside the window",
+        "help": "Shows a question with two answers that also reaches outside the window (the system's notifications), as the page's Ask a question does. Needs the notification permission.",
+        "target": {
+          "service": "test.page",
+          "method": "question"
+        },
+        "chord": "ctrl+alt+q"
+      }
+    ],
+    "settings": [
+      {
+        "id": "show_trouble",
+        "label": "Show the misbehaving buttons",
+        "help": "Show the buttons that make Test misbehave on purpose (flood, nonsense, never answer, spin, fill memory, leave), each with what the application should do.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {
+            "label": "Apache License 2.0 text",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Test draws a page that tries what the application offers an extension. Each button asks the application one thing and shows the answer: its settings, whether you accepted this licence and, with the permissions you grant, this device's system, your language, the paired devices you let it see, the other extensions, a status 'Testing' that paired devices watching statuses can see, and notifications. A setting shows buttons that make it misbehave on purpose.",
+        "changes": "After installing, a Test page appears. Nothing is read or shown until you press a button, and what needs a permission is refused until you grant it. Nothing is sent off this device except the 'Testing' status, which you turn on and off yourself. Nothing is stored. Removing the extension removes the page."
+      }
+    ]
+  }
+}
