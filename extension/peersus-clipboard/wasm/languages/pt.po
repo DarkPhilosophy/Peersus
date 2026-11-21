@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pt\n"
+"X-Language-Name: Português\n"
+
+msgid "Send clipboard text"
+msgstr "Enviar o texto da área de transferência"
+
+msgid "Send shared text"
+msgstr "Enviar texto partilhado"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizar automaticamente o texto da área de transferência"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Enviar automaticamente o texto da área de transferência para este dispositivo"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Requer a sincronização automática e, para este dispositivo, a permissão para o ver, a permissão da área de transferência e a permissão de envio."
+
+msgid "Send"
+msgstr "Enviar"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Ative aqui e por dispositivo. As novas cópias só são enviadas enquanto este dispositivo puder ler a área de transferência, e o conteúdo sensível fica excluído."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Partilha do texto da área de transferência com permissões explícitas e sincronização automática opcional."

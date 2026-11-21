@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: cs\n"
+"X-Language-Name: Čeština\n"
+
+msgid "Send clipboard text"
+msgstr "Odeslat text ze schránky"
+
+msgid "Send shared text"
+msgstr "Odeslat sdílený text"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Automaticky synchronizovat text ze schránky"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Automaticky odesílat text ze schránky do tohoto zařízení"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Vyžaduje automatickou synchronizaci a pro toto zařízení oprávnění je vidět, oprávnění ke schránce a oprávnění k odesílání."
+
+msgid "Send"
+msgstr "Odeslat"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Zapněte zde a pro každé zařízení. Nové kopie se odesílají jen tehdy, když toto zařízení může číst schránku, a citlivý obsah se vynechává."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Sdílení textu ze schránky s výslovnými oprávněními a volitelnou automatickou synchronizací."

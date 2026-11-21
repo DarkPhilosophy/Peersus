@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de\n"
+"X-Language-Name: Deutsch\n"
+
+msgid "Send clipboard text"
+msgstr "Text aus der Zwischenablage senden"
+
+msgid "Send shared text"
+msgstr "Geteilten Text senden"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Text der Zwischenablage automatisch abgleichen"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Text der Zwischenablage automatisch an dieses Gerät senden"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Erfordert den automatischen Abgleich und für dieses Gerät die Berechtigung, es zu sehen, die Berechtigung für die Zwischenablage und die Sendeberechtigung."
+
+msgid "Send"
+msgstr "Senden"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Hier und pro Gerät einschalten. Neue Kopien werden nur gesendet, solange dieses Gerät die Zwischenablage lesen kann; vertrauliche Inhalte sind ausgenommen."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Teilen von Text aus der Zwischenablage mit ausdrücklichen Berechtigungen und optionaler automatischer Synchronisierung."

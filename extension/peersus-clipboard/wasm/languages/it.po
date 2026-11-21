@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: it\n"
+"X-Language-Name: Italiano\n"
+
+msgid "Send clipboard text"
+msgstr "Invia il testo degli appunti"
+
+msgid "Send shared text"
+msgstr "Invia il testo condiviso"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Sincronizza automaticamente il testo degli appunti"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Invia automaticamente il testo degli appunti a questo dispositivo"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Richiede la sincronizzazione automatica e, per questo dispositivo, il permesso di vederlo, il permesso per gli appunti e il permesso di invio."
+
+msgid "Send"
+msgstr "Invia"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Attivalo qui e per ogni dispositivo. Le nuove copie vengono inviate solo mentre questo dispositivo può leggere gli appunti, e i contenuti sensibili sono esclusi."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Condivisione del testo degli appunti con autorizzazioni esplicite e sincronizzazione automatica facoltativa."

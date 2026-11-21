@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: tr\n"
+"X-Language-Name: Türkçe\n"
+
+msgid "Send clipboard text"
+msgstr "Pano metnini gönder"
+
+msgid "Send shared text"
+msgstr "Paylaşılan metni gönder"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Pano metnini otomatik eşitle"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Pano metnini bu cihaza otomatik gönder"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Bu cihaz için otomatik eşitleme ile cihazı görme izni, pano izni ve gönderme izni gerekir."
+
+msgid "Send"
+msgstr "Gönder"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
+msgstr "Burada ve her cihaz için açın. Yeni kopyalar yalnızca bu cihaz panoyu okuyabildiği sürece gönderilir ve hassas içerik hariç tutulur."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Açık izinler ve isteğe bağlı otomatik eşitleme ile pano metni paylaşımı."

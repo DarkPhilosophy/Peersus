@@ -1,0 +1,159 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Clipboard",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+  },
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "program": "peersus_clipboard_wasm.wasm",
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
+  "capabilities": {
+    "clipboard.use": "Send text to, and accept text from, a paired device on this extension's behalf. Reading and replacing this device's clipboard is a separate permission of the application."
+  },
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": [
+        "list",
+        "send"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.clipboard",
+      "version": 1,
+      "methods": [
+        "read",
+        "observe",
+        "selected",
+        "chunk",
+        "write",
+        "append",
+        "commit",
+        "reset",
+        "release"
+      ],
+      "events": [
+        "changed"
+      ]
+    }
+  ],
+  "exports": [
+    {
+      "service": "clipboard.text",
+      "version": 1,
+      "description": "Shares clipboard text between this device and a paired device.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "share": {
+          "capability": "clipboard.use",
+          "description": "Sends the clipboard text to the device you chose."
+        },
+        "send_text": {
+          "capability": "clipboard.use",
+          "description": "Sends text that was shared into the application to the device you chose."
+        },
+        "receive": {
+          "capability": "clipboard.use",
+          "description": "Takes text a paired device sent and puts it on the clipboard, replacing what is there."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "actions": [
+      {
+        "id": "share",
+        "label": "Send clipboard text",
+        "short_label": "Send",
+        "target": {
+          "service": "clipboard.text",
+          "method": "share"
+        },
+        "capability": "clipboard.use",
+        "needs_device": true,
+        "destructive": false
+      },
+      {
+        "id": "send_text",
+        "label": "Send shared text",
+        "input": "shared_text",
+        "target": {
+          "service": "clipboard.text",
+          "method": "send_text"
+        },
+        "capability": "clipboard.use",
+        "needs_device": true,
+        "destructive": false
+      }
+    ],
+    "settings": [
+      {
+        "id": "automatic",
+        "label": "Automatically synchronize clipboard text",
+        "help": "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      },
+      {
+        "id": "sync",
+        "label": "Automatically send clipboard text to this device",
+        "help": "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission.",
+        "scope": "device",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Clipboard asks the host to share this device's clipboard text with a paired device you choose, and can ask it to replace this device's clipboard with text a paired device sends. Optional automatic synchronization is off until you enable it here and per device.",
+        "changes": "After installing, 'Send clipboard text' and 'Send shared text' actions appear. Clipboard text you share leaves this device for the paired device you chose; with synchronization on, new clipboard text may be sent automatically to devices you enabled."
+      }
+    ]
+  }
+}
