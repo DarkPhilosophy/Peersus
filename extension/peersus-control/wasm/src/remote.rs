@@ -127,20 +127,26 @@ pub struct Outgoing {
 }
 
 impl State {
-    /// Only the guest interprets this option; the host receives ordinary additional placements.
+    /// Only the guest interprets these options; the host receives ordinary additional placements. A page is among the
+    /// application's pages only while its option is on (`remote` exists only on a phone: the copy keeps its platforms).
     pub(crate) fn configure_pages<H: Wire>(&mut self, host: &mut H) -> Result<(), &'static str> {
+        const OPTIONS: [(&str, &str); 2] = [("layout-page", "layout"), ("remote-page", "remote")];
         let config = self.call(host, CONFIG, "get", json!({}))?;
-        let wanted = config["settings"]["layout-page"].as_bool().unwrap_or(false);
-        if self.layout_page == Some(wanted) {
+        let wanted: Vec<&'static str> = OPTIONS
+            .iter()
+            .filter(|(option, _)| config["settings"][*option].as_bool().unwrap_or(false))
+            .map(|(option, _)| *option)
+            .collect();
+        if self.placed_pages.as_ref() == Some(&wanted) {
             return Ok(());
         }
-        let pages = if wanted {
-            json!([{"id":"layout-page", "page":"layout", "placement":"primary"}])
-        } else {
-            json!([])
-        };
-        self.call(host, PAGES, "set", json!({"pages":pages}))?;
-        self.layout_page = Some(wanted);
+        let pages: Vec<Value> = OPTIONS
+            .iter()
+            .filter(|(option, _)| wanted.contains(option))
+            .map(|(option, page)| json!({"id":option, "page":page, "placement":"primary"}))
+            .collect();
+        self.call(host, PAGES, "set", json!({ "pages": pages }))?;
+        self.placed_pages = Some(wanted);
         Ok(())
     }
 
@@ -740,25 +746,26 @@ mod tests {
     }
 
     #[test]
-    fn layout_option_adds_or_withdraws_a_second_placement_of_the_same_page() {
-        for enabled in [true, false] {
+    fn each_page_is_among_the_applications_pages_only_while_its_own_option_is_on() {
+        let layout = json!({"id":"layout-page", "page":"layout", "placement":"primary"});
+        let remote = json!({"id":"remote-page", "page":"remote", "placement":"primary"});
+        for (layout_on, remote_on, placed) in [
+            (false, false, json!([])),
+            (true, false, json!([layout])),
+            (false, true, json!([remote])),
+            (true, true, json!([layout, remote])),
+        ] {
             let mut host = Script::default();
             let mut state = State::default();
-            host.results
-                .push_back(ok(json!({"settings":{"layout-page":enabled}})));
+            host.results.push_back(ok(
+                json!({"settings":{"layout-page":layout_on, "remote-page":remote_on}}),
+            ));
             host.results.push_back(ok(json!({})));
             state.configure_pages(&mut host).unwrap();
             let call = &host.sent[1];
             assert_eq!(call["service"], PAGES);
             assert_eq!(call["method"], "set");
-            assert_eq!(
-                call["args"]["pages"],
-                if enabled {
-                    json!([{"id":"layout-page", "page":"layout", "placement":"primary"}])
-                } else {
-                    json!([])
-                }
-            );
+            assert_eq!(call["args"]["pages"], placed);
         }
     }
 

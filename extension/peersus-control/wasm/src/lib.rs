@@ -21,9 +21,10 @@ pub(crate) struct State {
     incoming: std::collections::BTreeMap<host::Handle, remote::Incoming>,
     pub ui: ui::Ui,
     pub layout: layout::Ui,
-    /// The layout-page option as last placed, and when (page time) it was last read: the application
-    /// keeps the guest running when the option changes, so the guest looks again while its pages are used.
-    layout_page: Option<bool>,
+    /// Which of its pages the person's options placed among the application's pages, as last placed, and when (page time) they
+    /// were last read: the application keeps the guest running when an option changes, so the guest looks again while its
+    /// pages are used.
+    placed_pages: Option<Vec<&'static str>>,
     pages_checked: u64,
 }
 
