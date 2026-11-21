@@ -1,0 +1,19 @@
+schema = 1
+id = "control"
+artifacts = ["control-linux.tar.gz", "control-android.tar.gz", "control-macos.tar.gz", "control-linux-native_library.tar.gz", "control-linux-process.tar.gz"]
+
+build = [
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--features", "native", "--target-dir", "{sdk}/target"],
+  ["cc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-fstack-protector-strong", "-fPIE", "-pie", "-DPEERSUS_LINKED_MODULE", "{sdk}/crates/peersus-plugin-runtime/native/host.c", "{sdk}/target/release/libpeersus_control_wasm.a", "-Wl,-z,relro,-z,now", "-lpthread", "-ldl", "-lm", "-o", "{sdk}/target/release/peersus-control-process"],
+]
+test = [
+  ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
+]
+package = [
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "control"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "control"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "control"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "control", "--native-library", "libpeersus_control_wasm.so"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "control", "--process", "peersus-control-process"],
+]

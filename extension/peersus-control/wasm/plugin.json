@@ -1,0 +1,217 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Control",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Use your phone as a touchpad and keyboard for a paired computer.",
+    "changelog": "Remote has its own option, Add Remote to page, like Layout; until it is turned on, Remote is in these settings and not among the application pages."
+  },
+  "platforms": [
+    "linux",
+    "android",
+    "macos",
+    "windows"
+  ],
+  "program": "peersus_control_wasm.wasm",
+  "execution": {
+    "kind": "wasm",
+    "abi": 1
+  },
+  "capabilities": {
+    "control.use": "Control a paired computer from this device, or let a paired device control this computer. Replaying input on this computer is a separate permission of the application."
+  },
+  "imports": [
+    {
+      "provider": "host",
+      "service": "peersus.peers",
+      "version": 1,
+      "methods": [
+        "list",
+        "send"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.input",
+      "version": 1,
+      "methods": [
+        "inject",
+        "release",
+        "inspect"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.displays",
+      "version": 1,
+      "methods": [
+        "inspect",
+        "arrange"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.config",
+      "version": 1,
+      "methods": [
+        "get"
+      ],
+      "events": []
+    },
+    {
+      "provider": "host",
+      "service": "peersus.pages",
+      "version": 1,
+      "methods": [
+        "set"
+      ],
+      "events": []
+    }
+  ],
+  "exports": [
+    {
+      "service": "control.pointer",
+      "version": 1,
+      "description": "Carries pointer and keyboard input from a phone to a paired computer.",
+      "consumers": [
+        "host"
+      ],
+      "methods": {
+        "input": {
+          "capability": "control.use",
+          "description": "Sends what you do on the Remote page to the computer you chose."
+        },
+        "view": {
+          "capability": null,
+          "description": "Renders Control's own interface and interprets its raw UI events."
+        },
+        "layout": {
+          "capability": null,
+          "description": "Renders Control's desktop arrangement editor and handles its gestures."
+        },
+        "receive": {
+          "capability": "control.use",
+          "description": "Replays on this computer what a paired device sends."
+        }
+      },
+      "events": {}
+    }
+  ],
+  "contributions": {
+    "input": {
+      "source": {
+        "service": "control.pointer",
+        "method": "input"
+      },
+      "capability": "control.use"
+    },
+    "pages": [
+      {
+        "id": "remote",
+        "label": "Remote",
+        "placement": "settings",
+        "icon": "pointer",
+        "surface": "elements",
+        "needs_device": false,
+        "capability": null,
+        "platforms": [
+          "android"
+        ],
+        "source": {
+          "service": "control.pointer",
+          "method": "view"
+        }
+      },
+      {
+        "id": "layout",
+        "label": "Layout",
+        "placement": "settings",
+        "icon": "layout",
+        "surface": "elements",
+        "platforms": [
+          "linux",
+          "windows",
+          "macos"
+        ],
+        "needs_device": false,
+        "capability": null,
+        "source": {
+          "service": "control.pointer",
+          "method": "layout"
+        }
+      }
+    ],
+    "settings": [
+      {
+        "id": "layout-page",
+        "platforms": ["linux","windows","macos"],
+        "label": "Add Layout to page",
+        "help": "Also show Layout as its own page; keep the original Layout in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      },
+      {
+        "id": "remote-page",
+        "platforms": ["android"],
+        "label": "Add Remote to page",
+        "help": "On a phone, also show Remote as its own page; keep the original Remote in these settings.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": false
+        }
+      },
+      {
+        "id": "independent",
+        "label": "Independent pointer per device",
+        "help": "Each device that controls this computer gets a pointer of its own, apart from this computer's mouse. Needs a desktop that draws a pointer per tablet tool, such as GNOME; elsewhere the shared pointer moves.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": true
+        }
+      },
+      {
+        "id": "name-tag",
+        "label": "Show who controls each pointer",
+        "help": "Draw the controlling device's name beside its independent pointer. The name is the one you gave that device on this computer.",
+        "scope": "global",
+        "kind": {
+          "type": "toggle",
+          "default": true
+        }
+      }
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {
+            "label": "Apache License 2.0 text",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0"
+          }
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application.",
+        "changes": "After installing, a Remote page and a Layout editor appear. What you do on the Remote page is sent to the computer you choose and moves its pointer and types there; a paired device you allow can control this computer the same way."
+      }
+    ]
+  }
+}
