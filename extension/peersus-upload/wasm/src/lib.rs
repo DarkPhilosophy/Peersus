@@ -1,58 +1,46 @@
 //! Sandboxed provider protocol: the host owns all file bytes and credentials.
 #![cfg(any(target_family = "wasm", feature = "native", test))]
+
+mod host;
+#[cfg(all(feature = "native", not(target_family = "wasm")))]
+mod native;
+
+use host::Wire;
 use serde_json::{Value, json};
-#[cfg(any(target_family = "wasm", feature = "native"))]
-const LIMIT: usize = 48 * 1024;
 const PART: u64 = 3 * 1024 * 1024;
 const MAX_FILE: u64 = 250 * 1024 * 1024;
+/// The destination this extension was written for first: an account and its API key, files that burn after a day.
 const ORIGIN: &str = "https://poo.wang";
 /// The request header the provider's upload sessions are told by. Named to the application when asking to send.
 const SESSION_HEADER: &str = "x-upload-session";
 const RETENTION: &str = "Burn after 24 hours";
+/// A destination that needs no account and no key at all: one file, one request, a public link.
+const CATBOX: &str = "https://catbox.moe";
+/// Where that destination's links live. Named to the application with the consent and never requested: a request of this
+/// extension goes to [`CATBOX`] only.
+const CATBOX_LINKS: &str = "https://files.catbox.moe";
+/// The largest file that destination takes from here: one multipart request, and a part is the most the application reads for
+/// one. Anything larger would have to be split, which this destination does not accept, so it is refused before it is sent.
+const CATBOX_MAX: u64 = 6 * 1024 * 1024;
+/// The application's own words when the selection is larger than the limit it was asked for. This extension turns them into a
+/// sentence that names the destination and its limit, since that is what the person chose.
+const SIZE_REFUSED: &str = "Choose a regular file within the upload size limit";
+/// What this extension's settings say about the destination that needs no key, so that both destinations are visible where the
+/// key of the first one is.
+const CATBOX_WORDS: &str = "Catbox needs no key and no account: 'Upload selected file (Catbox, anonymous)' sends one file of up to 6 MiB to catbox.moe and shows the public link it returns on files.catbox.moe.";
 /// How many calls are kept while the extension asks its first question; any past these are refused as busy.
 const EARLY: usize = 4;
 
-#[cfg(target_family = "wasm")]
-#[link(wasm_import_module = "peersus_v1")]
-unsafe extern "C" {
-    // Pointers and lengths are `usize`: 32 bits in a wasm32 module, 64 in a wasm64 one. The module's own memory decides.
-    #[link_name = "receive"]
-    fn receive_bytes(buffer: *mut u8, capacity: usize) -> i32;
-    #[link_name = "send"]
-    fn send_bytes(buffer: *const u8, length: usize) -> i32;
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum Destination {
+    #[default]
+    Both,
+    Catbox,
+    Account,
 }
-#[cfg(all(feature = "native", not(target_family = "wasm")))]
-use native::{receive as receive_bytes, send as send_bytes};
-#[cfg(all(feature = "native", not(target_family = "wasm")))]
-mod native;
-trait Wire {
-    fn receive(&mut self) -> Result<Value, &'static str>;
-    fn send(&mut self, value: Value) -> Result<(), &'static str>;
-}
-#[cfg(any(target_family = "wasm", feature = "native"))]
-struct Host;
-#[cfg(any(target_family = "wasm", feature = "native"))]
-impl Wire for Host {
-    fn receive(&mut self) -> Result<Value, &'static str> {
-        let mut buffer = vec![0u8; LIMIT];
-        let count = unsafe { receive_bytes(buffer.as_mut_ptr(), buffer.len()) };
-        if count <= 0 || count as usize > LIMIT {
-            return Err("The host disconnected");
-        }
-        serde_json::from_slice(&buffer[..count as usize]).map_err(|_| "Invalid host response")
-    }
-    fn send(&mut self, value: Value) -> Result<(), &'static str> {
-        let bytes = serde_json::to_vec(&value).map_err(|_| "Invalid extension message")?;
-        if bytes.len() > LIMIT {
-            return Err("Extension message exceeds its bound");
-        }
-        if unsafe { send_bytes(bytes.as_ptr(), bytes.len()) } != 0 {
-            return Err("The host disconnected");
-        }
-        Ok(())
-    }
-}
+
 struct Job<'a, W> {
+    destination: Destination,
     wire: &'a mut W,
     ticket: u64,
     next: u64,
@@ -71,6 +59,7 @@ struct Job<'a, W> {
 impl<'a, W: Wire> Job<'a, W> {
     fn new(wire: &'a mut W, ticket: u64, next: u64) -> Self {
         Job {
+            destination: Destination::Both,
             wire,
             ticket,
             next,
@@ -148,7 +137,8 @@ impl<W: Wire> Job<'_, W> {
             }
         }
     }
-    fn http(&mut self, mut args: Value) -> Result<Value, &'static str> {
+    /// One accepted request under the current authorization, whole: a destination that answers with text is read for text.
+    fn accepted(&mut self, mut args: Value) -> Result<Value, &'static str> {
         args["authorization"] = self.authorization.clone().ok_or("Missing authorization")?;
         let response = self.call("peersus.http", "request", args)?;
         if response["status"]
@@ -157,6 +147,10 @@ impl<W: Wire> Job<'_, W> {
         {
             return Err("The server rejected the upload; no retry was attempted");
         }
+        Ok(response)
+    }
+    fn http(&mut self, args: Value) -> Result<Value, &'static str> {
+        let response = self.accepted(args)?;
         Ok(response["json"].clone())
     }
     /// Whether the key the person just saved is accepted by the provider. Only the status decides: a success is `valid`, the two answers
@@ -186,6 +180,10 @@ impl<W: Wire> Job<'_, W> {
     /// taken back until one is saved. When the application will not say (this extension is not allowed the network yet) the upload
     /// stays offered, and a press says what is missing. A verdict is of the key it was asked about: it goes when the key does.
     fn refresh(&mut self, key: &mut Key) {
+        if self.destination == Destination::Catbox {
+            self.withhold(&["upload", "configure"]);
+            return;
+        }
         let saved = self
             .call("peersus.http", "saved", json!({"origin":ORIGIN}))
             .ok()
@@ -194,17 +192,39 @@ impl<W: Wire> Job<'_, W> {
             key.forget();
         }
         key.saved = saved;
-        let withheld: &[&str] = if saved == Some(false) {
-            &["upload"]
-        } else {
-            &[]
+        let withheld: &[&str] = match (self.destination, saved) {
+            (Destination::Account, Some(false)) => &["upload", "upload_anonymous"],
+            (Destination::Account, _) => &["upload_anonymous"],
+            (_, Some(false)) => &["upload"],
+            _ => &[],
         };
+        self.withhold(withheld);
+    }
+
+    fn withhold(&mut self, withheld: &[&str]) {
         let _ = self.ask(
             "peersus.actions",
             "withhold",
             json!({"actions":withheld}),
             5_000,
         );
+    }
+
+    fn read_destination(&mut self) -> Destination {
+        let config = self.ask("peersus.config", "get", json!({}), 5_000);
+        match config.as_ref().ok().and_then(|c| c["settings"]["destination"].as_str()) {
+            Some("Catbox") => Destination::Catbox,
+            Some("poo.wang") => Destination::Account,
+            _ => Destination::Both,
+        }
+    }
+
+    fn settings_page(&self, key: &Key) -> Value {
+        if self.destination == Destination::Catbox {
+            json!({"k":"text","text":CATBOX_WORDS,"tone":"body"})
+        } else {
+            key.page()
+        }
     }
     /// Ask the provider about the saved key, unless the application said there is none, and keep what it said for the settings line.
     fn verify(&mut self, key: &mut Key) -> Result<(), &'static str> {
@@ -234,6 +254,9 @@ impl<W: Wire> Job<'_, W> {
     /// The settings line after what the person did there: opening it asks the application again, "Check now" also asks the provider,
     /// and anything else (its own clock) only draws what is known.
     fn status(&mut self, key: &mut Key, event: &Value) -> Value {
+        if self.destination == Destination::Catbox {
+            return json!({"status":"ok","value":self.settings_page(key)});
+        }
         match (event["t"].as_str(), event["id"].as_str()) {
             (Some("open"), _) => self.refresh(key),
             (Some("press"), Some("check")) => {
@@ -242,7 +265,7 @@ impl<W: Wire> Job<'_, W> {
             }
             _ => {}
         }
-        json!({"status":"ok","value":key.page()})
+        json!({"status":"ok","value":self.settings_page(key)})
     }
     /// One upload, beginning with the key: it is asked about first, so that a key the provider refuses is said before a file is
     /// prepared or the person is asked to allow anything.
@@ -303,9 +326,13 @@ impl<W: Wire> Job<'_, W> {
             let mut receipts = Vec::new();
             for index in 0..parts {
                 let offset = index * part_size;
-                let receipt = self.http(json!({"method":"PUT","path":format!("/api/upload/session/part?index={index}"),"headers":{"content-type":"application/octet-stream",SESSION_HEADER:token},"part":{"offset":offset,"length":(size-offset).min(part_size)},"capture_secrets":["/receipt"]}))?;
+                let length = (size - offset).min(part_size);
+                let receipt = self.http(json!({"method":"PUT","path":format!("/api/upload/session/part?index={index}"),"headers":{"content-type":"application/octet-stream",SESSION_HEADER:token},"part":{"offset":offset,"length":length},"capture_secrets":["/receipt"]}))?;
                 if receipt["success"] != true
                     || receipt["index"].as_u64() != Some(index)
+                    // Older servers returned only the receipt. If the server reports a byte
+                    // count, it must acknowledge this part, including a shorter final part.
+                    || receipt.get("acceptedBytes").is_some_and(|bytes| bytes.as_u64() != Some(length))
                     || receipt["receipt"]["secret"].as_str().is_none()
                 {
                     return Err("Invalid server part receipt");
@@ -337,6 +364,86 @@ impl<W: Wire> Job<'_, W> {
             let _ = self.call("peersus.files", "release", json!({"file":file}));
         }
     }
+    /// One upload to the destination that needs no account: nothing of the person is saved, read or sent with it, so there is
+    /// no key to ask about and no settings line to consult. The address and the address its link will be on are the two things
+    /// the person is asked to allow, and the file is refused before that if it is larger than one request of it.
+    fn upload_anonymous(&mut self, context: Option<u64>) -> Result<String, &'static str> {
+        self.run_anonymous(context.ok_or("Choose one file on Send before uploading")?)
+    }
+    fn run_anonymous(&mut self, context: u64) -> Result<String, &'static str> {
+        if context == 0 {
+            return Err("Choose one file on Send before uploading");
+        }
+        // Asked for under this destination's own limit: a larger file is refused by the application while it is still only a
+        // selection, before a snapshot, a question or a byte leaves. No part is ever sent as if it were the whole file.
+        let selected = match self.call(
+            "peersus.files",
+            "selected",
+            json!({"context":context,"max_bytes":CATBOX_MAX}),
+        ) {
+            Ok(selected) => selected,
+            Err(message) => {
+                return Err(if self.refused.as_deref() == Some(SIZE_REFUSED) {
+                    "Catbox takes one file of up to 6 MiB; this application sends no more than that in one request"
+                } else {
+                    message
+                });
+            }
+        };
+        self.file = Some(selected["file"].clone());
+        let size = selected["bytes"]
+            .as_u64()
+            .filter(|size| *size > 0 && *size <= CATBOX_MAX)
+            .ok_or("Invalid selected size")?;
+        // Anonymous: the application is asked to allow this file to this address with no key, and to allow a result link on
+        // the address the destination puts it. It reads no saved key for either, and this extension never sees one.
+        let authorization = self.call(
+            "peersus.http",
+            "authorize",
+            json!({"file":self.file,"origin":CATBOX,"headers":[],"anonymous":true,"result_origin":CATBOX_LINKS}),
+        )?;
+        self.authorization = Some(authorization["authorization"].clone());
+        let answer = self.accepted(json!({
+            "method":"POST",
+            "path":"/user/api.php",
+            "response":"text",
+            "multipart":{"field":"fileToUpload","offset":0,"length":size,"fields":{"reqtype":"fileupload"}}
+        }))?;
+        let link = catbox_link(&answer)?;
+        let presented = self.call(
+            "peersus.http",
+            "present",
+            json!({"authorization":self.authorization,"link":link}),
+        )?;
+        if presented["presented"] != true {
+            return Err("The upload result could not be displayed");
+        }
+        Ok(link)
+    }
+}
+/// The link the anonymous destination answered with, which it writes as plain text: its own link origin, then one segment of
+/// its own identifier characters and nothing else. Anything else is no link this extension will show: another origin, another
+/// path, a query or a fragment, a second line, something that is not text.
+fn catbox_link(answer: &Value) -> Result<String, &'static str> {
+    let text = answer["text"]
+        .as_str()
+        .ok_or("Invalid upload result")?
+        .trim_end_matches(['\r', '\n']);
+    let name = text
+        .strip_prefix(CATBOX_LINKS)
+        .and_then(|rest| rest.strip_prefix('/'))
+        .ok_or("Unsafe upload result link")?;
+    if name.is_empty()
+        || name.len() > 128
+        || name == "."
+        || name == ".."
+        || !name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+    {
+        return Err("Unsafe upload result link");
+    }
+    Ok(format!("{CATBOX_LINKS}/{name}"))
 }
 fn result_link(result: &Value) -> Result<String, &'static str> {
     let files = result["files"]
@@ -383,13 +490,14 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 
 #[cfg(any(target_family = "wasm", feature = "native"))]
 fn run() -> i32 {
-    let mut host = Host;
+    let mut host = host::Host;
     let mut key = Key::default();
     // Asked once before anything else, so that the upload is not offered while there is no key to send a file with.
-    let (mut next, early) = {
+    let (destination, mut next, early) = {
         let mut job = Job::starting(&mut host);
+        job.destination = job.read_destination();
         job.refresh(&mut key);
-        (job.next, job.early.take().unwrap_or_default())
+        (job.destination, job.next, job.early.take().unwrap_or_default())
     };
     let mut early = early.into_iter();
     loop {
@@ -409,14 +517,26 @@ fn run() -> i32 {
         let method = message["method"]
             .as_str()
             .filter(|_| message["service"] == "upload.file");
-        let shown = key.page();
         let mut job = Job::new(&mut host, ticket, next);
-        job.shown = shown;
+        job.destination = destination;
+        job.shown = job.settings_page(&key);
         let result = match method {
+            Some("configure" | "choose") if destination == Destination::Catbox =>
+                failure("Choose poo.wang in Upload destination before using this action", "destination-disabled"),
+            Some("choose_anonymous") if destination == Destination::Account =>
+                failure("Choose Catbox in Upload destination before using this action", "destination-disabled"),
             Some("configure") => job.configure(&mut key),
             Some("status") => job.status(&mut key, &message["args"]["event"]),
             Some("choose") => {
                 let result = job.upload(&mut key, message["args"]["context"].as_u64());
+                job.release();
+                match result {
+                    Ok(url) => json!({"status":"ok","value":{"status":"uploaded","url":url}}),
+                    Err(message) => failure(message, "upload-failed"),
+                }
+            }
+            Some("choose_anonymous") => {
+                let result = job.upload_anonymous(message["args"]["context"].as_u64());
                 job.release();
                 match result {
                     Ok(url) => json!({"status":"ok","value":{"status":"uploaded","url":url}}),
@@ -503,11 +623,13 @@ impl Key {
     }
     /// The line in this extension's settings, and "Check now" while there is a key to ask about. It asks to be drawn again by
     /// itself, so that what a save or an upload found out is shown without the page being opened again; drawing asks nobody.
+    /// The other destination is named here too, since it needs none of what this page is about.
     fn page(&self) -> Value {
         let mut children = vec![json!({"k":"text","text":self.words(),"tone":"muted"})];
         if self.saved == Some(true) {
             children.push(json!({"k":"button","id":"check","label":"Check now"}));
         }
+        children.push(json!({"k":"text","text":CATBOX_WORDS,"tone":"muted"}));
         json!({"k":"interval","id":"key","milliseconds":2000,"child":{"k":"column","children":children}})
     }
 }
@@ -579,7 +701,7 @@ mod tests {
                 json!({"authorization":"approved"}),
                 json!({"status":200,"json":{"partSize":PART,"parts":2,"token":{"secret":"session"}}}),
                 json!({"status":200,"json":{"success":true,"index":0,"receipt":{"secret":"first"}}}),
-                json!({"status":200,"json":{"success":true,"index":1,"receipt":{"secret":"last"}}}),
+                json!({"status":200,"json":{"success":true,"index":1,"acceptedBytes":9,"receipt":{"secret":"last"}}}),
                 json!({"status":200,"json":uploaded()}),
                 json!({"presented":true}),
             ]),
@@ -608,6 +730,24 @@ mod tests {
             json!({"token":{"secret":"session"},"receipts":[{"secret":"first"},{"secret":"last"}]})
         );
     }
+    #[test]
+    fn a_receipt_for_a_different_byte_count_never_finalizes_the_file() {
+        let mut wire = Script {
+            replies: VecDeque::from([
+                json!({"file":"chosen","name":"large.bin","bytes":PART+9}),
+                json!({"authorization":"approved"}),
+                json!({"status":200,"json":{"partSize":PART,"parts":2,"token":{"secret":"session"}}}),
+                json!({"status":200,"json":{"success":true,"index":0,"acceptedBytes":PART-1,"receipt":{"secret":"first"}}}),
+            ]),
+            sent: Vec::new(),
+        };
+        assert_eq!(job(&mut wire).run(42), Err("Invalid server part receipt"));
+        assert_eq!(
+            wire.sent.last().unwrap()["args"]["path"],
+            "/api/upload/session/part?index=0"
+        );
+    }
+
     #[test]
     fn inconsistent_session_is_rejected_before_any_part_or_completion() {
         let mut wire = Script {
@@ -805,6 +945,19 @@ mod tests {
             })
             .collect()
     }
+    #[test]
+    fn choosing_catbox_in_settings_hides_account_actions_without_reading_credentials() {
+        let mut wire = told(vec![Ok(json!({"settings":{"destination":"Catbox"}})), Ok(json!({}))]);
+        let mut job = Job::starting(&mut wire);
+        job.destination = job.read_destination();
+        let mut key = Key::default();
+        job.refresh(&mut key);
+        let page = job.status(&mut key, &json!({"t":"open"}));
+        assert_eq!(page["value"]["text"], CATBOX_WORDS);
+        assert_eq!(asked(&wire), ["peersus.config/get", "peersus.actions/withhold"]);
+        assert_eq!(wire.sent[1]["args"]["actions"], json!(["upload", "configure"]));
+    }
+
     #[test]
     fn the_upload_is_taken_back_only_while_the_application_says_no_key_is_saved() {
         for (answer, saved, withheld) in [
@@ -1058,7 +1211,22 @@ mod tests {
             why: None,
         }
         .page();
-        assert!(none["child"]["children"].as_array().unwrap().len() == 1);
+        assert!(
+            none["child"]["children"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|child| child["id"] != "check"),
+            "nothing to check without a key"
+        );
+        // The destination that needs no key is named in the same settings line, so both are visible where one is configured.
+        assert!(
+            none["child"]["children"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|child| child["text"] == CATBOX_WORDS)
+        );
         assert!(Key::default().words().contains("Allow this extension"));
         assert!(
             Key {
@@ -1069,5 +1237,142 @@ mod tests {
             .words()
             .contains("does not accept")
         );
+    }
+    const CATBOX_LINK: &str = "https://files.catbox.moe/a1b2c3.png";
+    #[test]
+    fn an_anonymous_upload_asks_for_no_key_and_sends_none() {
+        let mut wire = Script {
+            replies: VecDeque::from([
+                json!({"file":"chosen","name":"small.png","bytes":7}),
+                json!({"authorization":"approved"}),
+                json!({"status":200,"text":CATBOX_LINK}),
+                json!({"presented":true}),
+                json!({"released":true}),
+                json!({"released":true}),
+            ]),
+            sent: Vec::new(),
+        };
+        let mut job = job(&mut wire);
+        assert_eq!(job.run_anonymous(42).unwrap(), CATBOX_LINK);
+        job.release();
+        // The size asked for is one request's worth: this destination takes no parts, so a larger file is refused by the
+        // application before a snapshot or a question.
+        assert_eq!(
+            wire.sent[0]["args"],
+            json!({"context":42,"max_bytes":CATBOX_MAX})
+        );
+        // Consent binds the file to the destination and names where its link will be, with no key and no header of its own.
+        assert_eq!(
+            wire.sent[1]["args"],
+            json!({"file":"chosen","origin":CATBOX,"headers":[],"anonymous":true,"result_origin":CATBOX_LINKS})
+        );
+        // The file is one multipart part of the request, and no bearer is asked for anywhere: there is no key to send.
+        assert_eq!(wire.sent[2]["method"], "request");
+        assert_eq!(wire.sent[2]["args"]["path"], "/user/api.php");
+        assert_eq!(wire.sent[2]["args"]["response"], "text");
+        assert_eq!(
+            wire.sent[2]["args"]["multipart"],
+            json!({"field":"fileToUpload","offset":0,"length":7,"fields":{"reqtype":"fileupload"}})
+        );
+        assert!(wire.sent[2]["args"].get("bearer").is_none());
+        assert_eq!(
+            wire.sent[3]["args"],
+            json!({"authorization":"approved","link":CATBOX_LINK})
+        );
+        assert!(
+            wire.sent
+                .iter()
+                .all(|call| call["method"] != "check" && call["method"] != "saved"),
+            "an anonymous destination is never asked about a key"
+        );
+        assert!(wire.replies.is_empty());
+    }
+    #[test]
+    fn a_link_the_destination_did_not_write_is_never_presented() {
+        for answer in [
+            json!({"status":200,"text":"https://catbox.moe/a1b2c3.png"}),
+            json!({"status":200,"text":"https://files.catbox.moe/a1/b2"}),
+            json!({"status":200,"text":"https://files.catbox.moe/"}),
+            json!({"status":200,"text":"https://files.catbox.moe/a1b2c3.png?x=1"}),
+            json!({"status":200,"text":"https://files.catbox.moe/a1b2c3.png#top"}),
+            json!({"status":200,"text":"http://files.catbox.moe/a1b2c3.png"}),
+            json!({"status":200,"text":"File too large"}),
+            json!({"status":200,"text":"https://files.catbox.moe/a1b2c3.png\nhttps://files.catbox.moe/other.png"}),
+            json!({"status":200,"text":"https://files.catbox.moe/a1b2c3/../x"}),
+            json!({"status":200,"text":"https://files.catbox.moe/.."}),
+            json!({"status":200,"text":"https://files.catbox.moe/."}),
+            json!({"status":200}),
+            json!({"status":200,"text":"https://files.catbox.moe/ünïcode"}),
+        ] {
+            let mut wire = Script {
+                replies: VecDeque::from([
+                    json!({"file":"chosen","name":"small.png","bytes":7}),
+                    json!({"authorization":"approved"}),
+                    answer,
+                ]),
+                sent: Vec::new(),
+            };
+            assert!(
+                job(&mut wire).run_anonymous(42).is_err(),
+                "a link this extension did not validate was shown"
+            );
+            assert_eq!(
+                wire.sent.last().unwrap()["method"],
+                "request",
+                "an unvalidated link reached presentation"
+            );
+        }
+        // What it does write is taken whole, with the line endings a text answer may carry.
+        for text in [
+            CATBOX_LINK,
+            "https://files.catbox.moe/a1b2c3.png\n",
+            "https://files.catbox.moe/a1b2c3.png\r\n",
+        ] {
+            assert_eq!(catbox_link(&json!({"text":text})).unwrap(), CATBOX_LINK);
+        }
+    }
+    #[test]
+    fn a_file_larger_than_one_request_is_refused_before_anything_is_authorized_or_sent() {
+        struct Sized;
+        impl Wire for Sized {
+            fn send(&mut self, _: Value) -> Result<(), &'static str> {
+                Ok(())
+            }
+            fn receive(&mut self) -> Result<Value, &'static str> {
+                Ok(json!({"type":"result","id":1,"result":{
+                    "status":"error","code":"refused","message":SIZE_REFUSED
+                }}))
+            }
+        }
+        let mut wire = Sized;
+        let mut job = Job::new(&mut wire, 1, 0);
+        assert_eq!(
+            job.run_anonymous(42),
+            Err(
+                "Catbox takes one file of up to 6 MiB; this application sends no more than that in one request"
+            )
+        );
+        assert!(job.authorization.is_none());
+        // A selection that failed for another reason is said as the application said it.
+        struct Closed;
+        impl Wire for Closed {
+            fn send(&mut self, _: Value) -> Result<(), &'static str> {
+                Ok(())
+            }
+            fn receive(&mut self) -> Result<Value, &'static str> {
+                Ok(json!({"type":"result","id":1,"result":{
+                    "status":"error","code":"refused","message":"Selected input is unavailable"
+                }}))
+            }
+        }
+        let mut wire = Closed;
+        assert_eq!(
+            Job::new(&mut wire, 1, 0).run_anonymous(42),
+            Err("The platform refused the operation")
+        );
+        // No context means no file chosen, and nobody is asked anything.
+        let mut wire = told(vec![]);
+        assert!(Job::new(&mut wire, 1, 0).upload_anonymous(None).is_err());
+        assert!(wire.sent.is_empty());
     }
 }

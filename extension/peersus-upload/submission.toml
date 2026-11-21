@@ -1,6 +1,6 @@
 schema = 1
 id = "upload"
-artifacts = ["upload-linux.tar.gz", "upload-android.tar.gz", "upload-macos.tar.gz", "upload-linux-native_library.tar.gz", "upload-linux-process.tar.gz"]
+artifacts = ["upload-linux.tar.gz", "upload-android.tar.gz", "upload-macos.tar.gz", "upload-windows.tar.gz", "upload-linux-native_library.tar.gz", "upload-linux-process.tar.gz"]
 
 build = [
   ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
@@ -14,6 +14,7 @@ package = [
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "upload"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "upload"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "upload"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "windows", "--id", "upload"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "upload", "--native-library", "libpeersus_upload_wasm.so"],
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target/release", "--out", "{out}", "--platform", "linux", "--id", "upload", "--process", "peersus-upload-process"],
 ]
