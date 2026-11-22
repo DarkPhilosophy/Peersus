@@ -21,7 +21,7 @@ mod remote;
 mod wire;
 
 use gauges::{Gauges, Reading};
-use host::{Data, Wire};
+use host::{Blocked, Data, Readiness, Wire};
 use remote::Link;
 use serde_json::{Value, json};
 use std::collections::VecDeque;
@@ -58,6 +58,8 @@ const GRAPH: u16 = 64;
 /// The setting that also places the page among the application's pages, the page it places, and where.
 const PAGE_SETTING: &str = "monitor-page";
 const PAGE: &str = "mon";
+const WATCH: &str = "peers.watch";
+const NOTIFY: &str = "notify.show";
 
 /// The parts of a device, each a method of `peersus.system` behind its own permission, in the order the cards are
 /// asked for.
@@ -87,6 +89,16 @@ impl Part {
             Part::Storage => "storage",
             Part::Network => "network",
             Part::Battery => "battery",
+        }
+    }
+    fn permission(self) -> &'static str {
+        match self {
+            Self::Processor => "device.info.cpu",
+            Self::Graphics => "device.info.gpu",
+            Self::Memory => "device.info.ram",
+            Self::Storage => "device.info.storage",
+            Self::Network => "device.info.network",
+            Self::Battery => "device.info.battery",
         }
     }
     /// The part whose method of `peersus.system` is `method`: the names a question and an answer use.
@@ -150,6 +162,10 @@ impl Pending {
 
 #[derive(Default)]
 pub struct State {
+    readiness: Readiness,
+    part_blocks: [Option<Blocked>; 6],
+    devices_blocked: Option<Blocked>,
+    notify_blocked: Option<Blocked>,
     /// The paired devices as the application last listed them: only those the person let this extension see.
     devices: Vec<Value>,
     /// Whether the application has answered the list at least once.
@@ -655,7 +671,7 @@ impl State {
     /// What the application is asked once the extension starts: its settings, so that the page is placed among the
     /// application's pages when the person asked for it, whether or not the page is ever opened.
     pub fn start(&mut self) -> Vec<Value> {
-        let (id, call) = self.call("peersus.config", "get", json!({}));
+        let (id, call) = self.call(host::CONFIG, "get", json!({}));
         self.asked_config = id;
         vec![call]
     }
@@ -664,6 +680,9 @@ impl State {
     /// paired device is chosen, the question to it (`remote`) when one is due; and the paired devices and the settings
     /// now and then. Nothing for any other delivery.
     pub fn ask(&mut self, delivery: &Value) -> Vec<Value> {
+        if host::config_changed(delivery) {
+            return self.start();
+        }
         let event = &delivery["args"]["event"];
         if delivery["type"] != "call"
             || delivery["method"] != "event"
@@ -672,10 +691,21 @@ impl State {
             return Vec::new();
         }
         let opened = event["t"] == "open";
+        if opened {
+            self.part_blocks = Default::default();
+            self.devices_blocked = None;
+            self.notify_blocked = None;
+            self.apply_readiness();
+        }
         let mut calls = Vec::new();
         let at = event["at"].as_u64().unwrap_or(0);
         if self.chosen.is_none() {
             for (index, part) in PARTS.iter().enumerate() {
+                if self.part_blocks[index].is_some()
+                    || (!opened && self.own.parts[index] == Reading::Denied)
+                {
+                    continue;
+                }
                 let asked = self.asked_parts[index];
                 if !asked.free(at) {
                     continue;
@@ -698,23 +728,23 @@ impl State {
             || self.ticks.is_multiple_of(DEVICES_EVERY)
             || self.chosen.is_some())
             && self.asked_devices.free(at)
+            && self.devices_blocked.is_none()
+            && (opened || !self.devices_denied)
         {
             let (id, call) = self.call("peersus.peers", "list", json!({}));
             self.asked_devices = Pending { id, at };
             calls.push(call);
         }
         if opened || self.ticks.is_multiple_of(CONFIG_EVERY) {
-            let (id, call) = self.call("peersus.config", "get", json!({}));
-            self.asked_config = id;
-            calls.push(call);
+            calls.extend(self.start());
         }
         calls.extend(self.tell_problem());
         calls
     }
 
     /// The application's answer to the last question of a kind, and what it leads to be asked: placing the page
-    /// when its setting changed. Any other delivery changes nothing; an answer of the wrong shape keeps what was
-    /// known, and a refusal of a part or of the devices is said where they would be.
+    /// when its setting changed. Any other delivery changes nothing; a malformed battery answer clears that reading, and
+    /// a refusal of a part or of the devices is said where they would be.
     pub fn told(&mut self, delivery: &Value) -> Vec<Value> {
         if delivery["type"] != "result" {
             return Vec::new();
@@ -723,11 +753,14 @@ impl State {
             return Vec::new();
         };
         let result = &delivery["result"];
+        let blocked = Blocked::read(result);
         let denied = result["status"] == "error" && result["code"] == "denied";
         let value = (result["status"] == "ok").then_some(&result["value"]);
         if id == self.asked_devices.id {
             self.asked_devices = Pending::default();
-            if denied {
+            if let Some(blocked) = blocked {
+                self.block_devices(blocked);
+            } else if denied {
                 self.devices_denied = true;
                 self.listed = true;
                 self.listed_devices(&[]);
@@ -739,12 +772,14 @@ impl State {
         } else if let Some(index) = self.asked_parts.iter().position(|asked| asked.id == id) {
             let asked = std::mem::take(&mut self.asked_parts[index]);
             let part = PARTS[index];
-            if denied {
+            if let Some(blocked) = blocked {
+                self.block_part(part, blocked);
+            } else if denied {
                 self.own.deny(part);
             } else if let Some(value) = value.filter(|value| value.is_object()) {
                 // Bounded as a reading from another device is: what the application says is data like any other.
                 self.own.read(part, wire::value(part, value), asked.at);
-            } else if result["status"] == "error" {
+            } else if result["status"] == "error" || part == Part::Battery {
                 // Not read now: what was read before is not shown as if it were current.
                 self.own.unavailable(part);
             }
@@ -752,6 +787,9 @@ impl State {
             self.sent(result);
         } else if id == self.asked_config {
             if let Some(config) = value {
+                if self.readiness.update(config).is_ok() {
+                    self.apply_readiness();
+                }
                 let wanted = config["settings"][PAGE_SETTING].as_bool().unwrap_or(false);
                 if self.placed != Some(wanted) {
                     let pages = if wanted {
@@ -765,14 +803,73 @@ impl State {
                     return vec![call];
                 }
             }
-        } else if id == self.asked_pages && result["status"] != "ok" {
+        } else if id == self.asked_pages && result["status"] != "ok" && blocked.is_none() {
             // Not placed after all: asked again with the next settings.
             self.placed = None;
-        } else if id == self.asked_notify && denied {
-            // Not allowed to show notifications: the page says it instead, from now on.
-            self.notify_denied = true;
+        } else if id == self.asked_notify {
+            if let Some(blocked) = blocked {
+                if let Blocked::MissingPermission(permission) = &blocked
+                    && permission.is("host", NOTIFY)
+                {
+                    self.readiness.deny(None, permission.clone());
+                }
+                self.notify_blocked = Some(blocked);
+            } else if denied {
+                // Not allowed to show notifications: the page says it instead, from now on.
+                self.notify_denied = true;
+            }
         }
         Vec::new()
+    }
+
+    fn block_part(&mut self, part: Part, blocked: Blocked) {
+        match &blocked {
+            Blocked::MissingPermission(permission) => {
+                if permission.is("host", part.permission()) {
+                    self.readiness.deny(None, permission.clone());
+                }
+                self.own.deny(part);
+            }
+            Blocked::NotAccepted => self.own.unavailable(part),
+        }
+        self.asked_parts[part as usize] = Pending::default();
+        self.part_blocks[part as usize] = Some(blocked);
+    }
+
+    fn block_devices(&mut self, blocked: Blocked) {
+        self.devices_denied = matches!(blocked, Blocked::MissingPermission(_));
+        if let Blocked::MissingPermission(permission) = &blocked
+            && permission.is("host", WATCH)
+        {
+            self.readiness.deny(None, permission.clone());
+        }
+        self.asked_devices = Pending::default();
+        self.devices_blocked = Some(blocked);
+        self.listed = true;
+        self.listed_devices(&[]);
+    }
+
+    fn apply_readiness(&mut self) {
+        for part in PARTS {
+            if self.part_blocks[part as usize].is_none()
+                && let Some(permission) = self.readiness.missing(None, "host", part.permission())
+            {
+                self.block_part(part, Blocked::MissingPermission(permission));
+            }
+        }
+        if self.devices_blocked.is_none()
+            && let Some(permission) = self.readiness.missing(None, "host", WATCH)
+        {
+            self.block_devices(Blocked::MissingPermission(permission));
+        }
+        if !self.refused_here()
+            && let Some(permission) = self
+                .chosen
+                .as_deref()
+                .and_then(|device| self.send_block(device))
+        {
+            self.stop_talk(Blocked::MissingPermission(permission));
+        }
     }
 
     fn listed_devices(&mut self, peers: &[Value]) {
@@ -785,10 +882,6 @@ impl State {
             .iter()
             .find(|peer| peer["device"].as_str() == Some(chosen));
         if now.is_some_and(askable) {
-            // Allowed again on this device: it is asked again, and the refusal is not remembered.
-            if now.is_some_and(|peer| peer["allowed"] != false) {
-                self.talk.refused = false;
-            }
             return;
         }
         // A chosen device that stops being one to ask is unselected where the person sees it, not kept silently.
@@ -877,6 +970,9 @@ impl State {
     /// How it stands with the chosen device; `None` while the numbers shown are this device's.
     fn link(&self) -> Option<Link> {
         self.chosen.as_ref()?;
+        if self.talk.blocked.is_some() {
+            return Some(self.talk.link());
+        }
         // An application that says no `allowed` is an older one: it says only who may be seen.
         let refused = self
             .chosen_peer()
@@ -887,9 +983,9 @@ impl State {
             self.talk.link()
         })
     }
-    /// Whether this device's person did not allow Monitor what asking the chosen device takes.
+    /// Whether the chosen device's current conversation has stopped on a refusal.
     fn refused_here(&self) -> bool {
-        self.link() == Some(Link::Refused)
+        matches!(self.link(), Some(Link::Refused | Link::NotAccepted))
     }
     /// Whose numbers the cards say: this device's, or the chosen device's by its name.
     fn whose(&self) -> &str {
@@ -914,6 +1010,36 @@ impl State {
                 name(peer)
             ),
             None => "Allow it in this extension's permissions to see it here.".to_owned(),
+        }
+    }
+
+    fn part_refusal(&self, part: Part, width: &Value) -> Option<Value> {
+        let blocked = if self.chosen.is_none() {
+            self.part_blocks[part as usize].as_ref()
+        } else {
+            None
+        };
+        match blocked {
+            Some(Blocked::MissingPermission(permission)) => Some(not_allowed(
+                part,
+                width.clone(),
+                &format!(
+                    "{}: missing permission {} on this device.",
+                    part.title(),
+                    permission.name
+                ),
+            )),
+            Some(Blocked::NotAccepted) => Some(card(
+                width.clone(),
+                vec![
+                    heading(part, ""),
+                    text(&format!("{}: not accepted.", part.title()), "muted"),
+                ],
+            )),
+            None if *self.reading(part) == Reading::Denied => {
+                Some(not_allowed(part, width.clone(), &self.denial()))
+            }
+            None => None,
         }
     }
 
@@ -948,6 +1074,17 @@ impl State {
     /// The one thing wrong now that the person should know of, in Monitor's words: a chosen device that was unselected, one
     /// that does not answer, or paired devices not shown at all. Told once through the application's notifications.
     fn problem(&self) -> Option<String> {
+        if let Some(blocked) = &self.devices_blocked {
+            return Some(match blocked {
+                Blocked::MissingPermission(permission) => {
+                    format!(
+                        "Paired devices: missing permission {} on this device.",
+                        permission.name
+                    )
+                }
+                Blocked::NotAccepted => "Paired devices: not accepted.".to_owned(),
+            });
+        }
         if let Some(dropped) = &self.dropped {
             return Some(dropped.clone());
         }
@@ -971,7 +1108,11 @@ impl State {
             return None;
         }
         self.told_problem = problem.clone();
-        let text = problem.filter(|_| !self.notify_denied)?;
+        let text = problem.filter(|_| !self.notify_denied && self.notify_blocked.is_none())?;
+        if let Some(permission) = self.readiness.missing(None, "host", NOTIFY) {
+            self.notify_blocked = Some(Blocked::MissingPermission(permission));
+            return None;
+        }
         let (id, call) = self.call("peersus.notify", "show", json!({"text":text}));
         self.asked_notify = id;
         Some(call)
@@ -979,18 +1120,23 @@ impl State {
     /// The one card of a chosen device that this device's person did not allow Monitor to ask.
     fn refused_card(&self) -> Value {
         let who = self.chosen_peer().map_or("that device", name);
-        card(
-            fill(),
-            vec![
-                text("Not allowed", "title"),
-                text(
-                    &format!(
-                        "Allow this extension, for {who}, to see it, to send to it and to share numbers with it, in this extension's permissions. {who} has to allow the same for this device."
-                    ),
-                    "muted",
+        let (title, note) = match &self.talk.blocked {
+            Some(Blocked::MissingPermission(permission)) => (
+                "Not allowed",
+                format!(
+                    "{who}: missing permission {} on this device.",
+                    permission.name
                 ),
-            ],
-        )
+            ),
+            Some(Blocked::NotAccepted) => ("Not accepted", format!("{who}: not accepted.")),
+            None => (
+                "Not allowed",
+                format!(
+                    "Allow this extension, for {who}, to see it, to send to it and to share numbers with it, in this extension's permissions. {who} has to allow the same for this device."
+                ),
+            ),
+        };
+        card(fill(), vec![text(title, "title"), text(&note, "muted")])
     }
 
     /// The card of the processor or the graphics, as the concept draws it: its picture, name and maker with how busy it
@@ -998,8 +1144,8 @@ impl State {
     /// or the memory of the graphics); how warm, as a thermometer and a bar.
     fn chip_card(&self, part: Part, layout: Layout) -> Value {
         let width = layout.width(part);
-        if *self.reading(part) == Reading::Denied {
-            return not_allowed(part, width, &self.denial());
+        if let Some(card) = self.part_refusal(part, &width) {
+            return card;
         }
         let value = self.known(part);
         let about = value["name"].as_str().unwrap_or("Not available");
@@ -1070,8 +1216,8 @@ impl State {
     /// The card of the memory: its name, a large open ring of how much is used, and the sizes under it.
     fn memory_card(&self, layout: Layout) -> Value {
         let width = layout.width(Part::Memory);
-        if *self.reading(Part::Memory) == Reading::Denied {
-            return not_allowed(Part::Memory, width, &self.denial());
+        if let Some(card) = self.part_refusal(Part::Memory, &width) {
+            return card;
         }
         let space = space(self.known(Part::Memory));
         card(
@@ -1100,8 +1246,8 @@ impl State {
     /// The card of the storage: an open ring of how much is used beside its name and sizes, and the disk it is on.
     fn storage_card(&self, layout: Layout) -> Value {
         let width = layout.width(Part::Storage);
-        if *self.reading(Part::Storage) == Reading::Denied {
-            return not_allowed(Part::Storage, width, &self.denial());
+        if let Some(card) = self.part_refusal(Part::Storage, &width) {
+            return card;
         }
         let value = self.known(Part::Storage);
         let space = space(value);
@@ -1141,8 +1287,8 @@ impl State {
     /// The card of the network: its name, the last minute of its speed, the speeds now and what it carried.
     fn network(&self, layout: Layout) -> Value {
         let width = layout.width(Part::Network);
-        if *self.reading(Part::Network) == Reading::Denied {
-            return not_allowed(Part::Network, width, &self.denial());
+        if let Some(card) = self.part_refusal(Part::Network, &width) {
+            return card;
         }
         let shown = self.shown();
         let rate = |n: Option<u64>| n.map_or(UNKNOWN.to_owned(), |n| format!("{}/s", bytes(n)));
@@ -1178,19 +1324,22 @@ impl State {
     /// filled from the bottom as far as the battery is charged, with the time it gives, the charge and what it is doing.
     fn battery(&self, layout: Layout) -> Value {
         let width = layout.width(Part::Battery);
-        if *self.reading(Part::Battery) == Reading::Denied {
-            return not_allowed(Part::Battery, width, &self.denial());
+        if let Some(card) = self.part_refusal(Part::Battery, &width) {
+            return card;
         }
         let battery = self.known(Part::Battery);
         let charge = battery["charge"]
             .as_u64()
-            .and_then(|n| u16::try_from(n).ok())
-            .map(|n| n.min(10000));
-        let state = match (charge, battery["charging"].as_bool()) {
-            (None, _) => "Not available",
-            (_, Some(true)) => "Charging",
-            (_, Some(false)) => "Discharging",
-            (_, None) => "",
+            .and_then(|n| u16::try_from(n).ok());
+        let plugged = battery["plugged"].as_bool() == Some(true);
+        let state = match battery["status"].as_str() {
+            Some("charging") => "Charging",
+            Some("discharging") => "Discharging",
+            Some("not_charging") if plugged => "Plugged in, not charging",
+            Some("not_charging") => "Not charging",
+            Some("full") => "Full",
+            _ if plugged => "Plugged in; status unknown",
+            _ => "Status unknown",
         };
         let level = charge.map(|charge| {
             bx(
@@ -1201,13 +1350,11 @@ impl State {
             )
         });
         let mut figures = Vec::new();
-        if let Some(left) = battery["minutes"].as_u64().filter(|_| charge.is_some()) {
+        if let Some(left) = battery["minutes"].as_u64() {
             figures.push(text(&duration(left), "muted"));
         }
         figures.push(text(&charge.map_or(UNKNOWN.to_owned(), percent), "figure"));
-        if !state.is_empty() {
-            figures.push(text(state, "muted"));
-        }
+        figures.push(text(state, "muted"));
         bx(
             None,
             json!({"width":width,"height":layout.battery_height(),"background":"raised",
@@ -1247,20 +1394,46 @@ impl State {
         let mut children = vec![measure, self.chooser()];
         // A problem is told through the application's notifications; written here only where the person did not let
         // Monitor show any.
-        if self.notify_denied
+        if (self.notify_denied
+            || self.notify_blocked.is_some()
+            || self.readiness.missing(None, "host", NOTIFY).is_some())
             && let Some(problem) = self.problem()
         {
             children.push(text(&problem, "body"));
+            if let Some(blocked) = &self.notify_blocked {
+                let note = match blocked {
+                    Blocked::MissingPermission(permission) => format!(
+                        "Notifications: missing permission {} on this device.",
+                        permission.name
+                    ),
+                    Blocked::NotAccepted => "Notifications: not accepted.".to_owned(),
+                };
+                children.push(text(&note, "muted"));
+            } else if let Some(permission) = self.readiness.missing(None, "host", NOTIFY) {
+                children.push(text(
+                    &format!(
+                        "Notifications: missing permission {} on this device.",
+                        permission.name
+                    ),
+                    "muted",
+                ));
+            }
         }
         if let Some(note) = self.talk_note() {
             children.push(note);
         }
-        // A device with no battery (a desktop) has no battery card, and the other cards take its room: one that cannot read
-        // a battery, or answers that it knows neither its charge nor whether it charges. Before the first answer there is
-        // no card either, so a desktop never shows an empty one for a moment; a battery not allowed still says so.
+        // Hide a battery with no reading yet or no known charge, status or external power; a battery not allowed
+        // still says so.
         let battery = match self.reading(Part::Battery) {
             Reading::Denied => true,
-            Reading::Known(value) => !(value["charge"].is_null() && value["charging"].is_null()),
+            Reading::Unavailable
+                if self.chosen.is_none() && self.part_blocks[Part::Battery as usize].is_some() =>
+            {
+                true
+            }
+            Reading::Known(value) => ["charge", "status", "plugged"]
+                .into_iter()
+                .any(|key| !value[key].is_null()),
             Reading::Unknown | Reading::Unavailable => false,
         };
         let layout = Layout::of(self.width, battery);
@@ -1392,6 +1565,9 @@ fn step<H: Wire + Data>(
 /// came (what was kept while something was waited for comes first). Returns zero when the application goes away,
 /// non-zero when it cannot be written to.
 fn run<H: Wire + Data>(host: &mut H) -> i32 {
+    if host.send(host::subscribe_config()).is_err() {
+        return 1;
+    }
     let mut state = State::default();
     for call in state.start() {
         if host.send(call).is_err() {

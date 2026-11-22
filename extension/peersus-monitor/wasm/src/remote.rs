@@ -11,9 +11,9 @@
 //! lets three go by is not asked again until it is chosen again or the page is opened again. Every wait in this file
 //! is bounded and gives way to what the application delivers meanwhile, which is kept for later.
 use crate::{
-    State,
+    Part, State,
     gauges::Gauges,
-    host::{Data, Handle, Wire, read_ack, write_all},
+    host::{Blocked, Data, DeliveryAck, Handle, Permission, Wire, read_ack, write_all},
     wire::{self, Answer, Message, Outcome},
 };
 use serde_json::{Value, json};
@@ -21,6 +21,8 @@ use serde_json::{Value, json};
 /// The application's own services this extension calls to answer a question and to send one.
 const PEERS: &str = "peersus.peers";
 const SYSTEM: &str = "peersus.system";
+const SEND: &str = "peers.send";
+const SHARE: &str = "monitor.share";
 /// How long the application is given to answer a call that is waited for here, in milliseconds.
 const CALL_MS: u32 = 2_000;
 /// Longest wait for a stream to be readable, in milliseconds. A stream whose other end is silent costs this much, once.
@@ -73,6 +75,7 @@ pub struct Conversation {
     pub answered: bool,
     /// The application refused to send to the device: this extension may not.
     pub refused: bool,
+    pub blocked: Option<Blocked>,
 }
 
 /// How it stands with the chosen device, as the page says it.
@@ -86,6 +89,8 @@ pub enum Link {
     Silent,
     /// This device's person did not allow it.
     Refused,
+    /// A neutral refusal stops this conversation without saying why.
+    NotAccepted,
 }
 
 impl Conversation {
@@ -98,6 +103,11 @@ impl Conversation {
     }
 
     pub fn link(&self) -> Link {
+        match self.blocked {
+            Some(Blocked::MissingPermission(_)) => return Link::Refused,
+            Some(Blocked::NotAccepted) => return Link::NotAccepted,
+            None => {}
+        }
         if self.refused {
             Link::Refused
         } else if self.silent >= MOST_SILENT {
@@ -107,6 +117,23 @@ impl Conversation {
         } else {
             Link::Asking
         }
+    }
+}
+
+enum Refusal {
+    Other(&'static str),
+    Blocked(Blocked),
+}
+
+impl From<&'static str> for Refusal {
+    fn from(reason: &'static str) -> Self {
+        Self::Other(reason)
+    }
+}
+
+impl From<Blocked> for Refusal {
+    fn from(blocked: Blocked) -> Self {
+        Self::Blocked(blocked)
     }
 }
 
@@ -121,14 +148,46 @@ fn code(reason: &str) -> &'static str {
 }
 
 /// What to reply for one finished `receive`.
-fn outcome(result: Result<(), &'static str>) -> Value {
+fn outcome(result: Result<(), Refusal>) -> Value {
     match result {
         Ok(()) => json!({"status":"ok","value":true}),
-        Err(reason) => json!({"status":"error","code":code(reason),"message":reason}),
+        Err(Refusal::Blocked(blocked)) => blocked.value(),
+        Err(Refusal::Other(reason)) => {
+            json!({"status":"error","code":code(reason),"message":reason})
+        }
     }
 }
 
 impl State {
+    pub(super) fn send_block(&self, device: &str) -> Option<Permission> {
+        self.readiness
+            .missing(Some(device), "host", SEND)
+            .or_else(|| {
+                self.readiness
+                    .missing(Some(device), self.readiness.owner()?, SHARE)
+            })
+    }
+
+    fn remember_send_denial(&mut self, device: &str, permission: &Permission) {
+        if permission.is("host", SEND)
+            || self
+                .readiness
+                .owner()
+                .is_some_and(|owner| permission.is(owner, SHARE))
+        {
+            self.readiness.deny(Some(device), permission.clone());
+        }
+    }
+
+    pub(super) fn stop_talk(&mut self, blocked: Blocked) {
+        self.talk.blocked = Some(blocked);
+        self.talk.asked = None;
+        self.talk.answered = false;
+        self.talk.gauges = Gauges::default();
+        self.asked_send = 0;
+        self.outgoing.clear();
+    }
+
     /// The next delivery to handle: what was kept for later comes first, in the order it came.
     pub fn next<H: Wire>(&mut self, host: &mut H) -> Result<Value, &'static str> {
         match self.waiting.pop_front() {
@@ -168,7 +227,17 @@ impl State {
         service: &str,
         method: &str,
         args: Value,
-    ) -> Result<Value, &'static str> {
+    ) -> Result<Value, Refusal> {
+        let part = if service == SYSTEM {
+            Part::of(method)
+        } else {
+            None
+        };
+        if let Some(permission) =
+            part.and_then(|part| self.readiness.missing(None, "host", part.permission()))
+        {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         let (id, mut call) = self.call(service, method, args);
         call["timeout_ms"] = json!(CALL_MS);
         host.send(call)?;
@@ -176,11 +245,25 @@ impl State {
             let delivery = host.receive()?;
             if delivery["type"] == "result" && delivery["id"].as_u64() == Some(id) {
                 let result = &delivery["result"];
+                if let Some(blocked) = Blocked::read(result) {
+                    match (&blocked, part) {
+                        (Blocked::MissingPermission(permission), Some(part))
+                            if permission.is("host", part.permission()) =>
+                        {
+                            self.block_part(part, Blocked::MissingPermission(permission.clone()));
+                        }
+                        (Blocked::NotAccepted, Some(part)) => {
+                            self.block_part(part, Blocked::NotAccepted)
+                        }
+                        _ => {}
+                    }
+                    return Err(blocked.into());
+                }
                 return match (result["status"].as_str(), result["code"].as_str()) {
                     (Some("ok"), _) => Ok(result["value"].clone()),
-                    (_, Some("denied")) => Err(fail::DENIED),
-                    (_, Some("cancelled")) => Err(fail::CANCELLED),
-                    _ => Err(fail::REFUSED),
+                    (_, Some("denied")) => Err(fail::DENIED.into()),
+                    (_, Some("cancelled")) => Err(fail::CANCELLED.into()),
+                    _ => Err(fail::REFUSED.into()),
                 };
             }
             self.keep(delivery)?;
@@ -211,7 +294,7 @@ impl State {
         host: &mut H,
         claim: u64,
         bytes: &[u8],
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Refusal> {
         let handle = host.open(true, claim).map_err(|_| fail::REFUSED)?;
         let delivered = self.write_and_acknowledge(host, handle, bytes);
         host.close(handle);
@@ -223,13 +306,18 @@ impl State {
         host: &mut H,
         handle: Handle,
         bytes: &[u8],
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Refusal> {
         write_all(host, handle, bytes).map_err(|_| fail::STOPPED)?;
         host.shutdown(handle).map_err(|_| fail::STOPPED)?;
         self.wait(host, handle)?;
         match read_ack(host, handle) {
-            Ok(count) if u64::try_from(bytes.len()).is_ok_and(|sent| sent == count) => Ok(()),
-            _ => Err(fail::STOPPED),
+            Ok(DeliveryAck::Delivered(count))
+                if u64::try_from(bytes.len()).is_ok_and(|sent| sent == count) =>
+            {
+                Ok(())
+            }
+            Ok(DeliveryAck::NotAccepted) => Err(Blocked::NotAccepted.into()),
+            _ => Err(fail::STOPPED.into()),
         }
     }
 
@@ -272,8 +360,13 @@ impl State {
     /// Send the question that the application opened a stream for: only while it is the question that is out.
     pub fn flush<H: Wire + Data>(&mut self, host: &mut H) {
         for (claim, bytes) in std::mem::take(&mut self.outgoing) {
-            if self.transmit(host, claim, &bytes).is_err() {
-                self.talk.failed();
+            match self.transmit(host, claim, &bytes) {
+                Err(Refusal::Blocked(blocked)) => {
+                    self.stop_talk(blocked);
+                    break;
+                }
+                Err(Refusal::Other(_)) => self.talk.failed(),
+                Ok(()) => {}
             }
         }
     }
@@ -299,7 +392,7 @@ impl State {
         host: &mut H,
         ticket: u64,
         args: &Value,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Refusal> {
         let peer = args["peer"]
             .as_str()
             .filter(|peer| !peer.is_empty() && peer.len() <= ALIAS_MAX)
@@ -312,7 +405,7 @@ impl State {
                 self.heard(&peer, answer);
                 Ok(())
             }
-            Err(_) => Err(fail::NOT_UNDERSTOOD),
+            Err(_) => Err(fail::NOT_UNDERSTOOD.into()),
         }
     }
 
@@ -325,35 +418,46 @@ impl State {
         ticket: u64,
         peer: &str,
         ask: &wire::Ask,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Refusal> {
+        if let Some(permission) = self.send_block(peer) {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         let mut parts = Vec::with_capacity(ask.parts.len());
         for &part in &ask.parts {
             let outcome = match self.call_now(host, SYSTEM, part.method(), json!({})) {
                 Ok(said) if said.is_object() => Outcome::Ok(wire::value(part, &said)),
-                Err(fail::DENIED) => Outcome::Denied,
-                _ => Outcome::Unavailable,
+                Err(
+                    Refusal::Other(fail::DENIED) | Refusal::Blocked(Blocked::MissingPermission(_)),
+                ) => Outcome::Denied,
+                Err(Refusal::Blocked(Blocked::NotAccepted)) | Ok(_) | Err(Refusal::Other(_)) => {
+                    Outcome::Unavailable
+                }
             };
             parts.push((part, outcome));
         }
         // Nothing is sent for a question that was withdrawn while it was answered.
         if self.withdrawn(ticket) {
-            return Err(fail::CANCELLED);
+            return Err(fail::CANCELLED.into());
         }
         let bytes = wire::answer(ask.seq, &parts);
         if bytes.len() > wire::ANSWER_MAX {
-            return Err(fail::NOT_UNDERSTOOD);
+            return Err(fail::NOT_UNDERSTOOD.into());
         }
         let opened = self.call_now(
             host,
             PEERS,
             "send",
             json!({"device":peer,"service":wire::SERVICE,"version":wire::VERSION}),
-        )?;
+        );
+        if let Err(Refusal::Blocked(Blocked::MissingPermission(permission))) = &opened {
+            self.remember_send_denial(peer, permission);
+        }
+        let opened = opened?;
         let claim = opened["claim"].as_u64().ok_or(fail::REFUSED)?;
         // Asking for the stream waits for the application, and a withdrawal can come meanwhile: looked at again here,
         // so no reading leaves after it. The claim unused simply expires.
         if self.withdrawn(ticket) {
-            return Err(fail::CANCELLED);
+            return Err(fail::CANCELLED.into());
         }
         self.transmit(host, claim, &bytes)
     }
@@ -364,6 +468,15 @@ impl State {
         let Some(asked) = &self.talk.asked else {
             return;
         };
+        if let Some(blocked) = Blocked::read(result) {
+            if let Blocked::MissingPermission(permission) = &blocked
+                && let Some(device) = self.chosen.clone()
+            {
+                self.remember_send_denial(&device, permission);
+            }
+            self.stop_talk(blocked);
+            return;
+        }
         let seq = asked.seq;
         match (result["status"].as_str(), result["value"]["claim"].as_u64()) {
             (Some("ok"), Some(claim)) => self.outgoing.push((claim, wire::ask(seq))),
@@ -410,6 +523,11 @@ impl State {
         let device = self.chosen.clone()?;
         if opened {
             self.choose(Some(device.clone()));
+        }
+        if self.talk.blocked.is_none()
+            && let Some(permission) = self.send_block(&device)
+        {
+            self.stop_talk(Blocked::MissingPermission(permission));
         }
         if self.refused_here() {
             return None;
@@ -483,7 +601,7 @@ mod tests {
             ok(json!({"total":16_000_000_000u64,"available":4_000_000_000u64})),
             ok(json!({"total":1_000_000_000_000u64,"available":250_000_000_000u64})),
             ok(json!({"received":received,"sent":1_000})),
-            ok(json!({"charge":4250,"charging":false,"minutes":135})),
+            ok(json!({"charge":4250,"status":"discharging","plugged":false,"minutes":135})),
         ]
     }
     /// The answer a device gives when its application says `said`.
@@ -599,6 +717,58 @@ mod tests {
         // The next second asks again, under the next number.
         assert_eq!(sends(&state.ask(&event("tick", 2000))).len(), 1);
         assert_eq!(state.talk.asked.as_ref().map(|asked| asked.seq), Some(2));
+    }
+
+    #[test]
+    fn a_paired_devices_battery_status_survives_the_round_trip_to_its_page() {
+        let mut viewer = showing(&[("phone", "Phone")]);
+        let mut phone = State::default();
+        for (index, (battery, expected)) in [
+            (json!({"status":"charging","plugged":true}), "Charging"),
+            (json!({"status":"full","plugged":true}), "Full"),
+            (
+                json!({"status":"not_charging","plugged":true}),
+                "Plugged in, not charging",
+            ),
+            (
+                json!({"status":"discharging","plugged":false}),
+                "Discharging",
+            ),
+            (
+                json!({"charge":7500,"status":3,"plugged":"true"}),
+                "Status unknown",
+            ),
+            (json!({"charge":7500}), "Status unknown"),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut viewer_host = script();
+            tick(&mut viewer, &mut viewer_host, (index as u64 + 1) * 1000, 9);
+
+            let mut phone_host = script();
+            phone_host
+                .incoming
+                .push_back(std::mem::take(&mut viewer_host.written));
+            let mut readings = said(1, 2, 3);
+            readings[Part::Battery as usize] = ok(battery.clone());
+            phone_host.results.extend(readings);
+            phone_host.results.push_back(ok(json!({"claim":41})));
+            let sent = phone.receive(&mut phone_host, &receive_call(5, "viewer"));
+            assert_eq!(sent.unwrap()["result"]["status"], "ok");
+
+            viewer_host.incoming.push_back(phone_host.written);
+            let received = viewer.receive(&mut viewer_host, &receive_call(6, "phone"));
+            assert_eq!(received.unwrap()["result"]["status"], "ok");
+            let drawn = page(&viewer);
+            assert!(
+                drawn.contains(&format!(r#""text":"{expected}""#)),
+                "{battery}"
+            );
+            if expected != "Discharging" {
+                assert!(!drawn.contains(r#""text":"Discharging""#), "{battery}");
+            }
+        }
     }
 
     #[test]
@@ -833,9 +1003,51 @@ mod tests {
         for at in [2000, 9000, 20_000] {
             assert!(sends(&state.ask(&event("tick", at))).is_empty());
         }
-        // The list says it is allowed now: asked again.
+        // Merely listing the device again does not retry the stopped question.
         state.listed_devices(&[device("a", "Desk")]);
-        assert_eq!(sends(&state.ask(&event("tick", 21_000))).len(), 1);
+        assert!(sends(&state.ask(&event("tick", 21_000))).is_empty());
+        state.answer(&json!({"t":"choose","id":"device","device":"a"}));
+        assert_eq!(sends(&state.ask(&event("tick", 22_000))).len(), 1);
+    }
+
+    #[test]
+    fn checked_send_refusals_in_both_phases_stop_ticks_until_an_explicit_selection() {
+        let missing = json!({"owner":"host","name":"peers.send"});
+        for refusal in [
+            json!({"status":"missing-permission","permission":missing}),
+            json!({"status":"not-accepted"}),
+            ok(json!({"claim":9})),
+        ] {
+            let mut state = showing(&[("a", "Desk")]);
+            let calls = state.ask(&event("tick", 1000));
+            state.told(&result(&sends(&calls)[0]["id"], refusal.clone()));
+            let mut host = Script::default();
+            let body = br#"{"status":"not-accepted"}"#;
+            let mut frame = (body.len() as u32).to_be_bytes().to_vec();
+            frame.extend_from_slice(body);
+            host.incoming.push_back(frame);
+            state.flush(&mut host);
+            let shown = page(&state);
+            if refusal["status"] == "missing-permission" {
+                assert!(shown.contains("Desk: missing permission peers.send on this device."));
+            } else {
+                assert!(shown.contains("Desk: not accepted."));
+                assert!(!shown.contains("peers.send"));
+            }
+            assert_eq!(state.talk.silent, 0);
+            assert!(state.talk.asked.is_none());
+            state.listed_devices(&[device("a", "Desk")]);
+            let calls = state.ask(&json!({"type":"event","provider":"host","service":"peersus.config","version":1,"event":"changed","data":{}}));
+            assert_eq!(calls.len(), 1);
+            state.told(&result(&calls[0]["id"], ok(json!({"plugin":"monitor","missing_permissions":[],"peers":[
+                {"device":"a","permissions":[{"owner":"host","name":"peers.send"},{"owner":"monitor","name":"monitor.share"}]}
+            ]}))));
+            for at in [2000, 9000, 20_000] {
+                assert!(sends(&state.ask(&event("tick", at))).is_empty());
+            }
+            state.answer(&json!({"t":"choose","id":"device","device":"a"}));
+            assert_eq!(sends(&state.ask(&event("tick", 21_000))).len(), 1);
+        }
     }
 
     #[test]
@@ -975,10 +1187,11 @@ mod tests {
         let mut host = script();
         host.incoming
             .push_back(br#"{"ask":{"seq":2,"parts":["battery","memory"]}}"#.to_vec());
+        host.results.push_back(ok(
+            json!({"charge":5000,"status":"charging","plugged":true,"minutes":null}),
+        ));
         host.results
             .push_back(ok(json!({"total":10,"available":4})));
-        host.results
-            .push_back(ok(json!({"charge":5000,"charging":true,"minutes":null})));
         host.results.push_back(ok(json!({"claim":5})));
         state.receive(&mut host, &receive_call(3, "alex")).unwrap();
         let methods: Vec<&str> = host
@@ -1347,12 +1560,14 @@ mod tests {
         host.results.push_back(ok(json!({"claim":41})));
         // The loop ends when the application goes away, which is when it has nothing more to say.
         assert_eq!(crate::run(&mut host), 0);
-        // It first asks for its settings, then answers: the six parts, the way back, and the reply to the call.
-        assert_eq!(host.sent[0]["service"], "peersus.config");
-        assert_eq!(host.sent.len(), 1 + 6 + 1 + 1);
-        assert_eq!(host.sent[8]["op"], "reply");
-        assert_eq!(host.sent[8]["ticket"], 3);
-        assert_eq!(host.sent[8]["result"]["status"], "ok");
+        // It first subscribes and asks for its settings, then answers the six parts and sends them back.
+        assert_eq!(host.sent[0], crate::host::subscribe_config());
+        assert_eq!(host.sent[1]["service"], "peersus.config");
+        assert_eq!(host.sent.len(), 2 + 6 + 1 + 1);
+        let reply = host.sent.last().unwrap();
+        assert_eq!(reply["op"], "reply");
+        assert_eq!(reply["ticket"], 3);
+        assert_eq!(reply["result"]["status"], "ok");
         assert_eq!(
             wire::parse(&host.written).map(|m| matches!(m, Message::Answer(_))),
             Ok(true)

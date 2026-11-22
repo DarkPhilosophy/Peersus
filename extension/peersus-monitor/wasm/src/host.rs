@@ -5,15 +5,206 @@
 //! the one copy; `scripts/check-guest-glue.py` compares). It is changed there, never in an extension.
 // Not every guest goes through every door.
 #![allow(dead_code)]
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Largest control message in either direction: the broker admits 48 KiB serialized.
 #[cfg(any(target_family = "wasm", feature = "native"))]
 pub const LIMIT: usize = 48 * 1024;
 /// A data handle is a small number the host issued; a negative one is an error.
 pub type Handle = i32;
-/// What the host acknowledges a delivery with: a length-prefixed JSON byte count of at most this many bytes.
+/// A length-prefixed JSON byte count, or a neutral refusal, at most this many bytes.
 pub const ACK_LIMIT: usize = 1024;
+
+pub const CONFIG: &str = "peersus.config";
+const CONFIG_VERSION: u32 = 1;
+const CHANGED: &str = "changed";
+
+/// Import `host / peersus.config / 1`: `get` and `changed`. Subscribe before reading `get({})`.
+pub fn subscribe_config() -> Value {
+    json!({"op":"subscribe","provider":"host","service":CONFIG,"version":CONFIG_VERSION,"event":CHANGED})
+}
+
+/// The signal is a cue to read the caller's readiness again, never to repeat a stopped operation.
+pub fn config_changed(delivery: &Value) -> bool {
+    delivery["type"] == "event"
+        && delivery["provider"] == "host"
+        && delivery["service"] == CONFIG
+        && delivery["version"] == CONFIG_VERSION
+        && delivery["event"] == CHANGED
+        && delivery["data"]
+            .as_object()
+            .is_some_and(|data| data.is_empty())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Permission {
+    pub owner: String,
+    pub name: String,
+}
+
+impl Permission {
+    fn pair(value: &Value) -> Option<(&str, &str)> {
+        let fields = value.as_object()?;
+        let owner = fields.get("owner")?.as_str()?;
+        let name = fields.get("name")?.as_str()?;
+        // The identifier grammar of peersus-api; names are never arbitrary provider prose.
+        let identifier = |text: &str| {
+            (1..=128).contains(&text.len())
+                && text
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        };
+        (fields.len() == 2 && identifier(owner) && identifier(name)).then_some((owner, name))
+    }
+
+    fn from_pair((owner, name): (&str, &str)) -> Self {
+        Self {
+            owner: owner.into(),
+            name: name.into(),
+        }
+    }
+
+    pub fn is(&self, owner: &str, name: &str) -> bool {
+        self.owner == owner && self.name == name
+    }
+
+    pub fn value(&self) -> Value {
+        json!({"owner":self.owner,"name":self.name})
+    }
+}
+
+/// The caller's named misses, from `peersus.config.get` or a visible `peersus.peers.list` row.
+pub fn missing_permissions(value: &Value) -> impl Iterator<Item = (&str, &str)> {
+    value["missing_permissions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Permission::pair)
+}
+
+/// Closed, non-error results from the owner. A remote refusal never names a remote grant here.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Blocked {
+    MissingPermission(Permission),
+    NotAccepted,
+}
+
+impl Blocked {
+    pub fn read(result: &Value) -> Option<Self> {
+        let fields = result.as_object()?;
+        match (fields.get("status")?.as_str()?, fields.len()) {
+            ("missing-permission", 2) => {
+                let permission =
+                    Permission::from_pair(Permission::pair(fields.get("permission")?)?);
+                Some(Self::MissingPermission(permission))
+            }
+            ("not-accepted", 1) => Some(Self::NotAccepted),
+            _ => None,
+        }
+    }
+
+    pub fn value(self) -> Value {
+        match self {
+            Self::MissingPermission(permission) => {
+                json!({"status":"missing-permission","permission":permission.value()})
+            }
+            Self::NotAccepted => json!({"status":"not-accepted"}),
+        }
+    }
+}
+
+/// Last caller-scoped `config.get` answer plus any checked local denial since then.
+/// A peer absent from the answer is unknown, not a licence to guess its grants or existence.
+#[derive(Default)]
+pub struct Readiness {
+    owner: Option<String>,
+    here: BTreeSet<Permission>,
+    grants: BTreeMap<String, BTreeSet<Permission>>,
+    denied: BTreeMap<String, BTreeSet<Permission>>,
+}
+
+impl Readiness {
+    pub fn update(&mut self, value: &Value) -> Result<(), &'static str> {
+        const INVALID: &str = "The permission readiness answer is not valid";
+        let permissions = |value: &Value| -> Result<BTreeSet<Permission>, &'static str> {
+            value
+                .as_array()
+                .ok_or(INVALID)?
+                .iter()
+                .map(|pair| {
+                    Permission::pair(pair)
+                        .map(Permission::from_pair)
+                        .ok_or(INVALID)
+                })
+                .collect()
+        };
+        let here = permissions(&value["missing_permissions"])?;
+        let mut grants = BTreeMap::new();
+        for peer in value["peers"].as_array().ok_or(INVALID)? {
+            let device = peer["device"]
+                .as_str()
+                .filter(|device| !device.is_empty())
+                .ok_or(INVALID)?;
+            if grants
+                .insert(device.to_owned(), permissions(&peer["permissions"])?)
+                .is_some()
+            {
+                return Err(INVALID);
+            }
+        }
+        self.denied.retain(|device, denied| {
+            if let Some(given) = grants.get(device) {
+                denied.retain(|permission| !given.contains(permission));
+            }
+            !denied.is_empty()
+        });
+        self.owner = value["plugin"].as_str().map(str::to_owned);
+        self.here = here;
+        self.grants = grants;
+        Ok(())
+    }
+
+    pub fn owner(&self) -> Option<&str> {
+        self.owner.as_deref()
+    }
+
+    /// `None` means no known missing grant. The owner still authorizes the actual call.
+    /// Without an alias, check this extension's standalone readiness (also the coarse list gate).
+    /// With an alias, check only that visible device's grants and checked local denials for it.
+    pub fn missing(&self, device: Option<&str>, owner: &str, name: &str) -> Option<Permission> {
+        let this = |permission: &Permission| permission.is(owner, name);
+        let missing = match device {
+            None => self.here.iter().any(this),
+            Some(device) => {
+                self.denied
+                    .get(device)
+                    .is_some_and(|denied| denied.iter().any(this))
+                    || self
+                        .grants
+                        .get(device)
+                        .is_some_and(|given| !given.iter().any(this))
+            }
+        };
+        missing.then(|| Permission::from_pair((owner, name)))
+    }
+
+    /// Remember a typed local refusal if the grant changed between readiness and admission.
+    /// Reconsider it only on a fresh readiness answer, never by probing the guarded call.
+    pub fn deny(&mut self, device: Option<&str>, permission: Permission) {
+        if let Some(device) = device {
+            // At most 256 devices can be paired; keep short-lived race results bounded under churn.
+            if let Some(denied) = self.denied.get_mut(device) {
+                denied.insert(permission);
+            } else if self.denied.len() < 256 {
+                self.denied
+                    .insert(device.to_owned(), BTreeSet::from([permission]));
+            }
+        } else {
+            self.here.insert(permission);
+        }
+    }
+}
 
 pub trait Wire {
     fn receive(&mut self) -> Result<Value, &'static str>;
@@ -95,18 +286,32 @@ pub fn read_limited<D: Data>(
     Ok(out)
 }
 
-/// The acknowledgement of a delivery: four bytes of length, then JSON holding one unsigned byte count.
-/// A missing, oversize, malformed or non-numeric one is a failure, never a success.
-pub fn read_ack<D: Data>(data: &mut D, handle: Handle) -> Result<u64, &'static str> {
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeliveryAck {
+    Delivered(u64),
+    NotAccepted,
+}
+
+/// A missing, oversize or malformed acknowledgement is a failure, never a refusal or success.
+pub fn read_ack<D: Data>(data: &mut D, handle: Handle) -> Result<DeliveryAck, &'static str> {
     let mut prefix = [0u8; 4];
     read_exact(data, handle, &mut prefix)?;
     let length = u32::from_be_bytes(prefix) as usize;
     if length == 0 || length > ACK_LIMIT {
         return Err("The delivery acknowledgement is not valid");
     }
-    let mut body = vec![0u8; length];
-    read_exact(data, handle, &mut body)?;
-    serde_json::from_slice::<u64>(&body).map_err(|_| "The delivery acknowledgement is not valid")
+    let mut body = [0; ACK_LIMIT];
+    let bytes = &mut body[..length];
+    read_exact(data, handle, bytes)?;
+    const INVALID: &str = "The delivery acknowledgement is not valid";
+    let value: Value = serde_json::from_slice(bytes).map_err(|_| INVALID)?;
+    if let Some(count) = value.as_u64() {
+        Ok(DeliveryAck::Delivered(count))
+    } else if Blocked::read(&value) == Some(Blocked::NotAccepted) {
+        Ok(DeliveryAck::NotAccepted)
+    } else {
+        Err(INVALID)
+    }
 }
 
 fn read_exact<D: Data>(
@@ -371,7 +576,90 @@ mod tests {
         for byte in &framed {
             host.incoming.push_back(vec![*byte]);
         }
-        assert_eq!(read_ack(&mut host, 7).unwrap(), 1234);
+        assert_eq!(
+            read_ack(&mut host, 7).unwrap(),
+            DeliveryAck::Delivered(1234)
+        );
+    }
+
+    #[test]
+    fn only_a_neutral_ack_can_stop_an_operation_without_a_failure() {
+        for (body, accepted) in [
+            (&br#"{"status":"not-accepted"}"#[..], true),
+            (&br#"{"status":"not-accepted","permission":"input.inject"}"#[..], false),
+            (&br#"{"status":"missing-permission","permission":{"owner":"host","name":"input.inject"}}"#[..], false),
+        ] {
+            let mut host = Script::default();
+            host.incoming.push_back((body.len() as u32).to_be_bytes().to_vec());
+            for piece in body.chunks(3) {
+                host.incoming.push_back(piece.to_vec());
+            }
+            let result = read_ack(&mut host, 7);
+            if accepted {
+                assert_eq!(result, Ok(DeliveryAck::NotAccepted));
+            } else {
+                assert!(result.is_err());
+            }
+        }
+    }
+
+    #[test]
+    fn readiness_keeps_caps_and_devices_independent_until_the_owner_reports_a_change() {
+        let mut readiness = Readiness::default();
+        let access = json!({"owner":"host","name":"files.write"});
+        let mut config = json!({
+            "plugin":"example",
+            "missing_permissions":[{"owner":"host","name":"clipboard.set"}],
+            "peers":[{"device":"first","permissions":[access]},{"device":"second","permissions":[]}]
+        });
+        readiness.update(&config).unwrap();
+        assert!(readiness.missing(None, "host", "clipboard.set").is_some());
+        assert!(readiness.missing(None, "host", "clipboard.get").is_none());
+        assert!(
+            readiness
+                .missing(Some("first"), "host", "files.write")
+                .is_none()
+        );
+        assert!(
+            readiness
+                .missing(Some("second"), "host", "files.write")
+                .is_some()
+        );
+        assert!(
+            readiness
+                .missing(Some("unknown"), "host", "files.write")
+                .is_none()
+        );
+        let local = Blocked::read(&json!({"status":"missing-permission","permission":access}));
+        let Some(Blocked::MissingPermission(permission)) = local else {
+            panic!("missing typed local grant")
+        };
+        readiness.deny(Some("first"), permission);
+        assert!(
+            readiness
+                .missing(Some("first"), "host", "files.write")
+                .is_some()
+        );
+        // An invalid snapshot is not restoration; the previous denial is still known.
+        config["peers"][0]["permissions"] = Value::Null;
+        assert!(readiness.update(&config).is_err());
+        assert!(
+            readiness
+                .missing(Some("first"), "host", "files.write")
+                .is_some()
+        );
+        config["peers"][0]["permissions"] = json!([access]);
+        readiness.update(&config).unwrap();
+        assert!(
+            readiness
+                .missing(Some("first"), "host", "files.write")
+                .is_none()
+        );
+        assert!(
+            readiness
+                .missing(Some("second"), "host", "files.write")
+                .is_some()
+        );
     }
 
     #[test]

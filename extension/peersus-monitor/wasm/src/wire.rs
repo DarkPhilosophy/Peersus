@@ -220,11 +220,21 @@ pub fn value(part: Part, raw: &Value) -> Value {
             "received": count("received"),
             "sent": count("sent"),
         }),
-        Part::Battery => json!({
-            "charge": share("charge"),
-            "charging": raw["charging"].as_bool(),
-            "minutes": count("minutes").filter(|minutes| *minutes <= MINUTES_MAX),
-        }),
+        Part::Battery => {
+            let status = raw["status"].as_str().filter(|&status| {
+                matches!(status, "charging" | "discharging" | "not_charging" | "full")
+            });
+            // Without a direction, an estimate could be for a previous state or mean the wrong thing.
+            let minutes = count("minutes").filter(|&minutes| {
+                matches!(status, Some("charging" | "discharging")) && minutes <= MINUTES_MAX
+            });
+            json!({
+                "charge": share("charge"),
+                "status": status,
+                "plugged": raw["plugged"].as_bool(),
+                "minutes": minutes,
+            })
+        }
     }
 }
 
@@ -396,7 +406,7 @@ mod tests {
                     *part,
                     Outcome::Ok(value(
                         *part,
-                        &json!({"name":longest,"device":longest,"busy":1,"total":2,"available":3,"received":4,"sent":5,"charge":6,"minutes":7,"charging":true,"celsius":8.5,"cores":9,"mhz":99_999,"memory_used":u64::MAX,"memory_total":u64::MAX}),
+                        &json!({"name":longest,"device":longest,"busy":1,"total":2,"available":3,"received":4,"sent":5,"charge":6,"minutes":7,"status":"discharging","plugged":false,"celsius":8.5,"cores":9,"mhz":99_999,"memory_used":u64::MAX,"memory_total":u64::MAX}),
                     )),
                 )
             })
@@ -465,16 +475,23 @@ mod tests {
         assert_eq!(
             value(
                 Part::Battery,
-                &json!({"charge":10_000,"charging":true,"minutes":MINUTES_MAX})
+                &json!({"charge":10_000,"status":"charging","plugged":true,"minutes":MINUTES_MAX})
             ),
-            json!({"charge":10_000,"charging":true,"minutes":MINUTES_MAX})
+            json!({"charge":10_000,"status":"charging","plugged":true,"minutes":MINUTES_MAX})
         );
         assert_eq!(
             value(
                 Part::Battery,
-                &json!({"charge":10_001,"charging":"yes","minutes":MINUTES_MAX + 1})
+                &json!({"charge":10_001,"status":"CHARGING","plugged":1,"minutes":MINUTES_MAX + 1})
             ),
-            json!({"charge":null,"charging":null,"minutes":null})
+            json!({"charge":null,"status":null,"plugged":null,"minutes":null})
+        );
+        assert_eq!(
+            value(
+                Part::Battery,
+                &json!({"charge":9500,"status":"full","plugged":true,"minutes":1})
+            ),
+            json!({"charge":9500,"status":"full","plugged":true,"minutes":null})
         );
         assert_eq!(
             value(Part::Network, &json!({"received":u64::MAX,"sent":-1})),

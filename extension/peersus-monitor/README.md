@@ -21,7 +21,7 @@ and Monitor says why.
 | Memory | An open ring of how much is used, the share large in it, used of total under it |
 | Storage | The same, for the volume received files go to, else the application's own data, with the system's name of its disk where it has one |
 | Network | A graph of the last minute, download and upload per second, total since the system started |
-| Battery | A card like the others: its title at the top, the charge, "Charging" or "Discharging" and how long it will last at the bottom, and the whole card filled from its bottom as far as it is charged. A device with no battery (a desktop, which answers that it knows neither its charge nor whether it charges) has no battery card, and the other cards take its room; a battery not allowed still says "Not allowed" |
+| Battery | Charge and battery status, plus the time estimate while charging or discharging, when reported. The card fills from the bottom to show the charge. An unknown status is marked unknown; if nothing about the battery is known, there is no card. A battery not allowed still says "Not allowed". |
 
 The application answers counters (processor ticks, network bytes); the shares and speeds are made here from two answers in a
 row, so a first answer shows no rate. The page is read again once a second while it is open and stops when it is closed. A
@@ -47,7 +47,11 @@ One guest for every platform; what it can show is what the application's `peersu
 | Memory | `/proc/meminfo` | the same | nothing |
 | Storage | Total and free of the volume received files go to, else the application's data; the disk's name from the mount table (`/proc/self/mountinfo`), none for a volume in memory | the same | total and free |
 | Network | `/proc/net/dev`, every interface but the loopback | the platform's `TrafficStats` | nothing |
-| Battery | The first `Battery` of `/sys/class/power_supply`: charge, charging, minutes | the platform's `BatteryManager`: charge, charging, minutes from the charge left and the current, or the time to full it computed | nothing |
+| Battery | The first `Battery` of `/sys/class/power_supply`, with external power where reported | Android's battery status and external power are separate; charge and time estimates come from `BatteryManager` | nothing |
+
+The battery card says **Charging**, **Discharging**, **Full**, or **Not charging** only from the service's `status`
+(`charging`, `discharging`, `full`, `not_charging`). If `plugged` is `true` and status is `not_charging`, it says
+**Plugged in, not charging**. A paired Monitor receives the same status and external-power fields.
 
 So the graphics answer something only on Linux and Android, only where a driver publishes it. The GPU card says so instead of
 leaving empty rings: when nothing is published it says that this device's (or the chosen device's) system does not publish its
@@ -63,7 +67,7 @@ Nothing reaches the extension without a permission the person gave.
 
 | Permission | Granted | What it lets Monitor do |
 |---|---|---|
-| `device.info.cpu`, `.gpu`, `.ram`, `.storage`, `.network`, `.battery` | once, for each part | Read that part of this device. A part not allowed says "Not allowed" in its card; the others still show |
+| `device.info.cpu`, `.gpu`, `.ram`, `.storage`, `.network`, `.battery` | once, for each part | Read that part of this device. A missing local grant is named in that card; the others still show |
 | `peers.watch` | for each paired device | See the device in the bar |
 | `peers.send` | for each paired device | Send to it: the question it asks, the answer it gives |
 | `monitor.share` | for each paired device | Show its numbers here, and let it see the numbers of this device. The application applies it to what Monitor sends to the device and to what the device sends Monitor, so one switch covers both directions |
@@ -73,6 +77,8 @@ Showing a paired device takes the three per-device permissions on the device tha
 `device.info.*` of the parts shown on the device that answers. The device that answers decides part by part: it answers only
 with the parts its own person allowed Monitor to read there, and says "denied" for the others. What it answers with is
 read when the question comes and is kept nowhere, so a permission withdrawn is gone from the next answer.
+
+A refused local reading is not retried on the page's clock. The next time you open the page it can read parts you now allow. A missing local send grant is named; a neutral refusal only says the request was not accepted. Neither is retried on a later tick or by refreshing the grants. Choose the device again or reopen Monitor to start a new request. A device that is simply silent still follows the existing three-missed-answers limit.
 
 ## Showing a paired device
 
@@ -132,11 +138,13 @@ store installs. It needs a host with `peersus_v1.poll` and data connections, as 
 compatible, and host and guest are updated together. `src/host.rs` is the one copy of the shared guest glue
 (`templates/guest/`), compared byte for byte by `scripts/check-guest-glue.py`.
 
-The same source also builds, for validation and limited support, as a native library (`cargo build --release --features
-native` in `wasm/`, packaged with `--native-library libpeersus_monitor_wasm.so` as `monitor-linux-native_library.tar.gz`) and
-as a process (that library linked into the native host, `monitor-linux-process.tar.gz`). Both speak the same protocol and
-behave the same, but run with the application user's OS privileges: the store does not install them; they travel with the
-signed release for a person to install by hand ([support
+The same guest source also builds as a Linux shared library (`libpeersus_monitor_wasm.so`, packaged as
+`monitor-linux-native_library.tar.gz`) and as a Linux executable (`monitor-linux-process.tar.gz`). The recipe links the
+static library (`libpeersus_monitor_wasm.a`) into the native host to build the executable; it does not link the `.so`.
+Both forms use the same Monitor logic and brokered control and data protocol. Broker permissions and I/O bounds still
+apply, but neither native form has the interpreter's work (fuel) or memory limits, guest-memory checks, or trap handling.
+Both run with the application user's OS privileges. They travel with the signed release for manual installation only,
+with limited support; the store installs only WASM ([support
 tiers](https://github.com/DarkPhilosophy/Peersus/blob/main/docs/api/manifests.md#support-tiers)).
 
 ## Build and test
@@ -144,17 +152,17 @@ tiers](https://github.com/DarkPhilosophy/Peersus/blob/main/docs/api/manifests.md
 From `wasm/` (`env -u CARGO_BUILD_TARGET` only where the environment exports a build target):
 
 ```sh
-cargo test --offline
-cargo clippy --offline --all-targets -- -D warnings
-cargo build --offline --release --target wasm32-unknown-unknown
-cargo build --offline --release --features native
+cargo test --locked
+cargo clippy --locked --all-targets -- -D warnings
+cargo build --locked --release --target wasm32-unknown-unknown
+cargo build --locked --release --features native
 ```
 
 From the root of a Peersus source checkout, with `EXT` the path of this extension's source (`extension/peersus-monitor` in
 the `extension` branch):
 
 ```sh
-cargo run --offline -q -p xtask --target-dir target/ui/xtask -- check-manifest "$EXT/wasm/plugin.json"
+python3 scripts/check-extension-manifest.py "$EXT"
 python3 scripts/check-guest-glue.py "$EXT"
 python3 scripts/module-cycles.py "$EXT/wasm"
 python3 scripts/package-native-extension.py --source "$EXT/wasm" --sdk . \

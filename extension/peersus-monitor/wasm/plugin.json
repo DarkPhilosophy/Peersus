@@ -53,7 +53,7 @@
       "methods": [
         "get"
       ],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -150,7 +150,7 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Monitor shows a page with the processor, graphics, memory, storage, network and battery of this device, under a bar of this device and the paired devices you let it see. Each part is shown only after you allow it in this extension's permissions; a part you do not allow says so. Choose a paired device and Monitor shows that device's numbers instead, when both devices allow it: on each, its person allows Monitor for the other, and the device asked shares only the parts its own person allowed. It asks about once a second while the page is open and that device is chosen.",
+        "explains": "Monitor shows a page with the processor, graphics, memory, storage, network and battery of this device, under a bar of this device and the paired devices you let it see. Each part is shown only after you allow it in this extension's permissions; a part you do not allow says so. Choose a paired device and Monitor shows that device's numbers instead, when both devices allow it: on each, its person allows Monitor for the other, and the device asked shares only the parts its own person allowed. It asks about once a second while the page is open and that device is chosen, until access is refused.",
         "changes": "After installing, Monitor appears in this extension's settings, and a setting can also add it to the pages. Its permissions are per part and, for each paired device, to see it, send to it and share numbers with it. The readings are kept only while the page is open, for its graphs of the last minute; nothing is stored. Another device sees this device's numbers only after you allow Monitor for it here. Removing the extension removes the page.",
         "body": [
           {
@@ -160,10 +160,10 @@
           {
             "k": "list",
             "items": [
-              "Both people allow it. On this device and on the other one, Monitor must be allowed to see the other device, to send to it and to share numbers with it (the permission monitor.share). If one side does not allow it, the page says that device is not allowed or did not answer.",
+              "Both people allow it. On this device and on the other one, Monitor must be allowed to see the other device, to send to it and to share numbers with it (the permission monitor.share). If a grant is missing here, Monitor names it; a refusal from the paired device does not say why.",
               "Part by part. The device that is asked answers only with the parts its own person allowed Monitor to read there. A part it does not allow is said to be not allowed; nothing is guessed or made up.",
               "One question and one answer, nothing more. This device sends one short question; the other device sends one answer with a few numbers (how busy, how warm, how fast, how full), the names of its processor and graphics, and the name its system gives the disk received files go to. They travel straight between the two devices, through the application's encrypted connection, and Monitor sends nothing anywhere else.",
-              "Only while it is useful. About once a second, while the page is open and that device is chosen. It stops when you close the page or choose another device, and a device that does not answer three times in a row is left alone until you choose it again or open the page again."
+              "Only while it is useful. About once a second, while the page is open and that device is chosen. It stops when you close the page or choose another device, if access is refused, or if the device does not answer three times in a row. Choosing it again or reopening the page starts a new request if access is available."
             ]
           }
         ]

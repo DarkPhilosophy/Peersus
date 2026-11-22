@@ -20,12 +20,13 @@ fn readings(busy: u64, total: u64, received: u64) -> Value {
         "memory":{"total":16_000_000_000u64,"available":4_000_000_000u64},
         "storage":{"total":1_000_000_000_000u64,"available":250_000_000_000u64},
         "network":{"received":received,"sent":0},
-        "battery":{"charge":null,"charging":null,"minutes":null}
+        "battery":{"charge":null,"status":null,"plugged":null,"minutes":null}
     })
 }
 /// The same readings from a device with a battery (a phone or a laptop).
 fn with_battery(mut readings: Value) -> Value {
-    readings["battery"] = json!({"charge":8100,"charging":false,"minutes":120});
+    readings["battery"] =
+        json!({"charge":8100,"status":"discharging","plugged":false,"minutes":120});
     readings
 }
 thread_local! {
@@ -229,23 +230,28 @@ fn a_reading_whose_next_question_ran_out_stops_showing_the_last_one() {
 }
 
 #[test]
-fn a_reading_the_system_cannot_give_any_more_stops_showing_the_last_one() {
-    let mut state = State::default();
-    let first = state.ask(&call(json!({"t":"open","at":0})));
-    let battery = first.iter().find(|a| a["method"] == "battery").unwrap();
-    state.told(&ok(
-        &battery["id"],
-        json!({"charge":8100,"charging":false,"minutes":120}),
-    ));
-    assert!(page(&mut state).contains("81"));
-    let again = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
-    let battery = again.iter().find(|a| a["method"] == "battery").unwrap();
-    state.told(&json!({"type":"result","id":battery["id"],
-        "result":{"status":"error","code":"unavailable","message":"gone"}}));
-    assert_eq!(
-        state.own.parts[Part::Battery as usize],
-        Reading::Unavailable
-    );
+fn a_battery_no_longer_readable_does_not_keep_showing_its_previous_state() {
+    for result in [
+        json!({"status":"error","code":"unavailable","message":"gone"}),
+        json!({"status":"ok","value":false}),
+        json!({"status":"ok","value":null}),
+    ] {
+        let mut state = State::default();
+        let first = state.ask(&call(json!({"t":"open","at":0})));
+        let battery = first.iter().find(|a| a["method"] == "battery").unwrap();
+        state.told(&ok(
+            &battery["id"],
+            json!({"charge":8100,"status":"discharging","minutes":120}),
+        ));
+        assert!(page(&mut state).contains(r#""text":"Discharging""#));
+        let again = state.ask(&call(json!({"t":"tick","id":"watch","at":1000})));
+        let battery = again.iter().find(|a| a["method"] == "battery").unwrap();
+        state.told(&json!({"type":"result","id":battery["id"],"result":result}));
+        assert!(
+            !page(&mut state).contains(r#""text":"Battery""#),
+            "{result}"
+        );
+    }
 }
 
 #[test]
@@ -291,7 +297,7 @@ fn a_part_not_allowed_says_so_in_its_card_and_the_others_still_show() {
     // What was seen of the processor is not kept once it may not be seen.
     assert!(state.own.busy.is_none() && state.own.busy_history.is_empty());
     assert!(page.contains("698.5 / 931.3 GiB") && page.contains("AMD"));
-    // Allowed again: it is read again.
+    // The clock is not a fresh request after a refusal. Reopening the page is.
     tick(
         &mut state,
         4000,
@@ -299,7 +305,55 @@ fn a_part_not_allowed_says_so_in_its_card_and_the_others_still_show() {
         &readings(600, 4000, 30_000),
         &[],
     );
+    assert!(!page_has_no_refusal(&mut state));
+    answered(
+        &mut state,
+        json!({"t":"open"}),
+        Some(&peers()),
+        &readings(700, 5000, 30_000),
+        &[],
+        &json!({"settings":{}}),
+    );
     assert!(page_has_no_refusal(&mut state));
+}
+
+#[test]
+fn a_checked_part_refusal_stops_only_that_part_even_after_a_grant_refresh() {
+    let mut state = State::default();
+    let open = call(json!({"t":"open"}));
+    let config = |missing| json!({"plugin":"monitor","missing_permissions":missing,"peers":[]});
+    let asked = state.ask(&open);
+    let part = |method: &str| asked.iter().find(|call| call["method"] == method).unwrap();
+    let gpu = json!({"owner":"host","name":"device.info.gpu"});
+    // A fresh snapshot excludes GPU before its already pending reply can show it.
+    state.told(&ok(&part("get")["id"], config(json!([gpu]))));
+    state.told(&ok(&part("graphics")["id"], json!({"name":"Old graphics"})));
+    let cpu = json!({"owner":"host","name":"device.info.cpu"});
+    state.told(&json!({"type":"result","id":part("processor")["id"],"result":{"status":"missing-permission","permission":cpu}}));
+    state.told(&ok(
+        &part("memory")["id"],
+        json!({"total":16_000_000_000u64,"available":4_000_000_000u64}),
+    ));
+    let shown = page(&mut state);
+    assert!(shown.contains("missing permission device.info.gpu on this device"));
+    assert!(shown.contains("missing permission device.info.cpu on this device"));
+    assert!(!shown.contains("Old graphics"));
+    assert!(shown.contains("11.2 / 14.9 GiB"));
+
+    let changed = state.ask(&json!({"type":"event","provider":"host","service":"peersus.config","version":1,"event":"changed","data":{}}));
+    assert_eq!(changed.len(), 1);
+    assert_eq!(changed[0]["method"], "get");
+    state.told(&ok(&changed[0]["id"], config(json!([]))));
+    let tick = state.ask(&call(json!({"t":"tick","at":6000})));
+    assert!(tick.iter().any(|call| call["method"] == "memory"));
+    assert!(
+        tick.iter()
+            .all(|call| !matches!(call["method"].as_str(), Some("processor" | "graphics")))
+    );
+    let asked = state.ask(&open);
+    for method in ["processor", "graphics"] {
+        assert!(asked.iter().any(|call| call["method"] == method));
+    }
 }
 fn page_has_no_refusal(state: &mut State) -> bool {
     !page(state).contains("Not allowed")
@@ -343,7 +397,7 @@ fn rates_are_made_of_two_readings_and_nothing_is_invented_before_them() {
 fn a_battery_says_its_charge_and_how_long_it_lasts_or_that_it_charges() {
     let mut state = State::default();
     let mut with = readings(1, 2, 3);
-    with["battery"] = json!({"charge":4250,"charging":false,"minutes":135});
+    with["battery"] = json!({"charge":4250,"status":"discharging","plugged":false,"minutes":135});
     tick(&mut state, 1000, Some(&peers()), &with, &[]);
     let page1 = page(&mut state);
     assert!(
@@ -351,13 +405,75 @@ fn a_battery_says_its_charge_and_how_long_it_lasts_or_that_it_charges() {
             && page1.contains(r#""text":"2 h 15 min""#)
             && page1.contains("Discharging")
     );
-    with["battery"] = json!({"charge":1500,"charging":true,"minutes":40});
+    with["battery"] = json!({"charge":1500,"status":"charging","plugged":true,"minutes":40});
     tick(&mut state, 2000, Some(&peers()), &with, &[]);
     let page2 = page(&mut state);
     assert!(page2.contains("Charging") && !page2.contains("Discharging"));
     // Low: the card is filled from the bottom in the warning colour.
     assert!(page2.contains(r#""background":"danger""#));
     assert!(!page1.contains(r#""background":"danger""#));
+}
+
+#[test]
+fn a_battery_says_its_platform_status_even_without_a_charge_percentage() {
+    for (status, plugged, expected) in [
+        ("charging", Some(true), "Charging"),
+        ("discharging", Some(true), "Discharging"),
+        ("not_charging", Some(true), "Plugged in, not charging"),
+        ("not_charging", Some(false), "Not charging"),
+        ("not_charging", None, "Not charging"),
+        ("full", Some(true), "Full"),
+    ] {
+        let mut state = State::default();
+        let with = json!({"battery":{"status":status,"plugged":plugged}});
+        tick(&mut state, 1000, Some(&peers()), &with, &[]);
+        assert!(
+            page(&mut state).contains(&format!(r#""text":"{expected}""#)),
+            "{with}"
+        );
+    }
+}
+
+#[test]
+fn a_battery_without_a_valid_status_never_claims_to_be_discharging_or_full() {
+    for (mut battery, expected) in [
+        (json!({}), "Status unknown"),
+        (json!({"status":null}), "Status unknown"),
+        (
+            json!({"status":"unknown","plugged":false}),
+            "Status unknown",
+        ),
+        (json!({"status":"Charging"}), "Status unknown"),
+        (json!({"status":"Not charging"}), "Status unknown"),
+        (json!({"status":2}), "Status unknown"),
+        (json!({"status":false,"plugged":"true"}), "Status unknown"),
+        (json!({"charging":false}), "Status unknown"),
+        (json!({"charging":true}), "Status unknown"),
+        (
+            json!({"status":"unknown","plugged":true}),
+            "Plugged in; status unknown",
+        ),
+    ] {
+        let mut state = State::default();
+        battery["charge"] = json!(10_000);
+        battery["minutes"] = json!(135);
+        tick(
+            &mut state,
+            1000,
+            Some(&peers()),
+            &json!({"battery":battery}),
+            &[],
+        );
+        let drawn = page(&mut state);
+        assert!(
+            drawn.contains(&format!(r#""text":"{expected}""#)),
+            "{battery}"
+        );
+        assert!(drawn.contains(r#""text":"100%""#), "{battery}");
+        assert!(!drawn.contains(r#""text":"Discharging""#), "{battery}");
+        assert!(!drawn.contains(r#""text":"Full""#), "{battery}");
+        assert!(!drawn.contains(r#""text":"2 h 15 min""#), "{battery}");
+    }
 }
 
 #[test]
