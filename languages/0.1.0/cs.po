@@ -3121,8 +3121,8 @@ msgstr "Vidět, jak velké je úložiště složky, do které jdou přijaté sou
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Vidět, kolik bajtů síť tohoto zařízení přijala a odeslala od spuštění. Nevidí sítě, adresy ani přenesený obsah."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Vidět baterii tohoto zařízení: nabití, zda se nabíjí a jak dlouho by měla vydržet."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Zobrazit informace o baterii tohoto zařízení: úroveň nabití, stav, připojení k napájení a odhad zbývající doby provozu."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Vidět obrazovky tohoto počítače a jak jsou kolem nich uspořádány spárované počítače."
@@ -3780,3 +3780,108 @@ msgstr "Aktivní renderer se změnil. Spusťte test znovu pro aktuální výchoz
 
 msgid "Test frame did not match the scene"
 msgstr "Testovací snímek neodpovídal scéně"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "Akce skončila, ale její výsledek se nepodařilo zobrazit. Než ji zopakujete, ověřte, co se stalo."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Bylo dosaženo limitu cíle. Zkuste to znovu později."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Odeslaná data překračují maximální velikost, kterou cíl přijímá."
+
+msgid "The request was refused"
+msgstr "Požadavek byl odmítnut"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "Uložené přihlašovací údaje nebyly přijaty. Uložte platné údaje."
+
+msgid "Window bar position"
+msgstr "Umístění panelu okna"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Vyberte, kde se zobrazí ovládání okna a hlavní navigace."
+
+msgid "Application data directory unavailable"
+msgstr "Adresář s daty aplikace není dostupný"
+
+msgid "Cannot acquire private application directory"
+msgstr "Nelze získat přístup k soukromému adresáři aplikace"
+
+msgid "Could not connect to the running application"
+msgstr "Nepodařilo se připojit k běžící aplikaci"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Požadavek na ukončení se nepodařilo odeslat; výsledek nemusí být známý"
+
+msgid "The application did not stop in time"
+msgstr "Aplikace se včas neukončila"
+
+msgid "A development replacement needs a package archive"
+msgstr "K nahrazení rozšíření vývojovou verzí je potřeba archiv balíčku"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Zařízení nepotvrdilo příjem odeslaných bajtů"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Zařízení nepotvrdilo, že přenos přijalo"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Zařízení nepotvrdilo počet odeslaných bajtů"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Na toto místo nelze připojit sousední plochu"
+
+msgid "A required permission is missing"
+msgstr "Chybí požadované oprávnění"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Nepodařilo se omezit oprávnění nahrazovaného rozšíření"
+
+msgid "Invalid action permission"
+msgstr "Neplatné oprávnění k provedení akce"
+
+msgid "Invalid input permission"
+msgstr "Neplatné oprávnění k přenosu vstupu"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "K téže straně lze připojit jen jednu sousední plochu"
+
+msgid "The predecessor is no longer installed"
+msgstr "Nahrazované rozšíření už není nainstalované"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Pro rozšíření je už rezervováno příliš mnoho cílů"
+
+msgid "Not ready."
+msgstr "Není připraveno."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Tomuto rozšíření chybí oprávnění {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Tento požadavek nemůže přijmout žádné rozšíření."
+
+msgid "The other device did not accept the input visit"
+msgstr "Druhé zařízení nepřijalo relaci vzdáleného ovládání"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Spojení pro relaci vzdáleného ovládání skončilo"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Rozšíření zajišťující relaci vzdáleného ovládání se zastavilo"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "Relace vzdáleného ovládání skončila, protože z ní bylo odebráno zařízení"
+
+msgid "The extension no longer carries input"
+msgstr "Rozšíření už nepřenáší vstup"
+
+msgid "The input visit no longer matches its destination"
+msgstr "Relace vzdáleného ovládání už neodpovídá svému cíli"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Na ukončení čeká příliš mnoho relací vzdáleného ovládání"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Čeká příliš mnoho přenosů rozšíření"

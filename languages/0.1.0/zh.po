@@ -3104,8 +3104,8 @@ msgstr "查看接收文件所存放文件夹的存储空间有多大、剩余多
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "查看此设备的网络自启动以来接收和发送了多少字节。看不到网络、地址或传输的内容。"
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "查看此设备的电池：电量、是否正在充电以及还能使用多久。"
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "查看此设备的电池信息：电量、状态、是否接通电源以及预计剩余使用时间。"
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "查看这台电脑的屏幕，以及已配对的电脑在其周围的排列方式。"
@@ -3763,3 +3763,108 @@ msgstr "当前使用的渲染器已更改。请重新运行测试以获取最新
 
 msgid "Test frame did not match the scene"
 msgstr "测试帧与场景不匹配"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "操作已结束，但无法显示结果。请先确认实际结果，再重复操作。"
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "已达到目标的上限。请稍后重试。"
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "发送的数据超出了目标允许的大小。"
+
+msgid "The request was refused"
+msgstr "请求被拒绝"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "已保存的凭据未被接受。请保存有效的凭据。"
+
+msgid "Window bar position"
+msgstr "窗口栏位置"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "选择窗口控件和主导航的显示位置。"
+
+msgid "Application data directory unavailable"
+msgstr "应用程序的数据目录不可用"
+
+msgid "Cannot acquire private application directory"
+msgstr "无法访问应用程序的私有目录"
+
+msgid "Could not connect to the running application"
+msgstr "无法连接到正在运行的应用程序"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "无法发送退出请求；结果可能未知"
+
+msgid "The application did not stop in time"
+msgstr "应用程序未在规定时间内退出"
+
+msgid "A development replacement needs a package archive"
+msgstr "用开发版本替换扩展时需要提供软件包归档"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "有设备未对已发送的字节返回接收回执"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "有设备未确认收到传输内容"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "有设备未确认已发送的字节数"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "无法在该位置添加相邻桌面"
+
+msgid "A required permission is missing"
+msgstr "缺少一项必需的权限"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "无法限制待替换扩展的权限"
+
+msgid "Invalid action permission"
+msgstr "操作权限无效"
+
+msgid "Invalid input permission"
+msgstr "输入权限无效"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "每一侧只能放置一个相邻桌面"
+
+msgid "The predecessor is no longer installed"
+msgstr "待替换的扩展已不再安装"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "已为扩展预留的目标过多"
+
+msgid "Not ready."
+msgstr "尚未就绪。"
+
+msgid "This extension is missing permission {permission}."
+msgstr "此扩展缺少 {permission} 权限。"
+
+msgid "No extension can receive this request."
+msgstr "没有扩展可以接收此请求。"
+
+msgid "The other device did not accept the input visit"
+msgstr "另一台设备未接受远程输入会话"
+
+msgid "The connection carrying the input visit ended"
+msgstr "远程输入会话的连接已断开"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "负责远程输入会话的扩展已停止"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "设备已从会话中移除，远程输入会话已结束"
+
+msgid "The extension no longer carries input"
+msgstr "扩展不再传递输入"
+
+msgid "The input visit no longer matches its destination"
+msgstr "远程输入会话与其目标不再匹配"
+
+msgid "Too many input visits are waiting to close"
+msgstr "等待关闭的远程输入会话过多"
+
+msgid "Too many extension transfers are waiting"
+msgstr "等待处理的扩展传输过多"

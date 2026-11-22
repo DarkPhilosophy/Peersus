@@ -1,90 +1,90 @@
 {
   "languages": [
     {
-      "bytes": 137075,
+      "bytes": 141244,
       "language": "cs",
       "machine": true,
       "name": "Čeština",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 142406,
+      "bytes": 146771,
       "language": "de",
       "machine": true,
       "name": "Deutsch",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 140104,
+      "bytes": 144375,
       "language": "es",
       "machine": true,
       "name": "Español",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 144644,
+      "bytes": 149116,
       "language": "fr",
       "machine": true,
       "name": "Français",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 140655,
+      "bytes": 145074,
       "language": "it",
       "machine": true,
       "name": "Italiano",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 138699,
+      "bytes": 143131,
       "language": "nl",
       "machine": true,
       "name": "Nederlands",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 139459,
+      "bytes": 143882,
       "language": "pl",
       "machine": true,
       "name": "Polski",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 140790,
+      "bytes": 145112,
       "language": "pt",
       "machine": true,
       "name": "Português",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 112474,
+      "bytes": 116511,
       "language": "ro",
       "machine": false,
       "name": "Română",
-      "translated": 1081
+      "translated": 1116
     },
     {
-      "bytes": 136112,
+      "bytes": 140308,
       "language": "sv",
       "machine": true,
       "name": "Svenska",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 135511,
+      "bytes": 139473,
       "language": "tr",
       "machine": true,
       "name": "Türkçe",
-      "translated": 1249
+      "translated": 1284
     },
     {
-      "bytes": 124838,
+      "bytes": 128444,
       "language": "zh",
       "machine": true,
       "name": "中文",
-      "translated": 1249
+      "translated": 1284
     }
   ],
-  "messages": 1249,
+  "messages": 1284,
   "release": "0.1.0"
 }

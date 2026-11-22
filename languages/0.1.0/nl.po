@@ -3115,8 +3115,8 @@ msgstr "Zien hoe groot de opslag van de map voor ontvangen bestanden is, hoeveel
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Zien hoeveel bytes het netwerk van dit apparaat sinds het opstarten ontving en verstuurde. Het ziet geen netwerken, adressen of inhoud."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "De accu van dit apparaat zien: de lading, of hij laadt en hoe lang hij nog meegaat."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Bekijk de accu van dit apparaat: het laadniveau, de status, of het apparaat op een voedingsbron is aangesloten en de geschatte resterende gebruiksduur."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "De schermen van deze computer zien en hoe je gekoppelde computers eromheen staan."
@@ -3774,3 +3774,108 @@ msgstr "De actieve renderer is gewijzigd. Voer de test opnieuw uit voor een actu
 
 msgid "Test frame did not match the scene"
 msgstr "Testframe kwam niet overeen met de scène"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "De actie is voltooid, maar het resultaat kon niet worden weergegeven. Controleer wat er is gebeurd voordat je de actie herhaalt."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "De limiet van de bestemming is bereikt. Probeer het later opnieuw."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "De verzonden gegevens zijn groter dan de bestemming toestaat."
+
+msgid "The request was refused"
+msgstr "Het verzoek is geweigerd"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "De opgeslagen inloggegevens zijn niet geaccepteerd. Sla geldige inloggegevens op."
+
+msgid "Window bar position"
+msgstr "Positie van de vensterbalk"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Kies waar de vensterknoppen en de hoofdnavigatie worden weergegeven."
+
+msgid "Application data directory unavailable"
+msgstr "De map met applicatiegegevens is niet beschikbaar"
+
+msgid "Cannot acquire private application directory"
+msgstr "Geen toegang tot de privémap van de applicatie"
+
+msgid "Could not connect to the running application"
+msgstr "Er kon geen verbinding worden gemaakt met de actieve applicatie"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Het verzoek om af te sluiten kon niet worden verzonden; de uitkomst is mogelijk onbekend"
+
+msgid "The application did not stop in time"
+msgstr "De applicatie is niet op tijd afgesloten"
+
+msgid "A development replacement needs a package archive"
+msgstr "Om een uitbreiding door een ontwikkelversie te vervangen, is een pakketarchief nodig"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Een apparaat heeft geen ontvangstbevestiging voor de verzonden bytes gegeven"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Een apparaat heeft niet bevestigd dat het de overdracht heeft ontvangen"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Een apparaat heeft het aantal verzonden bytes niet bevestigd"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Op die plek kan geen aangrenzend bureaublad worden gekoppeld"
+
+msgid "A required permission is missing"
+msgstr "Een vereiste machtiging ontbreekt"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "De machtigingen van de te vervangen uitbreiding konden niet worden beperkt"
+
+msgid "Invalid action permission"
+msgstr "Ongeldige machtiging voor de actie"
+
+msgid "Invalid input permission"
+msgstr "Ongeldige machtiging voor invoer"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Er kan maar één aangrenzend bureaublad per kant worden gekoppeld"
+
+msgid "The predecessor is no longer installed"
+msgstr "De te vervangen uitbreiding is niet meer geïnstalleerd"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Er zijn al te veel bestemmingen gereserveerd voor uitbreidingen"
+
+msgid "Not ready."
+msgstr "Niet gereed."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Deze uitbreiding mist de machtiging {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Geen enkele uitbreiding kan dit verzoek ontvangen."
+
+msgid "The other device did not accept the input visit"
+msgstr "Het andere apparaat heeft de sessie voor bediening op afstand niet geaccepteerd"
+
+msgid "The connection carrying the input visit ended"
+msgstr "De verbinding van de sessie voor bediening op afstand is verbroken"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "De uitbreiding die de sessie voor bediening op afstand verzorgde, is gestopt"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "De sessie voor bediening op afstand is beëindigd omdat het apparaat uit de sessie is verwijderd"
+
+msgid "The extension no longer carries input"
+msgstr "De uitbreiding geeft geen invoer meer door"
+
+msgid "The input visit no longer matches its destination"
+msgstr "De sessie voor bediening op afstand komt niet meer overeen met haar bestemming"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Er wachten te veel sessies voor bediening op afstand op afsluiting"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Er staan te veel overdrachten van uitbreidingen in de wachtrij"

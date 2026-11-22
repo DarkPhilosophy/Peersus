@@ -3115,8 +3115,8 @@ msgstr "Voir la taille du stockage du dossier où vont les fichiers reçus, la p
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Voir combien d'octets le réseau de cet appareil a reçus et envoyés depuis son démarrage. Ne voit ni réseaux, ni adresses, ni contenu."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Voir la batterie de cet appareil : sa charge, si elle se recharge et combien de temps elle devrait tenir."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Consulter les informations de la batterie de cet appareil : niveau de charge, état, branchement à une source d’alimentation et autonomie restante estimée."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Voir les écrans de cet ordinateur et la disposition de vos ordinateurs associés autour d'eux."
@@ -3774,3 +3774,108 @@ msgstr "Le moteur de rendu actif a changé. Relancez le test pour obtenir une r�
 
 msgid "Test frame did not match the scene"
 msgstr "L’image de test ne correspondait pas à la scène"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "L’action s’est terminée, mais son résultat n’a pas pu être affiché. Vérifiez ce qui s’est passé avant de la répéter."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "La limite de la destination a été atteinte. Réessayez plus tard."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Les données envoyées dépassent la taille maximale acceptée par la destination."
+
+msgid "The request was refused"
+msgstr "La requête a été refusée"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "L’identifiant enregistré n’a pas été accepté. Enregistrez-en un valide."
+
+msgid "Window bar position"
+msgstr "Position de la barre de fenêtre"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Choisissez où afficher les boutons de fenêtre et la navigation principale."
+
+msgid "Application data directory unavailable"
+msgstr "Le dossier de données de l’application est indisponible"
+
+msgid "Cannot acquire private application directory"
+msgstr "Impossible d’accéder au dossier privé de l’application"
+
+msgid "Could not connect to the running application"
+msgstr "Impossible de se connecter à l’application en cours d’exécution"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Impossible d’envoyer la requête d’arrêt ; son résultat est peut-être inconnu"
+
+msgid "The application did not stop in time"
+msgstr "L’application ne s’est pas arrêtée dans le délai imparti"
+
+msgid "A development replacement needs a package archive"
+msgstr "Une archive du paquet est nécessaire pour remplacer l’extension par une version de développement"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Un appareil n’a pas accusé réception des octets envoyés"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Un appareil n’a pas confirmé la réception du transfert"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Un appareil n’a pas confirmé le nombre d’octets envoyés"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Impossible de rattacher un bureau adjacent à cet emplacement"
+
+msgid "A required permission is missing"
+msgstr "Une autorisation nécessaire est manquante"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Impossible de restreindre les autorisations de l’extension à remplacer"
+
+msgid "Invalid action permission"
+msgstr "Autorisation d’action non valide"
+
+msgid "Invalid input permission"
+msgstr "Autorisation de saisie non valide"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Un seul bureau adjacent peut être rattaché à chaque côté"
+
+msgid "The predecessor is no longer installed"
+msgstr "L’extension à remplacer n’est plus installée"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Trop de destinations sont déjà réservées pour les extensions"
+
+msgid "Not ready."
+msgstr "Pas prêt."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Il manque l’autorisation {permission} à cette extension."
+
+msgid "No extension can receive this request."
+msgstr "Aucune extension ne peut recevoir cette requête."
+
+msgid "The other device did not accept the input visit"
+msgstr "L’autre appareil n’a pas accepté la session de contrôle à distance"
+
+msgid "The connection carrying the input visit ended"
+msgstr "La connexion de la session de contrôle à distance a pris fin"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "L’extension qui assurait la session de contrôle à distance s’est arrêtée"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "La session de contrôle à distance a pris fin parce que l’appareil en a été retiré"
+
+msgid "The extension no longer carries input"
+msgstr "L’extension ne transmet plus la saisie"
+
+msgid "The input visit no longer matches its destination"
+msgstr "La session de contrôle à distance ne correspond plus à sa destination"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Trop de sessions de contrôle à distance sont en attente de fermeture"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Trop de transferts d’extensions sont en attente"

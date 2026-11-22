@@ -3120,9 +3120,6 @@ msgstr "Vede cât de mare este spațiul dosarului în care ajung fișierele prim
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Vede câți octeți a primit și a trimis rețeaua acestui dispozitiv de la pornire. Nu vede rețele, adrese sau ce s-a transmis."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Vede bateria acestui dispozitiv: cât e încărcată, dacă se încarcă și cât ar trebui să mai țină."
-
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Vede ecranele acestui calculator și cum sunt așezate în jurul lor calculatoarele asociate."
 
@@ -3275,3 +3272,111 @@ msgstr "Ascunde detaliile"
 
 msgid "Read the licence and notice"
 msgstr "Citește licența și notificarea"
+
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Vede bateria acestui dispozitiv: cât e încărcată și starea ei, dacă este în priză și timpul rămas estimat."
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "Acțiunea s-a încheiat, dar rezultatul ei nu a putut fi afișat. Verifică ce s-a întâmplat înainte să o repeți."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Limita destinației a fost atinsă. Încearcă din nou mai târziu."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Ce s-a trimis este mai mare decât acceptă destinația."
+
+msgid "The request was refused"
+msgstr "Cererea a fost refuzată"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "Datele de autentificare salvate nu au fost acceptate. Salvează unele valide."
+
+msgid "Window bar position"
+msgstr "Poziția barei ferestrei"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Alege unde apar butoanele ferestrei și navigarea principală."
+
+msgid "Application data directory unavailable"
+msgstr "Dosarul de date al aplicației nu este disponibil"
+
+msgid "Cannot acquire private application directory"
+msgstr "Dosarul privat al aplicației nu poate fi obținut"
+
+msgid "Could not connect to the running application"
+msgstr "Nu s-a putut face conexiunea cu aplicația care rulează"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Cererea de oprire nu a putut fi trimisă; rezultatul ei poate fi necunoscut"
+
+msgid "The application did not stop in time"
+msgstr "Aplicația nu s-a oprit la timp"
+
+msgid "A development replacement needs a package archive"
+msgstr "O înlocuire de dezvoltare are nevoie de arhiva unui pachet"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Un dispozitiv nu a confirmat primirea octeților trimiși"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Un dispozitiv nu a confirmat primirea transferului"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Un dispozitiv nu a confirmat octeții trimiși"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Un calculator alăturat nu poate fi prins acolo"
+
+msgid "A required permission is missing"
+msgstr "Lipsește o permisiune necesară"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Permisiunile extensiei înlocuite nu au putut fi restrânse"
+
+msgid "Invalid action permission"
+msgstr "Permisiune de acțiune nevalidă"
+
+msgid "Invalid input permission"
+msgstr "Permisiune de intrare nevalidă"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Un singur calculator alăturat poate folosi aceeași latură"
+
+msgid "The predecessor is no longer installed"
+msgstr "Extensia înlocuită nu mai este instalată"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Prea multe destinații ale extensiilor sunt deja rezervate"
+
+msgid "Not ready."
+msgstr "Nu este gata."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Acestei extensii îi lipsește permisiunea {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Nicio extensie nu poate primi această cerere."
+
+msgid "The other device did not accept the input visit"
+msgstr "Celălalt dispozitiv nu a acceptat vizita de control"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Conexiunea care purta vizita de control s-a încheiat"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Extensia care purta vizita de control s-a oprit"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "Vizita de control s-a încheiat fiindcă dispozitivul ei a fost retras"
+
+msgid "The extension no longer carries input"
+msgstr "Extensia nu mai transmite intrare"
+
+msgid "The input visit no longer matches its destination"
+msgstr "Vizita de control nu mai corespunde destinației ei"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Prea multe vizite de control așteaptă să se închidă"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Prea multe transferuri ale extensiilor așteaptă"

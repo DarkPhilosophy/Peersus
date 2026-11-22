@@ -3109,8 +3109,8 @@ msgstr "Alınan dosyaların gittiği klasörün depolama alanının ne kadar bü
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Bu cihazın ağının açılıştan beri kaç bayt aldığını ve gönderdiğini görme. Ağları, adresleri veya taşınanı görmez."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Bu cihazın pilini görme: şarjı, şarj olup olmadığı ve ne kadar dayanacağı."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Bu cihazın pil bilgilerini görme: şarj düzeyi, pilin durumu, cihazın güç kaynağına bağlı olup olmadığı ve tahmini kalan kullanım süresi."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Bu bilgisayarın ekranlarını ve eşleştirilmiş bilgisayarlarının çevresinde nasıl dizildiğini görme."
@@ -3768,3 +3768,108 @@ msgstr "Etkin işleyici değişti. Güncel bir referans için testi yeniden çal
 
 msgid "Test frame did not match the scene"
 msgstr "Test karesi sahneyle eşleşmedi"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "Eylem tamamlandı ancak sonucu gösterilemedi. Eylemi tekrarlamadan önce ne olduğunu kontrol edin."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Hedefin sınırına ulaşıldı. Daha sonra yeniden deneyin."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Gönderilen veriler hedefin kabul ettiği boyutu aşıyor."
+
+msgid "The request was refused"
+msgstr "İstek reddedildi"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "Kayıtlı kimlik bilgisi kabul edilmedi. Geçerli bir kimlik bilgisi kaydedin."
+
+msgid "Window bar position"
+msgstr "Pencere çubuğunun konumu"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Pencere denetimlerinin ve ana gezinmenin nerede görüneceğini seçin."
+
+msgid "Application data directory unavailable"
+msgstr "Uygulama veri dizini kullanılamıyor"
+
+msgid "Cannot acquire private application directory"
+msgstr "Uygulamanın özel dizinine erişilemiyor"
+
+msgid "Could not connect to the running application"
+msgstr "Çalışan uygulamaya bağlanılamadı"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Durdurma isteği gönderilemedi; sonucu bilinmiyor olabilir"
+
+msgid "The application did not stop in time"
+msgstr "Uygulama zamanında durmadı"
+
+msgid "A development replacement needs a package archive"
+msgstr "Uzantıyı geliştirme sürümüyle değiştirmek için paket arşivi gerekiyor"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Bir cihaz gönderilen baytları aldığını bildirmedi"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Bir cihaz aktarımı aldığını doğrulamadı"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Bir cihaz gönderilen bayt sayısını doğrulamadı"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Bu konuma bitişik bir masaüstü eklenemez"
+
+msgid "A required permission is missing"
+msgstr "Gerekli bir izin eksik"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Değiştirilecek uzantının izinleri kısıtlanamadı"
+
+msgid "Invalid action permission"
+msgstr "Geçersiz eylem izni"
+
+msgid "Invalid input permission"
+msgstr "Geçersiz giriş izni"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Her kenara yalnızca bir bitişik masaüstü eklenebilir"
+
+msgid "The predecessor is no longer installed"
+msgstr "Değiştirilecek uzantı artık yüklü değil"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Uzantılar için zaten çok fazla hedef ayrılmış"
+
+msgid "Not ready."
+msgstr "Hazır değil."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Bu uzantının {permission} izni eksik."
+
+msgid "No extension can receive this request."
+msgstr "Hiçbir uzantı bu isteği alamıyor."
+
+msgid "The other device did not accept the input visit"
+msgstr "Diğer cihaz uzaktan kontrol oturumunu kabul etmedi"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Uzaktan kontrol oturumunun bağlantısı sona erdi"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Uzaktan kontrol oturumunu yürüten uzantı durdu"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "Cihaz oturumdan çıkarıldığı için uzaktan kontrol oturumu sona erdi"
+
+msgid "The extension no longer carries input"
+msgstr "Uzantı artık girişi aktarmıyor"
+
+msgid "The input visit no longer matches its destination"
+msgstr "Uzaktan kontrol oturumu artık hedefiyle eşleşmiyor"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Çok fazla uzaktan kontrol oturumu kapatılmayı bekliyor"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Çok fazla uzantı aktarımı beklemede"

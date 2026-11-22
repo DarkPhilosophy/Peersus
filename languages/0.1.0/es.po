@@ -3115,8 +3115,8 @@ msgstr "Ver el tamaño del almacenamiento de la carpeta a la que van los archivo
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Ver cuántos bytes ha recibido y enviado la red de este dispositivo desde que arrancó. No ve redes, direcciones ni lo transmitido."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Ver la batería de este dispositivo: su carga, si se está cargando y cuánto debería durar."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Ver la información de la batería de este dispositivo: nivel de carga, estado, si el dispositivo está conectado a la corriente y autonomía restante estimada."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Ver las pantallas de este ordenador y cómo se colocan a su alrededor tus escritorios vinculados."
@@ -3774,3 +3774,108 @@ msgstr "El renderizador activo cambió. Vuelve a ejecutar la prueba para obtener
 
 msgid "Test frame did not match the scene"
 msgstr "El fotograma de prueba no coincidía con la escena"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "La acción terminó, pero no se pudo mostrar su resultado. Comprueba qué ocurrió antes de repetirla."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Se alcanzó el límite del destino. Vuelve a intentarlo más tarde."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Los datos enviados superan el tamaño máximo que admite el destino."
+
+msgid "The request was refused"
+msgstr "Se rechazó la solicitud"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "No se aceptó la credencial guardada. Guarda una válida."
+
+msgid "Window bar position"
+msgstr "Posición de la barra de la ventana"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Elige dónde aparecen los controles de ventana y la navegación principal."
+
+msgid "Application data directory unavailable"
+msgstr "El directorio de datos de la aplicación no está disponible"
+
+msgid "Cannot acquire private application directory"
+msgstr "No se puede acceder al directorio privado de la aplicación"
+
+msgid "Could not connect to the running application"
+msgstr "No se pudo conectar con la aplicación en ejecución"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "No se pudo enviar la solicitud de cierre; puede que no se sepa el resultado"
+
+msgid "The application did not stop in time"
+msgstr "La aplicación no se cerró a tiempo"
+
+msgid "A development replacement needs a package archive"
+msgstr "Para sustituir la extensión por una versión de desarrollo, se necesita un archivo de paquete"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Un dispositivo no acusó recibo de los bytes enviados"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Un dispositivo no confirmó haber recibido la transferencia"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Un dispositivo no confirmó la cantidad de bytes enviados"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "No se puede colocar un escritorio adyacente en esa posición"
+
+msgid "A required permission is missing"
+msgstr "Falta un permiso necesario"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "No se pudieron restringir los permisos de la extensión que se va a sustituir"
+
+msgid "Invalid action permission"
+msgstr "El permiso de la acción no es válido"
+
+msgid "Invalid input permission"
+msgstr "El permiso de entrada no es válido"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Solo se puede colocar un escritorio adyacente en cada lado"
+
+msgid "The predecessor is no longer installed"
+msgstr "La extensión que se va a sustituir ya no está instalada"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Ya hay demasiados destinos reservados para extensiones"
+
+msgid "Not ready."
+msgstr "No está listo."
+
+msgid "This extension is missing permission {permission}."
+msgstr "A esta extensión le falta el permiso {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Ninguna extensión puede recibir esta solicitud."
+
+msgid "The other device did not accept the input visit"
+msgstr "El otro dispositivo no aceptó la sesión de control remoto"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Se cerró la conexión de la sesión de control remoto"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Se detuvo la extensión que gestionaba la sesión de control remoto"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "La sesión de control remoto terminó porque se retiró el dispositivo asociado"
+
+msgid "The extension no longer carries input"
+msgstr "La extensión ya no transmite la entrada"
+
+msgid "The input visit no longer matches its destination"
+msgstr "La sesión de control remoto ya no coincide con su destino"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Hay demasiadas sesiones de control remoto pendientes de cierre"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Hay demasiadas transferencias de extensiones pendientes"

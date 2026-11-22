@@ -3115,8 +3115,8 @@ msgstr "Se hur stort lagringsutrymmet är för mappen dit mottagna filer går, h
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Se hur många byte den här enhetens nätverk tagit emot och skickat sedan start. Den ser inga nätverk, adresser eller innehåll."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Se den här enhetens batteri: laddningen, om det laddas och hur länge det bör räcka."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Se batteriinformation för den här enheten: laddningsnivå, status, om enheten är ansluten till ström och beräknad återstående drifttid."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Se den här datorns skärmar och hur dina parkopplade datorer är placerade runt dem."
@@ -3774,3 +3774,108 @@ msgstr "Den aktiva renderaren har ändrats. Kör testet igen för en aktuell ref
 
 msgid "Test frame did not match the scene"
 msgstr "Testbildrutan stämde inte med scenen"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "Åtgärden slutfördes, men resultatet kunde inte visas. Kontrollera vad som hände innan du upprepar åtgärden."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Gränsen för målet har nåtts. Försök igen senare."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "De skickade uppgifterna är större än vad målet tillåter."
+
+msgid "The request was refused"
+msgstr "Begäran avvisades"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "De sparade inloggningsuppgifterna accepterades inte. Spara giltiga inloggningsuppgifter."
+
+msgid "Window bar position"
+msgstr "Fönsterfältets placering"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Välj var fönsterknapparna och huvudnavigeringen ska visas."
+
+msgid "Application data directory unavailable"
+msgstr "Mappen med programdata är inte tillgänglig"
+
+msgid "Cannot acquire private application directory"
+msgstr "Det går inte att komma åt programmets privata mapp"
+
+msgid "Could not connect to the running application"
+msgstr "Det gick inte att ansluta till programmet som körs"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Det gick inte att skicka en begäran om att avsluta programmet; resultatet kan vara okänt"
+
+msgid "The application did not stop in time"
+msgstr "Programmet avslutades inte i tid"
+
+msgid "A development replacement needs a package archive"
+msgstr "Ett paketarkiv krävs för att ersätta tillägget med en utvecklingsversion"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "En enhet kvitterade inte mottagandet av skickade byte"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "En enhet bekräftade inte att den tog emot överföringen"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "En enhet bekräftade inte antalet skickade byte"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Det går inte att placera ett angränsande skrivbord där"
+
+msgid "A required permission is missing"
+msgstr "En behörighet som krävs saknas"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Det gick inte att begränsa behörigheterna för tillägget som ska ersättas"
+
+msgid "Invalid action permission"
+msgstr "Ogiltig behörighet för åtgärden"
+
+msgid "Invalid input permission"
+msgstr "Ogiltig behörighet för inmatning"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Bara ett angränsande skrivbord kan placeras på varje sida"
+
+msgid "The predecessor is no longer installed"
+msgstr "Tillägget som ska ersättas är inte längre installerat"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "För många mål är redan reserverade för tillägg"
+
+msgid "Not ready."
+msgstr "Inte redo."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Det här tillägget saknar behörigheten {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Inget tillägg kan ta emot den här begäran."
+
+msgid "The other device did not accept the input visit"
+msgstr "Den andra enheten accepterade inte fjärrstyrningssessionen"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Anslutningen för fjärrstyrningssessionen avslutades"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Tillägget som hanterade fjärrstyrningssessionen stoppades"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "Fjärrstyrningssessionen avslutades eftersom enheten togs bort från sessionen"
+
+msgid "The extension no longer carries input"
+msgstr "Tillägget överför inte längre indata"
+
+msgid "The input visit no longer matches its destination"
+msgstr "Fjärrstyrningssessionen stämmer inte längre överens med sitt mål"
+
+msgid "Too many input visits are waiting to close"
+msgstr "För många fjärrstyrningssessioner väntar på att avslutas"
+
+msgid "Too many extension transfers are waiting"
+msgstr "För många överföringar från tillägg väntar"

@@ -3115,8 +3115,8 @@ msgstr "Ver o tamanho do armazenamento da pasta para onde vão os ficheiros rece
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Ver quantos bytes a rede deste dispositivo recebeu e enviou desde que arrancou. Não vê redes, endereços nem o conteúdo."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Ver a bateria deste dispositivo: a carga, se está a carregar e quanto tempo deve durar."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Ver as informações sobre a bateria deste dispositivo: nível de carga, estado, se o dispositivo está ligado à alimentação e autonomia restante estimada."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Ver os ecrãs deste computador e como os computadores emparelhados estão dispostos à sua volta."
@@ -3774,3 +3774,108 @@ msgstr "O renderizador ativo mudou. Execute o teste novamente para obter uma ref
 
 msgid "Test frame did not match the scene"
 msgstr "O quadro de teste não correspondeu à cena"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "A ação terminou, mas não foi possível apresentar o resultado. Verifique o que aconteceu antes de a repetir."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Foi atingido o limite do destino. Tente novamente mais tarde."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Os dados enviados excedem o tamanho máximo aceite pelo destino."
+
+msgid "The request was refused"
+msgstr "O pedido foi recusado"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "A credencial guardada não foi aceite. Guarde uma credencial válida."
+
+msgid "Window bar position"
+msgstr "Posição da barra da janela"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Escolha onde aparecem os controlos da janela e a navegação principal."
+
+msgid "Application data directory unavailable"
+msgstr "A pasta de dados da aplicação não está disponível"
+
+msgid "Cannot acquire private application directory"
+msgstr "Não é possível aceder à pasta privada da aplicação"
+
+msgid "Could not connect to the running application"
+msgstr "Não foi possível estabelecer ligação à aplicação em execução"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Não foi possível enviar o pedido de encerramento; o resultado pode ser desconhecido"
+
+msgid "The application did not stop in time"
+msgstr "A aplicação não encerrou a tempo"
+
+msgid "A development replacement needs a package archive"
+msgstr "É necessário um arquivo do pacote para substituir a extensão por uma versão de desenvolvimento"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Um dispositivo não acusou a receção dos bytes enviados"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Um dispositivo não confirmou a receção da transferência"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Um dispositivo não confirmou o número de bytes enviados"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Não é possível colocar um ambiente de trabalho adjacente nessa posição"
+
+msgid "A required permission is missing"
+msgstr "Falta uma permissão necessária"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Não foi possível restringir as permissões da extensão a substituir"
+
+msgid "Invalid action permission"
+msgstr "Permissão da ação inválida"
+
+msgid "Invalid input permission"
+msgstr "Permissão de entrada inválida"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Só é possível colocar um ambiente de trabalho adjacente de cada lado"
+
+msgid "The predecessor is no longer installed"
+msgstr "A extensão a substituir já não está instalada"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Já há demasiados destinos reservados para extensões"
+
+msgid "Not ready."
+msgstr "Não está pronto."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Falta a permissão {permission} a esta extensão."
+
+msgid "No extension can receive this request."
+msgstr "Nenhuma extensão pode receber este pedido."
+
+msgid "The other device did not accept the input visit"
+msgstr "O outro dispositivo não aceitou a sessão de controlo remoto"
+
+msgid "The connection carrying the input visit ended"
+msgstr "A ligação da sessão de controlo remoto foi encerrada"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "A extensão que assegurava a sessão de controlo remoto deixou de funcionar"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "A sessão de controlo remoto terminou porque o dispositivo associado foi retirado"
+
+msgid "The extension no longer carries input"
+msgstr "A extensão já não transmite a entrada"
+
+msgid "The input visit no longer matches its destination"
+msgstr "A sessão de controlo remoto já não corresponde ao seu destino"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Há demasiadas sessões de controlo remoto a aguardar encerramento"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Há demasiadas transferências de extensões em espera"

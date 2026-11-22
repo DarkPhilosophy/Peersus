@@ -3121,8 +3121,8 @@ msgstr "Widzieć, jak duża jest pamięć folderu, do którego trafiają odebran
 msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
 msgstr "Widzieć, ile bajtów sieć tego urządzenia odebrała i wysłała od uruchomienia. Nie widzi sieci, adresów ani treści."
 
-msgid "See this device's battery: its charge, whether it is charging, and how long it should last."
-msgstr "Widzieć baterię tego urządzenia: naładowanie, czy się ładuje i na jak długo wystarczy."
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr "Zobacz informacje o baterii tego urządzenia: poziom naładowania, stan, informację o podłączeniu do zasilania i szacowany pozostały czas pracy."
 
 msgid "See this computer's screens and how your paired desktops are arranged around them."
 msgstr "Widzieć ekrany tego komputera i jak są wokół nich ułożone sparowane komputery."
@@ -3780,3 +3780,108 @@ msgstr "Aktywny renderer się zmienił. Uruchom test ponownie, aby uzyskać aktu
 
 msgid "Test frame did not match the scene"
 msgstr "Klatka testowa nie odpowiadała scenie"
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr "Działanie się zakończyło, ale nie udało się wyświetlić jego wyniku. Sprawdź, co się stało, zanim je powtórzysz."
+
+msgid "The destination's limit was reached. Try again later."
+msgstr "Osiągnięto limit miejsca docelowego. Spróbuj ponownie później."
+
+msgid "What was sent is larger than the destination accepts."
+msgstr "Rozmiar wysłanych danych przekracza limit miejsca docelowego."
+
+msgid "The request was refused"
+msgstr "Żądanie zostało odrzucone"
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr "Zapisane dane logowania nie zostały zaakceptowane. Zapisz prawidłowe dane logowania."
+
+msgid "Window bar position"
+msgstr "Położenie paska okna"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Wybierz, gdzie mają się pojawiać przyciski okna i główna nawigacja."
+
+msgid "Application data directory unavailable"
+msgstr "Katalog danych aplikacji jest niedostępny"
+
+msgid "Cannot acquire private application directory"
+msgstr "Nie można uzyskać dostępu do prywatnego katalogu aplikacji"
+
+msgid "Could not connect to the running application"
+msgstr "Nie udało się połączyć z uruchomioną aplikacją"
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr "Nie udało się wysłać żądania zamknięcia; wynik może być nieznany"
+
+msgid "The application did not stop in time"
+msgstr "Aplikacja nie zamknęła się w wyznaczonym czasie"
+
+msgid "A development replacement needs a package archive"
+msgstr "Do zastąpienia rozszerzenia wersją deweloperską potrzebne jest archiwum pakietu"
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr "Urządzenie nie potwierdziło odbioru wysłanych bajtów"
+
+msgid "A device did not confirm receiving the transfer"
+msgstr "Urządzenie nie potwierdziło zakończenia odbioru przesyłanych danych"
+
+msgid "A device did not confirm the bytes sent"
+msgstr "Urządzenie nie potwierdziło liczby wysłanych bajtów"
+
+msgid "A relative desktop cannot be attached there"
+msgstr "Nie można dołączyć sąsiedniego pulpitu w tym miejscu"
+
+msgid "A required permission is missing"
+msgstr "Brakuje wymaganego uprawnienia"
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr "Nie udało się ograniczyć uprawnień zastępowanego rozszerzenia"
+
+msgid "Invalid action permission"
+msgstr "Nieprawidłowe uprawnienie do wykonania działania"
+
+msgid "Invalid input permission"
+msgstr "Nieprawidłowe uprawnienie do przekazywania danych wejściowych"
+
+msgid "Only one relative desktop can use the same side"
+msgstr "Z każdej strony można dołączyć tylko jeden sąsiedni pulpit"
+
+msgid "The predecessor is no longer installed"
+msgstr "Rozszerzenie, które ma zostać zastąpione, nie jest już zainstalowane"
+
+msgid "Too many extension destinations are already guarded"
+msgstr "Zarezerwowano już zbyt wiele miejsc docelowych dla rozszerzeń"
+
+msgid "Not ready."
+msgstr "Działanie nie jest gotowe."
+
+msgid "This extension is missing permission {permission}."
+msgstr "Temu rozszerzeniu brakuje uprawnienia {permission}."
+
+msgid "No extension can receive this request."
+msgstr "Żadne rozszerzenie nie może odebrać tego żądania."
+
+msgid "The other device did not accept the input visit"
+msgstr "Drugie urządzenie nie zaakceptowało sesji zdalnego sterowania"
+
+msgid "The connection carrying the input visit ended"
+msgstr "Połączenie sesji zdalnego sterowania zostało zakończone"
+
+msgid "The extension carrying the input visit stopped"
+msgstr "Rozszerzenie obsługujące sesję zdalnego sterowania przestało działać"
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr "Sesja zdalnego sterowania zakończyła się, ponieważ usunięto z niej urządzenie"
+
+msgid "The extension no longer carries input"
+msgstr "Rozszerzenie nie przekazuje już danych wejściowych"
+
+msgid "The input visit no longer matches its destination"
+msgstr "Sesja zdalnego sterowania nie odpowiada już swojemu miejscu docelowemu"
+
+msgid "Too many input visits are waiting to close"
+msgstr "Zbyt wiele sesji zdalnego sterowania czeka na zamknięcie"
+
+msgid "Too many extension transfers are waiting"
+msgstr "Zbyt wiele operacji przesyłania przez rozszerzenia oczekuje w kolejce"
