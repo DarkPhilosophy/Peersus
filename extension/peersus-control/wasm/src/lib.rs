@@ -25,11 +25,15 @@ pub(crate) struct State {
     handoffs: std::collections::BTreeSet<String>,
     pub ui: ui::Ui,
     pub layout: layout::Ui,
-    /// Which of its pages the person's options placed among the application's pages, as last placed, and when (page time) they
-    /// were last read: the application keeps the guest running when an option changes, so the guest looks again while its
-    /// pages are used.
+    /// The caller-scoped permission snapshot and any checked denial since it was read.
+    readiness: host::Readiness,
+    /// A stopped visit cannot reopen from an ordinary or stale sample, even after a grant returns.
+    remote_denials: std::collections::BTreeSet<String>,
+    local_stops: std::collections::BTreeSet<String>,
+    /// An acknowledgement can arrive while a gesture is still active, ahead of its next call.
+    early_end: Option<(String, remote::Refusal)>,
+    /// Which of its pages the person's settings placed among the application's pages.
     placed_pages: Option<Vec<&'static str>>,
-    pages_checked: u64,
 }
 
 /// The entry the interpreter calls. Returns zero when the application goes away, non-zero on a
@@ -58,7 +62,7 @@ pub unsafe extern "C" fn peersus_plugin_main(host: *const native::HostV1) -> i32
 
 fn run(host: &mut (impl Wire + Data)) -> i32 {
     let mut state = State::default();
-    if state.configure_pages(host).is_err() {
+    if host.send(host::subscribe_config()).is_err() || state.configure_pages(host).is_err() {
         return 1;
     }
     loop {

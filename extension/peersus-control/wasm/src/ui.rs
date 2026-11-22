@@ -1,18 +1,20 @@
 //! Control owns this entire screen and interprets its gestures. The host renders generic boxes.
 use crate::{
     State,
-    host::{Data, Wire},
-    remote,
+    host::{Blocked, Data, Permission, Wire, missing_permissions},
+    remote::{self, Refusal},
 };
 use serde_json::{Value, json};
 
 #[derive(Default)]
 pub struct Ui {
     devices: Vec<Value>,
+    list_block: Option<Permission>,
+    needs_refresh: bool,
     chosen: Option<String>,
-    /// The device the person chose, when it stopped being one that can be controlled: said on the page, and
-    /// followed, until it can be controlled again or the person chooses another. While it is said, no other
-    /// device is chosen for them.
+    /// A revoked or refused operation is never reselected by the background list refresh.
+    needs_choice: bool,
+    /// What the page says when its chosen device is no longer ready.
     dropped: Option<Dropped>,
     /// Buttons locked down by the Left and Right keys: pressed once, held until pressed again.
     locked: Vec<&'static str>,
@@ -96,9 +98,12 @@ fn unselected(name: &str, standing: Option<Standing>) -> String {
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Standing {
     Ready,
+    MissingPermission,
     NotAllowed,
     /// Control is not running there, or not allowed there to take this device's input.
     NotThere,
+    RefusedThere,
+    StoppedHere,
     Sleeping,
     /// A presence this extension has no word for.
     Away,
@@ -123,6 +128,8 @@ impl Standing {
         };
         if presence != Self::Ready {
             presence
+        } else if missing_permissions(peer).next().is_some() {
+            Self::MissingPermission
         } else if peer["allowed"] == false {
             Self::NotAllowed
         } else if peer["accepts"]
@@ -138,8 +145,11 @@ impl Standing {
     fn reason(self) -> &'static str {
         match self {
             Self::Ready => "it is ready",
+            Self::MissingPermission => "a permission is missing on this device",
             Self::NotAllowed => "Control is no longer allowed there",
             Self::NotThere => "Control is not ready there",
+            Self::RefusedThere => "it is not accepting control",
+            Self::StoppedHere => "control stopped here; select it again to start",
             Self::Sleeping => "it is sleeping",
             Self::Away => "it is away",
             Self::Offline => "it is offline",
@@ -147,21 +157,114 @@ impl Standing {
     }
 }
 impl Ui {
+    pub(crate) fn permission_changed(&mut self) {
+        self.needs_refresh = true;
+    }
+
+    fn mark_missing(peer: &mut Value, permission: &Permission) {
+        if missing_permissions(peer)
+            .any(|pair| pair == (permission.owner.as_str(), permission.name.as_str()))
+        {
+            return;
+        }
+        if let Some(missing) = peer["missing_permissions"].as_array_mut() {
+            missing.push(permission.value());
+        } else {
+            peer["missing_permissions"] = json!([permission.value()]);
+        }
+    }
+
+    fn standing(state: &State, peer: &Value) -> Standing {
+        let standing = Standing::of(peer);
+        if standing == Standing::Ready
+            && peer["device"]
+                .as_str()
+                .is_some_and(|device| state.remote_block(device))
+        {
+            Standing::RefusedThere
+        } else {
+            standing
+        }
+    }
+
+    fn stop_choice<H: Data>(&mut self, state: &mut State, host: &mut H, reason: Standing) {
+        let Some(device) = self.chosen.take() else {
+            return;
+        };
+        state.stop_sending(host, &device);
+        self.reset_gesture();
+        self.needs_choice = true;
+        let name = self
+            .devices
+            .iter()
+            .find(|row| row["device"] == device)
+            .and_then(|row| row["name"].as_str())
+            .unwrap_or("The device")
+            .to_owned();
+        self.dropped = Some(Dropped {
+            device,
+            said: unselected(&name, Some(reason)),
+            name,
+        });
+    }
+
+    fn observe_stop<H: Data>(&mut self, state: &mut State, host: &mut H) -> bool {
+        let Some(device) = self.chosen.as_deref() else {
+            return false;
+        };
+        let reason = if let Some(permission) = state.send_block(device) {
+            if let Some(row) = self.devices.iter_mut().find(|row| row["device"] == device) {
+                Self::mark_missing(row, &permission);
+            }
+            Standing::MissingPermission
+        } else if state.local_block(device) {
+            Standing::StoppedHere
+        } else if state.remote_block(device) {
+            Standing::RefusedThere
+        } else {
+            return false;
+        };
+        self.stop_choice(state, host, reason);
+        true
+    }
+
     fn refresh<H: Wire + Data>(
         &mut self,
         state: &mut State,
         host: &mut H,
         at: u64,
     ) -> Result<bool, &'static str> {
-        // Allowed to see no paired device: none is listed, as when none is paired.
-        let peers = match state.call(host, "peersus.peers", "list", json!({})) {
-            Err(remote::answer::DENIED) => Value::Array(Vec::new()),
-            other => other?,
+        self.needs_refresh = false;
+        let (mut peers, blocked) = match state.call(host, "peersus.peers", "list", json!({})) {
+            Ok(Value::Array(peers)) => (peers, None),
+            Ok(_) => return Err(remote::answer::NOT_UNDERSTOOD),
+            Err(Refusal::Other(remote::answer::DENIED)) => (Vec::new(), None),
+            Err(Refusal::Blocked(Blocked::MissingPermission(permission))) => {
+                (Vec::new(), Some(permission))
+            }
+            Err(Refusal::Blocked(Blocked::NotAccepted)) => {
+                return Err(remote::answer::NOT_UNDERSTOOD);
+            }
+            Err(Refusal::Other(reason)) => return Err(reason),
         };
-        let peers = peers.as_array().ok_or(remote::answer::NOT_UNDERSTOOD)?;
-        let mut changed = self.devices != *peers;
-        let before = std::mem::replace(&mut self.devices, peers.clone());
+        for peer in &mut peers {
+            if let Some(permission) = peer["device"].as_str().and_then(|id| state.send_block(id)) {
+                Self::mark_missing(peer, &permission);
+            }
+        }
+        let before = std::mem::replace(&mut self.devices, peers);
+        let mut changed = self.devices != before || self.list_block != blocked;
+        self.list_block = blocked;
         self.refreshed = at;
+        if self.list_block.is_some() {
+            if let Some(device) = self.chosen.take() {
+                state.stop_sending(host, &device);
+                self.reset_gesture();
+                self.needs_choice = true;
+            }
+            self.dropped = None;
+            return Ok(changed);
+        }
         if let Some(chosen) = self.chosen.clone() {
             let named = |list: &[Value]| {
                 list.iter()
@@ -169,7 +272,7 @@ impl Ui {
                     .cloned()
             };
             let now = named(&self.devices);
-            let standing = now.as_ref().map(Standing::of);
+            let standing = now.as_ref().map(|peer| Self::standing(state, peer));
             if standing != Some(Standing::Ready) {
                 // It stopped being a device that can be controlled: its gesture ends, it is unselected and the page says
                 // so. Nothing is chosen in its place: what is controlled is only ever the person's own choice.
@@ -180,39 +283,51 @@ impl Ui {
                     .unwrap_or("The device")
                     .to_owned();
                 let said = unselected(&name, standing);
+                if matches!(
+                    standing,
+                    Some(Standing::MissingPermission | Standing::RefusedThere)
+                ) {
+                    self.needs_choice = true;
+                    state.stop_sending(host, &chosen);
+                    self.reset_gesture();
+                } else {
+                    let _ = self.end(state, host);
+                }
                 self.dropped = Some(Dropped {
                     device: chosen,
                     name,
                     said,
                 });
-                let _ = self.end(state, host);
                 self.chosen = None;
                 changed = true;
             }
         }
         if let Some(mut dropped) = self.dropped.take() {
-            // It is still the person's choice: back as a device that can be controlled, it is chosen again, and
-            // until then the page says how it stands now, not how it stood when it left.
+            // Presence may recover on its own, but permission loss is the end of that choice.
             let standing = self
                 .devices
                 .iter()
                 .find(|p| p["device"].as_str() == Some(dropped.device.as_str()))
-                .map(Standing::of);
-            if standing == Some(Standing::Ready) {
+                .map(|peer| Self::standing(state, peer));
+            if standing == Some(Standing::Ready) && !self.needs_choice {
                 self.chosen = Some(dropped.device);
                 changed = true;
             } else {
-                let said = unselected(&dropped.name, standing);
+                let said = if standing == Some(Standing::Ready) {
+                    format!("Select {} again to start control.", dropped.name)
+                } else {
+                    unselected(&dropped.name, standing)
+                };
                 changed |= said != dropped.said;
                 dropped.said = said;
                 self.dropped = Some(dropped);
             }
         }
-        if self.chosen.is_none() && self.dropped.is_none() {
+        if self.chosen.is_none() && self.dropped.is_none() && !self.needs_choice {
             self.chosen = self
                 .devices
                 .iter()
-                .find(|p| Standing::of(p) == Standing::Ready)
+                .find(|p| Self::standing(state, p) == Standing::Ready)
                 .and_then(|p| p["device"].as_str())
                 .map(str::to_owned);
         }
@@ -232,26 +347,54 @@ impl Ui {
         host: &mut H,
         events: Vec<Value>,
         at: u64,
-    ) -> Result<(), &'static str> {
+    ) -> Result<bool, &'static str> {
         if events.is_empty() {
-            return Ok(());
+            return Ok(false);
         }
         // A device that cannot be controlled is how things are, which the page shows; it is not a failure of each touch.
         // Nothing is sent and whatever was held is let go; the next reading of the list unselects it.
         if !self.reachable() {
-            let _ = self.end(state, host);
-            return Ok(());
+            if let Some(peer) = self.chosen.as_deref() {
+                if self.devices.iter().any(|row| {
+                    row["device"] == peer && Standing::of(row) == Standing::MissingPermission
+                }) {
+                    self.stop_choice(state, host, Standing::MissingPermission);
+                    return Ok(true);
+                }
+                let _ = self.end(state, host);
+            } else {
+                self.reset_gesture();
+            }
+            return Ok(false);
         }
         let peer = self.chosen.as_ref().ok_or(remote::answer::REFUSED)?;
         if state.outgoing.is_none() {
             self.opened = Some(at);
         }
-        if let Err(reason) = state.input(host, &json!({"peer":peer,"events":events,"end":false})) {
-            let _ = self.end(state, host);
-            return Err(reason);
+        match state.input(host, &json!({"peer":peer,"events":events,"end":false})) {
+            Ok(()) => {}
+            Err(Refusal::Other(reason)) => {
+                let _ = self.end(state, host);
+                return Err(reason);
+            }
+            Err(Refusal::Blocked(Blocked::MissingPermission(permission))) => {
+                if let Some(row) = self
+                    .devices
+                    .iter_mut()
+                    .find(|row| row["device"].as_str() == Some(peer.as_str()))
+                {
+                    Self::mark_missing(row, &permission);
+                }
+                self.stop_choice(state, host, Standing::MissingPermission);
+                return Ok(true);
+            }
+            Err(Refusal::Blocked(Blocked::NotAccepted)) => {
+                self.stop_choice(state, host, Standing::RefusedThere);
+                return Ok(true);
+            }
         }
         self.last_input = Some(at);
-        Ok(())
+        Ok(false)
     }
     /// Send what a finger did. At the end of its gesture (it lifted or was cancelled) a failure is not passed on:
     /// the gesture is over either way (`send` already ended the connection, which lets go of everything on the
@@ -263,9 +406,9 @@ impl Ui {
         inputs: Vec<Value>,
         at: u64,
         phase: &str,
-    ) -> Result<(), &'static str> {
+    ) -> Result<bool, &'static str> {
         match self.send(state, host, inputs, at) {
-            Err(_) if matches!(phase, "up" | "cancel") => Ok(()),
+            Err(_) if matches!(phase, "up" | "cancel") => Ok(false),
             result => result,
         }
     }
@@ -302,19 +445,31 @@ impl Ui {
         self.opened = None;
         self.last_input = None;
         self.last_gesture_at = None;
-        state.rest(host)
+        Self::page_result(state.rest(host))
     }
-    fn end<H: Wire + Data>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
+    fn reset_gesture(&mut self) {
         self.pad = None;
         self.last_tap = None;
         self.wheel = None;
         self.erasing = None;
+        self.owed = 0;
         // Ending lets go of everything on the other computer, locked buttons with it.
         self.locked.clear();
         self.last_input = None;
         self.last_gesture_at = None;
         self.opened = None;
-        state.finish(host)
+    }
+
+    fn end<H: Wire + Data>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
+        self.reset_gesture();
+        Self::page_result(state.finish(host))
+    }
+
+    fn page_result(result: Result<(), Refusal>) -> Result<(), &'static str> {
+        match result {
+            Err(Refusal::Other(reason)) => Err(reason),
+            _ => Ok(()), // A typed stop is a state, not a page-event error.
+        }
     }
     pub fn event<H: Wire + Data>(
         &mut self,
@@ -324,6 +479,27 @@ impl Ui {
     ) -> Result<Value, &'static str> {
         self.clock = self.clock.max(event["at"].as_u64().unwrap_or(self.clock));
         let at = self.clock;
+        let stopped = self.observe_stop(state, host);
+        let changed = event["t"] != "open"
+            && self.needs_refresh
+            && self.refresh(state, host, at).unwrap_or(false);
+        let value = self.page_event(state, host, event, at)?;
+        Ok(
+            if self.observe_stop(state, host) || (stopped || changed) && value.is_null() {
+                self.tree()
+            } else {
+                value
+            },
+        )
+    }
+
+    fn page_event<H: Wire + Data>(
+        &mut self,
+        state: &mut State,
+        host: &mut H,
+        event: &Value,
+        at: u64,
+    ) -> Result<Value, &'static str> {
         let id = event["id"].as_str().unwrap_or("");
         match event["t"].as_str() {
             Some("open") => {
@@ -359,7 +535,9 @@ impl Ui {
                     // touching anything, so it does not move the stuck-input clock: a Backspace whose lift
                     // was lost stops erasing after `STUCK_MS` like any other lost gesture.
                     self.erasing = Some(at.max(next));
-                    self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at)?;
+                    if self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at)? {
+                        return Ok(self.tree());
+                    }
                 }
                 if self
                     .opened
@@ -369,7 +547,8 @@ impl Ui {
                     let _ = state.rotate(host);
                 }
                 // The list is read again in the background: one read that fails keeps the list as it was.
-                let refreshed = at.saturating_sub(self.refreshed) >= 2000
+                let refreshed = self.list_block.is_none()
+                    && at.saturating_sub(self.refreshed) >= 2000
                     && self.refresh(state, host, at).unwrap_or(false);
                 if stuck || refreshed {
                     return Ok(self.tree());
@@ -400,7 +579,9 @@ impl Ui {
                     // Split to the input service's and the connection's bounds, so a long text arrives whole.
                     remote::typed(value)
                 };
-                self.send(state, host, inputs, at)?;
+                if self.send(state, host, inputs, at)? {
+                    return Ok(self.tree());
+                }
                 self.rest(state, host)?;
             }
             // The pad's measured bounds: which half of it a tap lands on says which button it is.
@@ -582,7 +763,9 @@ impl Ui {
                     }
                     _ => {}
                 }
-                self.send_or_settle(state, host, inputs, at, phase)?;
+                if self.send_or_settle(state, host, inputs, at, phase)? {
+                    return Ok(self.tree());
+                }
                 if matches!(phase, "up" | "cancel") {
                     let _ = self.rest(state, host);
                 }
@@ -611,6 +794,10 @@ impl Ui {
         // reason to block an explicit switch (a switch is only ever the person's own choice).
         let ended = self.end(state, host);
         crate::host::diagnostic(7, if ended.is_ok() { 0 } else { 4 }, 0, 0, 0);
+        if let Some(device) = &chosen {
+            state.allow_new_choice(device);
+        }
+        self.needs_choice = false;
         self.chosen = chosen;
         self.dropped = None;
         Ok(())
@@ -708,26 +895,53 @@ impl Ui {
         // controlled dimmed and saying why. Only a device online here, allowed, and where Control is there and allowed to take
         // this device's input, can be chosen: input meant for a person at a sleeping screen does not belong there.
         let mut chooser: Vec<Value> = Vec::new();
-        if selected.is_none() {
-            // Nothing is chosen: why, beside the chooser, which is where a device is chosen again.
-            let mut said: Vec<Value> = Vec::new();
-            if let Some(dropped) = &self.dropped {
-                said.push(text(&dropped.said));
+        let mut said: Vec<Value> = Vec::new();
+        if let Some(blocked) = &self.list_block {
+            said.push(text(&format!(
+                "Cannot list paired devices: missing permission {} on this device.",
+                blocked.name,
+            )));
+        } else {
+            for peer in &self.devices {
+                if Standing::of(peer) == Standing::MissingPermission {
+                    let name = peer["name"].as_str().unwrap_or("The device");
+                    let names = missing_permissions(peer)
+                        .map(|(_, name)| name)
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    said.push(text(&format!(
+                        "{name} cannot be controlled: missing permission {names} on this device."
+                    )));
+                }
             }
-            if !self
-                .devices
-                .iter()
-                .any(|p| Standing::of(p) == Standing::Ready)
-            {
-                said.push(text("No computer can be controlled now."));
+            if selected.is_none() {
+                let named_blocked = !said.is_empty();
+                if let Some(dropped) = &self.dropped
+                    && !self.devices.iter().any(|p| {
+                        p["device"].as_str() == Some(dropped.device.as_str())
+                            && Standing::of(p) == Standing::MissingPermission
+                    })
+                {
+                    said.push(text(&dropped.said));
+                }
+                if !named_blocked
+                    && !self
+                        .devices
+                        .iter()
+                        .any(|p| Standing::of(p) == Standing::Ready)
+                {
+                    said.push(text("No computer can be controlled now."));
+                }
             }
-            if !said.is_empty() {
-                chooser.push(bx(
-                    None,
-                    json!({"padding":8,"gap":4,"radius":[12,12,12,12],"background":"surface","border":true}),
-                    said,
-                ));
-            }
+        }
+        if !said.is_empty() {
+            let scroll = said.len() > 1;
+            chooser.push(bx(
+                None,
+                json!({"width":fill(),"height":if scroll {px(96)} else {json!({"unit":"auto"})},
+                    "scroll":scroll,"padding":8,"gap":4,"radius":[12,12,12,12],"background":"surface","border":true}),
+                said,
+            ));
         }
         chooser.push(
             json!({"k":"devices","id":CHOOSER,"chosen":self.chosen,"above":true,
@@ -838,6 +1052,166 @@ mod tests {
             ui.event(&mut state, &mut host, &json!({"t":"open"}))
                 .is_err()
         );
+    }
+
+    #[test]
+    fn each_reachable_computer_names_the_permissions_missing_here_before_any_input() {
+        let mut ui = Ui::default();
+        let mut state = State::default();
+        let mut host = Script::default();
+        host.results.push_back(json!({"status":"ok","value":[
+            {"device":"main","name":"Desk","presence":"online","allowed":false,"missing_permissions":[{"owner":"control","name":"control.use"}]},
+            {"device":"other","name":"Laptop","presence":"online","allowed":false,"missing_permissions":[{"owner":"host","name":"peers.send"}]},
+            {"device":"asleep","name":"Sleeping computer","presence":"sleeping","allowed":false,"missing_permissions":[{"owner":"control","name":"control.use"}]}
+        ]}));
+        let tree = ui
+            .event(&mut state, &mut host, &json!({"t":"open"}))
+            .unwrap()
+            .to_string();
+        assert!(
+            tree.contains(
+                "Desk cannot be controlled: missing permission control.use on this device."
+            )
+        );
+        assert!(tree.contains(
+            "Laptop cannot be controlled: missing permission peers.send on this device."
+        ));
+        assert!(!tree.contains("Sleeping computer"));
+        assert!(!tree.contains("No computer can be controlled now."));
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"submit","id":"keyboard","text":"text"}),
+        )
+        .unwrap();
+        assert_eq!(host.sent.len(), 1, "only the readiness read, not a send");
+        assert!(host.opened.is_empty());
+    }
+
+    #[test]
+    fn a_permission_denied_after_the_last_read_redraws_as_blocked_not_as_a_keyboard_failure() {
+        let (mut ui, mut state, mut host) = ready();
+        host.results.clear();
+        host.results.push_back(json!({"status":"missing-permission","permission":{"owner":"host","name":"peers.send"}}));
+        let tree = ui
+            .event(
+                &mut state,
+                &mut host,
+                &json!({"t":"submit","id":"keyboard","text":"text"}),
+            )
+            .unwrap()
+            .to_string();
+        assert!(tree.contains(
+            "Computer cannot be controlled: missing permission peers.send on this device."
+        ));
+        assert!(!tree.contains("No computer can be controlled now."));
+        assert!(ui.chosen.is_none());
+        assert!(host.opened.is_empty());
+    }
+
+    #[test]
+    fn a_page_missing_the_watch_permission_names_it_without_guessing_which_devices_it_cannot_see() {
+        let mut ui = Ui::default();
+        let mut state = State::default();
+        let mut host = Script::default();
+        host.results.push_back(json!({"status":"missing-permission","permission":{"owner":"host","name":"peers.watch"}}));
+        let tree = ui
+            .event(&mut state, &mut host, &json!({"t":"open"}))
+            .unwrap()
+            .to_string();
+        assert!(tree.contains("missing permission peers.watch on this device"));
+        assert!(!tree.contains("No computer can be controlled now."));
+        assert!(ui.devices.is_empty());
+        for at in [2000, 4000, 6000] {
+            assert!(
+                ui.event(&mut state, &mut host, &json!({"t":"tick","at":at}))
+                    .unwrap()
+                    .is_null()
+            );
+        }
+        assert_eq!(host.sent.len(), 1, "a refused list is not polled");
+    }
+
+    #[test]
+    fn a_phone_stops_the_active_drag_on_either_grant_loss_and_only_new_choice_reopens_it() {
+        for remote in [false, true] {
+            let (mut ui, mut state, mut host) = ready();
+            event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 10);
+            event(
+                &mut ui, &mut state, &mut host, "pad", "down", 1000, 1000, 20,
+            );
+            assert!(ui.holding() && state.outgoing.is_some());
+            let bytes = host.written.len();
+            let allowed = json!({"device":"scoped","permissions":[
+                {"owner":"host","name":"peers.send"},{"owner":"control","name":"control.use"}
+            ]});
+            let mut config = json!({"plugin":"control","settings":{},"missing_permissions":[],"peers":[allowed]});
+            state.placed_pages = Some(vec![]);
+            if remote {
+                let body = br#"{"status":"not-accepted"}"#;
+                let mut frame = (body.len() as u32).to_be_bytes().to_vec();
+                frame.extend_from_slice(body);
+                host.incoming.push_back(frame);
+                assert_eq!(state.next(&mut host), Ok(None));
+            } else {
+                config["peers"][0]["permissions"] =
+                    json!([{"owner":"control","name":"control.use"}]);
+                host.results
+                    .push_back(json!({"status":"ok","value":config.clone()}));
+                remote::handle(
+                    &mut host,
+                    &mut state,
+                    &json!({
+                        "type":"event","provider":"host","service":"peersus.config","version":1,"event":"changed","data":{}
+                    }),
+                );
+            }
+            let stopped = ui
+                .event(&mut state, &mut host, &json!({"t":"tick","at":40}))
+                .unwrap();
+            assert!(stopped.to_string().contains(if remote {
+                "not accepting control"
+            } else {
+                "missing permission peers.send on this device"
+            }));
+            assert!(!ui.holding() && ui.chosen.is_none() && state.outgoing.is_none());
+            config["peers"][0] = allowed;
+            host.results
+                .push_back(json!({"status":"ok","value":config}));
+            state.configure_pages(&mut host).unwrap();
+            host.results.push_back(json!({"status":"ok","value":[
+                {"device":"scoped","name":"Computer","presence":"online","allowed":true,"accepts":[SERVICE]}
+            ]}));
+            ui.event(&mut state, &mut host, &json!({"t":"tick","at":2500}))
+                .unwrap();
+            event(
+                &mut ui, &mut state, &mut host, "pad", "up", 2000, 1000, 2510,
+            );
+            ui.event(
+                &mut state,
+                &mut host,
+                &json!({"t":"submit","id":"keyboard","text":"discarded"}),
+            )
+            .unwrap();
+            assert_eq!(host.written.len(), bytes);
+            assert_eq!(host.opened, [(true, 42)]);
+            assert_eq!(host.shutdowns, 0);
+            ui.event(
+                &mut state,
+                &mut host,
+                &json!({"t":"choose","id":CHOOSER,"device":"scoped"}),
+            )
+            .unwrap();
+            claim(&mut host);
+            ui.event(
+                &mut state,
+                &mut host,
+                &json!({"t":"submit","id":"keyboard","text":"fresh"}),
+            )
+            .unwrap();
+            assert_eq!(host.opened, [(true, 42), (true, 43)]);
+            assert!(String::from_utf8_lossy(&host.written[bytes..]).contains("fresh"));
+        }
     }
     fn written(host: &Script) -> Vec<Value> {
         String::from_utf8(host.written.clone())

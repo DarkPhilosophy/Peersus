@@ -6,7 +6,7 @@
     "author": "Peersus contributors",
     "link": "https://github.com/DarkPhilosophy/Peersus",
     "description": "Use your phone as a touchpad and keyboard for a paired computer.",
-    "changelog": "Remote has its own option, Add Remote to page, like Layout; until it is turned on, Remote is in these settings and not among the application pages."
+    "changelog": "Remote has its own option, Add Remote to page, like Layout; until it is turned on, Remote is in these settings and not among the application pages. Edge pressure sets how far a Linux mouse must push through arranged edges, including on the way back."
   },
   "platforms": [
     "linux",
@@ -61,7 +61,7 @@
       "methods": [
         "get"
       ],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -108,7 +108,11 @@
         "service": "control.pointer",
         "method": "input"
       },
-      "capability": "control.use"
+      "capability": "control.use",
+      "edge_pressure": {
+        "type": "setting",
+        "id": "edge-pressure"
+      }
     },
     "pages": [
       {
@@ -156,6 +160,19 @@
         "kind": {
           "type": "toggle",
           "default": false
+        }
+      },
+      {
+        "id": "edge-pressure",
+        "platforms": ["linux"],
+        "label": "Edge pressure (motion units)",
+        "help": "How far to push against a shared screen edge before crossing, including on the way back. Enter 0–400; 0 crosses without an extra push. Requires a Linux desktop that supports InputCapture.",
+        "scope": "global",
+        "kind": {
+          "type": "number",
+          "min": 0,
+          "max": 400,
+          "default": 80
         }
       },
       {
@@ -209,8 +226,8 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application. New incoming connections are refused if the extension cannot read its pointer settings.",
-        "changes": "After installing, a Remote page and a Layout editor appear. What you do on the Remote page is sent to the computer you choose and moves its pointer and types there; a paired device you allow can control this computer the same way."
+        "explains": "Control turns this device into a touchpad and keyboard for a paired computer, and can replay on this computer the input a paired device sends. Replaying input on this computer is a separate permission of the application. A feature that lacks a permission on this device stays inactive and names that permission; other granted features keep working. New incoming connections are refused if the extension cannot read its pointer settings.",
+        "changes": "After installing, a Remote page and a Layout editor appear on supported platforms. What you do on the Remote page is sent to the computer you choose and moves its pointer and types there; a paired device you allow can control this computer the same way. Layout can place a paired device freely or attach it proportionally to an edge without changing its real display sizes. On supported Linux desktops, Edge pressure sets how far the mouse must push before it crosses an arranged edge in either direction."
       }
     ]
   }

@@ -20,6 +20,9 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 [profile.release]
+# Keep 3 for interpreted Layout frames: on Linux x86-64 (rustc 1.96.1, wasmi 2.0.2),
+# the median 12-display drag reply took 4.18 ms vs 5.20 ms at "s" over ten paired runs.
+# Trade-off: 464 kB vs 262 kB of WASM, and 38.9M vs 35.0M peak fuel (50M turn limit).
 opt-level = 3
 lto = true
 panic = "abort"

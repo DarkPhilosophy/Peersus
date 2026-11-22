@@ -1,6 +1,10 @@
 //! The extension's desktop editor. The host only provides scoped geometry and generic elements.
-use crate::{State, host::Wire, remote::answer};
-use serde::Deserialize;
+use crate::{
+    State,
+    host::{Blocked, Wire},
+    remote::{Refusal, answer},
+};
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 const INITIAL_HEIGHT: f64 = 360.;
 // The arrangement service bounds every shared-plane edge (peersus-core::layout::MAX_COORDINATE).
@@ -33,6 +37,24 @@ struct Display {
     width: u32,
     height: u32,
 }
+
+#[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Debug)]
+#[serde(rename_all = "lowercase")]
+enum Side {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
+impl Side {
+    const ALL: [(Self, &'static str, &'static str); 4] = [
+        (Self::Left, "relative-left", "Left"),
+        (Self::Right, "relative-right", "Right"),
+        (Self::Top, "relative-top", "Top"),
+        (Self::Bottom, "relative-bottom", "Bottom"),
+    ];
+}
+
 #[derive(Clone, Deserialize, PartialEq)]
 struct Item {
     device: String,
@@ -40,6 +62,11 @@ struct Item {
     displays: Vec<Display>,
     at: Option<[i64; 2]>,
     local: bool,
+    #[serde(default)]
+    relative_to_local: Option<Side>,
+    // Host-derived rectangles in display order; `at` stays the remembered free coordinates.
+    #[serde(default)]
+    relative_displays: Vec<[i64; 4]>,
 }
 #[derive(Clone)]
 struct Rect {
@@ -74,6 +101,12 @@ enum Grab {
         was: Option<[i64; 2]>,
         moved: bool,
     },
+    Relative {
+        index: usize,
+        from: [f64; 2],
+        side: Option<Side>,
+        moved: bool,
+    },
 }
 #[derive(Default)]
 pub struct Ui {
@@ -85,7 +118,10 @@ pub struct Ui {
     refreshed: u64,
     error: Option<String>,
     /// Why the arrangement could not be read the last time it was asked for, said on the page instead of failing it.
-    unseen: Option<&'static str>,
+    unseen: Option<String>,
+    watch_block: bool,
+    arrange_block: bool,
+    needs_refresh: bool,
     /// The canvas of each page this is drawn on, by page: the same layout is shown in the settings
     /// and, when asked, as a page of its own, each of its own size.
     pages: std::collections::BTreeMap<String, [f64; 4]>,
@@ -93,12 +129,15 @@ pub struct Ui {
     grab_page: Option<String>,
     choosing: bool,
     menu_page: usize,
+    relative_menu: Option<String>,
     pointer: Option<[f64; 2]>,
     rendered_at: Option<u64>,
     menu_anchor: Option<[f64; 2]>,
 }
 /// What the page says when the person has not let Control see this computer's screens.
 const NEEDS_SCREENS: &str = "To arrange devices here, allow Control to see this computer's screens in Settings, Permissions.";
+const NEEDS_ARRANGE: &str =
+    "Cannot save the arrangement: missing permission displays.arrange on this device.";
 fn text(s: impl Into<String>) -> Value {
     json!({"k":"text","text":s.into(),"tone":"muted"})
 }
@@ -117,6 +156,19 @@ fn button(id: impl Into<String>, label: impl Into<String>) -> Value {
 impl Item {
     fn screens(&self, index: usize) -> Vec<Rect> {
         let Some(at) = self.at else { return vec![] };
+        if self.relative_to_local.is_some() {
+            return self
+                .relative_displays
+                .iter()
+                .map(|&[x, y, w, h]| Rect {
+                    device: index,
+                    x,
+                    y,
+                    w,
+                    h,
+                })
+                .collect();
+        }
         if self.displays.is_empty() {
             return vec![Rect {
                 device: index,
@@ -138,6 +190,27 @@ impl Item {
                 h: i64::from(d.height),
             })
             .collect()
+    }
+    fn drawn_bounds(&self) -> Option<([i64; 2], [i64; 2])> {
+        let at = self.at?;
+        if self.relative_to_local.is_none() {
+            return Some((at, self.extent()));
+        }
+        let rects = &self.relative_displays;
+        let x = rects.iter().map(|r| r[0]).min()?;
+        let y = rects.iter().map(|r| r[1]).min()?;
+        let right = rects.iter().map(|r| r[0] + r[2]).max()?;
+        let bottom = rects.iter().map(|r| r[1] + r[3]).max()?;
+        Some(([x, y], [right - x, bottom - y]))
+    }
+
+    fn placement(&self) -> Option<Value> {
+        let [x, y] = self.at?;
+        let mut row = json!({"device":self.device,"x":x,"y":y});
+        if let Some(side) = self.relative_to_local {
+            row["relative_to_local"] = json!(side);
+        }
+        Some(row)
     }
     fn extent(&self) -> [i64; 2] {
         if self.displays.is_empty() {
@@ -177,7 +250,19 @@ impl Ui {
             serde_json::from_value(value["devices"].clone()).map_err(|_| answer::NOT_UNDERSTOOD)?;
         if items.len() > 65
             || items.iter().any(|i| {
-                i.displays.len() > 16 || i.at.is_some_and(|at| !placement_fits(at, i.extent()))
+                i.displays.len() > 16
+                    || if i.relative_to_local.is_some() {
+                        i.local
+                            || i.at.is_none_or(|at| !placement_fits(at, [0, 0]))
+                            || (!i.relative_displays.is_empty()
+                                && i.relative_displays.len() != i.displays.len())
+                            || i.relative_displays.iter().any(|&[x, y, w, h]| {
+                                w <= 0 || h <= 0 || !placement_fits([x, y], [w, h])
+                            })
+                    } else {
+                        !i.relative_displays.is_empty()
+                            || i.at.is_some_and(|at| !placement_fits(at, i.extent()))
+                    }
             })
             || !value["placements"].is_array()
         {
@@ -189,31 +274,195 @@ impl Ui {
         self.expected = value["placements"].clone();
         Ok(())
     }
-    /// Read the arrangement again for the page. A refusal is said on the page, never an error of the page: without the person's
-    /// permission to see this computer's screens the application answers `denied` to every read, and a failed page on each
-    /// opening (and each tick) told the person only that something went wrong.
+
+    pub(crate) fn permission_changed(&mut self) {
+        self.needs_refresh = true;
+    }
+
+    fn editable(&self) -> bool {
+        !self.watch_block && !self.arrange_block
+    }
+
+    fn cancel_edit(&mut self) {
+        let previous = match self.grab {
+            Some(Grab::Device { index, was, .. }) => Some((index, Some(was))),
+            Some(Grab::Menu { index, was, .. }) => Some((index, was)),
+            _ => None,
+        };
+        if let Some((index, at)) = previous
+            && let Some(item) = self.items.get_mut(index)
+        {
+            item.at = at;
+        }
+        self.grab = None;
+        self.grab_page = None;
+        self.choosing = false;
+        self.menu_anchor = None;
+        self.relative_menu = None;
+    }
+
+    fn sync_permissions<H: Wire>(
+        &mut self,
+        state: &mut State,
+        host: &mut H,
+        opening: bool,
+    ) -> bool {
+        let watch = state.missing_host("displays.watch").is_some();
+        let arrange = state.missing_host("displays.arrange").is_some();
+        let changed = (self.watch_block, self.arrange_block) != (watch, arrange);
+        if changed {
+            self.cancel_edit();
+            self.error = None;
+        }
+        self.arrange_block = arrange;
+        self.needs_refresh = false;
+        if !opening && self.watch_block != watch {
+            self.read_again(state, host);
+        }
+        changed
+    }
+
+    /// A refusal to read the arrangement belongs on the page, not in a failed page response.
     fn read_again<H: Wire>(&mut self, state: &mut State, host: &mut H) {
-        self.unseen = match self.refresh(state, host) {
+        let result = self.refresh(state, host);
+        self.watch_block = matches!(
+            &result,
+            Err(Refusal::Blocked(Blocked::MissingPermission(_)))
+        );
+        if self.watch_block || result == Err(answer::DENIED.into()) {
+            self.cancel_edit();
+            self.items.clear();
+            self.expected = Value::Null;
+            self.error = None;
+        }
+        self.unseen = match result {
             Ok(()) => None,
-            Err(answer::DENIED) => Some(NEEDS_SCREENS),
-            Err(reason) => Some(reason),
+            Err(Refusal::Other(answer::DENIED)) => Some(NEEDS_SCREENS.into()),
+            Err(Refusal::Blocked(Blocked::MissingPermission(permission))) => Some(format!(
+                "Cannot show the arrangement: missing permission {} on this device.",
+                permission.name
+            )),
+            Err(Refusal::Blocked(Blocked::NotAccepted)) => Some(answer::NOT_UNDERSTOOD.into()),
+            Err(Refusal::Other(reason)) => Some(reason.into()),
         };
     }
-    fn refresh<H: Wire>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
+    fn refresh<H: Wire>(&mut self, state: &mut State, host: &mut H) -> Result<(), Refusal> {
         self.load(state.call(host, "peersus.displays", "inspect", json!({}))?)
+            .map_err(Into::into)
     }
-    fn save<H: Wire>(&mut self, state: &mut State, host: &mut H) -> Result<(), &'static str> {
+    fn save<H: Wire>(&mut self, state: &mut State, host: &mut H) -> Result<(), String> {
         let placements: Vec<Value> = self
             .items
             .iter()
             .filter(|i| !i.local)
-            .filter_map(|i| {
-                i.at.map(|at| json!({"device":i.device,"x":at[0],"y":at[1]}))
-            })
+            .filter_map(Item::placement)
             .collect();
-        let value=state.call(host,"peersus.displays","arrange",json!({"expected":self.expected,"placements":placements}))
-            .map_err(|reason| if reason==answer::CANCELLED {reason}else{"The layout could not be saved. Check this extension's display-arrangement permission and reload before retrying."})?;
-        self.load(value)
+        let value = state
+            .call(
+                host,
+                "peersus.displays",
+                "arrange",
+                json!({"expected":self.expected,"placements":placements}),
+            )
+            .map_err(|error| match error {
+                Refusal::Blocked(Blocked::MissingPermission(permission)) => {
+                    self.arrange_block = true;
+                    format!(
+                        "Cannot save the arrangement: missing permission {} on this device.",
+                        permission.name
+                    )
+                }
+                Refusal::Other(answer::CANCELLED) => answer::CANCELLED.into(),
+                _ => "The layout could not be saved. Reload before making another change.".into(),
+            })?;
+        self.load(value).map_err(Into::into)
+    }
+
+    fn relative_item(&self) -> Option<usize> {
+        let device = self.relative_menu.as_deref()?;
+        self.items
+            .iter()
+            .position(|item| !item.local && item.device == device)
+    }
+
+    fn can_refit(&self, index: usize) -> bool {
+        let known = |item: &Item| {
+            !item.displays.is_empty() && item.displays.iter().all(|d| d.width > 0 && d.height > 0)
+        };
+        known(&self.items[index]) && self.items.iter().any(|item| item.local && known(item))
+    }
+
+    fn set_relative<H: Wire>(
+        &mut self,
+        state: &mut State,
+        host: &mut H,
+        index: usize,
+        side: Option<Side>,
+    ) {
+        let before = self.items[index].relative_to_local;
+        if side == before || (side.is_some() && !self.can_refit(index)) {
+            return;
+        }
+        self.error = None;
+        if side.is_some()
+            && self
+                .items
+                .iter()
+                .enumerate()
+                .any(|(n, item)| n != index && item.relative_to_local == side)
+        {
+            self.error = Some("Only one relative device can use each side.".into());
+            return;
+        }
+        let at = self.items[index].at;
+        let free = at.unwrap_or_else(|| {
+            [
+                self.monitors().iter().map(Rect::right).max().unwrap_or(0),
+                0,
+            ]
+        });
+        self.items[index].relative_to_local = side;
+        self.items[index].at = Some(free);
+        if let Err(reason) = self.save(state, host) {
+            self.items[index].relative_to_local = before;
+            self.items[index].at = at;
+            self.error = Some(reason);
+        }
+    }
+
+    // While moving a docked device, snap to a side of the local desktop, not to another peer.
+    fn side_near(&self, point: [f64; 2], scale: f64, origin: [f64; 2]) -> Option<Side> {
+        let (at, size) = self.items.iter().find(|i| i.local)?.drawn_bounds()?;
+        let x = origin[0] + point[0] / scale - at[0] as f64;
+        let y = origin[1] + point[1] / scale - at[1] as f64;
+        let (w, h) = (size[0] as f64, size[1] as f64);
+        let reach = 16. / scale;
+        [
+            (
+                Side::Left,
+                x.abs(),
+                x <= reach && (-reach..=h + reach).contains(&y),
+            ),
+            (
+                Side::Right,
+                (w - x).abs(),
+                x >= w - reach && (-reach..=h + reach).contains(&y),
+            ),
+            (
+                Side::Top,
+                y.abs(),
+                y <= reach && (-reach..=w + reach).contains(&x),
+            ),
+            (
+                Side::Bottom,
+                (h - y).abs(),
+                y >= h - reach && (-reach..=w + reach).contains(&x),
+            ),
+        ]
+        .into_iter()
+        .filter(|&(_, _, near)| near)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(side, _, _)| side)
     }
     fn monitors(&self) -> Vec<Rect> {
         self.items
@@ -272,12 +521,23 @@ impl Ui {
         {
             return (true, "A placed device has not announced its monitors; its box is a placeholder and pointer pass-through is unavailable until the monitor information arrives.".into());
         }
+        if self
+            .items
+            .iter()
+            .any(|item| item.relative_to_local.is_some() && item.relative_displays.is_empty())
+        {
+            return (
+                true,
+                "A relative device has no usable monitor geometry, so its edge is not active."
+                    .into(),
+            );
+        }
         let local = self.items.iter().position(|i| i.local);
         for (index, item) in self
             .items
             .iter()
             .enumerate()
-            .filter(|(_, i)| !i.local && i.at.is_some())
+            .filter(|(_, i)| !i.local && i.at.is_some() && i.relative_to_local.is_none())
         {
             let touches = all.iter().filter(|r| r.device == index).any(|a| {
                 all.iter().filter(|r| Some(r.device) == local).any(|b| {
@@ -351,7 +611,9 @@ impl Ui {
     fn menu_height(&self) -> f64 {
         let count = self.peer_count();
         let page = self.menu_page.min(last_menu_page(count));
-        if self.choosing {
+        if self.choosing && self.relative_item().is_some() {
+            238.
+        } else if self.choosing {
             52. + count
                 .saturating_sub(page * DEVICES_PER_PAGE)
                 .min(DEVICES_PER_PAGE) as f64
@@ -379,8 +641,9 @@ impl Ui {
         let overlap = |at: [f64; 2]| {
             let mut area = 0.;
             for item in &self.items {
-                let Some(point) = item.at else { continue };
-                let size = item.extent();
+                let Some((point, size)) = item.drawn_bounds() else {
+                    continue;
+                };
                 let (x, y) = (
                     (point[0] as f64 - origin[0]) * scale,
                     (point[1] as f64 - origin[1]) * scale,
@@ -415,6 +678,27 @@ impl Ui {
         event: &Value,
         page: Option<&str>,
     ) -> Result<Value, &'static str> {
+        let opening = event["t"] == "open";
+        let changed =
+            (opening || self.needs_refresh) && self.sync_permissions(state, host, opening);
+        if changed && let Some(at) = event["at"].as_u64() {
+            self.refreshed = at;
+        }
+        let value = self.page_event(state, host, event, page)?;
+        Ok(if changed && value.is_null() {
+            self.tree()
+        } else {
+            value
+        })
+    }
+
+    fn page_event<H: Wire>(
+        &mut self,
+        state: &mut State,
+        host: &mut H,
+        event: &Value,
+        page: Option<&str>,
+    ) -> Result<Value, &'static str> {
         // One layout is shown on more than one page. A gesture is on one of them: while it lasts, the
         // other page's ticks and measurements must not swap the canvas under it.
         if self.grab.is_some() && page.is_some() && self.grab_page.as_deref() != page {
@@ -437,13 +721,16 @@ impl Ui {
             }
             Some("tick") => {
                 let at = event["at"].as_u64().unwrap_or(0);
-                if self.grab.is_some() || at.saturating_sub(self.refreshed) < 2000 {
+                if self.watch_block
+                    || self.grab.is_some()
+                    || at.saturating_sub(self.refreshed) < 2000
+                {
                     return Ok(Value::Null);
                 }
                 self.refreshed = at;
-                let before = (self.items.clone(), self.unseen);
+                let before = (self.items.clone(), self.unseen.take());
                 self.read_again(state, host);
-                if before == (self.items.clone(), self.unseen) {
+                if before.0 == self.items && before.1 == self.unseen {
                     return Ok(Value::Null);
                 }
             }
@@ -493,10 +780,12 @@ impl Ui {
                 "fit" => self.zoom = None,
                 "minus" => self.zoom = Some(((scale / 1.25).clamp(0.005, 2.), origin)),
                 "plus" => self.zoom = Some(((scale * 1.25).clamp(0.005, 2.), origin)),
+                _ if !self.editable() => return Ok(Value::Null),
                 "devices" => {
                     let at = self.menu_position(self.menu_height());
                     self.choosing = !self.choosing;
                     self.menu_anchor = self.choosing.then_some(at);
+                    self.relative_menu = None;
                 }
                 "devices-next" | "devices-previous" => {
                     let last = last_menu_page(self.peer_count());
@@ -510,6 +799,28 @@ impl Ui {
                 // Saving reads every placement, including the drag preview, so no removal
                 // may be committed until the gesture finishes or restores the original.
                 _ if self.grab.is_some() => return Ok(Value::Null),
+                "relative-back" => self.relative_menu = None,
+                "relative-free" => {
+                    if let Some(index) = self.relative_item() {
+                        self.set_relative(state, host, index, None);
+                    }
+                }
+                id if let Some((side, _, _)) =
+                    Side::ALL.into_iter().find(|(_, key, _)| *key == id) =>
+                {
+                    if let Some(index) = self.relative_item() {
+                        self.set_relative(state, host, index, Some(side));
+                    }
+                }
+                id if let Some(index) = id
+                    .strip_prefix("relative-")
+                    .and_then(|n| n.parse::<usize>().ok())
+                    && self.choosing =>
+                {
+                    if let Some(item) = self.items.get(index).filter(|item| !item.local) {
+                        self.relative_menu = Some(item.device.clone());
+                    }
+                }
                 _ => {
                     if let Some(index) = id
                         .strip_prefix("remove-")
@@ -522,10 +833,12 @@ impl Ui {
                     {
                         let old = self.items[index].at;
                         self.error = None;
+                        let side = self.items[index].relative_to_local.take();
                         self.items[index].at = None;
                         if let Err(reason) = self.save(state, host) {
                             self.items[index].at = old;
-                            self.error = Some(reason.into());
+                            self.items[index].relative_to_local = side;
+                            self.error = Some(reason);
                         }
                     } else {
                         return Ok(Value::Null);
@@ -533,6 +846,7 @@ impl Ui {
                 }
             },
             Some("pointer") if id == "device-menu" => return Ok(Value::Null),
+            Some("pointer") if !self.editable() && id != "canvas" => return Ok(Value::Null),
             Some("pointer") => {
                 let menu_at = if event["phase"] == "down" {
                     self.menu_position(self.menu_height())
@@ -546,11 +860,36 @@ impl Ui {
                         self.error = None;
                         self.zoom = Some((scale, origin));
                         self.grab = if let Some(index) = id
+                            .strip_prefix("relative-screen-")
+                            .and_then(|tail| tail.split_once('-'))
+                            .and_then(|(n, _)| n.parse::<usize>().ok())
+                            .filter(|n| {
+                                self.items
+                                    .get(*n)
+                                    .is_some_and(|i| i.relative_to_local.is_some())
+                            }) {
+                            Some(Grab::Relative {
+                                index,
+                                from: point,
+                                side: None,
+                                moved: false,
+                            })
+                        } else if let Some(index) = id
                             .strip_prefix("menu-device-")
                             .and_then(|n| n.parse::<usize>().ok())
                             .filter(|n| *n < self.items.len() && !self.items[*n].local)
                         {
                             self.menu_anchor = Some(menu_at);
+                            if self.items[index].relative_to_local.is_some() {
+                                self.grab = Some(Grab::Relative {
+                                    index,
+                                    from: point,
+                                    side: None,
+                                    moved: false,
+                                });
+                                self.grab_page = page.map(str::to_owned);
+                                return Ok(Value::Null);
+                            }
                             Some(Grab::Menu {
                                 index,
                                 from: point,
@@ -636,6 +975,33 @@ impl Ui {
                                 self.items[index].at = Some(at);
                             }
                             None => return Ok(Value::Null),
+                            Some(Grab::Relative {
+                                index,
+                                from,
+                                side,
+                                moved,
+                            }) => {
+                                let next =
+                                    moved || (point[0] - from[0]).hypot(point[1] - from[1]) >= 6.;
+                                let wanted = next
+                                    .then(|| {
+                                        self.side_near(
+                                            [point[0] - self.bounds[0], point[1] - self.bounds[1]],
+                                            scale,
+                                            origin,
+                                        )
+                                    })
+                                    .flatten();
+                                if wanted == side && next == moved {
+                                    return Ok(Value::Null);
+                                }
+                                self.grab = Some(Grab::Relative {
+                                    index,
+                                    from,
+                                    side: wanted,
+                                    moved: next,
+                                });
+                            }
                         }
                         // Track every sample, but serialize at most one visual frame per 16ms.
                         // Up/cancel always renders the final state, even inside this interval.
@@ -659,7 +1025,7 @@ impl Ui {
                                     && let Err(reason) = self.save(state, host)
                                 {
                                     self.items[index].at = Some(was);
-                                    self.error = Some(reason.into());
+                                    self.error = Some(reason);
                                 }
                             }
                             Some(Grab::Menu {
@@ -691,11 +1057,25 @@ impl Ui {
                                         && let Err(reason) = self.save(state, host)
                                     {
                                         self.items[index].at = was;
-                                        self.error = Some(reason.into());
+                                        self.error = Some(reason);
                                     }
                                 }
                                 self.choosing = false;
                                 self.menu_anchor = None;
+                            }
+                            Some(Grab::Relative { index, moved, .. }) if event["phase"] == "up" => {
+                                if moved {
+                                    if let Some(side) = self.side_near(
+                                        [point[0] - self.bounds[0], point[1] - self.bounds[1]],
+                                        scale,
+                                        origin,
+                                    ) {
+                                        self.set_relative(state, host, index, Some(side));
+                                    }
+                                } else {
+                                    self.choosing = true;
+                                    self.relative_menu = Some(self.items[index].device.clone());
+                                }
                             }
                             _ => {}
                         }
@@ -744,53 +1124,74 @@ impl Ui {
         }
         let (savable, verdict) = self.verdict();
         for (index, item) in self.items.iter().enumerate() {
-            let Some(at) = item.at else { continue };
-            let size = item.extent();
-            let x = (at[0] as f64 - origin[0]) * scale;
-            let y = (at[1] as f64 - origin[1]) * scale;
-            let w = (size[0] as f64 * scale).max(24.);
-            let h = (size[1] as f64 * scale).max(24.);
-            if x + w < 0. || y + h < 0. || x > width || y > self.height() {
-                continue;
-            }
-            // Send only the visible rectangle: zooming into a large monitor must not exceed the
-            // generic element coordinate/size bounds or invalidate the rest of the page.
-            let (left, top, right, bottom) = (
-                x.max(0.),
-                y.max(0.),
-                (x + w).min(width),
-                (y + h).min(self.height()),
-            );
-            let (x, y, w, h) = (left, top, (right - left).max(1.), (bottom - top).max(1.));
-            let id = format!("desktop-{index}");
-            // Only what fits: a small box shows the name, a larger one the picture, the largest the place and size.
-            let mut inside = Vec::new();
-            if h >= 72. && w >= 56. {
-                inside.push(json!({"k":"avatar","device":item.device,"name":item.name,"size":if h>=96. && w>=96. {32}else{22}}));
-            }
-            inside.push(json!({"k":"text","text":item.name}));
-            if item.displays.is_empty() {
-                inside.push(text("Monitors not announced"));
-            }
-            if item.local && h >= 56. {
-                inside.push(text(format!("{}, {}", at[0], at[1])));
-            }
-            // A coloured outline (the outer box) around a dark face: the state shows without hiding the picture.
-            let edge = if !savable {
-                "danger"
-            } else if item.displays.is_empty() {
-                "muted"
-            } else if item.local {
-                "accent"
+            let relative = item.relative_to_local.is_some();
+            let free = (!relative).then_some(item.at).flatten().map(|[x, y]| {
+                let [w, h] = item.extent();
+                [x, y, w, h]
+            });
+            let screens = if relative {
+                &item.relative_displays[..]
             } else {
-                "success"
+                free.as_slice()
             };
-            let face = bx(
-                None,
-                json!({"width":fill(),"height":fill(),"radius":[5,5,5,5],"background":"surface","center":true,"gap":4,"padding":2,"clip":true}),
-                inside,
-            );
-            canvas.push(bx((!item.local).then_some(id.as_str()),json!({"at":[(x*1000.) as i32,(y*1000.) as i32],"width":px(w),"height":px(h),"radius":[6,6,6,6],"background":edge,"padding":2,"clip":true}),vec![face]));
+            for (slot, &[x, y, w, h]) in screens.iter().enumerate() {
+                let x = (x as f64 - origin[0]) * scale;
+                let y = (y as f64 - origin[1]) * scale;
+                let floor = if relative { 1. } else { 24. };
+                let w = (w as f64 * scale).max(floor);
+                let h = (h as f64 * scale).max(floor);
+                if x + w < 0. || y + h < 0. || x > width || y > self.height() {
+                    continue;
+                }
+                // Only send the visible part: zoom cannot exceed the element coordinate bounds.
+                let (left, top, right, bottom) = (
+                    x.max(0.),
+                    y.max(0.),
+                    (x + w).min(width),
+                    (y + h).min(self.height()),
+                );
+                let (w, h) = ((right - left).max(1.), (bottom - top).max(1.));
+                let id = if relative {
+                    format!("relative-screen-{index}-{slot}")
+                } else {
+                    format!("desktop-{index}")
+                };
+                let mut inside = Vec::new();
+                if h >= 72. && w >= 56. {
+                    inside.push(json!({"k":"avatar","device":item.device,"name":item.name,"size":if h>=96. && w>=96. {32}else{22}}));
+                }
+                inside.push(json!({"k":"text","text":item.name}));
+                if item.displays.is_empty() {
+                    inside.push(text("Monitors not announced"));
+                }
+                if item.local
+                    && h >= 56.
+                    && let Some([x, y]) = item.at
+                {
+                    inside.push(text(format!("{x}, {y}")));
+                }
+                if relative
+                    && h >= 40.
+                    && let Some(real) = item.displays.get(slot)
+                {
+                    inside.push(text(format!("{}×{}", real.width, real.height)));
+                }
+                let edge = if !savable {
+                    "danger"
+                } else if item.displays.is_empty() {
+                    "muted"
+                } else if item.local || relative {
+                    "accent"
+                } else {
+                    "success"
+                };
+                let face = bx(
+                    None,
+                    json!({"width":fill(),"height":fill(),"radius":[5,5,5,5],"background":"surface","center":true,"gap":4,"padding":2,"clip":true}),
+                    inside,
+                );
+                canvas.push(bx((!item.local && self.editable()).then_some(id.as_str()),json!({"at":[(left*1000.) as i32,(top*1000.) as i32],"width":px(w),"height":px(h),"radius":[6,6,6,6],"background":edge,"padding":2,"clip":true}),vec![face]));
+            }
         }
         let peers: Vec<_> = self
             .items
@@ -813,12 +1214,53 @@ impl Ui {
                 "Devices ▾"
             },
         )];
-        if self.choosing {
+        if self.choosing
+            && let Some(index) = self.relative_item()
+        {
+            let item = &self.items[index];
+            menu.push(text(format!("{}: Relative to this device", item.name)));
+            if self.can_refit(index) {
+                let sides = Side::ALL
+                    .into_iter()
+                    .map(|(side, id, label)| {
+                        button(
+                            id,
+                            if item.relative_to_local == Some(side) {
+                                format!("✓ {label}")
+                            } else {
+                                label.into()
+                            },
+                        )
+                    })
+                    .collect();
+                menu.push(bx(
+                    None,
+                    json!({"horizontal":true,"wrap":true,"gap":4}),
+                    sides,
+                ));
+            } else {
+                menu.push(text(
+                    "Both devices must announce their monitors before attaching.",
+                ));
+            }
+            if item.relative_to_local.is_some() {
+                menu.push(button("relative-free", "Use real size"));
+            }
+            menu.push(button("relative-back", "Back"));
+        } else if self.choosing {
             for (n, item) in shown {
                 let mut row = vec![
                     json!({"k":"avatar","device":item.device,"name":item.name,"size":28}),
                     json!({"k":"text","text":item.name}),
                 ];
+                row.push(button(
+                    format!("relative-{n}"),
+                    if item.relative_to_local.is_some() {
+                        "Refit ✓"
+                    } else {
+                        "Refit"
+                    },
+                ));
                 if item.at.is_some() {
                     row.push(button(format!("remove-{n}"), "×"));
                 }
@@ -842,14 +1284,32 @@ impl Ui {
                 menu.push(bx(None, json!({"horizontal":true,"gap":8}), navigation));
             }
         }
-        canvas.push(bx(Some("device-menu"),json!({"at":[(at[0]*1000.) as i32,(at[1]*1000.) as i32],"width":px(Self::menu_width(width)),"padding":8,"gap":8,"radius":[10,10,10,10],"background":"raised","border":true}),menu));
+        if self.editable() {
+            canvas.push(bx(Some("device-menu"),json!({"at":[(at[0]*1000.) as i32,(at[1]*1000.) as i32],"width":px(Self::menu_width(width)),"padding":8,"gap":8,"radius":[10,10,10,10],"background":"raised","border":true}),menu));
+        }
         let mut plane = bx(
             Some("canvas"),
             json!({"width":fill(),"height":{"unit":"flex","value":1},"clip":true,"radius":[12,12,12,12],"border":true,"background":"surface"}),
             canvas,
         );
         plane["observe"] = json!(["size", "wheel"]);
-        let children = vec![
+        let drop_hint = match self.grab {
+            Some(Grab::Relative {
+                side: Some(side),
+                moved: true,
+                ..
+            }) => Side::ALL
+                .into_iter()
+                .find(|(s, _, _)| *s == side)
+                .map(|(_, _, label)| {
+                    format!(
+                        "Release to attach on the {} side.",
+                        label.to_ascii_lowercase()
+                    )
+                }),
+            _ => None,
+        };
+        let mut children = vec![
             bx(
                 None,
                 json!({"width":fill(),"horizontal":true,"gap":8}),
@@ -860,12 +1320,27 @@ impl Ui {
                     button("fit", "Zoom to fit"),
                 ],
             ),
-            text(
-                "Arrange devices around this computer. Click a device in Devices to place it, or drag it from the menu to the canvas. Drag placed devices to move them; drag the background to pan and use the wheel to zoom.",
-            ),
+            text(if self.editable() {
+                "Arrange devices around this computer. In Devices, choose Refit to attach a device proportionally, or drag the device to place it freely. Drag the background to pan and use the wheel to zoom."
+            } else {
+                "Drag the background to pan and use the wheel to zoom."
+            }),
             plane,
-            text(self.error.as_deref().or(self.unseen).unwrap_or(&verdict)),
+            text(
+                self.error
+                    .as_deref()
+                    .or(self.unseen.as_deref())
+                    .or(drop_hint.as_deref())
+                    .unwrap_or(if self.arrange_block {
+                        NEEDS_ARRANGE
+                    } else {
+                        &verdict
+                    }),
+            ),
         ];
+        if self.arrange_block && self.unseen.is_some() {
+            children.push(text(NEEDS_ARRANGE));
+        }
         json!({"k":"interval","id":"layout-clock","milliseconds":1000,"child":bx(None,json!({"width":fill(),"height":fill(),"padding":12,"gap":8}),children)})
     }
 }
@@ -898,6 +1373,123 @@ mod tests {
             .iter()
             .find(|node| node["id"] == "device-menu")
             .unwrap()
+    }
+
+    #[test]
+    fn showing_and_saving_an_arrangement_are_independent_and_known_denials_are_not_polled() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        let mut ready =
+            json!({"missing_permissions":[{"owner":"host","name":"displays.arrange"}],"peers":[]});
+        state.readiness.update(&ready).unwrap();
+        host.results
+            .push_back(json!({"status":"ok","value":scene()}));
+        let read_only = ui
+            .event(&mut state, &mut host, &json!({"t":"open"}), None)
+            .unwrap();
+        assert!(read_only.to_string().contains(NEEDS_ARRANGE));
+        assert!(read_only.to_string().contains("Remote"));
+        assert!(
+            !canvas(&read_only)
+                .iter()
+                .any(|node| node["id"] == "device-menu")
+        );
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"press","id":"remove-1"}),
+            None,
+        )
+        .unwrap();
+        assert_eq!(host.sent.len(), 1, "only the granted inspect was called");
+        assert_eq!(host.sent[0]["method"], "inspect");
+        assert_eq!(ui.items[1].at, Some([100, 0]));
+
+        ready["missing_permissions"][0]["name"] = json!("displays.watch");
+        state.readiness.update(&ready).unwrap();
+        ui.permission_changed();
+        let denied = ui
+            .event(&mut state, &mut host, &json!({"t":"tick","at":2500}), None)
+            .unwrap();
+        assert!(
+            denied
+                .to_string()
+                .contains("missing permission displays.watch on this device")
+        );
+        assert!(!denied.to_string().contains(NEEDS_ARRANGE));
+        assert!(ui.items.is_empty());
+        ui.event(&mut state, &mut host, &json!({"t":"tick","at":5000}), None)
+            .unwrap();
+        assert_eq!(
+            host.sent.len(),
+            1,
+            "no inspect while the watch grant is absent"
+        );
+    }
+
+    #[test]
+    fn relative_mode_draws_the_hosts_projection_and_restores_the_saved_free_coordinates() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        let mut projected = scene();
+        projected["devices"][1]["relative_to_local"] = json!("right");
+        projected["devices"][1]["relative_displays"] = json!([[100, 0, 30, 100]]);
+        projected["devices"][1]["displays"][0]["width"] = json!(72);
+        projected["devices"][1]["displays"][0]["height"] = json!(240);
+        projected["placements"][0]["relative_to_local"] = json!("right");
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"press","id":"devices"}),
+            None,
+        )
+        .unwrap();
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"press","id":"relative-1"}),
+            None,
+        )
+        .unwrap();
+        host.results
+            .push_back(json!({"status":"ok","value":projected.clone()}));
+        let tree = ui
+            .event(
+                &mut state,
+                &mut host,
+                &json!({"t":"press","id":"relative-right"}),
+                None,
+            )
+            .unwrap();
+        let rect = canvas(&tree)
+            .iter()
+            .find(|n| n["id"] == "relative-screen-1-0")
+            .unwrap();
+        assert_eq!(rect["style"]["width"]["value"], 30);
+        assert!(rect.to_string().contains("72×240"));
+        assert_eq!(
+            host.sent[0]["args"]["placements"][0],
+            json!({"device":"scoped","x":100,"y":0,"relative_to_local":"right"})
+        );
+        host.results
+            .push_back(json!({"status":"ok","value":scene()}));
+        let tree = ui
+            .event(
+                &mut state,
+                &mut host,
+                &json!({"t":"press","id":"relative-free"}),
+                None,
+            )
+            .unwrap();
+        let rect = canvas(&tree)
+            .iter()
+            .find(|n| n["id"] == "desktop-1")
+            .unwrap();
+        assert_eq!(rect["style"]["width"]["value"], 100);
+        assert_eq!(host.sent[1]["args"]["expected"], projected["placements"]);
+        assert_eq!(host.sent[1]["args"]["placements"], scene()["placements"]);
     }
 
     #[test]
@@ -1529,6 +2121,8 @@ mod tests {
             name: "Remote".into(),
             local: false,
             at: Some([200, 300]),
+            relative_to_local: None,
+            relative_displays: Vec::new(),
             displays: vec![
                 Display {
                     x: -100,

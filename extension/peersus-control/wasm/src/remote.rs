@@ -13,19 +13,30 @@
 //! application decides what they become. Answers are fixed words.
 use crate::{
     State,
-    host::{Data, Handle, Wire, read_ack, write_all},
+    host::{
+        Blocked, CONFIG, Data, DeliveryAck, Handle, Permission, Wire, config_changed, read_ack,
+        write_all,
+    },
 };
 use serde_json::{Value, json};
 
 /// The application's own services this extension calls.
 const PEERS: &str = "peersus.peers";
 const INPUT: &str = "peersus.input";
-const CONFIG: &str = "peersus.config";
+const DISPLAYS: &str = "peersus.displays";
 const PAGES: &str = "peersus.pages";
 /// The service the other device runs for this extension, and its version.
 pub const SERVICE: &str = "control.pointer";
 const VERSION: u32 = 1;
 const CALL_MS: u32 = 4_000;
+/// Broker admission refusals have not replayed anything. The four retries and final
+/// release allow at most 655 ms of guest polling, even if control interrupts each wait.
+const REPLAY_BACKOFF_MS: [i32; 4] = [10, 15, 25, 35];
+const REPLAY_CALL_MS: u32 = 30;
+const REPLAY_REPLY_MS: i32 = 40;
+const BACKOFF_WAITS: usize = 3;
+const REPLAY_BUSY: &str = "The input broker is busy";
+const NO_REPLAY_REPLY: &str = "The input broker did not reply";
 /// Longest wait for the acknowledgement of a connection that was closed. The application gives a
 /// silent connection thirty seconds; this guest draws the pages and replays every other device's
 /// input in between, so it stops waiting long before, and that delivery counts as not made.
@@ -38,8 +49,8 @@ const MOST_TYPED: usize = 256;
 const MOST_BATCH: usize = 64;
 /// Both deferred deliveries and any readiness look-ahead stay within this bound.
 const MOST_WAITING: usize = 64;
-/// There can be at most 256 paired devices; never accumulate detached handoffs across churn.
-const MOST_HANDOFFS: usize = 256;
+/// There can be at most 256 paired devices; bound detached handoffs and remote refusals.
+const MOST_DEVICES: usize = 256;
 /// A connection is closed and a new one opened after this many batches, so no one connection
 /// outlives the time the other side gives a call.
 pub const ROTATE_AFTER: u32 = 200;
@@ -53,6 +64,16 @@ pub const CONTINUES: &str = r#"{"continues":true}"#;
 /// the pointer stays where it is (the controlled computer hides it once it has been still). The
 /// connection is not kept open between gestures.
 pub const RESTS: &str = r#"{"rests":true}"#;
+
+fn host_guard(service: &str, method: &str) -> Option<&'static str> {
+    match (service, method) {
+        (PEERS, "list") => Some("peers.watch"),
+        (INPUT, "inspect" | "inject" | "release") => Some("input.inject"),
+        (DISPLAYS, "inspect") => Some("displays.watch"),
+        (DISPLAYS, "arrange") => Some("displays.arrange"),
+        _ => None,
+    }
+}
 
 /// Text as typed inputs, in order, each within [`MOST_TYPED`] characters and, as one line, within
 /// [`MOST_LINE`] bytes, so text a field accepts is never refused whole by either bound.
@@ -105,10 +126,43 @@ pub mod answer {
     pub const DENIED: &str = "Not allowed";
 }
 
-fn diagnostic_outcome(result: &Result<(), &'static str>) -> i32 {
+#[derive(Debug, PartialEq, Eq)]
+pub enum Refusal {
+    Other(&'static str),
+    Blocked(Blocked),
+}
+
+impl From<&'static str> for Refusal {
+    fn from(reason: &'static str) -> Self {
+        Self::Other(reason)
+    }
+}
+
+impl From<Blocked> for Refusal {
+    fn from(blocked: Blocked) -> Self {
+        Self::Blocked(blocked)
+    }
+}
+
+impl Refusal {
+    fn from_result(result: &Value) -> Self {
+        if let Some(blocked) = Blocked::read(result) {
+            return blocked.into();
+        }
+        match result["code"].as_str() {
+            Some("cancelled") => answer::CANCELLED,
+            Some("denied") => answer::DENIED,
+            _ => answer::REFUSED,
+        }
+        .into()
+    }
+}
+
+fn diagnostic_outcome(result: &Result<(), Refusal>) -> i32 {
     match result {
         Ok(()) => 0,
-        Err(reason) => match *reason {
+        Err(Refusal::Blocked(_)) => 1,
+        Err(Refusal::Other(reason)) => match *reason {
             answer::REFUSED | answer::DENIED => 1,
             answer::CANCELLED => 2,
             answer::NOT_UNDERSTOOD => 3,
@@ -177,14 +231,17 @@ impl Outgoing {
 impl State {
     /// Only the guest interprets these options; the host receives ordinary additional placements. A page is among the
     /// application's pages only while its option is on (`remote` exists only on a phone: the copy keeps its platforms).
-    pub(crate) fn configure_pages<H: Wire>(&mut self, host: &mut H) -> Result<(), &'static str> {
+    pub(crate) fn configure_pages<H: Wire>(&mut self, host: &mut H) -> Result<(), Refusal> {
         const OPTIONS: [(&str, &str); 2] = [("layout-page", "layout"), ("remote-page", "remote")];
         let config = self.call(host, CONFIG, "get", json!({}))?;
+        self.readiness.update(&config)?;
         let wanted: Vec<&'static str> = OPTIONS
             .iter()
             .filter(|(option, _)| config["settings"][*option].as_bool().unwrap_or(false))
             .map(|(option, _)| *option)
             .collect();
+        self.ui.permission_changed();
+        self.layout.permission_changed();
         if self.placed_pages.as_ref() == Some(&wanted) {
             return Ok(());
         }
@@ -198,13 +255,131 @@ impl State {
         Ok(())
     }
 
-    /// At most every two seconds of page time, place the layout page again if its option changed.
-    fn follow_pages<H: Wire>(&mut self, host: &mut H, at: u64) {
-        if at.saturating_sub(self.pages_checked) < 2000 && self.pages_checked != 0 {
-            return;
+    pub(crate) fn missing_host(&self, name: &'static str) -> Option<Permission> {
+        self.readiness.missing(None, "host", name)
+    }
+
+    /// The visible, caller-scoped grant set says nothing about the remote device's policy.
+    pub(crate) fn send_block(&self, device: &str) -> Option<Permission> {
+        self.readiness
+            .missing(Some(device), "host", "peers.send")
+            .or_else(|| {
+                self.readiness
+                    .missing(Some(device), self.readiness.owner()?, "control.use")
+            })
+    }
+
+    pub(crate) fn remote_block(&self, device: &str) -> bool {
+        self.remote_denials.contains(device)
+    }
+
+    pub(crate) fn local_block(&self, device: &str) -> bool {
+        self.local_stops.contains(device)
+    }
+
+    fn remember_local_stop(&mut self, device: &str) {
+        if self.local_stops.len() < MOST_DEVICES {
+            self.local_stops.insert(device.to_owned());
         }
-        self.pages_checked = at.max(1);
+    }
+
+    /// An explicit new choice may start a new operation; ticks and ordinary samples cannot.
+    pub(crate) fn allow_new_choice(&mut self, device: &str) {
+        self.remote_denials.remove(device);
+        self.local_stops.remove(device);
+        if self
+            .early_end
+            .as_ref()
+            .is_some_and(|(peer, _)| peer == device)
+        {
+            self.early_end = None;
+        }
+    }
+
+    fn remember_remote_no(&mut self, device: &str) {
+        if self.remote_denials.len() < MOST_DEVICES {
+            self.remote_denials.insert(device.to_owned());
+        }
+        if self.retained.as_deref() == Some(device) {
+            self.retained = None;
+        }
+    }
+
+    /// Stop this device locally, including any retained gesture. Do not open a release stream.
+    pub(crate) fn stop_sending<H: Data>(&mut self, host: &mut H, device: &str) {
+        if self
+            .outgoing
+            .as_ref()
+            .is_some_and(|out| out.device == device)
+            && let Some(out) = self.outgoing.take()
+        {
+            host.close(out.handle);
+        }
+        if self.retained.as_deref() == Some(device) {
+            self.retained = None;
+        }
+        if self
+            .early_end
+            .as_ref()
+            .is_some_and(|(peer, _)| peer == device)
+        {
+            self.early_end = None;
+        }
+    }
+
+    fn on_config_changed<H: Wire + Data>(&mut self, host: &mut H) {
         let _ = self.configure_pages(host);
+        if let Some(device) = self
+            .outgoing
+            .as_ref()
+            .map(|out| &out.device)
+            .or(self.retained.as_ref())
+            && self.send_block(device).is_some()
+        {
+            let device = device.clone();
+            self.remember_local_stop(&device);
+            self.stop_sending(host, &device);
+        }
+        self.stop_revoked_receives(host);
+    }
+
+    fn receive_block(&self, device: &str) -> Option<Blocked> {
+        if let Some(permission) = self.missing_host("input.inject") {
+            return Some(Blocked::MissingPermission(permission));
+        }
+        self.readiness
+            .missing(Some(device), self.readiness.owner()?, "control.use")
+            .map(|_| Blocked::NotAccepted)
+    }
+
+    fn stop_revoked_receives<H: Wire + Data>(&mut self, host: &mut H) {
+        let revoked: Vec<_> = self
+            .incoming
+            .iter()
+            .filter_map(|(&handle, incoming)| {
+                Some((handle, self.receive_block(&incoming.target.owner)?))
+            })
+            .collect();
+        if self.missing_host("input.inject").is_some() {
+            self.handoffs.clear();
+        } else if let Some(owner) = self.readiness.owner() {
+            self.handoffs.retain(|device| {
+                self.readiness
+                    .missing(Some(device), owner, "control.use")
+                    .is_none()
+            });
+        }
+        for (handle, reason) in revoked {
+            if let Some(incoming) = self.incoming.remove(&handle) {
+                let cancelled = self.waiting.iter().any(|delivery| {
+                    delivery["type"] == "cancelled" && delivery["ticket"] == incoming.ticket
+                });
+                let reply = self.complete_receive(host, handle, incoming, Err(reason.into()));
+                if !cancelled {
+                    let _ = host.send(reply);
+                }
+            }
+        }
     }
 
     /// Ask the application for something and wait for exactly that answer, keeping anything else
@@ -215,15 +390,31 @@ impl State {
         service: &str,
         method: &str,
         args: Value,
-    ) -> Result<Value, &'static str> {
+    ) -> Result<Value, Refusal> {
+        self.call_for(host, service, method, args, CALL_MS, Wire::receive)
+    }
+
+    fn call_for<H: Wire>(
+        &mut self,
+        host: &mut H,
+        service: &str,
+        method: &str,
+        args: Value,
+        timeout_ms: u32,
+        mut receive: impl FnMut(&mut H) -> Result<Value, &'static str>,
+    ) -> Result<Value, Refusal> {
+        let guard = host_guard(service, method);
+        if let Some(permission) = guard.and_then(|name| self.missing_host(name)) {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         self.next = self.next.checked_add(1).ok_or(answer::REFUSED)?;
         let id = self.next;
         host.send(json!({
             "op":"call","id":id,"provider":"host","service":service,"version":1,
-            "method":method,"args":args,"timeout_ms":CALL_MS
+            "method":method,"args":args,"timeout_ms":timeout_ms
         }))?;
         loop {
-            let message = host.receive()?;
+            let message = receive(host)?;
             if message["type"] == "result" && message["id"].as_u64() == Some(id) {
                 let result = &message["result"];
                 crate::host::diagnostic(
@@ -241,16 +432,47 @@ impl State {
                 );
                 return if result["status"] == "ok" {
                     Ok(result["value"].clone())
-                } else if result["code"] == "cancelled" {
-                    Err(answer::CANCELLED)
-                } else if result["code"] == "denied" {
-                    Err(answer::DENIED)
                 } else {
-                    Err(answer::REFUSED)
+                    if (service, method) == (INPUT, "inject")
+                        && result["status"] == "error"
+                        && matches!(result["code"].as_str(), Some("rate-limited" | "busy"))
+                    {
+                        return Err(REPLAY_BUSY.into());
+                    }
+                    let refusal = Refusal::from_result(result);
+                    if let Some(name) = guard
+                        && let Refusal::Blocked(Blocked::MissingPermission(permission)) = &refusal
+                        && permission.is("host", name)
+                    {
+                        self.readiness.deny(None, permission.clone());
+                    }
+                    Err(refusal)
                 };
             }
             self.keep(message)?;
         }
+    }
+
+    fn replay_call<H: Wire + Data>(
+        &mut self,
+        host: &mut H,
+        method: &str,
+        args: Value,
+    ) -> Result<Value, Refusal> {
+        let mut waits = 0;
+        self.call_for(host, INPUT, method, args, REPLAY_CALL_MS, |host| {
+            // The broker deadline alone does not bound a reply: the transport may
+            // still be throttling reads and not have admitted this request yet.
+            if waits == 2 {
+                return Err(NO_REPLAY_REPLY);
+            }
+            waits += 1;
+            if host.poll(&[], REPLAY_REPLY_MS)? == Some(0) {
+                host.receive()
+            } else {
+                Err(NO_REPLAY_REPLY)
+            }
+        })
     }
 
     /// Put aside what arrived while something else was awaited, to be handled afterwards. Anything
@@ -268,17 +490,27 @@ impl State {
         }
     }
 
-    fn connect<H: Wire + Data>(
-        &mut self,
-        host: &mut H,
-        device: &str,
-    ) -> Result<Outgoing, &'static str> {
+    fn connect<H: Wire + Data>(&mut self, host: &mut H, device: &str) -> Result<Outgoing, Refusal> {
+        if let Some(permission) = self.send_block(device) {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
+        if self.remote_block(device) {
+            return Err(Blocked::NotAccepted.into());
+        }
         let sent = self.call(
             host,
             PEERS,
             "send",
             json!({"device":device,"service":SERVICE,"version":VERSION}),
-        )?;
+        );
+        match &sent {
+            Err(Refusal::Blocked(Blocked::MissingPermission(permission))) => {
+                self.readiness.deny(Some(device), permission.clone());
+            }
+            Err(Refusal::Blocked(Blocked::NotAccepted)) => self.remember_remote_no(device),
+            _ => {}
+        }
+        let sent = sent?;
         let claim = sent["claim"].as_u64().ok_or(answer::REFUSED)?;
         let handle = host.open(true, claim).map_err(|_| answer::REFUSED)?;
         crate::host::diagnostic(3, 0, handle as u64, 0, 0);
@@ -311,45 +543,48 @@ impl State {
         }
     }
 
-    fn close<H: Wire + Data>(
+    fn close<H: Wire + Data>(&mut self, host: &mut H, outgoing: Outgoing) -> Result<(), Refusal> {
+        let written = host.shutdown(outgoing.handle).is_ok();
+        self.settle(host, outgoing, written, false)
+    }
+
+    /// A refusal can arrive before shutdown or after an unsuccessful write. The host keeps the
+    /// reverse half available for the same bounded acknowledgement; no send is tried again.
+    fn settle<H: Wire + Data>(
         &mut self,
         host: &mut H,
         outgoing: Outgoing,
-    ) -> Result<(), &'static str> {
-        // Delivered means every byte written, not merely an orderly socket close.
-        let acknowledgement = host
-            .shutdown(outgoing.handle)
-            .and_then(|()| self.acknowledged(host, outgoing.handle))
-            .and_then(|()| read_ack(host, outgoing.handle));
-        let (actual, outcome) = match &acknowledgement {
-            Ok(count) => (*count, if *count == outgoing.sent { 0 } else { 6 }),
-            Err(_) => (0, 4),
+        written: bool,
+        ready: bool,
+    ) -> Result<(), Refusal> {
+        let readable = if ready {
+            Ok(())
+        } else {
+            self.acknowledged(host, outgoing.handle)
         };
-        crate::host::diagnostic(4, outcome, outgoing.handle as u64, actual, outgoing.sent);
+        let acknowledgement = readable.and_then(|()| read_ack(host, outgoing.handle));
+        let (actual, code, result) = match acknowledgement {
+            Ok(DeliveryAck::Delivered(count)) if written && count == outgoing.sent => {
+                (count, 0, Ok(()))
+            }
+            Ok(DeliveryAck::Delivered(count)) => (count, 6, Err(answer::STOPPED.into())),
+            Ok(DeliveryAck::NotAccepted) => {
+                self.remember_remote_no(&outgoing.device);
+                (0, 1, Err(Blocked::NotAccepted.into()))
+            }
+            Err(_) => (0, 4, Err(answer::STOPPED.into())),
+        };
+        crate::host::diagnostic(4, code, outgoing.handle as u64, actual, outgoing.sent);
         host.close(outgoing.handle);
-        acknowledgement
-            .map_err(|_| answer::STOPPED)
-            .and_then(|count| {
-                if count == outgoing.sent {
-                    Ok(())
-                } else {
-                    Err(answer::STOPPED)
-                }
-            })
-    }
-
-    /// A connection whose write failed is over: nothing is waited for, it is said as not delivered and closed.
-    fn abandon<H: Data>(host: &mut H, outgoing: &Outgoing) -> &'static str {
-        crate::host::diagnostic(4, 4, outgoing.handle as u64, 0, outgoing.sent);
-        host.close(outgoing.handle);
-        answer::STOPPED
+        result
     }
 
     /// Leaving also releases a pointer retained by an already closed, rested or rotated stream. A
     /// stream opened only to say so carries nothing and is not waited on: the other side reads the
     /// end of it when it reads, and this side, which runs everything else of the page, must not
     /// stand still until then.
-    pub fn finish<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), &'static str> {
+    pub fn finish<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), Refusal> {
+        let early_end = self.early_end.take();
         // The device is forgotten before the network cleanup: an end or a release that cannot
         // reach it is reported once, never retried against the same stale identity, so a failed
         // leave cannot poison later ends or an explicit switch to another device.
@@ -365,7 +600,7 @@ impl State {
             return self.close(host, outgoing);
         }
         let Some(device) = retained else {
-            return Ok(());
+            return early_end.map_or(Ok(()), |(_, reason)| Err(reason));
         };
         // Best effort only: a device that cannot be reached keeps whatever pointer the rested
         // stream left until it reads a real stream again; it is not asked a second time.
@@ -376,7 +611,7 @@ impl State {
         Ok(())
     }
 
-    fn pause<H: Wire + Data>(&mut self, host: &mut H, marker: &str) -> Result<(), &'static str> {
+    fn pause<H: Wire + Data>(&mut self, host: &mut H, marker: &str) -> Result<(), Refusal> {
         let Some(mut outgoing) = self.outgoing.take() else {
             return Ok(());
         };
@@ -384,31 +619,67 @@ impl State {
         let mut line = marker.as_bytes().to_vec();
         line.push(b'\n');
         if write_all(host, outgoing.handle, &line).is_err() {
-            return Err(Self::abandon(host, &outgoing));
+            return self.settle(host, outgoing, false, false);
         }
         outgoing.sent += line.len() as u64;
         self.close(host, outgoing)
     }
 
     /// Release held input between gestures without losing the device that still draws the pointer.
-    pub fn rest<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), &'static str> {
+    pub fn rest<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), Refusal> {
         self.pause(host, RESTS)
     }
 
     /// Rotate without releasing a gesture; a later explicit end still reaches the same device.
-    pub fn rotate<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), &'static str> {
+    pub fn rotate<H: Wire + Data>(&mut self, host: &mut H) -> Result<(), Refusal> {
         self.pause(host, CONTINUES)
     }
 
     /// `input`: write a batch to the device being controlled, opening a connection when there is none.
-    pub fn input<H: Wire + Data>(
-        &mut self,
-        host: &mut H,
-        args: &Value,
-    ) -> Result<(), &'static str> {
+    pub fn input<H: Wire + Data>(&mut self, host: &mut H, args: &Value) -> Result<(), Refusal> {
         let device = args["peer"].as_str().ok_or(answer::REFUSED)?.to_owned();
         let events = args["events"].as_array().ok_or(answer::NOT_UNDERSTOOD)?;
         let end = args["end"].as_bool().unwrap_or(false);
+        if let Some(stop) = args.get("stop") {
+            if !end || !events.is_empty() || args.get("begin").is_some() {
+                return Err(answer::NOT_UNDERSTOOD.into());
+            }
+            match Blocked::read(stop).ok_or(answer::NOT_UNDERSTOOD)? {
+                Blocked::NotAccepted => self.remember_remote_no(&device),
+                Blocked::MissingPermission(_) => self.remember_local_stop(&device),
+            }
+            self.stop_sending(host, &device);
+            return Ok(());
+        }
+        let begin = args.get("begin");
+        if begin.is_some_and(|begin| begin != true || end || events.is_empty()) {
+            return Err(answer::NOT_UNDERSTOOD.into());
+        }
+        if begin.is_none()
+            && self
+                .early_end
+                .as_ref()
+                .is_some_and(|(peer, _)| peer == &device)
+            && let Some((_, reason)) = self.early_end.take()
+        {
+            return Err(reason);
+        }
+        if let Some(permission) = self.send_block(&device) {
+            self.stop_sending(host, &device);
+            return if events.is_empty() && end {
+                Ok(())
+            } else {
+                Err(Blocked::MissingPermission(permission).into())
+            };
+        }
+        if begin.is_none() && (self.remote_block(&device) || self.local_block(&device)) {
+            // A capture's explicit end is local bookkeeping. It cannot open another stream.
+            return if events.is_empty() && end {
+                Ok(())
+            } else {
+                Err(Blocked::NotAccepted.into())
+            };
+        }
         // Another device chosen: what was open to the first ends first.
         if self.outgoing.as_ref().is_some_and(|o| o.device != device)
             || self
@@ -423,20 +694,30 @@ impl State {
             for event in events {
                 let line = serde_json::to_vec(event).map_err(|_| answer::NOT_UNDERSTOOD)?;
                 if line.len() > MOST_LINE || !event.is_object() {
-                    return Err(answer::NOT_UNDERSTOOD);
+                    return Err(answer::NOT_UNDERSTOOD.into());
                 }
                 lines.extend_from_slice(&line);
                 lines.push(b'\n');
             }
+            if begin.is_some() {
+                // Only a valid, owner-marked new crossing can replace the stopped visit.
+                self.allow_new_choice(&device);
+                // A new paired witness cannot keep using an older copy, even for
+                // the same device when the preceding end was cancelled by the owner.
+                self.stop_sending(host, &device);
+            }
             if self.outgoing.is_none() {
-                self.outgoing = Some(self.connect(host, &device)?);
+                let result = self.connect(host, &device);
+                if matches!(&result, Err(Refusal::Blocked(_))) {
+                    self.stop_sending(host, &device);
+                }
+                self.outgoing = Some(result?);
                 self.retained = None;
             }
             let outgoing = self.outgoing.as_mut().ok_or(answer::REFUSED)?;
             if write_all(host, outgoing.handle, &lines).is_err() {
-                // The other side is gone: this connection is over, the next batch opens another.
                 let gone = self.outgoing.take().ok_or(answer::REFUSED)?;
-                return Err(Self::abandon(host, &gone));
+                return self.settle(host, gone, false, false);
             }
             outgoing.sent += lines.len() as u64;
             outgoing.batches += 1;
@@ -458,10 +739,10 @@ impl State {
     /// Whether the application can draw a pointer of this device's own: `peersus.input`'s word,
     /// asked once per received connection and never guessed from the device or its system. A host
     /// without the method, or a reply without the flag, refuses the receive: no invented pointer.
-    fn independent_pointer<H: Wire>(&mut self, host: &mut H) -> Result<bool, &'static str> {
+    fn independent_pointer<H: Wire>(&mut self, host: &mut H) -> Result<bool, Refusal> {
         self.call(host, INPUT, "inspect", json!({}))?["independent_pointer"]
             .as_bool()
-            .ok_or(answer::REFUSED)
+            .ok_or_else(|| answer::REFUSED.into())
     }
 
     /// Accept a receiver without reading it here: every peer must get a turn before EOF.
@@ -470,13 +751,17 @@ impl State {
         host: &mut H,
         ticket: u64,
         args: &Value,
-    ) -> Result<(), &'static str> {
+    ) -> Result<(), Refusal> {
         let owner = args["peer"].as_str().ok_or(answer::NOT_UNDERSTOOD)?;
-        let opened = self.pointer_options(host).and_then(|(own, named)| {
-            host.open(false, ticket)
-                .map(|handle| (handle, own, named))
-                .map_err(|_| answer::NOT_UNDERSTOOD)
-        });
+        let opened = if let Some(reason) = self.receive_block(owner) {
+            Err(reason.into())
+        } else {
+            self.pointer_options(host).and_then(|(own, named)| {
+                host.open(false, ticket)
+                    .map(|handle| (handle, own, named))
+                    .map_err(|_| answer::NOT_UNDERSTOOD.into())
+            })
+        };
         let (handle, own, named) = match opened {
             Ok(opened) => opened,
             Err(reason) => {
@@ -488,7 +773,7 @@ impl State {
                     .find(|i| i.target.owner == owner)
                 {
                     predecessor.handoff_failed = true;
-                } else if self.handoffs.remove(owner) {
+                } else if self.handoffs.remove(owner) && !matches!(&reason, Refusal::Blocked(_)) {
                     let _ = self.release(host, owner, false);
                 }
                 return Err(reason);
@@ -512,9 +797,22 @@ impl State {
         Ok(())
     }
 
-    fn pointer_options<H: Wire>(&mut self, host: &mut H) -> Result<(bool, bool), &'static str> {
+    fn pointer_options<H: Wire>(&mut self, host: &mut H) -> Result<(bool, bool), Refusal> {
+        if let Some(permission) = self.missing_host("input.inject") {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         // Defaults are for settings omitted from a successful read, never for a failed read.
         let config = self.call(host, CONFIG, "get", json!({}))?;
+        if let Some((owner, name)) =
+            crate::host::missing_permissions(&config).find(|&pair| pair == ("host", "input.inject"))
+        {
+            let permission = Permission {
+                owner: owner.into(),
+                name: name.into(),
+            };
+            self.readiness.deny(None, permission.clone());
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         let settings = config["settings"]
             .as_object()
             .ok_or(answer::NOT_UNDERSTOOD)?;
@@ -527,7 +825,11 @@ impl State {
         let name_tag = setting("name-tag")?;
         // "Independent pointer" stays on unless the person turned it off; whether this computer
         // can really draw one per device is the host's word, asked once per connection.
-        let own = independent && self.independent_pointer(host)?;
+        let own = if independent {
+            self.independent_pointer(host)?
+        } else {
+            false
+        };
         Ok((own, own && name_tag))
     }
 
@@ -565,6 +867,15 @@ impl State {
     /// Await one bounded piece of work. Queue reads and data reads remain separate so a
     /// live controller cannot monopolize the guest while another controller is idle.
     pub fn next<H: Wire + Data>(&mut self, host: &mut H) -> Result<Option<Value>, &'static str> {
+        if self.waiting.first().is_some_and(|delivery| {
+            config_changed(delivery)
+                || self
+                    .outgoing
+                    .as_ref()
+                    .is_some_and(|out| out.finishes_on(delivery))
+        }) {
+            return Ok(Some(self.waiting.remove(0)));
+        }
         let mut handles = Vec::new();
         let mut owners = Vec::new();
         for (&handle, incoming) in &self.incoming {
@@ -574,6 +885,12 @@ impl State {
                 handles.push(handle);
             }
         }
+        let outbound = self
+            .outgoing
+            .as_ref()
+            .map(|out| out.handle)
+            .filter(|handle| !handles.contains(handle));
+        handles.extend(outbound);
         let timeout = if !self.waiting.is_empty() {
             0
         } else {
@@ -588,7 +905,16 @@ impl State {
         } else {
             host.poll(&handles, timeout)?
         };
-        let stream = ready.filter(|&handle| handle > 0);
+        let stream = ready.filter(|&handle| handle > 0 && Some(handle) != outbound);
+        if ready.is_some()
+            && ready == outbound
+            && let Some(outgoing) = self.outgoing.take()
+        {
+            let device = outgoing.device.clone();
+            if let Err(reason) = self.settle(host, outgoing, false, true) {
+                self.early_end = Some((device, reason));
+            }
+        }
         let mut delivery = if ready == Some(0) && self.waiting.is_empty() {
             Some(host.receive()?)
         } else {
@@ -601,11 +927,12 @@ impl State {
             .as_ref()
             .is_some_and(|out| out.opened_at.is_some());
         let rotate = self.outgoing.as_mut().is_some_and(|out| {
-            idle_timeout
-                || (forwarded
-                    && (stream.is_some()
-                        || next.is_some_and(|delivery| !out.measure_delivery(delivery))
-                        || out.rotation_wait_ms() == 0))
+            !next.is_some_and(config_changed)
+                && (idle_timeout
+                    || (forwarded
+                        && (stream.is_some()
+                            || next.is_some_and(|delivery| !out.measure_delivery(delivery))
+                            || out.rotation_wait_ms() == 0)))
         });
         // A successful early `continues` preserves held input, but only a normal close
         // releases it. Inspect ready control before rotating rather than restarting an
@@ -620,7 +947,12 @@ impl State {
                 false
             };
             if !finish_pending {
-                let _ = self.rotate(host);
+                let device = self.outgoing.as_ref().map(|out| out.device.clone());
+                if let (Some(device), Err(reason)) = (device, self.rotate(host))
+                    && (forwarded || matches!(&reason, Refusal::Blocked(_)))
+                {
+                    self.early_end = Some((device, reason));
+                }
             }
         }
         // Give a deferred delivery a turn after at most one read, even on a busy stream.
@@ -642,15 +974,12 @@ impl State {
             self.incoming.insert(handle, incoming);
             return None;
         }
-        Some(self.complete_receive(host, handle, incoming, result.map(|_| ())))
+        let cancelled = replay_cancelled(&self.waiting, incoming.ticket);
+        let reply = self.complete_receive(host, handle, incoming, result.map(|_| ()));
+        (!cancelled).then_some(reply)
     }
 
-    fn release<H: Wire>(
-        &mut self,
-        host: &mut H,
-        owner: &str,
-        keep: bool,
-    ) -> Result<(), &'static str> {
+    fn release<H: Wire>(&mut self, host: &mut H, owner: &str, keep: bool) -> Result<(), Refusal> {
         self.call(
             host,
             INPUT,
@@ -658,7 +987,10 @@ impl State {
             json!({"owner": owner, "keep": keep}),
         )
         .map(|_| ())
-        .map_err(|_| answer::NOT_REPLAYED)
+        .map_err(|reason| match reason {
+            Refusal::Blocked(_) => reason,
+            Refusal::Other(_) => answer::NOT_REPLAYED.into(),
+        })
     }
 
     fn hand_off(&mut self, incoming: &Incoming) -> bool {
@@ -666,7 +998,7 @@ impl State {
         if self.incoming.values().any(|i| i.target.owner == owner) {
             return true; // An accepted successor takes over even if another candidate failed.
         }
-        if incoming.handoff_failed || self.handoffs.len() == MOST_HANDOFFS {
+        if incoming.handoff_failed || self.handoffs.len() == MOST_DEVICES {
             return false; // Release rather than forgetting responsibility for a press.
         }
         self.handoffs.insert(owner.to_owned());
@@ -678,12 +1010,12 @@ impl State {
         host: &mut H,
         handle: Handle,
         incoming: Incoming,
-        result: Result<(), &'static str>,
+        result: Result<(), Refusal>,
     ) -> Value {
         host.close(handle);
         // Only the earliest open handle for an owner may replay. Cancelling a queued
         // replacement cannot release its live predecessor, but records a failed candidate.
-        let predecessor = if result == Err(answer::CANCELLED) {
+        let predecessor = if result == Err(answer::CANCELLED.into()) {
             self.incoming
                 .range_mut(..handle)
                 .rev()
@@ -696,6 +1028,19 @@ impl State {
             result
         } else if result.is_ok() && incoming.ended == Ended::Continues && self.hand_off(&incoming) {
             Ok(())
+        } else if matches!(&result, Err(Refusal::Other(REPLAY_BUSY | NO_REPLAY_REPLY))) {
+            self.handoffs.remove(&incoming.target.owner);
+            // If the broker is still full, the failed receive itself tells the owner
+            // to release the peer's held input. Do not wait indefinitely for cleanup.
+            let _ = self.replay_call(
+                host,
+                "release",
+                json!({"owner":incoming.target.owner,"keep":false}),
+            );
+            Err(answer::NOT_REPLAYED.into())
+        } else if matches!(&result, Err(Refusal::Blocked(_))) {
+            self.handoffs.remove(&incoming.target.owner);
+            result
         } else {
             let keep = result.is_ok() && incoming.ended == Ended::Rests;
             let released = self.release(host, &incoming.target.owner, keep);
@@ -710,81 +1055,202 @@ impl State {
         host: &mut H,
         handle: Handle,
         incoming: &mut Incoming,
-    ) -> Result<bool, &'static str> {
-        let mut buffer = [0u8; 4096];
-        let count = host
-            .read(handle, &mut buffer)
-            .map_err(|_| answer::STOPPED)?;
-        if count == 0 {
-            return if incoming.pending.is_empty() {
-                Ok(true)
-            } else {
-                Err(answer::NOT_UNDERSTOOD)
-            };
-        }
-        if count > buffer.len() {
-            return Err(answer::NOT_UNDERSTOOD);
-        }
-        incoming.pending.extend_from_slice(&buffer[..count]);
+    ) -> Result<bool, Refusal> {
+        let mut eof = read_replay(host, handle, &mut incoming.pending)?;
+        // A whole turn can read ahead only once per allowed retry. Repeated
+        // recoveries cannot keep this turn alive as other controllers wait.
+        let mut lookahead = REPLAY_BACKOFF_MS.len();
         let mut batch = Vec::new();
-        while let Some(end) = incoming.pending.iter().position(|&b| b == b'\n') {
-            let line: Vec<u8> = incoming.pending.drain(..=end).collect();
-            if line.len() > MOST_LINE + 1 {
-                return Err(answer::NOT_UNDERSTOOD);
+        loop {
+            take_replay_batch(incoming, &mut batch, false)?;
+            if batch.is_empty() {
+                return if eof && !incoming.pending.is_empty() {
+                    Err(answer::NOT_UNDERSTOOD.into())
+                } else {
+                    Ok(eof)
+                };
             }
-            let event: Value = serde_json::from_slice(&line[..line.len() - 1])
-                .map_err(|_| answer::NOT_UNDERSTOOD)?;
-            if !event.is_object() {
-                return Err(answer::NOT_UNDERSTOOD);
-            }
-            incoming.ended = if event == json!({"continues": true}) {
-                Ended::Continues
-            } else if event == json!({"rests": true}) {
-                Ended::Rests
-            } else {
-                Ended::Closed
-            };
-            if incoming.ended != Ended::Closed {
-                continue;
-            }
-            batch.push(event);
-            if batch.len() == MOST_BATCH {
-                self.replay_batch(host, std::mem::take(&mut batch), &incoming.target)?;
-            }
+            self.replay_batch(host, handle, incoming, &mut eof, &mut lookahead, &mut batch)?;
+            batch.clear();
         }
-        if incoming.pending.len() > MOST_LINE {
-            return Err(answer::NOT_UNDERSTOOD);
-        }
-        if !batch.is_empty() {
-            self.replay_batch(host, batch, &incoming.target)?;
-        }
-        Ok(false)
     }
 
-    fn replay_batch<H: Wire>(
+    fn replay_batch<H: Wire + Data>(
         &mut self,
         host: &mut H,
-        events: Vec<Value>,
-        target: &Target,
-    ) -> Result<(), &'static str> {
-        let mut args = json!({"events": events, "owner": target.owner});
-        if target.own {
-            args["pointer"] = json!("own");
-        }
-        // Only asks: the application decides the name, from the device it knows by `owner`, and draws it.
-        if target.named {
-            args["show_name"] = json!(true);
-        }
-        self.call(host, INPUT, "inject", args)
-            .map(|_| ())
-            .map_err(|reason| {
-                if reason == answer::CANCELLED {
-                    reason
-                } else {
-                    answer::NOT_REPLAYED
+        handle: Handle,
+        incoming: &mut Incoming,
+        eof: &mut bool,
+        lookahead: &mut usize,
+        events: &mut Vec<Value>,
+    ) -> Result<(), Refusal> {
+        let mut retry = false;
+        let mut backoffs = REPLAY_BACKOFF_MS.into_iter();
+        loop {
+            let args = replay_args(&incoming.target, events);
+            let result = if retry {
+                self.replay_call(host, "inject", args)
+            } else {
+                self.call(host, INPUT, "inject", args)
+            };
+            match result {
+                Ok(_) => return Ok(()),
+                Err(Refusal::Other(REPLAY_BUSY)) => {
+                    let delay = backoffs.next().ok_or(REPLAY_BUSY)?;
+                    self.wait_to_replay(host, incoming.ticket, delay)?;
                 }
-            })
+                // No answer is not a refusal before admission: the batch might have
+                // run. Never send it a second time after an ambiguous result.
+                Err(reason @ Refusal::Other(NO_REPLAY_REPLY)) => return Err(reason),
+                Err(Refusal::Other(word)) if word != answer::CANCELLED => {
+                    return Err(answer::NOT_REPLAYED.into());
+                }
+                Err(reason) => return Err(reason),
+            }
+            // Only collapse adjacent absolute places; a click must see the place before it,
+            // and relative motion, buttons, keys, wheel and text all keep their order.
+            events.dedup_by(|next, previous| {
+                if replay_place(next) && replay_place(previous) {
+                    std::mem::swap(next, previous);
+                    true
+                } else {
+                    false
+                }
+            });
+            take_replay_batch(incoming, events, true)?;
+            if events.len() < MOST_BATCH && !*eof && *lookahead > 0 {
+                match host.poll(&[handle], 0)? {
+                    Some(ready) if ready == handle => {
+                        *lookahead -= 1;
+                        *eof = read_replay(host, handle, &mut incoming.pending)?;
+                        take_replay_batch(incoming, events, true)?;
+                    }
+                    Some(0) => {
+                        let message = host.receive()?;
+                        self.keep(message)?;
+                    }
+                    _ => {}
+                }
+            }
+            if replay_cancelled(&self.waiting, incoming.ticket) {
+                return Err(answer::CANCELLED.into());
+            }
+            retry = true;
+        }
     }
+
+    fn wait_to_replay<H: Wire + Data>(
+        &mut self,
+        host: &mut H,
+        ticket: u64,
+        delay: i32,
+    ) -> Result<(), Refusal> {
+        for _ in 0..BACKOFF_WAITS {
+            if replay_cancelled(&self.waiting, ticket) {
+                return Err(answer::CANCELLED.into());
+            }
+            match host.poll(&[], delay)? {
+                None => return Ok(()),
+                Some(0) => {
+                    let message = host.receive()?;
+                    self.keep(message)?;
+                }
+                Some(_) => break,
+            }
+        }
+        if replay_cancelled(&self.waiting, ticket) {
+            Err(answer::CANCELLED.into())
+        } else {
+            Err(REPLAY_BUSY.into())
+        }
+    }
+}
+
+fn read_replay<H: Data>(
+    host: &mut H,
+    handle: Handle,
+    pending: &mut Vec<u8>,
+) -> Result<bool, Refusal> {
+    let mut buffer = [0u8; 4096];
+    let count = host
+        .read(handle, &mut buffer)
+        .map_err(|_| answer::STOPPED)?;
+    let bytes = buffer.get(..count).ok_or(answer::NOT_UNDERSTOOD)?;
+    pending.extend_from_slice(bytes);
+    Ok(bytes.is_empty())
+}
+
+fn replay_place(event: &Value) -> bool {
+    event.as_object().is_some_and(|fields| fields.len() == 3)
+        && event["t"] == "position"
+        && ["x", "y"].iter().all(|&axis| {
+            event[axis]
+                .as_f64()
+                .is_some_and(|n| (0. ..=1.).contains(&n))
+        })
+}
+
+fn replay_cancelled(waiting: &[Value], ticket: u64) -> bool {
+    waiting
+        .iter()
+        .any(|message| message["type"] == "cancelled" && message["ticket"].as_u64() == Some(ticket))
+}
+
+/// Parse one ordered batch. Any tail (complete lines or a partial one) belongs to this
+/// stream and stays there until its turn; a retry never consumes another peer's input.
+fn take_replay_batch(
+    incoming: &mut Incoming,
+    batch: &mut Vec<Value>,
+    coalesce: bool,
+) -> Result<(), Refusal> {
+    while batch.len() < MOST_BATCH {
+        let Some(end) = incoming.pending.iter().position(|&b| b == b'\n') else {
+            if incoming.pending.len() > MOST_LINE {
+                return Err(answer::NOT_UNDERSTOOD.into());
+            }
+            break;
+        };
+        let line: Vec<u8> = incoming.pending.drain(..=end).collect();
+        if line.len() > MOST_LINE + 1 {
+            return Err(answer::NOT_UNDERSTOOD.into());
+        }
+        let event: Value =
+            serde_json::from_slice(&line[..end]).map_err(|_| answer::NOT_UNDERSTOOD)?;
+        if !event.is_object() {
+            return Err(answer::NOT_UNDERSTOOD.into());
+        }
+        incoming.ended = if event == json!({"continues": true}) {
+            Ended::Continues
+        } else if event == json!({"rests": true}) {
+            Ended::Rests
+        } else {
+            Ended::Closed
+        };
+        if incoming.ended != Ended::Closed {
+            continue;
+        }
+        if coalesce
+            && replay_place(&event)
+            && let Some(previous) = batch.last_mut().filter(|previous| replay_place(previous))
+        {
+            *previous = event;
+        } else {
+            batch.push(event);
+        }
+    }
+    Ok(())
+}
+
+fn replay_args(target: &Target, events: &[Value]) -> Value {
+    let mut args = json!({"events": events, "owner": target.owner});
+    if target.own {
+        args["pointer"] = json!("own");
+    }
+    // Only asks: the application decides the name from the authenticated owner.
+    if target.named {
+        args["show_name"] = json!(true);
+    }
+    args
 }
 
 /// Whose input is replayed, and whether it moves a pointer of its own.
@@ -819,15 +1285,20 @@ fn failure(reason: &'static str) -> Value {
 }
 
 /// What to reply for one finished call.
-pub fn outcome(result: Result<(), &'static str>) -> Value {
+fn outcome(result: Result<(), Refusal>) -> Value {
     match result {
         Ok(()) => json!({"status":"ok","value":true}),
-        Err(reason) => failure(reason),
+        Err(Refusal::Other(reason)) => failure(reason),
+        Err(Refusal::Blocked(blocked)) => blocked.value(),
     }
 }
 
 /// Answer one delivery. `None` for anything that is not a call.
 pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value) -> Option<Value> {
+    if config_changed(delivery) {
+        state.on_config_changed(host);
+        return None;
+    }
     if delivery["type"] == "cancelled" {
         let ticket = delivery["ticket"].as_u64()?;
         let handle = state
@@ -838,7 +1309,7 @@ pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value)
             && let Some(incoming) = state.incoming.remove(&handle)
         {
             // Cancellation ends only this peer's session; an expired ticket gets no late reply.
-            let _ = state.complete_receive(host, handle, incoming, Err(answer::CANCELLED));
+            let _ = state.complete_receive(host, handle, incoming, Err(answer::CANCELLED.into()));
         }
         return None;
     }
@@ -855,9 +1326,6 @@ pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value)
         };
     }
     if delivery["method"] == "view" || delivery["method"] == "layout" {
-        if let Some(at) = delivery["args"]["event"]["at"].as_u64() {
-            state.follow_pages(host, at);
-        }
         let result = if delivery["method"] == "layout" {
             let mut ui = std::mem::take(&mut state.layout);
             let result = ui.event(
@@ -882,7 +1350,7 @@ pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value)
     }
     let result = match delivery["method"].as_str() {
         Some("input") => state.input(host, &delivery["args"]),
-        _ => Err(answer::UNKNOWN),
+        _ => Err(answer::UNKNOWN.into()),
     };
     crate::host::diagnostic(10, diagnostic_outcome(&result), ticket, 0, 0);
     Some(json!({"op":"reply","ticket":ticket,"result":outcome(result)}))
@@ -915,6 +1383,245 @@ mod tests {
         json!({"type":"call","ticket":ticket,"method":"input","args":{"peer":"pc","events":events,"end":end}})
     }
 
+    fn configuration(settings: Value) -> Value {
+        json!({"plugin":"control","settings":settings,"missing_permissions":[],"peers":[]})
+    }
+
+    fn config_event() -> Value {
+        json!({"type":"event","provider":"host","service":CONFIG,"version":1,"event":"changed","data":{}})
+    }
+
+    fn neutral_ack() -> Vec<u8> {
+        let bytes = br#"{"status":"not-accepted"}"#;
+        let mut framed = (bytes.len() as u32).to_be_bytes().to_vec();
+        framed.extend_from_slice(bytes);
+        framed
+    }
+
+    #[test]
+    fn a_remote_no_stops_the_visit_without_a_release_or_reopening_on_late_samples() {
+        for early_ack in [false, true] {
+            let mut state = State::default();
+            let mut host = Script::default();
+            let mut begin = input_call(1, json!([{"t":"key_code","code":29,"down":true}]), false);
+            begin["args"]["begin"] = json!(true);
+            begin["args"]["at"] = json!(1000);
+            let no = json!({"status":"not-accepted"});
+            let sample = input_call(2, json!([{"t":"text","text":"not replayed"}]), false);
+            if early_ack {
+                host.results.push_back(ok(json!({"claim":1})));
+                assert_eq!(
+                    super::handle(&mut host, &mut state, &begin).unwrap()["result"]["status"],
+                    "ok"
+                );
+                host.incoming.push_back(neutral_ack());
+                assert_eq!(
+                    state.next(&mut host),
+                    Ok(None),
+                    "read the reverse half even before an end"
+                );
+                assert_eq!(
+                    super::handle(&mut host, &mut state, &sample).unwrap()["result"],
+                    no
+                );
+                assert_eq!(host.closed, 1);
+            } else {
+                host.results.push_back(no.clone());
+                assert_eq!(
+                    super::handle(&mut host, &mut state, &begin).unwrap()["result"],
+                    no
+                );
+            }
+            let bytes = host.written.len();
+            let mut end = input_call(3, json!([]), true);
+            end["args"]["stop"] = no.clone();
+            assert_eq!(
+                super::handle(&mut host, &mut state, &end).unwrap()["result"]["status"],
+                "ok"
+            );
+            assert_eq!(
+                super::handle(&mut host, &mut state, &sample).unwrap()["result"],
+                no
+            );
+            assert_eq!(
+                host.sent
+                    .iter()
+                    .filter(|message| message["method"] == "send")
+                    .count(),
+                1
+            );
+            assert_eq!(host.written.len(), bytes);
+            assert_eq!(
+                host.shutdowns, 0,
+                "the explicit stopped end cannot open or finish a send"
+            );
+            assert!(state.outgoing.is_none() && state.retained.is_none());
+            host.results.push_back(ok(json!({"claim":2})));
+            assert_eq!(
+                super::handle(&mut host, &mut state, &begin).unwrap()["result"]["status"],
+                "ok"
+            );
+            assert_eq!(host.opened.last(), Some(&(true, 2)));
+        }
+    }
+
+    #[test]
+    fn a_controlling_grant_removed_mid_visit_closes_and_requires_a_new_begin_when_restored() {
+        let mut state = State::default();
+        let mut host = Script::default();
+        let granted = json!({"device":"pc","permissions":[
+            {"owner":"host","name":"peers.send"},{"owner":"control","name":"control.use"}
+        ]});
+        let permission = json!({"owner":"control","name":"control.use"});
+        let mut config = configuration(json!({}));
+        config["peers"] = json!([granted]);
+        state.readiness.update(&config).unwrap();
+        state.placed_pages = Some(vec![]);
+        host.results.push_back(ok(json!({"claim":1})));
+        let pressed = input_call(1, json!([{"t":"key_code","code":29,"down":true}]), false);
+        assert_eq!(
+            super::handle(&mut host, &mut state, &pressed).unwrap()["result"]["status"],
+            "ok"
+        );
+        let bytes = host.written.len();
+        config["peers"][0]["permissions"] = json!([{"owner":"host","name":"peers.send"}]);
+        host.results.push_back(ok(config.clone()));
+        super::handle(&mut host, &mut state, &config_event());
+        assert_eq!(host.closed, 1);
+        let missing = json!({"status":"missing-permission","permission":permission});
+        let mut end = input_call(2, json!([]), true);
+        end["args"]["stop"] = missing.clone();
+        assert_eq!(
+            super::handle(&mut host, &mut state, &end).unwrap()["result"]["status"],
+            "ok"
+        );
+        let sample = input_call(3, json!([{"t":"move","dx":1,"dy":0}]), false);
+        assert_eq!(
+            super::handle(&mut host, &mut state, &sample).unwrap()["result"],
+            missing
+        );
+        config["peers"][0] = granted;
+        host.results.push_back(ok(config));
+        super::handle(&mut host, &mut state, &config_event());
+        assert_eq!(
+            super::handle(&mut host, &mut state, &sample).unwrap()["result"]["status"],
+            "not-accepted"
+        );
+        assert_eq!(host.written.len(), bytes);
+        assert!(state.outgoing.is_none() && state.retained.is_none());
+        assert_eq!(host.opened, [(true, 1)]);
+        host.results.push_back(ok(json!({"claim":2})));
+        let mut fresh = input_call(4, json!([{"t":"position","x":0.1,"y":0.5}]), false);
+        fresh["args"]["begin"] = json!(true);
+        assert_eq!(
+            super::handle(&mut host, &mut state, &fresh).unwrap()["result"]["status"],
+            "ok"
+        );
+        assert_eq!(host.opened, [(true, 1), (true, 2)]);
+    }
+
+    #[test]
+    fn a_receiving_grant_removed_mid_visit_discards_unfinished_input_and_handoff() {
+        let mut state = State::default();
+        let mut host = Script::default();
+        let settings = configuration(json!({"independent":false}));
+        state.readiness.update(&settings).unwrap();
+        state.placed_pages = Some(vec![]);
+        host.results.push_back(ok(settings.clone()));
+        let receive =
+            json!({"type":"call","ticket":21,"method":"receive","args":{"peer":"sender"}});
+        assert!(super::handle(&mut host, &mut state, &receive).is_none());
+        host.results.push_back(ok(json!({})));
+        host.incoming
+            .push_back(b"{\"t\":\"key_code\",\"code\":29,\"down\":true}\n{\"t\":\"text\"".to_vec());
+        assert!(state.advance(&mut host, 7).is_none());
+        assert_eq!(host.sent.last().unwrap()["method"], "inject");
+        state.handoffs.insert("other".into());
+        let mut revoked = settings.clone();
+        let permission = json!({"owner":"host","name":"input.inject"});
+        revoked["missing_permissions"] = json!([permission]);
+        host.results.push_back(ok(revoked));
+        super::handle(&mut host, &mut state, &config_event());
+        assert!(state.incoming.is_empty() && state.handoffs.is_empty());
+        assert_eq!(host.closed, 1);
+        assert_eq!(
+            host.sent.last().unwrap()["result"],
+            json!({"status":"missing-permission","permission":permission})
+        );
+        assert!(!host.sent.iter().any(|call| call["method"] == "release"));
+        host.results.push_back(ok(settings));
+        super::handle(&mut host, &mut state, &config_event());
+        assert!(state.advance(&mut host, 7).is_none());
+        assert_eq!(
+            host.sent
+                .iter()
+                .filter(|message| message["method"] == "inject")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_crossing_refused_by_the_local_grant_returns_the_named_permission_without_opening_a_stream()
+    {
+        let mut state = State::default();
+        let mut host = Script::default();
+        let missing = json!({"status":"missing-permission","permission":{"owner":"control","name":"control.use"}});
+        host.results.push_back(missing.clone());
+        let delivery = input_call(42, json!([{"t":"position","x":0.1,"y":0.5}]), false);
+        let reply = super::handle(&mut host, &mut state, &delivery).unwrap();
+        assert_eq!(reply, json!({"op":"reply","ticket":42,"result":missing}));
+        assert!(host.opened.is_empty() && host.written.is_empty());
+    }
+
+    #[test]
+    fn a_receiver_missing_injection_does_not_probe_a_guarded_method_in_shared_mode() {
+        let mut state = State::default();
+        let mut host = Script::default();
+        let permission = json!({"owner":"host","name":"input.inject"});
+        let missing = json!({"status":"missing-permission","permission":permission});
+        host.results.push_back(ok(
+            json!({"settings":{"independent":false},"missing_permissions":[permission]}),
+        ));
+        let reply = super::handle(
+            &mut host,
+            &mut state,
+            &json!({
+                "type":"call","ticket":17,"method":"receive","args":{"peer":"sender"}
+            }),
+        )
+        .unwrap();
+        assert_eq!(reply["result"], missing);
+        assert_eq!(host.sent.len(), 1);
+        assert_eq!(host.sent[0]["method"], "get");
+        assert!(host.opened.is_empty() && state.incoming.is_empty());
+    }
+
+    #[test]
+    fn a_receiving_permission_revoked_during_replay_stays_a_named_refusal() {
+        let mut state = State::default();
+        let mut host = Script::default();
+        host.results.push_back(ok(
+            json!({"settings":{"independent":false},"missing_permissions":[]}),
+        ));
+        let missing = json!({"status":"missing-permission","permission":{"owner":"host","name":"input.inject"}});
+        host.results.push_back(missing.clone());
+        host.incoming
+            .push_back(b"{\"t\":\"move\",\"dx\":1,\"dy\":2}\n".to_vec());
+        let reply = handle(
+            &mut host,
+            &mut state,
+            &json!({
+                "type":"call","ticket":18,"method":"receive","args":{"peer":"sender"}
+            }),
+        )
+        .unwrap();
+        assert_eq!(reply["result"], missing);
+        assert_eq!(host.closed, 1);
+        assert!(!host.sent.iter().any(|call| call["method"] == "release"));
+        assert!(state.incoming.is_empty());
+    }
+
     #[test]
     fn each_page_is_among_the_applications_pages_only_while_its_own_option_is_on() {
         let layout = json!({"id":"layout-page", "page":"layout", "placement":"primary"});
@@ -927,9 +1634,9 @@ mod tests {
         ] {
             let mut host = Script::default();
             let mut state = State::default();
-            host.results.push_back(ok(
-                json!({"settings":{"layout-page":layout_on, "remote-page":remote_on}}),
-            ));
+            host.results.push_back(ok(configuration(
+                json!({"layout-page":layout_on, "remote-page":remote_on}),
+            )));
             host.results.push_back(ok(json!({})));
             state.configure_pages(&mut host).unwrap();
             let call = &host.sent[1];
@@ -944,21 +1651,21 @@ mod tests {
         let mut host = Script::default();
         let mut state = State::default();
         host.results
-            .push_back(ok(json!({"settings":{"layout-page":false}})));
+            .push_back(ok(configuration(json!({"layout-page":false}))));
         host.results.push_back(ok(json!({})));
         state.configure_pages(&mut host).unwrap();
-        // Within two seconds nothing is asked; then the option, turned on meanwhile, is placed.
-        state.follow_pages(&mut host, 1000);
-        state.follow_pages(&mut host, 1500);
+        let mut unrelated = config_event();
+        unrelated["provider"] = json!("another");
+        assert!(super::handle(&mut host, &mut state, &unrelated).is_none());
         assert_eq!(
             host.sent.len(),
-            3,
-            "one look at the start of page time, none within the next two seconds"
+            2,
+            "unrelated events do not read configuration"
         );
         host.results
-            .push_back(ok(json!({"settings":{"layout-page":true}})));
+            .push_back(ok(configuration(json!({"layout-page":true}))));
         host.results.push_back(ok(json!({})));
-        state.follow_pages(&mut host, 3100);
+        assert!(super::handle(&mut host, &mut state, &config_event()).is_none());
         assert_eq!(host.sent.last().unwrap()["method"], "set");
         assert_eq!(
             host.sent.last().unwrap()["args"]["pages"][0]["placement"],
@@ -966,9 +1673,9 @@ mod tests {
         );
         // Unchanged: read, never set again.
         host.results
-            .push_back(ok(json!({"settings":{"layout-page":true}})));
+            .push_back(ok(configuration(json!({"layout-page":true}))));
         let before = host.sent.len();
-        state.follow_pages(&mut host, 5200);
+        assert!(super::handle(&mut host, &mut state, &config_event()).is_none());
         assert_eq!(host.sent.len(), before + 1);
         assert_eq!(host.sent.last().unwrap()["method"], "get");
     }
@@ -1269,7 +1976,7 @@ mod tests {
             )
             .unwrap();
         host.incoming.push_back(ack(0));
-        assert_eq!(state.finish(&mut host), Err(answer::STOPPED));
+        assert_eq!(state.finish(&mut host), Err(answer::STOPPED.into()));
         host.results.push_back(ok(json!({"claim": 2})));
         state
             .input(
@@ -1299,7 +2006,7 @@ mod tests {
             .unwrap();
         // The old device answers a count that is not the stream's: the end is reported once...
         host.incoming.push_back(ack(0));
-        assert_eq!(state.finish(&mut host), Err(answer::STOPPED));
+        assert_eq!(state.finish(&mut host), Err(answer::STOPPED.into()));
         assert!(
             state.retained.is_none(),
             "...and its stale identity is not kept for a retry"
@@ -1329,7 +2036,7 @@ mod tests {
             .push_back(json!({"type":"event","name":"page"}));
         host.deliveries
             .push_back(json!({"type":"result","id":0,"result":{}}));
-        assert_eq!(state.finish(&mut host), Err(answer::STOPPED));
+        assert_eq!(state.finish(&mut host), Err(answer::STOPPED.into()));
         assert_eq!(
             host.waits, [ACK_MS; 3],
             "each wait is bounded, never the connection's own thirty seconds"
@@ -1726,14 +2433,22 @@ mod multiplex_tests {
         closed: Vec<Handle>,
         receive_error: Option<&'static str>,
         refuse_ticket: Option<u64>,
+        quick_waiting: bool,
+        withhold_quick_replies: bool,
     }
     impl Wire for Concurrent {
         fn receive(&mut self) -> Result<Value, &'static str> {
-            self.wire
+            let result = self
+                .wire
                 .receive()
-                .map_err(|error| self.receive_error.unwrap_or(error))
+                .map_err(|error| self.receive_error.unwrap_or(error))?;
+            if result["type"] == "result" {
+                self.quick_waiting = false;
+            }
+            Ok(result)
         }
         fn send(&mut self, value: Value) -> Result<(), &'static str> {
+            self.quick_waiting = value["timeout_ms"].as_u64() == Some(u64::from(REPLAY_CALL_MS));
             self.wire.send(value)
         }
     }
@@ -1767,7 +2482,12 @@ mod multiplex_tests {
         fn close(&mut self, handle: Handle) {
             self.closed.push(handle);
         }
-        fn poll(&mut self, handles: &[Handle], _: i32) -> Result<Option<Handle>, &'static str> {
+        fn poll(
+            &mut self,
+            handles: &[Handle],
+            timeout_ms: i32,
+        ) -> Result<Option<Handle>, &'static str> {
+            self.wire.waits.push(timeout_ms);
             // The host's rotating readiness cursor may select data ahead of already readable control.
             if self
                 .ready
@@ -1775,7 +2495,11 @@ mod multiplex_tests {
                 .is_some_and(|handle| handles.contains(handle))
             {
                 Ok(self.ready.pop_front())
-            } else if !self.wire.deliveries.is_empty() {
+            } else if !self.wire.deliveries.is_empty()
+                || (self.quick_waiting
+                    && !self.withhold_quick_replies
+                    && !self.wire.results.is_empty())
+            {
                 Ok(Some(0))
             } else if !self.wire.incoming.is_empty() {
                 Ok(handles.first().copied())
@@ -1783,6 +2507,233 @@ mod multiplex_tests {
                 Ok(None)
             }
         }
+    }
+
+    fn ok(value: Value) -> Value {
+        json!({"status":"ok","value":value})
+    }
+
+    fn overload(code: &str) -> Value {
+        json!({"status":"error","code":code,"message":"The request was refused"})
+    }
+
+    #[test]
+    fn replay_recovers_from_broker_overload_without_skipping_discrete_input() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state.receive(&mut host, 7, &json!({"peer":"pc"})).unwrap();
+        let point = |x| json!({"t":"position","x":x,"y":0.5});
+        let press = json!({"t":"button","button":"left","down":true});
+        let key = json!({"t":"key_code","code":42,"down":true});
+        let scroll = json!({"t":"scroll","dx":0,"dy":1});
+        let lines = |events: &[Value]| {
+            events
+                .iter()
+                .flat_map(|event| format!("{event}\n").into_bytes())
+                .collect::<Vec<_>>()
+        };
+        host.streams.insert(
+            7,
+            [
+                lines(&[point(0.1)]),
+                lines(&[
+                    point(0.2),
+                    point(0.3),
+                    press.clone(),
+                    point(0.4),
+                    point(0.5),
+                    key.clone(),
+                    scroll.clone(),
+                    point(0.6),
+                ]),
+                lines(&[point(0.7)]),
+                Vec::new(),
+            ]
+            .into(),
+        );
+        host.ready.extend([7, 7]);
+        host.wire.results.extend([
+            overload("rate-limited"),
+            overload("busy"),
+            ok(json!({"applied":6})),
+            ok(json!({"released":true})),
+        ]);
+        assert!(
+            state.advance(&mut host, 7).is_none(),
+            "receive must remain open after transient overload"
+        );
+        let injects: Vec<_> = host
+            .wire
+            .sent
+            .iter()
+            .filter(|m| m["method"] == "inject")
+            .collect();
+        assert_eq!(injects.len(), 3);
+        assert_eq!(
+            injects[2]["args"]["events"],
+            json!([point(0.3), press, point(0.5), key, scroll, point(0.7)])
+        );
+        assert_eq!(
+            state.advance(&mut host, 7).unwrap()["result"]["status"],
+            "ok"
+        );
+    }
+
+    #[test]
+    fn sustained_broker_overload_ends_replay_and_releases_held_input() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state.receive(&mut host, 7, &json!({"peer":"pc"})).unwrap();
+        host.streams.insert(
+            7,
+            [
+                b"{\"t\":\"button\",\"button\":\"left\",\"down\":true}\n".to_vec(),
+                b"{\"t\":\"scroll\",\"dx\":0,\"dy\":1}\n".to_vec(),
+            ]
+            .into(),
+        );
+        host.wire.results.push_back(ok(json!({"applied":1})));
+        assert!(state.advance(&mut host, 7).is_none());
+        host.wire
+            .results
+            .extend(std::iter::repeat_with(|| overload("busy")).take(5));
+        host.wire.results.push_back(ok(json!({"released":true})));
+        let failed = state.advance(&mut host, 7).unwrap();
+        assert_eq!(failed["result"]["message"], answer::NOT_REPLAYED);
+        let retried: Vec<_> = host
+            .wire
+            .sent
+            .iter()
+            .filter(|call| call["method"] == "inject")
+            .skip(1)
+            .collect();
+        assert_eq!(retried.len(), 5);
+        assert!(host.wire.waits.iter().filter(|&&ms| ms > 0).sum::<i32>() < 655);
+        assert_eq!(
+            host.wire
+                .waits
+                .iter()
+                .filter(|&&ms| ms > 0 && ms != REPLAY_REPLY_MS)
+                .count(),
+            retried.len() - 1,
+        );
+        assert!(
+            retried
+                .iter()
+                .all(|call| call["args"]["events"] == json!([{"t":"scroll","dx":0,"dy":1}]))
+        );
+        assert_eq!(
+            host.wire.sent.last().unwrap()["args"],
+            json!({"owner":"pc","keep":false})
+        );
+        assert_eq!(host.closed, [7]);
+        assert!(state.incoming.is_empty());
+    }
+
+    #[test]
+    fn a_missing_retry_reply_is_not_retried_and_cleanup_does_not_wait_indefinitely() {
+        let mut host = Concurrent {
+            withhold_quick_replies: true,
+            ..Concurrent::default()
+        };
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state.receive(&mut host, 7, &json!({"peer":"pc"})).unwrap();
+        host.streams.insert(
+            7,
+            [b"{\"t\":\"scroll\",\"dx\":0,\"dy\":1}\n".to_vec()].into(),
+        );
+        host.wire.results.push_back(overload("rate-limited"));
+        let reply = state.advance(&mut host, 7).unwrap();
+        let methods: Vec<_> = host
+            .wire
+            .sent
+            .iter()
+            .map(|call| call["method"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            methods,
+            ["get", "inject", "inject", "release"],
+            "an unanswered inject may have run"
+        );
+        assert_eq!(reply["result"]["message"], answer::NOT_REPLAYED);
+        assert!(host.wire.waits.iter().sum::<i32>() < 200);
+        assert_eq!(host.closed, [7]);
+    }
+
+    #[test]
+    fn cancellation_during_backoff_cannot_reapply_input_or_reply_to_a_gone_receive() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state.receive(&mut host, 7, &json!({"peer":"pc"})).unwrap();
+        host.streams.insert(
+            7,
+            [b"{\"t\":\"scroll\",\"dx\":0,\"dy\":1}\n".to_vec()].into(),
+        );
+        host.wire
+            .deliveries
+            .push_back(json!({"type":"cancelled","ticket":7}));
+        host.wire
+            .results
+            .extend([overload("busy"), ok(json!({"released":true}))]);
+        assert!(state.advance(&mut host, 7).is_none());
+        assert_eq!(host.closed, [7]);
+        assert!(state.incoming.is_empty());
+        assert_eq!(
+            host.wire
+                .sent
+                .iter()
+                .filter(|call| call["method"] == "inject")
+                .count(),
+            1
+        );
+        assert_eq!(host.wire.sent.last().unwrap()["method"], "release");
+    }
+
+    #[test]
+    fn a_failed_background_rotation_is_reported_before_reopening_for_the_same_visit() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire.results.push_back(ok(json!({"claim":1})));
+        let moving = json!({"peer":"pc","events":[{"t":"position","x":0.2,"y":0.3}],"at":1000});
+        state.input(&mut host, &moving).unwrap();
+        assert_eq!(
+            state.next(&mut host),
+            Ok(None),
+            "the idle rotation got no ACK"
+        );
+        assert_eq!(state.input(&mut host, &moving), Err(answer::STOPPED.into()));
+        assert_eq!(host.wire.opened, [(true, 1)], "no silent reconnect");
+    }
+
+    #[test]
+    fn a_new_crossing_opens_a_new_copy_even_if_the_old_copy_is_still_open() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .extend([ok(json!({"claim":1})), ok(json!({"claim":2}))]);
+        let begin =
+            json!({"peer":"pc","events":[{"t":"position","x":0.2,"y":0.3}],"at":1000,"begin":true});
+        state.input(&mut host, &begin).unwrap();
+        state.input(&mut host, &begin).unwrap();
+        assert_eq!(host.wire.opened, [(true, 1), (true, 2)]);
+        assert_eq!(
+            host.closed,
+            [1],
+            "do not write the new visit into the old copy"
+        );
     }
 
     #[test]
@@ -2308,12 +3259,19 @@ mod multiplex_tests {
                 receive_error: Some(receive_error),
                 ..Concurrent::default()
             };
-            for value in [json!({"settings":{}}), json!({})] {
+            for value in [
+                json!({"settings":{},"missing_permissions":[],"peers":[]}),
+                json!({}),
+            ] {
                 host.wire
                     .results
                     .push_back(json!({"status":"ok","value":value}));
             }
             assert_eq!(crate::run(&mut host), exit, "{receive_error}");
+            assert_eq!(
+                host.wire.sent.first(),
+                Some(&crate::host::subscribe_config())
+            );
         }
     }
 
