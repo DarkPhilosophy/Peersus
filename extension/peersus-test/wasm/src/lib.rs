@@ -10,11 +10,11 @@ mod page;
 mod probes;
 mod trouble;
 
-use host::Wire;
+use host::{Blocked, Readiness, Wire};
 use serde_json::{Value, json};
 
 /// The setting that shows the buttons that misbehave on purpose.
-const SHOW_TROUBLE: &str = "show_trouble";
+const SHOW_TROUBLE: &str = "show-trouble";
 /// The person's option that also places the page among the application's own pages, and the id of that placement.
 const PAGE_SETTING: &str = "test-page";
 /// The page this extension declares; it lives in its settings.
@@ -36,6 +36,16 @@ enum Asked {
     Probe(usize),
     Notification,
     Pages,
+}
+
+impl Asked {
+    fn permission(self) -> Option<&'static str> {
+        match self {
+            Self::Probe(index) => probes::permission(&probes::PROBES[index]),
+            Self::Notification => Some("notify.show"),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -61,6 +71,7 @@ pub(crate) struct State {
     /// Paired devices as the last answer of `peersus.peers` `list` named them: alias and name.
     peers: Vec<(String, String)>,
     show_trouble: bool,
+    interpreter_test_refused: bool,
     /// The last pointer, size and wheel of the pad, in words, and what the drawing makes of them.
     pointer: String,
     size: String,
@@ -74,6 +85,7 @@ pub(crate) struct State {
     chosen: Option<Option<String>>,
     /// Calls out, by id, and what each is for.
     calls: Vec<(u64, Asked)>,
+    readiness: Readiness,
     next: u64,
     /// Whether the page was last placed among the application's pages; `None` until that is known to have been said.
     placed: Option<bool>,
@@ -116,9 +128,27 @@ impl State {
             "method":method,"args":args,"timeout_ms":timeout_ms})
     }
 
+    fn guarded(
+        &mut self,
+        asked: Asked,
+        service: &str,
+        method: &str,
+        args: Value,
+        timeout_ms: u64,
+    ) -> Vec<Value> {
+        if let Some(permission) = asked
+            .permission()
+            .and_then(|name| self.readiness.missing(None, "host", name))
+        {
+            self.complete(asked, &Blocked::MissingPermission(permission).value());
+            return Vec::new();
+        }
+        vec![self.call(asked, service, method, args, timeout_ms)]
+    }
+
     /// Its settings: read once it starts and each time its page opens, so a changed setting shows.
     fn ask_config(&mut self) -> Value {
-        self.call(Asked::Config, "peersus.config", "get", json!({}), CALL_MS)
+        self.call(Asked::Config, host::CONFIG, "get", json!({}), CALL_MS)
     }
 
     /// The page after `event`, which changes only what this extension keeps.
@@ -198,6 +228,9 @@ impl State {
     /// The calls a delivery leads to, sent before it is answered so that the page that comes back already shows them as
     /// asked: a probe pressed, a notification asked for by its button or a bound key, the settings when the page opens.
     fn calls_for(&mut self, delivery: &Value) -> Vec<Value> {
+        if host::config_changed(delivery) {
+            return vec![self.ask_config()];
+        }
         if delivery["type"] != "call" {
             return Vec::new();
         }
@@ -211,11 +244,11 @@ impl State {
         if delivery["method"] == "event" && event["t"] == "submit" && event["id"] == "status-label"
         {
             self.status_input = event["text"].as_str().unwrap_or_default().trim().to_owned();
-            return vec![self.define_status()];
+            return self.define_status();
         }
         if delivery["method"] == "event" && event["t"] == "press" && event["id"] == "reset-status" {
             self.status_input = DEFAULT_STATUS_LABEL.into();
-            return vec![self.define_status()];
+            return self.define_status();
         }
         if let Some(index) = probes::pressed(kind) {
             let probe = &probes::PROBES[index];
@@ -229,13 +262,13 @@ impl State {
             } else {
                 CALL_MS
             };
-            return vec![self.call(
+            return self.guarded(
                 Asked::Probe(index),
                 probe.service,
                 probe.method,
                 args,
                 timeout,
-            )];
+            );
         }
         let args = match kind {
             "notify" => json!({"text":"The Test extension says hello."}),
@@ -249,22 +282,22 @@ impl State {
         };
         self.asked = self.asked.saturating_add(1);
         self.notifying = self.notifying.saturating_add(1);
-        vec![self.call(
+        self.guarded(
             Asked::Notification,
             "peersus.notify",
             "show",
             args,
             NOTIFY_MS,
-        )]
+        )
     }
 
-    fn define_status(&mut self) -> Value {
+    fn define_status(&mut self) -> Vec<Value> {
         let index = probes::PROBES
             .iter()
             .position(|probe| probe.id == "define")
             .expect("the test extension declares its define probe");
         let probe = &probes::PROBES[index];
-        self.call(
+        self.guarded(
             Asked::Probe(index),
             probe.service,
             probe.method,
@@ -282,13 +315,25 @@ impl State {
         let id = delivery["id"].as_u64()?;
         let position = self.calls.iter().position(|(call, _)| *call == id)?;
         let (_, asked) = self.calls.remove(position);
-        let result = &delivery["result"];
+        self.complete(asked, &delivery["result"])
+    }
+
+    fn complete(&mut self, asked: Asked, result: &Value) -> Option<Value> {
+        let blocked = Blocked::read(result);
+        if let Some(Blocked::MissingPermission(permission)) = &blocked
+            && asked
+                .permission()
+                .is_some_and(|name| permission.is("host", name))
+        {
+            self.readiness.deny(None, permission.clone());
+        }
         match asked {
             Asked::Config => {
                 if let Some(on) = result["value"]["settings"][SHOW_TROUBLE].as_bool() {
                     self.show_trouble = on;
                 }
                 if result["status"] == "ok" {
+                    let _ = self.readiness.update(&result["value"]);
                     return self.place(&result["value"]);
                 }
             }
@@ -318,6 +363,9 @@ impl State {
                 {
                     self.show_trouble = on;
                 }
+                if probe == "config" && result["status"] == "ok" {
+                    let _ = self.readiness.update(&result["value"]);
+                }
                 if result["status"] == "ok" {
                     match probe {
                         "define" => {
@@ -330,30 +378,41 @@ impl State {
                         _ => {}
                     }
                 }
-                self.probed[index] = Some(match probe {
-                    "own" => probes::own_summary(result),
-                    probes::LOCATION => probes::location_summary(result),
-                    _ => probes::summary(result),
+                self.probed[index] = Some(if let Some(blocked) = &blocked {
+                    probes::blocked_summary(probes::PROBES[index].label, blocked)
+                } else {
+                    match probe {
+                        "own" => probes::own_summary(result),
+                        probes::LOCATION => probes::location_summary(result),
+                        _ => probes::summary(result),
+                    }
                 });
             }
             Asked::Notification => {
                 self.notifying = self.notifying.saturating_sub(1);
-                self.told = match (
-                    result["status"].as_str(),
-                    result["value"]["answer"].as_str(),
-                ) {
-                    (Some("ok"), Some("pressed")) => {
-                        format!(
-                            "pressed {}",
-                            probes::cut(result["value"]["button"].as_str().unwrap_or_default(), 64)
-                        )
+                self.told = if let Some(blocked) = &blocked {
+                    probes::blocked_summary("Notification", blocked)
+                } else {
+                    match (
+                        result["status"].as_str(),
+                        result["value"]["answer"].as_str(),
+                    ) {
+                        (Some("ok"), Some("pressed")) => {
+                            format!(
+                                "pressed {}",
+                                probes::cut(
+                                    result["value"]["button"].as_str().unwrap_or_default(),
+                                    64
+                                )
+                            )
+                        }
+                        (Some("ok"), Some("dismissed")) => "closed".to_owned(),
+                        (Some("ok"), _) => "shown".to_owned(),
+                        _ => format!(
+                            "refused ({})",
+                            probes::cut(result["code"].as_str().unwrap_or_default(), 32)
+                        ),
                     }
-                    (Some("ok"), Some("dismissed")) => "closed".to_owned(),
-                    (Some("ok"), _) => "shown".to_owned(),
-                    _ => format!(
-                        "refused ({})",
-                        probes::cut(result["code"].as_str().unwrap_or_default(), 32)
-                    ),
                 };
             }
         }
@@ -396,6 +455,11 @@ fn handle(state: &mut State, delivery: &Value) -> Option<Value> {
             json!({"status":"ok","value":null})
         }
         // A bound key asked for a notification, which `calls_for` already sent.
+        Some("notify" | "question")
+            if let Some(permission) = state.readiness.missing(None, "host", "notify.show") =>
+        {
+            Blocked::MissingPermission(permission).value()
+        }
         Some("notify" | "question") => json!({"status":"ok","value":null}),
         _ => json!({"status":"error","code":"failed","message":"Nothing here answers that"}),
     };
@@ -420,6 +484,8 @@ fn step<H: Wire>(host: &mut H, state: &mut State, delivery: &Value) -> Result<()
         let ticket = delivery["ticket"].as_u64().unwrap_or(0);
         match trouble::make(host, trouble, ticket) {
             trouble::After::Answer => {}
+            #[cfg(not(target_family = "wasm"))]
+            trouble::After::RefuseInterpreterTest => state.interpreter_test_refused = true,
             trouble::After::Skip => return Ok(()),
             trouble::After::Leave => return Err(End::Leave),
         }
@@ -438,7 +504,7 @@ fn step<H: Wire>(host: &mut H, state: &mut State, delivery: &Value) -> Result<()
 fn run<H: Wire>(host: &mut H) -> i32 {
     let mut state = State::new();
     let config = state.ask_config();
-    if host.send(config).is_err() {
+    if host.send(host::subscribe_config()).is_err() || host.send(config).is_err() {
         return 0;
     }
     loop {

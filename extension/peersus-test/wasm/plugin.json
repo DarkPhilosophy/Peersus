@@ -28,7 +28,7 @@
       "methods": [
         "get"
       ],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -142,6 +142,65 @@
     }
   ],
   "contributions": {
+    "actions": [
+      {
+        "id": "count-key",
+        "label": "Count a key press",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "chord": "ctrl+alt+k",
+        "help": "Adds one to the count of key presses on the Test page."
+      },
+      {
+        "id": "count-long",
+        "label": "Count, with a long description",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "help": "Adds one to the count on the Test page, like the first, and carries a description long enough to show how a long one scrolls inside its own short box on the Binds page instead of making its row tall; at most 280 characters are accepted."
+      },
+      {
+        "id": "count-plain",
+        "label": "Count, with no description",
+        "target": {
+          "service": "test.page",
+          "method": "bump"
+        },
+        "needs_device": false,
+        "destructive": false
+      },
+      {
+        "id": "notify-inside",
+        "label": "Say something in the window",
+        "target": {
+          "service": "test.page",
+          "method": "notify"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "chord": "ctrl+alt+n",
+        "help": "Shows a notification inside the window only, as the page's Say something does. Needs notify.show; a missing grant is shown without sending a notification."
+      },
+      {
+        "id": "notify-outside",
+        "label": "Ask a question outside the window",
+        "target": {
+          "service": "test.page",
+          "method": "question"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "chord": "ctrl+alt+q",
+        "help": "Shows a question with two answers that can reach outside the window, as the page's Ask a question does. Needs notify.show; a missing grant is shown without sending a notification."
+      }
+    ],
     "pages": [
       {
         "id": "test",
@@ -153,55 +212,6 @@
           "service": "test.page",
           "method": "event"
         }
-      }
-    ],
-    "actions": [
-      {
-        "id": "count-key",
-        "label": "Count a key press",
-        "help": "Adds one to the count of key presses on the Test page.",
-        "target": {
-          "service": "test.page",
-          "method": "bump"
-        },
-        "chord": "ctrl+alt+k"
-      },
-      {
-        "id": "count-long",
-        "label": "Count, with a long description",
-        "help": "Adds one to the count on the Test page, like the first, and carries a description long enough to show how a long one scrolls inside its own short box on the Binds page instead of making its row tall; at most 280 characters are accepted.",
-        "target": {
-          "service": "test.page",
-          "method": "bump"
-        }
-      },
-      {
-        "id": "count-plain",
-        "label": "Count, with no description",
-        "target": {
-          "service": "test.page",
-          "method": "bump"
-        }
-      },
-      {
-        "id": "notify-inside",
-        "label": "Say something in the window",
-        "help": "Shows a notification inside the window only, as the page's Say something does. Needs the notification permission.",
-        "target": {
-          "service": "test.page",
-          "method": "notify"
-        },
-        "chord": "ctrl+alt+n"
-      },
-      {
-        "id": "notify-outside",
-        "label": "Ask a question outside the window",
-        "help": "Shows a question with two answers that also reaches outside the window (the system's notifications), as the page's Ask a question does. Needs the notification permission.",
-        "target": {
-          "service": "test.page",
-          "method": "question"
-        },
-        "chord": "ctrl+alt+q"
       }
     ],
     "settings": [
@@ -216,9 +226,9 @@
         }
       },
       {
-        "id": "show_trouble",
+        "id": "show-trouble",
         "label": "Show the misbehaving buttons",
-        "help": "Show the buttons that make Test misbehave on purpose (flood, nonsense, never answer, spin, fill memory, leave), each with what the application should do.",
+        "help": "Show buttons that test how the application handles a misbehaving extension. Spin and Fill memory run only in WebAssembly.",
         "scope": "global",
         "kind": {
           "type": "toggle",

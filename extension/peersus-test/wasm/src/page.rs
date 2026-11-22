@@ -381,6 +381,12 @@ impl State {
         for (_, id, label, expect) in TROUBLES {
             children.push(row(vec![button_node(id, label), text(*expect, "muted")]));
         }
+        if self.interpreter_test_refused {
+            children.push(text(
+                "Test did not run that case: the native library and process have no WebAssembly interpreter fuel or memory limits.",
+                "body",
+            ));
+        }
         children.push(text(
             format!(
                 "Flooded {} times, {} operations each",
@@ -391,8 +397,8 @@ impl State {
         ));
         section(
             "Misbehave on purpose",
-            "Whatever this extension does here, only it may suffer for it: the window, the connections and the other \
-             extensions go on.",
+            "These cases test how the application isolates this extension. Spin and Fill memory test limits of the \
+             WebAssembly interpreter only.",
             children,
         )
     }

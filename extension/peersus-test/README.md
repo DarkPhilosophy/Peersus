@@ -8,9 +8,10 @@ Open Test in the extension's settings. Turn on **Add Test to page** to show the 
 - **What the application answers.** In-place probes cover settings, agreement and installation source, platform and language, peers and plugins, and one status (`peersus.status`). Type and submit any allowed status label (default `Testing`) to define or reword it, show or hide it, reset its label, and read its on/off state on this page. An active status appears on paired devices' Devices pages. Interactive buttons that modify another page or the Binds screen are intentionally absent.
 - **Device location.** Press **Check device location** to ask the application once for this device's current position. It needs `location.read` and a working system location service. Test validates the answer, then shows whether a position was received and its accuracy (if supplied), never the coordinates. It does not save, log, or send the position. The operating system decides how to find it and may use its own online location service.
 - **Notifications.** "Say something" stays inside the app; "Ask a question" is in the app when it is foreground, or shown by the platform when the app is backgrounded and that platform permits it. Both need `notify.show` and the page shows the answer.
+- **Permission outcomes.** A probe whose local grant is missing names it without calling the guarded service. Checked `missing-permission` and `not-accepted` answers are identified by name, not reported as a failed probe. A grant change updates readiness but does not rerun any probe.
 - **Key bindings.** Five actions a key can run: three only add to a count on the page, one with a long description and one with none, to show both on the Binds page; two ask for the two notifications. Three suggest a chord (`ctrl+alt+k`, `ctrl+alt+n`, `ctrl+alt+q`), bound when the extension is newly installed if the chord is free.
 - **The limits.** "Too large" answers with a page nested far deeper than the application draws: it refuses that tree and keeps showing the page as it was.
-- **Misbehaving on purpose**, behind the setting "Show the misbehaving buttons" (off by default). Buttons flood the application with operations or with events, answer nonsense, never answer one call, spin without end, fill its memory, or leave; beside each, what the application should do. Whatever it does, only this extension may suffer for it: the window stays responsive, its connection to the other devices stays up, and the other extensions keep running.
+- **Misbehaving on purpose**, behind the setting "Show the misbehaving buttons" (off by default). These buttons test how the application handles floods, malformed messages, missing replies, and the extension leaving. **Spin** exhausts the WebAssembly interpreter's per-turn fuel; **Fill memory** tests its linear-memory limit. The native library and process have neither interpreter limit, so both buttons refuse to run those cases there and the page says why.
 
 ## Execution format
 
@@ -29,7 +30,7 @@ cargo build --locked --release --features native
 
 `submission.toml` is the full recipe: the WASM build for four platforms, the native library and the process, each validated on its own.
 
-The tests cover the page (every element kind, tone and colour, and that the fullest page fits in one message), each probe's exact call and how its answer is shown, the setting that shows the misbehaving buttons, the pad, wheel, clock and chooser, notifications and key presses, the loop's answers, and the manifest against the code. They do not prove the application survives the trouble: that is the stress run on the real devices, with the application watched for staying responsive and connected throughout.
+The tests cover the page (including its size limit), service probes, settings, input, notifications, key presses, and the guest loop. Native-target tests confirm that both interpreter-only cases return a refusal on the page and the guest still answers the next press. The tests do not prove that the application stays responsive and connected during deliberate WebAssembly stress; that requires running those cases on the real devices.
 
 ## License
 

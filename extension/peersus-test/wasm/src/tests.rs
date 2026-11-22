@@ -109,6 +109,57 @@ fn each_probe_sends_exactly_its_call_and_the_page_shows_the_answer() {
     assert!(state.calls.is_empty());
 }
 
+#[test]
+fn permission_readiness_blocks_only_that_probe_and_never_repeats_it_on_change() {
+    let mut state = State::new();
+    let permission = json!({"owner":"host","name":"location.read"});
+    let config = |missing: Value| json!({"status":"ok","value":{"plugin":"test","settings":{},"missing_permissions":missing,"peers":[]}});
+    let initial = state.ask_config();
+    answer_all(&mut state, &[initial], &config(json!([permission])));
+    assert!(state.calls_for(&press("probe-location")).is_empty());
+    let page = state.page().to_string();
+    assert!(
+        page.contains("Check device location: missing permission location.read on this device.")
+    );
+    assert!(page.contains("missing-permission"));
+    assert_eq!(
+        state.calls_for(&press("probe-platform"))[0]["method"],
+        "inspect"
+    );
+    assert!(
+        state
+            .calls_for(&call(json!({"t":"tick","id":"clock"})))
+            .is_empty()
+    );
+
+    let changed = state.calls_for(&json!({
+        "type":"event","provider":"host","service":"peersus.config","version":1,"event":"changed","data":{}
+    }));
+    assert_eq!(changed.len(), 1);
+    assert_eq!(changed[0]["method"], "get");
+    assert!(
+        state
+            .told(&json!({"type":"result","id":changed[0]["id"],"result":config(json!([]))}))
+            .is_none()
+    );
+    assert_eq!(
+        state.calls_for(&press("probe-location"))[0]["method"],
+        "current"
+    );
+}
+
+#[test]
+fn checked_probe_refusals_are_named_states_instead_of_malformed_answers() {
+    let page = location_probe_page(json!({
+        "status":"missing-permission","permission":{"owner":"host","name":"location.read"}
+    }));
+    assert!(page.contains("location.read on this device") && page.contains("missing-permission"));
+    assert!(!page.contains("Malformed location answer."));
+    let page = location_probe_page(json!({"status":"not-accepted"}));
+    assert!(page.contains("not-accepted"));
+    assert!(!page.contains("Malformed location answer."));
+}
+
 fn location_probe_page(result: Value) -> String {
     let mut host = Script::default();
     let mut state = State::new();
@@ -326,7 +377,14 @@ fn the_misbehaving_buttons_follow_the_setting() {
         !state.page().to_string().contains(r#""id":"spin""#),
         "hidden until the setting says"
     );
-    state.told(&json!({"type":"result","id":start["id"],"result":{"status":"ok","value":{"settings":{"show_trouble":true}}}}));
+    answer_all(
+        &mut state,
+        &[start],
+        &json!({"status":"ok","value":{"settings":{"show_trouble":true}}}),
+    );
+    assert!(!state.page().to_string().contains(r#""id":"spin""#));
+    let start = state.ask_config();
+    state.told(&json!({"type":"result","id":start["id"],"result":{"status":"ok","value":{"settings":{"show-trouble":true}}}}));
     let page = state.page().to_string();
     for (_, id, _, expect) in trouble::TROUBLES {
         assert!(
@@ -340,7 +398,7 @@ fn the_misbehaving_buttons_follow_the_setting() {
     answer_all(
         &mut state,
         &calls,
-        &json!({"status":"ok","value":{"settings":{"show_trouble":false}}}),
+        &json!({"status":"ok","value":{"settings":{"show-trouble":false}}}),
     );
     assert!(!state.page().to_string().contains(r#""id":"spin""#));
 }
@@ -442,7 +500,16 @@ fn a_press_or_a_bound_key_asks_for_a_notification_and_the_page_says_what_was_ans
 #[test]
 fn a_bound_action_counts_and_anything_unknown_is_refused() {
     let mut state = State::new();
-    let bump = json!({"type":"call","ticket":9,"method":"bump","args":null});
+    let manifest: Value = serde_json::from_str(include_str!("../plugin.json")).unwrap();
+    // Peersus stores the action ID in the binding, not the exported method.
+    let bound = manifest["contributions"]["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|action| action["id"] == "count-key")
+        .expect("the existing count-key binding still resolves");
+    let bump = json!({"type":"call","ticket":9,"service":bound["target"]["service"],
+        "method":bound["target"]["method"],"args":null});
     assert_eq!(handle(&mut state, &bump).unwrap()["result"]["status"], "ok");
     handle(&mut state, &bump);
     assert!(state.page().to_string().contains("Run by a key 2 times"));
@@ -476,6 +543,31 @@ fn the_loop_answers_what_it_should_and_leaves_only_on_purpose() {
         "reply",
         "answered after the flood"
     );
+}
+
+#[cfg(not(target_family = "wasm"))]
+#[test]
+fn the_native_guest_refuses_interpreter_tests_in_the_page_and_keeps_answering() {
+    for id in ["spin", "fill"] {
+        let mut host = Script::default();
+        let mut state = State::new();
+        state.show_trouble = true;
+        step(&mut host, &mut state, &press(id)).unwrap();
+        assert_eq!(host.sent.len(), 1, "{id} returned a single page");
+        assert_eq!(host.sent[0]["op"], "reply");
+        assert_eq!(host.sent[0]["ticket"], 3);
+        assert_eq!(host.sent[0]["result"]["status"], "ok");
+        assert!(
+            host.sent[0]["result"]["value"]
+                .to_string()
+                .contains("Test did not run that case: the native library and process have no WebAssembly interpreter fuel or memory limits.")
+        );
+
+        step(&mut host, &mut state, &press("count")).unwrap();
+        assert_eq!(state.pressed, 1);
+        assert_eq!(host.sent.len(), 2);
+        assert_eq!(host.sent[1]["result"]["status"], "ok");
+    }
 }
 
 #[test]

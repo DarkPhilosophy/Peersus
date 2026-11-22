@@ -42,14 +42,14 @@ pub const PROBES: &[Probe] = &[
     Probe {
         id: "platform",
         label: "System",
-        expect: "The operating system and processor, with platform.read; denied without it.",
+        expect: "The operating system and processor, with platform.read.",
         service: "peersus.platform",
         method: "inspect",
     },
     Probe {
         id: "language",
         label: "Language",
-        expect: "The person's language as a tag (en, ro), with language.read; denied without it.",
+        expect: "The person's language as a tag (en, ro), with language.read.",
         service: "peersus.language",
         method: "get",
     },
@@ -63,35 +63,35 @@ pub const PROBES: &[Probe] = &[
     Probe {
         id: "peers",
         label: "Paired devices",
-        expect: "Only the devices it may see (peers.watch per device), with their pictures below; denied with none.",
+        expect: "Only the devices it may see (peers.watch per device), with their pictures below.",
         service: "peersus.peers",
         method: "list",
     },
     Probe {
         id: "plugins",
         label: "Other extensions",
-        expect: "Ids and whether each runs, with plugins.watch; denied without it.",
+        expect: "Ids and whether each runs, with plugins.watch.",
         service: "peersus.plugins",
         method: "list",
     },
     Probe {
         id: "define",
         label: "Make a status",
-        expect: "Defines or changes this device's status using the label above; denied without status.define.",
+        expect: "Defines or changes this device's status using the label above, with status.define.",
         service: "peersus.status",
         method: "define",
     },
     Probe {
         id: "set",
         label: "Show the status",
-        expect: "Paired devices show this device's current status on their Devices page; denied without status.set.",
+        expect: "Paired devices show this device's current status on their Devices page, with status.set.",
         service: "peersus.status",
         method: "set",
     },
     Probe {
         id: "clear",
         label: "Hide the status",
-        expect: "This device's status is no longer shown on paired devices; denied without status.set.",
+        expect: "This device's status is no longer shown on paired devices, with status.set.",
         service: "peersus.status",
         method: "clear",
     },
@@ -103,6 +103,29 @@ pub const PROBES: &[Probe] = &[
         method: "own",
     },
 ];
+
+pub fn permission(probe: &Probe) -> Option<&'static str> {
+    match probe.id {
+        "platform" => Some("platform.read"),
+        "language" => Some("language.read"),
+        LOCATION => Some("location.read"),
+        "peers" => Some("peers.watch"),
+        "plugins" => Some("plugins.watch"),
+        "define" => Some("status.define"),
+        "set" | "clear" => Some("status.set"),
+        _ => None,
+    }
+}
+
+pub fn blocked_summary(operation: &str, blocked: &crate::host::Blocked) -> String {
+    match blocked {
+        crate::host::Blocked::MissingPermission(permission) => format!(
+            "{operation}: missing permission {} on this device. (missing-permission)",
+            permission.name
+        ),
+        crate::host::Blocked::NotAccepted => format!("{operation}: not accepted. (not-accepted)"),
+    }
+}
 
 /// The id of a probe's button on the page.
 pub fn button(probe: &Probe) -> String {
