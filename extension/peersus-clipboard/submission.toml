@@ -10,7 +10,7 @@ build = [
 test = [
   ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
   # Its translations carry every word of its manifest: one changed there and not in a file would stay English, unsaid.
-  ["cargo", "run", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "-p", "xtask", "--", "check-manifest", "--complete-translations", "{source}/wasm"],
+  ["cargo", "run", "--manifest-path", "{sdk}/Cargo.toml", "--locked", "-p", "xtask", "--target-dir", "{sdk}/target", "--", "check-manifest", "--complete-translations", "{source}/wasm"],
 ]
 package = [
   ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "clipboard"],

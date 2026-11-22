@@ -39,7 +39,7 @@
       "methods": [
         "get"
       ],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -117,7 +117,7 @@
       {
         "id": "automatic",
         "label": "Automatically synchronize clipboard text",
-        "help": "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded.",
+        "help": "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt.",
         "scope": "global",
         "kind": {
           "type": "toggle",

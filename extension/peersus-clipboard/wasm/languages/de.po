@@ -22,8 +22,8 @@ msgstr "Erfordert den automatischen Abgleich und für dieses Gerät die Berechti
 msgid "Send"
 msgstr "Senden"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Hier und pro Gerät einschalten. Neue Kopien werden nur gesendet, solange dieses Gerät die Zwischenablage lesen kann; vertrauliche Inhalte sind ausgenommen."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Hier und pro Gerät einschalten. Neue Kopien werden nur gesendet, solange dieses Gerät die Zwischenablage lesen kann; vertrauliche Inhalte sind ausgenommen. Eine Ablehnung beendet diesen Versuch."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Teilen von Text aus der Zwischenablage mit ausdrücklichen Berechtigungen und optionaler automatischer Synchronisierung."

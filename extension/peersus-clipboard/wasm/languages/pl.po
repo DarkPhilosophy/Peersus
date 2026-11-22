@@ -22,8 +22,8 @@ msgstr "Wymaga automatycznej synchronizacji oraz, dla tego urządzenia, uprawnie
 msgid "Send"
 msgstr "Wyślij"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Włącz tutaj i dla każdego urządzenia. Nowe kopie są wysyłane tylko wtedy, gdy to urządzenie może odczytać schowek, a treści poufne są pomijane."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Włącz tutaj i dla każdego urządzenia. Nowe kopie są wysyłane tylko wtedy, gdy to urządzenie może odczytać schowek, a treści poufne są pomijane. Odmowa kończy tę próbę."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Udostępnianie tekstu ze schowka z wyraźnymi uprawnieniami i opcjonalną automatyczną synchronizacją."

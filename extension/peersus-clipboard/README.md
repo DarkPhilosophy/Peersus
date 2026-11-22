@@ -6,6 +6,8 @@ Explicit text sharing and permission-gated clipboard synchronization between pai
 
 The extension never touches the system clipboard itself. It asks the application (`peersus.clipboard`), which reads and replaces this device's clipboard only while the person allows it, a permission of the application separate from this extension's `clipboard.use`. The paired devices it may reach come from `peersus.peers`, its settings from `peersus.config`.
 
+A missing local grant is returned by name; a paired device's refusal is only **not accepted**, whether it arrives before the stream or in its acknowledgement. The same copy is never retried. A refused reset or read pauses automatic synchronization without backoff. A relevant grant or consent change can establish a fresh baseline, not send text from before the change. A transient reset failure still uses a bounded backoff. Read and write grants are independent.
+
 - Linux: the application's clipboard owner needs a working X11 or Wayland session; compositor support affects background observation.
 - macOS: the application's pasteboard adapter. An X server does not isolate it from the real pasteboard.
 - Android: the application's own adapter (foreground reading, the share sheet, and the optional privileged helper of the community build).
@@ -15,11 +17,11 @@ Build requirements are a stable Rust toolchain with the `wasm32-unknown-unknown`
 
 ## Execution format
 
-The **WASM guest is the official build** of this extension and is packaged for Linux, Android, macOS and Windows; the store requires the first three. Why WASM: one module, byte-identical on every platform, runs in an isolated interpreter that has no files, network, processes or OS calls of its own, only the application's brokered services the user granted, with bounded memory and work; a crash or hang ends only its worker. A native library (`.so`, second tier, not recommended) is only crash-isolated and runs with the application user's OS privileges; a process binary (third tier, not recommended) is an arbitrary program for which the application guarantees nothing beyond starting and stopping it.
+The **WASM guest is the official build** of this extension and is packaged for Linux, Android, macOS and Windows; the store requires the first three. The same module ships on every platform. It runs in a separate worker under an interpreter that bounds work (fuel) and memory, handles guest traps, and exposes only the application's brokered services. The desktop worker is not itself an OS sandbox.
 
-The same guest source also builds as a native library (`cargo build --release --features native` in `wasm/`, packaged with `--native-library libpeersus_clipboard_wasm.so` as `clipboard-linux-native_library.tar.gz`) and, linked into the native host, as a process (`clipboard-linux-process.tar.gz`); every submission builds and validates both. They speak the identical protocol through the native host's function table instead of WebAssembly imports, so behaviour is the same; only the isolation is weaker. The store installs the WASM build only: the other two travel with the signed release for a person to install by hand, with limited support.
+The same guest source also builds as a Linux native library (`cargo build --release --features native` in `wasm/`, packaged as `clipboard-linux-native_library.tar.gz`) and, linked into the native host, as a Linux executable (`clipboard-linux-process.tar.gz`). Both use the same clipboard logic and brokered control and data protocol through the native function table. Broker permissions and I/O bounds still apply, but neither gets the interpreter's fuel or memory limits, guest-memory checks, or trap handling. The `.so` runs in a separate helper for crash isolation; the executable is supervised as a process. Both run with the application user's OS privileges. These optional formats are not recommended and are for manual installation only; the store installs only WASM.
 
-On macOS and Windows, the host uses periodic clipboard snapshots for automatic synchronization instead of native copy notifications. A copy replaced before the next snapshot can be missed. The Windows package is the same module as on the other platforms and the application's Windows path compiles; it has not been run on a Windows device.
+The macOS and Windows host adapters use periodic clipboard snapshots for automatic synchronization instead of native copy notifications. A copy replaced before the next snapshot can be missed.
 
 ## Build and test
 
@@ -32,7 +34,9 @@ cargo test --locked
 
 The guest's unit tests drive its protocol with scripted host answers: framing, bounds, cancellation, permission changes, automatic synchronization and delivery confirmation, without a clipboard.
 
-The application carries the opt-in end-to-end test of this guest: two real owners on private virtual X displays pair and keep their clipboards in step through it, both ways (`crates/peersus-app/tests/desktop_clipboard_wasm.rs`). It needs **Xvfb**, **xclip**, and the trusted host SDK checkout containing `crates/peersus-app`. Start in this submission's `extension/peersus-clipboard/wasm/` directory (or the `wasm/` directory of a local copy). Set `sdk` to the SDK checkout's absolute path:
+A Linux smoke test verified startup and a brokered share refusal in all three formats; it did not exercise clipboard synchronization. The Android, macOS and Windows archives were validated as packages without running the guest on those platforms in that check. The Windows x64 host was also type-checked.
+
+The application carries the opt-in end-to-end test of this guest: two real owners on private virtual X displays pair and keep their clipboards in step through it, both ways (`crates/peersus-app/tests/desktop_clipboard_wasm.rs`). **It runs only on Linux**: the test is compiled out on every other system, where the command below passes with zero tests and verifies nothing. It needs **Xvfb**, **xclip**, and the trusted host SDK checkout containing `crates/peersus-app`. Start in this submission's `extension/peersus-clipboard/wasm/` directory (or the `wasm/` directory of a local copy). Set `sdk` to the SDK checkout's absolute path:
 
 ```sh
 sdk=/absolute/path/to/peersus-sdk

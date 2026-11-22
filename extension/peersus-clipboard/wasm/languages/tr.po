@@ -22,8 +22,8 @@ msgstr "Bu cihaz için otomatik eşitleme ile cihazı görme izni, pano izni ve 
 msgid "Send"
 msgstr "Gönder"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Burada ve her cihaz için açın. Yeni kopyalar yalnızca bu cihaz panoyu okuyabildiği sürece gönderilir ve hassas içerik hariç tutulur."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Burada ve her cihaz için açın. Yeni kopyalar yalnızca bu cihaz panoyu okuyabildiği sürece gönderilir ve hassas içerik hariç tutulur. Bir ret, o denemeyi durdurur."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Açık izinler ve isteğe bağlı otomatik eşitleme ile pano metni paylaşımı."

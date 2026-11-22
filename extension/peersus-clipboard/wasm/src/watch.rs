@@ -5,10 +5,10 @@
 //!
 //! There is no clock, so nothing is polled while the platform observes. The application's change notice wakes this, and
 //! a notice that arrives while an earlier one is being handled is deferred, or the guest stops if it cannot keep it.
-//! Only a failed baseline, which stops the platform observing, is retried after a bounded wait (`Retry`).
-use crate::actions::Session;
-use crate::automatic::{Automatic, Eligibility, Epoch};
-use crate::host::{Data, Wire};
+//! Only a genuine failure taking a baseline is retried after a bounded wait (`Retry`).
+use crate::actions::{READ, Refusal, Session, WATCH};
+use crate::automatic::{Automatic, Eligibility, Epoch, Paused, Reading};
+use crate::host::{Blocked, Data, Permission, Wire};
 use serde_json::Value;
 
 /// Ticket zero: the hub raises its counter BEFORE it uses it (`self.ticket = self.ticket.checked_add(1)`, then
@@ -26,25 +26,63 @@ pub enum Pass {
     Stop,
 }
 
+fn observation_block<H: Wire + Data>(session: &Session<'_, H>) -> Option<Permission> {
+    session
+        .readiness
+        .missing(None, "host", READ)
+        .or_else(|| session.readiness.missing(None, "host", WATCH))
+}
 /// Look at the configuration and, when it changed what is allowed, start over. Returns whether the clipboard is to be read
 /// now. That follows consent and not reachability, so observation survives every consenting device being offline; whether
 /// anything is SENT is decided later, from the devices reachable at that moment.
-fn arm<H: Wire + Data>(session: &mut Session<'_, H>, state: &mut Automatic) -> Option<bool> {
-    let config = session.configuration()?;
+fn arm<H: Wire + Data>(
+    session: &mut Session<'_, H>,
+    state: &mut Automatic,
+    config_signal: bool,
+) -> Option<bool> {
+    let (config, refreshed) = session.configuration()?;
     let now = Eligibility::of(&config);
+    if let Some(paused) = &state.paused {
+        let granted = refreshed
+            && matches!(paused, Paused::Checked(Blocked::MissingPermission(permission))
+                if session.readiness.missing(None, &permission.owner, &permission.name).is_none());
+        if !config_signal || !(granted || state.consent_changed(&now)) {
+            return Some(false);
+        }
+        state.paused = None;
+    }
+    if let Some(permission) = observation_block(session) {
+        state.pause(Paused::Checked(Blocked::MissingPermission(permission)));
+        return Some(false);
+    }
     match state.epoch(&now) {
         // A new baseline: ask the platform to forget earlier copies, and only if that worked is observation allowed. The
         // reset also ends the platform's observing, and a change notice can only come while somebody observes, so the same
         // pass reads next: that read re-arms the platform and, being the first after the reset, is the baseline and never
         // a copy. Stopping here would leave the guest waiting for a notice that nothing could cause any more.
         Epoch::Rebaseline => {
-            let done = session.reset();
-            state.baseline_done(done);
+            match session.reset() {
+                Ok(()) => state.baseline_done(true),
+                Err(error) => {
+                    state.baseline_done(false);
+                    if let Some(paused) = paused_after(session, error) {
+                        state.pause(paused);
+                    }
+                }
+            }
             Some(state.can_observe())
         }
         // A reachability change forgets snapshot continuity but still suppresses a received write. Read in this pass:
         // it may have been a real local copy that woke the guest.
-        Epoch::Forget | Epoch::Same => Some(state.can_observe()),
+        Epoch::Forget | Epoch::Same => Some(!config_signal && state.can_observe()),
+    }
+}
+
+fn paused_after<H: Wire + Data>(session: &Session<'_, H>, error: Refusal) -> Option<Paused> {
+    match error {
+        Refusal::Blocked(blocked) => Some(Paused::Checked(blocked)),
+        Refusal::Other(_) if session.denied() => Some(Paused::LegacyDenied),
+        Refusal::Other(_) => None,
     }
 }
 
@@ -55,8 +93,30 @@ pub fn on_change<H: Wire + Data>(
     next: &mut u64,
     backlog: &mut std::collections::VecDeque<Value>,
 ) -> Pass {
+    pass(host, state, next, backlog, false)
+}
+
+/// Configuration can enable a new baseline, but never sends an old copy or repeats a refused attempt.
+pub fn on_config_changed<H: Wire + Data>(
+    host: &mut H,
+    state: &mut Automatic,
+    next: &mut u64,
+    backlog: &mut std::collections::VecDeque<Value>,
+) -> Pass {
+    pass(host, state, next, backlog, true)
+}
+
+fn pass<H: Wire + Data>(
+    host: &mut H,
+    state: &mut Automatic,
+    next: &mut u64,
+    backlog: &mut std::collections::VecDeque<Value>,
+    config_signal: bool,
+) -> Pass {
     let mut session = Session::new(host, NOT_A_CALL, *next);
-    let outcome = send_new_copy(&mut session, state);
+    session.readiness = std::mem::take(&mut state.readiness);
+    let outcome = send_new_copy(&mut session, state, config_signal);
+    state.readiness = std::mem::take(&mut session.readiness);
     *next = session.next();
     if session.stopped {
         return Pass::Stop;
@@ -65,25 +125,40 @@ pub fn on_change<H: Wire + Data>(
     outcome
 }
 
-fn send_new_copy<H: Wire + Data>(session: &mut Session<'_, H>, state: &mut Automatic) -> Pass {
-    match arm(session, state) {
+fn send_new_copy<H: Wire + Data>(
+    session: &mut Session<'_, H>,
+    state: &mut Automatic,
+    config_signal: bool,
+) -> Pass {
+    match arm(session, state, config_signal) {
         None => return Pass::Done,
         Some(false) => return Pass::Done,
         Some(true) => {}
     }
-    let Some(reading) = session.capture(true) else {
-        // Nothing could be read: that breaks continuity, so the next reading is a baseline and not a copy.
-        state.copy(crate::automatic::Reading::Unavailable);
-        return Pass::Done;
+    let reading = match session.capture(true) {
+        Ok(reading) => reading,
+        Err(error) => {
+            if let Some(paused) = paused_after(session, error) {
+                state.pause(paused);
+            } else {
+                // A genuine read failure breaks continuity; the next reading is a baseline.
+                state.copy(Reading::Unavailable);
+            }
+            return Pass::Done;
+        }
     };
-    let Some(text) = state.copy(reading) else {
+    let Some(text) = state.copy(reading).filter(|_| !config_signal) else {
         return Pass::Done;
     };
     for device in state.destinations().to_vec() {
         // Look again before EVERY destination: a slow first one must not keep a later, revoked one alive.
-        let Some(latest) = session.configuration() else {
+        let Some((latest, _)) = session.configuration() else {
             return Pass::Done;
         };
+        if let Some(permission) = observation_block(session) {
+            state.pause(Paused::Checked(Blocked::MissingPermission(permission)));
+            return Pass::Done;
+        }
         if !state.still_valid(&Eligibility::of(&latest)) {
             return Pass::Done;
         }
@@ -98,12 +173,11 @@ fn send_new_copy<H: Wire + Data>(session: &mut Session<'_, H>, state: &mut Autom
 ///
 /// The platform reports a change only while somebody observes, and taking a baseline ends that observing, so a guest that
 /// merely waited for its first notice would wait for ever. One pass takes the baseline and, in the same pass, reads, which
-/// is what makes the platform start telling. A second pass exists for a baseline whose reset failed: that leaves the state
-/// needing a baseline, and without a retry here a transient failure would keep the guest deaf until the next notice, which
+/// is what makes the platform start telling. A second pass exists for a genuine reset failure: that leaves the state
+/// needing a baseline, and without a retry here it would keep the guest deaf until the next notice, which
 /// nothing could cause. What was on the clipboard before is the baseline, so it is never sent as if it had just been
 /// copied. With nobody to send to nothing is read: the guest arms on the first pass that finds somebody. The application
-/// wakes it for that with a clipboard change notice after every configuration change (settings, grants, a device going
-/// online or offline), so no timer is needed to notice a device becoming eligible.
+/// wakes it with a configuration notice; a checked refusal waits for changed grants or consent, not a timer.
 pub fn start<H: Wire + Data>(
     host: &mut H,
     state: &mut Automatic,
@@ -113,6 +187,9 @@ pub fn start<H: Wire + Data>(
     for _ in 0..2 {
         if on_change(host, state, next, backlog) == Pass::Stop {
             return Pass::Stop;
+        }
+        if state.paused.is_some() {
+            break;
         }
     }
     Pass::Done
@@ -145,7 +222,7 @@ impl Retry {
 
     /// `None`: wait for the next delivery however long it takes. `Some(ms)`: wait at most that long, then retry.
     pub fn wait(&mut self, state: &Automatic) -> Option<i32> {
-        if !state.baseline_needed {
+        if !state.baseline_needed || state.paused.is_some() {
             self.delay_ms = RETRY_FIRST_MS;
             return None;
         }
@@ -249,7 +326,7 @@ mod tests {
                 json!({"device":name,"online":online,"settings":{"sync":sync},"permissions":permissions})
             })
             .collect();
-        json!({"status":"ok","value":{"plugin":"clipboard","settings":{"automatic":automatic},"peers":peers}})
+        json!({"status":"ok","value":{"plugin":"clipboard","settings":{"automatic":automatic},"missing_permissions":[],"peers":peers}})
     }
     fn reset_ok() -> Value {
         json!({"status":"ok","value":{"reset":true}})
@@ -634,6 +711,117 @@ mod tests {
             !state.can_send(),
             "an unconfirmed baseline blocks observation rather than risking an old copy"
         );
+    }
+
+    #[test]
+    fn reset_refusals_never_take_the_startup_retry_or_the_backoff() {
+        let devices = [("phone", true, true)];
+        let grant = json!({"owner":"host","name":"clipboard.read"});
+        for blocked in [
+            json!({"status":"missing-permission","permission":grant}),
+            json!({"status":"not-accepted"}),
+            json!({"status":"error","code":"denied"}),
+        ] {
+            let mut state = Automatic::new();
+            let mut host = Script::default();
+            host.results
+                .extend([config(true, &devices), blocked, config(true, &devices)]);
+            let mut next = 0;
+            assert_eq!(
+                start(&mut host, &mut state, &mut next, &mut Default::default()),
+                Pass::Done
+            );
+            assert_eq!(Retry::new().wait(&state), None);
+            assert_eq!(
+                on_change(&mut host, &mut state, &mut next, &mut Default::default()),
+                Pass::Done
+            );
+            assert_eq!(
+                methods(&host),
+                [
+                    "peersus.config.get",
+                    "peersus.clipboard.reset",
+                    "peersus.config.get"
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn restoring_readiness_takes_a_new_baseline_without_replaying_the_old_copy() {
+        let devices = [("phone", true, true)];
+        let mut missing = config(true, &devices);
+        missing["value"]["missing_permissions"] = json!([{"owner":"host","name":"clipboard.read"}]);
+        let mut state = Automatic::new();
+        let mut host = Script::default();
+        host.results.push_back(missing);
+        let mut next = 0;
+        let mut backlog = Default::default();
+        assert_eq!(
+            start(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert_eq!(methods(&host), ["peersus.config.get"]);
+        assert_eq!(Retry::new().wait(&state), None);
+
+        host.results.extend([config(true, &devices), reset_ok()]);
+        host.results.extend(captured("before the grant", true));
+        assert_eq!(
+            on_config_changed(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert!(host.opened.is_empty());
+        assert!(state.can_observe());
+
+        host.results.push_back(config(true, &devices));
+        host.results.extend(captured("fresh after the grant", true));
+        host.results.extend([config(true, &devices), claim()]);
+        host.acks = true;
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert_eq!(host.written, wire::encode("fresh after the grant").unwrap());
+    }
+
+    #[test]
+    fn a_neutral_stream_refusal_drops_only_that_delivery_without_replaying_the_copy() {
+        let devices = [("desk", true, true), ("phone", true, true)];
+        let (mut state, mut host) = armed(&devices);
+        host.results.push_back(config(true, &devices));
+        host.results.extend(captured("fresh", true));
+        host.results.extend([
+            config(true, &devices),
+            claim(),
+            config(true, &devices),
+            claim(),
+        ]);
+        let neutral = br#"{"status":"not-accepted"}"#;
+        let mut frame = (neutral.len() as u32).to_be_bytes().to_vec();
+        frame.extend_from_slice(neutral);
+        host.incoming
+            .extend([frame, ack(wire::encode("fresh").unwrap().len() as u64)]);
+        let mut next = 100;
+        let mut backlog = Default::default();
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        host.results.push_back(config(true, &devices));
+        host.results.extend(captured("fresh", true));
+        assert_eq!(
+            on_change(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        let destinations: Vec<_> = host
+            .sent
+            .iter()
+            .filter(|message| message["method"] == "send")
+            .filter_map(|message| message["args"]["device"].as_str())
+            .collect();
+        assert_eq!(destinations, ["desk", "phone"]);
+        assert_eq!(host.closed, 2);
+        assert_eq!(Retry::new().wait(&state), None);
     }
 
     #[test]

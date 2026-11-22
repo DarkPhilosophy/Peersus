@@ -8,7 +8,9 @@ use crate::automatic::Reading;
 use crate::config::Config;
 #[cfg(any(target_family = "wasm", feature = "native"))]
 use crate::host::LIMIT as CONTROL_LIMIT;
-use crate::host::{Data, Wire, read_ack, read_limited, write_all};
+use crate::host::{
+    self, Blocked, Data, DeliveryAck, Readiness, Wire, read_ack, read_limited, write_all,
+};
 use crate::wire::{self, HEADER, MAX_TEXT};
 use serde_json::{Value, json};
 
@@ -18,6 +20,11 @@ const CLIPBOARD: &str = "peersus.clipboard";
 /// The service the other device runs for this extension, and its version.
 const SERVICE: &str = "clipboard.text";
 const VERSION: u32 = 1;
+pub const READ: &str = "clipboard.read";
+const WRITE: &str = "clipboard.write";
+pub const WATCH: &str = "clipboard.watch";
+const SEND: &str = "peers.send";
+const USE: &str = "clipboard.use";
 /// Control calls to the application wait at most this long, in milliseconds.
 const CALL_MS: u32 = 8_000;
 /// Most bytes of one item ever read from a data connection: its header, the largest text, and one more.
@@ -40,12 +47,39 @@ pub mod answer {
     pub const CANCELLED: &str = "The operation was cancelled";
 }
 
+pub enum Refusal {
+    Other(&'static str),
+    Blocked(Blocked),
+}
+
+impl From<&'static str> for Refusal {
+    fn from(reason: &'static str) -> Self {
+        Self::Other(reason)
+    }
+}
+
+impl From<Blocked> for Refusal {
+    fn from(blocked: Blocked) -> Self {
+        Self::Blocked(blocked)
+    }
+}
+
+impl Refusal {
+    fn with_message(self, message: &'static str) -> Self {
+        match self {
+            Self::Blocked(_) => self,
+            Self::Other(_) => Self::Other(message),
+        }
+    }
+}
+
 /// One call to the application, answered or cancelled. Calls from others that arrive meanwhile are kept in order.
 pub struct Session<'a, H: Wire + Data> {
     pub host: &'a mut H,
     /// The hub ticket of the call being answered.
     pub ticket: u64,
     next: u64,
+    pub(crate) readiness: Readiness,
     /// Deliveries that arrived while waiting for an answer of ours, to be handled afterwards.
     pub waiting: Vec<Value>,
     pub cancelled: bool,
@@ -65,6 +99,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             ticket,
             next,
             waiting: Vec::new(),
+            readiness: Readiness::default(),
             cancelled: false,
             stopped: false,
             placed: None,
@@ -76,6 +111,24 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         self.next
     }
 
+    pub fn denied(&self) -> bool {
+        self.reason == Some("denied")
+    }
+
+    fn check_send(&self, device: &str) -> Result<(), Refusal> {
+        let missing = self
+            .readiness
+            .missing(Some(device), "host", SEND)
+            .or_else(|| {
+                self.readiness
+                    .missing(Some(device), self.readiness.owner()?, USE)
+            });
+        match missing {
+            Some(permission) => Err(Blocked::MissingPermission(permission).into()),
+            None => Ok(()),
+        }
+    }
+
     /// Ask the application for something and wait for exactly that answer.
     fn call(
         &mut self,
@@ -83,7 +136,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         service: &str,
         method: &str,
         args: Value,
-    ) -> Result<Value, &'static str> {
+    ) -> Result<Value, Refusal> {
         let (id, request) = self.request(provider, service, method, args)?;
         self.exchange(id, request)
     }
@@ -108,7 +161,19 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         ))
     }
 
-    fn exchange(&mut self, id: u64, request: Value) -> Result<Value, &'static str> {
+    fn exchange(&mut self, id: u64, request: Value) -> Result<Value, Refusal> {
+        let guard = match (request["service"].as_str(), request["method"].as_str()) {
+            (
+                Some(CLIPBOARD),
+                Some("read" | "observe" | "selected" | "chunk" | "reset" | "release"),
+            ) => Some(READ),
+            (Some(CLIPBOARD), Some("write" | "append" | "commit")) => Some(WRITE),
+            _ => None,
+        };
+        if let Some(permission) = guard.and_then(|name| self.readiness.missing(None, "host", name))
+        {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
         self.next = id;
         self.host.send(request)?;
         loop {
@@ -116,19 +181,27 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             match message["type"].as_str() {
                 Some("result") if message["id"].as_u64() == Some(id) => {
                     let result = &message["result"];
+                    if let Some(blocked) = Blocked::read(result) {
+                        if let Blocked::MissingPermission(permission) = &blocked
+                            && guard.is_some_and(|name| permission.is("host", name))
+                        {
+                            self.readiness.deny(None, permission.clone());
+                        }
+                        return Err(blocked.into());
+                    }
                     return if result["status"] == "ok" {
                         Ok(result["value"].clone())
                     } else if result["code"] == "cancelled" {
-                        Err(answer::CANCELLED)
+                        Err(answer::CANCELLED.into())
                     } else {
                         self.reason = self.reason.or_else(|| standard_code(&result["code"]));
-                        Err(answer::REFUSED)
+                        Err(answer::REFUSED.into())
                     };
                 }
                 Some("cancelled") if message["ticket"].as_u64() == Some(self.ticket) => {
                     self.cancelled = true;
                     self.host.send(json!({"op":"cancel","id":id}))?;
-                    return Err(answer::CANCELLED);
+                    return Err(answer::CANCELLED.into());
                 }
                 Some(kind @ ("call" | "cancelled" | "event")) => {
                     if self.waiting.len() < MAX_WAITING {
@@ -138,7 +211,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                     if kind == "call"
                         && let Some(ticket) = message["ticket"].as_u64()
                     {
-                        let result = outcome(Err(answer::BUSY), Some("busy"));
+                        let result = outcome(Err(answer::BUSY.into()), Some("busy"));
                         let reply = json!({"op":"reply","ticket":ticket,"result":result});
                         if self.host.send(reply).is_ok() {
                             continue;
@@ -147,7 +220,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                     // A cancellation may be for a call already in the loop's backlog. If it cannot be
                     // kept, stop the guest rather than let any deferred call run without it.
                     self.stopped = true;
-                    return Err(answer::FAILED);
+                    return Err(answer::FAILED.into());
                 }
                 _ => {}
             }
@@ -155,11 +228,11 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     }
 
     /// The whole text behind a captured handle, taken in bounded pieces.
-    fn take(&mut self, captured: &Value) -> Result<String, &'static str> {
+    fn take(&mut self, captured: &Value) -> Result<String, Refusal> {
         let clip = captured["clip"].as_str().ok_or(answer::NOTHING)?.to_owned();
         let bytes = captured["bytes"].as_u64().ok_or(answer::NOTHING)? as usize;
         if bytes == 0 || bytes > MAX_TEXT {
-            return Err(answer::NOTHING);
+            return Err(answer::NOTHING.into());
         }
         let mut text = String::with_capacity(bytes);
         while text.len() < bytes {
@@ -172,30 +245,32 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             let part = piece["text"].as_str().ok_or(answer::FAILED)?;
             // A piece that makes no progress, or says a next offset it did not earn, ends the loop rather than spinning.
             if part.is_empty() || piece["next"].as_u64() != Some((text.len() + part.len()) as u64) {
-                return Err(answer::FAILED);
+                return Err(answer::FAILED.into());
             }
             text.push_str(part);
         }
         if text.len() != bytes {
-            return Err(answer::FAILED);
+            return Err(answer::FAILED.into());
         }
         Ok(text)
     }
 
     /// Give back a clipboard handle. Best-effort cleanup cannot hide cancellation or a stopped session.
-    fn release(&mut self) -> Result<(), &'static str> {
+    fn release(&mut self) -> Result<(), Refusal> {
         let result = self.call("host", CLIPBOARD, "release", json!({}));
-        if self.cancelled || matches!(result, Err(answer::CANCELLED)) {
-            Err(answer::CANCELLED)
+        if self.cancelled || matches!(result, Err(Refusal::Other(answer::CANCELLED))) {
+            Err(answer::CANCELLED.into())
         } else if self.stopped {
-            Err(answer::FAILED)
+            Err(answer::FAILED.into())
+        } else if let Err(blocked @ Refusal::Blocked(_)) = result {
+            Err(blocked)
         } else {
             Ok(())
         }
     }
 
     /// The text to send: the clipboard's, or the text shared into the application, never a fallback from one to the other.
-    fn text(&mut self, context: Option<u64>) -> Result<String, &'static str> {
+    fn text(&mut self, context: Option<u64>) -> Result<String, Refusal> {
         let captured = match context {
             Some(context) => {
                 self.call("host", CLIPBOARD, "selected", json!({"context":context}))?
@@ -203,34 +278,48 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             None => self.call("host", CLIPBOARD, "read", json!({}))?,
         };
         if captured["available"] != true {
-            return Err(answer::NOTHING);
+            return Err(answer::NOTHING.into());
         }
         let result = self.take(&captured);
         // The handle is ours to give back whether or not the text arrived.
-        self.release()?;
+        let released = self.release();
+        if let Err(blocked @ Refusal::Blocked(_)) = result {
+            return Err(blocked);
+        }
+        released?;
         result
     }
 
     /// Send `text` to `device` and report success only when the application says the bytes went out.
-    fn deliver(&mut self, text: &str, device: &str) -> Result<(), &'static str> {
+    fn deliver(&mut self, text: &str, device: &str) -> Result<(), Refusal> {
+        self.check_send(device)?;
         let bytes = wire::encode(text).map_err(|_| answer::NOTHING)?;
         let sent = self.call(
             "host",
             PEERS,
             "send",
             json!({"device":device,"service":SERVICE,"version":VERSION}),
-        )?;
+        );
+        if let Err(Refusal::Blocked(Blocked::MissingPermission(permission))) = &sent
+            && (permission.is("host", SEND)
+                || self
+                    .readiness
+                    .owner()
+                    .is_some_and(|owner| permission.is(owner, USE)))
+        {
+            self.readiness.deny(Some(device), permission.clone());
+        }
+        let sent = sent?;
         let claim = sent["claim"].as_u64().ok_or(answer::FAILED)?;
         let handle = self.host.open(true, claim).map_err(|_| answer::FAILED)?;
         let result = (|| {
             write_all(self.host, handle, &bytes).map_err(|_| answer::FAILED)?;
             self.host.shutdown(handle).map_err(|_| answer::FAILED)?;
             // Writing and half-closing is not delivery: only the application's byte count is.
-            let delivered = read_ack(self.host, handle).map_err(|_| answer::FAILED)?;
-            if delivered == bytes.len() as u64 {
-                Ok(())
-            } else {
-                Err(answer::FAILED)
+            match read_ack(self.host, handle) {
+                Ok(DeliveryAck::Delivered(count)) if count == bytes.len() as u64 => Ok(()),
+                Ok(DeliveryAck::NotAccepted) => Err(Blocked::NotAccepted.into()),
+                _ => Err(answer::FAILED.into()),
             }
         })();
         self.host.close(handle);
@@ -239,23 +328,28 @@ impl<'a, H: Wire + Data> Session<'a, H> {
 
     /// The application's account of this extension and the devices it may send to. `None` when it cannot be read or is
     /// not the expected shape: automatic sending then stays off, and explicit sharing is unaffected.
-    pub fn configuration(&mut self) -> Option<Config> {
-        let value = self.call("host", "peersus.config", "get", json!({})).ok()?;
-        Config::parse(value)
+    pub fn configuration(&mut self) -> Option<(Config, bool)> {
+        let value = self.call("host", host::CONFIG, "get", json!({})).ok()?;
+        let updated = self.readiness.update(&value).is_ok();
+        Config::parse(value).map(|config| (config, updated))
     }
 
-    /// Capture what is on the clipboard now, as the platform reports it. `None` for nothing readable.
-    pub fn capture(&mut self, observe: bool) -> Option<Reading> {
+    /// Capture what is on the clipboard now, keeping a checked refusal separate from unreadable contents.
+    pub fn capture(&mut self, observe: bool) -> Result<Reading, Refusal> {
         let method = if observe { "observe" } else { "read" };
-        let captured = self.call("host", CLIPBOARD, method, json!({})).ok()?;
+        let captured = self.call("host", CLIPBOARD, method, json!({}))?;
         if captured["available"] != true {
-            return Some(Reading::Unavailable);
+            return Ok(Reading::Unavailable);
         }
         let changed = captured["changed"] == true;
         let text = self.take(&captured);
-        self.release().ok()?;
-        let text = text.ok()?;
-        Some(if changed {
+        let released = self.release();
+        if let Err(blocked @ Refusal::Blocked(_)) = text {
+            return Err(blocked);
+        }
+        released?;
+        let text = text?;
+        Ok(if changed {
             Reading::Changed(text)
         } else {
             Reading::Snapshot(text)
@@ -263,18 +357,22 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     }
 
     /// Forget earlier copies, so that only later ones are reported.
-    pub fn reset(&mut self) -> bool {
-        self.call("host", CLIPBOARD, "reset", json!({}))
-            .is_ok_and(|value| value["reset"] == true)
+    pub fn reset(&mut self) -> Result<(), Refusal> {
+        let value = self.call("host", CLIPBOARD, "reset", json!({}))?;
+        if value["reset"] == true {
+            Ok(())
+        } else {
+            Err(answer::FAILED.into())
+        }
     }
 
     /// Send an already captured text to one device, with the same verified delivery as an explicit share.
-    pub fn send_to(&mut self, text: &str, device: &str) -> Result<(), &'static str> {
+    pub fn send_to(&mut self, text: &str, device: &str) -> Result<(), Refusal> {
         self.deliver(text, device)
     }
 
     /// `share` and `send_text`: one text, one device, one verified delivery.
-    pub fn send(&mut self, args: &Value, from_context: bool) -> Result<(), &'static str> {
+    pub fn send(&mut self, args: &Value, from_context: bool) -> Result<(), Refusal> {
         let device = args["peer"].as_str().ok_or(answer::REFUSED)?.to_owned();
         let context = if from_context {
             Some(
@@ -286,12 +384,22 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         } else {
             None
         };
+        self.check_send(&device)?;
         let text = self.text(context)?;
         self.deliver(&text, &device)
     }
 
     /// `receive`: collect what a device sent, check it is exactly one text, and only then place it.
-    pub fn receive(&mut self) -> Result<(), &'static str> {
+    pub fn receive(&mut self, peer: Option<&str>) -> Result<(), Refusal> {
+        if let Some(permission) = self.readiness.missing(None, "host", WRITE) {
+            return Err(Blocked::MissingPermission(permission).into());
+        }
+        if let Some(peer) = peer
+            && let Some(owner) = self.readiness.owner()
+            && self.readiness.missing(Some(peer), owner, USE).is_some()
+        {
+            return Err(Blocked::NotAccepted.into());
+        }
         let handle = self
             .host
             .open(false, self.ticket)
@@ -301,13 +409,13 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         let bytes = bytes?;
         // One item and nothing after it: the extra byte of the read bound is what lets that be seen.
         if !wire::whole(&bytes) {
-            return Err(answer::NOT_ACCEPTED);
+            return Err(answer::NOT_ACCEPTED.into());
         }
         let text = wire::decode(&bytes).map_err(|_| answer::NOT_ACCEPTED)?;
         self.place(text)
     }
 
-    fn append(&mut self, put: &str, offset: usize, text: &str) -> Result<usize, &'static str> {
+    fn append(&mut self, put: &str, offset: usize, text: &str) -> Result<usize, Refusal> {
         let (id, mut request) = self.request(
             "host",
             CLIPBOARD,
@@ -324,7 +432,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
             end -= 1;
         }
         if end == offset {
-            return Err(answer::FAILED);
+            return Err(answer::FAILED.into());
         }
         request["args"]["text"] = json!(&text[offset..end]);
         self.exchange(id, request)?;
@@ -332,18 +440,18 @@ impl<'a, H: Wire + Data> Session<'a, H> {
     }
 
     /// Replace the clipboard with `text`, in bounded pieces, committing only a complete sequence.
-    fn place(&mut self, text: String) -> Result<(), &'static str> {
+    fn place(&mut self, text: String) -> Result<(), Refusal> {
         let begun = self
             .call("host", CLIPBOARD, "write", json!({"bytes":text.len()}))
-            .map_err(|_| answer::NOT_PLACED)?;
+            .map_err(|error| error.with_message(answer::NOT_PLACED))?;
         let put = begun["put"].as_str().ok_or(answer::NOT_PLACED)?;
         let mut offset = 0;
         let mut sent = Ok(());
         while offset < text.len() {
             match self.append(put, offset, &text) {
                 Ok(end) => offset = end,
-                Err(_) => {
-                    sent = Err(answer::NOT_PLACED);
+                Err(error) => {
+                    sent = Err(error.with_message(answer::NOT_PLACED));
                     break;
                 }
             }
@@ -351,7 +459,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
         let done = sent.and_then(|()| {
             self.call("host", CLIPBOARD, "commit", json!({"put":put}))
                 .map(drop)
-                .map_err(|_| answer::NOT_PLACED)
+                .map_err(|error| error.with_message(answer::NOT_PLACED))
         });
         // Whatever happened, nothing of an unfinished replacement is left with the application.
         let _ = self.release();
@@ -380,13 +488,14 @@ fn standard_code(code: &Value) -> Option<&'static str> {
 
 /// What to reply for one finished call. `reason` is the standard code the application gave for the call of ours that
 /// failed it, if one did.
-pub fn outcome(result: Result<(), &'static str>, reason: Option<&'static str>) -> Value {
+pub fn outcome(result: Result<(), Refusal>, reason: Option<&'static str>) -> Value {
     match result {
         Ok(()) => json!({"status":"ok","value":true}),
-        Err(message) if message == answer::CANCELLED => {
+        Err(Refusal::Blocked(blocked)) => blocked.value(),
+        Err(Refusal::Other(message)) if message == answer::CANCELLED => {
             json!({"status":"error","code":"cancelled","message":message})
         }
-        Err(message) => {
+        Err(Refusal::Other(message)) => {
             json!({"status":"error","code":reason.unwrap_or("failed"),"message":message})
         }
     }
@@ -414,7 +523,12 @@ pub fn withdrawn(delivery: &Value, backlog: &mut std::collections::VecDeque<Valu
 }
 
 /// Answer one delivery from the application. Returns the call's ticket and its reply, or `None` for anything that is not a call.
-pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) -> Handled {
+pub fn handle<H: Wire + Data>(
+    host: &mut H,
+    delivery: &Value,
+    next: &mut u64,
+    readiness: &mut Readiness,
+) -> Handled {
     if delivery["type"] != "call" {
         return Handled::Ignored;
     }
@@ -422,13 +536,15 @@ pub fn handle<H: Wire + Data>(host: &mut H, delivery: &Value, next: &mut u64) ->
         return Handled::Stop;
     };
     let mut session = Session::new(host, ticket, *next);
+    session.readiness = std::mem::take(readiness);
     let result = match delivery["method"].as_str() {
         Some("share") => session.send(&delivery["args"], false),
         Some("send_text") => session.send(&delivery["args"], true),
-        Some("receive") => session.receive(),
-        _ => Err(answer::UNKNOWN),
+        Some("receive") => session.receive(delivery["args"]["peer"].as_str()),
+        _ => Err(answer::UNKNOWN.into()),
     };
     *next = session.next();
+    *readiness = std::mem::take(&mut session.readiness);
     if session.stopped {
         return Handled::Stop;
     }
@@ -471,6 +587,9 @@ mod tests {
     use crate::host::scripted::{Script, ack};
     use serde_json::json;
 
+    fn handle(host: &mut Script, delivery: &Value, next: &mut u64) -> Handled {
+        super::handle(host, delivery, next, &mut Readiness::default())
+    }
     fn call(method: &str, args: Value) -> Value {
         json!({"type":"call","ticket":5,"caller":"host","service":"clipboard.text","version":1,"method":method,"args":args})
     }
@@ -480,6 +599,77 @@ mod tests {
             json!({"status":"ok","value":{"text":text,"next":text.len()}}),
             json!({"status":"ok","value":{"released":true}}),
         ]
+    }
+
+    #[test]
+    fn explicit_share_distinguishes_a_named_local_block_from_a_neutral_refusal() {
+        let missing = json!({"status":"missing-permission","permission":{"owner":"host","name":"peers.send"}});
+        for outcome in [missing, json!({"status":"not-accepted"})] {
+            let mut host = Script::default();
+            host.results.extend(captured("fresh"));
+            host.results.push_back(outcome.clone());
+            let Handled::Replied { reply, .. } =
+                handle(&mut host, &call("share", json!({"peer":"phone"})), &mut 0)
+            else {
+                panic!("a refused share replies once");
+            };
+            assert_eq!(reply["result"], outcome);
+            assert!(host.opened.is_empty());
+            assert_eq!(
+                host.sent
+                    .iter()
+                    .filter(|sent| sent["method"] == "send")
+                    .count(),
+                1
+            );
+        }
+    }
+
+    #[test]
+    fn lacking_clipboard_read_does_not_block_an_independently_granted_write() {
+        let grant = json!({"owner":"host","name":"clipboard.read"});
+        let mut readiness = Readiness::default();
+        readiness
+            .update(&json!({"plugin":"clipboard","peers":[],"missing_permissions":[grant]}))
+            .unwrap();
+        let mut host = Script::default();
+        let mut next = 0;
+        let Handled::Replied { reply, .. } = super::handle(
+            &mut host,
+            &call("share", json!({"peer":"phone"})),
+            &mut next,
+            &mut readiness,
+        ) else {
+            panic!("a blocked share replies");
+        };
+        assert_eq!(
+            reply["result"],
+            json!({"status":"missing-permission","permission":grant})
+        );
+        assert!(host.sent.is_empty());
+        host.incoming.push_back(wire::encode("hi").unwrap());
+        host.results.extend([
+            json!({"status":"ok","value":{"put":"put-1"}}),
+            json!({"status":"ok","value":{"next":2}}),
+            json!({"status":"ok","value":{"written":true}}),
+        ]);
+        let Handled::Replied { reply, placed, .. } = super::handle(
+            &mut host,
+            &call("receive", json!({})),
+            &mut next,
+            &mut readiness,
+        ) else {
+            panic!("the granted write is handled");
+        };
+        assert_eq!(reply["result"]["status"], "ok");
+        assert_eq!(placed.as_deref(), Some("hi"));
+        assert_eq!(
+            host.sent
+                .iter()
+                .filter_map(|sent| sent["method"].as_str())
+                .collect::<Vec<_>>(),
+            ["write", "append", "commit"]
+        );
     }
 
     #[test]

@@ -22,8 +22,8 @@ msgstr "Requiere la sincronización automática y, para este dispositivo, el per
 msgid "Send"
 msgstr "Enviar"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Actívalo aquí y por dispositivo. Las copias nuevas solo se envían mientras este dispositivo puede leer el portapapeles, y se excluye el contenido sensible."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Actívalo aquí y por dispositivo. Las copias nuevas solo se envían mientras este dispositivo puede leer el portapapeles, y se excluye el contenido sensible. Si se rechaza, el intento se detiene."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Compartir texto del portapapeles con permisos explícitos y sincronización automática opcional."

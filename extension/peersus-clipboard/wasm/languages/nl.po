@@ -22,8 +22,8 @@ msgstr "Vereist automatische synchronisatie en, voor dit apparaat, de machtiging
 msgid "Send"
 msgstr "Versturen"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Zet het hier en per apparaat aan. Nieuwe kopieën worden alleen verstuurd zolang dit apparaat het klembord kan lezen, en gevoelige inhoud wordt overgeslagen."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Zet het hier en per apparaat aan. Nieuwe kopieën worden alleen verstuurd zolang dit apparaat het klembord kan lezen, en gevoelige inhoud wordt overgeslagen. Een weigering beëindigt die poging."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Tekst van het klembord delen met expliciete toestemmingen en optionele automatische synchronisatie."

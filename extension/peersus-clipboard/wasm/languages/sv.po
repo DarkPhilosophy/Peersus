@@ -22,8 +22,8 @@ msgstr "Kräver automatisk synkronisering och, för den här enheten, behörighe
 msgid "Send"
 msgstr "Skicka"
 
-msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded."
-msgstr "Slå på här och per enhet. Nya kopior skickas bara medan den här enheten kan läsa urklippet, och känsligt innehåll undantas."
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Slå på här och per enhet. Nya kopior skickas bara medan den här enheten kan läsa urklippet, och känsligt innehåll undantas. Ett avslag avbryter försöket."
 
 msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
 msgstr "Delning av text i urklipp med uttryckliga behörigheter och valfri automatisk synkronisering."

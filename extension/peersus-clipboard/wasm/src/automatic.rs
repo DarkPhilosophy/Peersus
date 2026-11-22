@@ -10,6 +10,7 @@
 //! * a copy that waited longer than its freshness window is dropped, and the application enforces that window where it
 //!   holds the time (the captured text expires there), so a stale one is refused rather than sent late.
 use crate::config::Config;
+use crate::host::{Blocked, Readiness};
 use crate::observation::Observation;
 
 /// What eligibility looked like at one moment: who consent covers, and who can be sent to right now.
@@ -39,10 +40,17 @@ pub enum Epoch {
     Same,
 }
 
+pub enum Paused {
+    Checked(Blocked),
+    LegacyDenied,
+}
+
 /// What the loop remembers between wakes.
 #[derive(Default)]
 pub struct Automatic {
     pub observation: Observation,
+    pub readiness: Readiness,
+    pub paused: Option<Paused>,
     seen: Eligibility,
     /// True until a baseline succeeds. While it is true, observation stays completely blocked.
     pub baseline_needed: bool,
@@ -83,6 +91,16 @@ impl Automatic {
     /// Record how a baseline attempt went. A failed one keeps observation blocked rather than restarting anything.
     pub fn baseline_done(&mut self, succeeded: bool) {
         self.baseline_needed = !succeeded;
+    }
+
+    pub fn pause(&mut self, reason: Paused) {
+        self.observation = Observation::default();
+        self.baseline_needed = true;
+        self.paused = Some(reason);
+    }
+
+    pub fn consent_changed(&self, now: &Eligibility) -> bool {
+        now.consented != self.seen.consented
     }
 
     /// The devices that may be sent to now.

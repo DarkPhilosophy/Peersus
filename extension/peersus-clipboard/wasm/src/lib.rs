@@ -51,7 +51,7 @@ fn run_loop<H: host::Wire + host::Data>(host: &mut H) -> i32 {
     let mut backlog: std::collections::VecDeque<Value> = std::collections::VecDeque::new();
     // Ask once to be told when the clipboard changes. A refusal is not fatal: without the permission this guest still
     // answers every explicit call, and automatic sending simply never wakes.
-    if host.send(events::subscribe()).is_err() {
+    if host.send(host::subscribe_config()).is_err() || host.send(events::subscribe()).is_err() {
         return 1;
     }
     // The platform reports a change only while somebody observes, and the only observing this guest does is in answer to
@@ -92,22 +92,31 @@ fn run_loop<H: host::Wire + host::Data>(host: &mut H) -> i32 {
         if actions::withdrawn(&delivery, &mut backlog) {
             continue;
         }
+        if host::config_changed(&delivery) {
+            if watch::on_config_changed(host, &mut state, &mut next, &mut backlog)
+                == watch::Pass::Stop
+            {
+                return 1;
+            }
+            continue;
+        }
         if watch::wakes(&delivery) {
             if watch::on_change(host, &mut state, &mut next, &mut backlog) == watch::Pass::Stop {
                 return 1;
             }
             continue;
         }
-        let (waiting, placed, reply) = match actions::handle(host, &delivery, &mut next) {
-            actions::Handled::Ignored => continue,
-            actions::Handled::Stop => return 1,
-            actions::Handled::Cancelled { waiting, placed } => (waiting, placed, None),
-            actions::Handled::Replied {
-                reply,
-                waiting,
-                placed,
-            } => (waiting, placed, Some(reply)),
-        };
+        let (waiting, placed, reply) =
+            match actions::handle(host, &delivery, &mut next, &mut state.readiness) {
+                actions::Handled::Ignored => continue,
+                actions::Handled::Stop => return 1,
+                actions::Handled::Cancelled { waiting, placed } => (waiting, placed, None),
+                actions::Handled::Replied {
+                    reply,
+                    waiting,
+                    placed,
+                } => (waiting, placed, Some(reply)),
+            };
         // Mark a completed write even if cleanup was cancelled, before running its deferred notice.
         if let Some(text) = placed {
             state.received(text);
