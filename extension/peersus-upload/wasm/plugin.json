@@ -25,7 +25,7 @@
       "service": "peersus.config",
       "version": 1,
       "methods": ["get"],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -72,7 +72,10 @@
       ],
       "methods": {
         "choose": {
-          "description": "Upload the file already selected on Send after destination approval."
+          "description": "Upload the selected file to poo.wang with the saved API key after destination approval."
+        },
+        "choose_keyless": {
+          "description": "Upload the selected file to poo.wang anonymously after destination approval and confirmation that no API key is saved."
         },
         "choose_anonymous": {
           "description": "Upload the file already selected on Send to Catbox, which needs no account and no key, after approval of that address and of the address its public link lives on."
@@ -81,18 +84,19 @@
           "description": "Manage the encrypted API key for this destination without selecting or uploading a file."
         },
         "status": {
-          "description": "Answers what a person did on this extension's settings line with the line as it is after it: whether an API key is saved, whether the provider accepts it, and what the destination that needs no key does."
+          "description": "Show whether an API key is saved, whether poo.wang accepts it, and which destinations are available without a key."
         }
       },
       "events": {}
     }
   ],
   "contributions": {
+    "initially_withheld_actions": ["upload", "upload_keyless"],
     "actions": [
       {
         "id": "upload",
-        "label": "Upload selected file (poo.wang)",
-        "short_label": "poo.wang",
+        "label": "Upload selected file (poo.wang, API key)",
+        "short_label": "poo.wang (API key)",
         "input": "selected_file",
         "target": {
           "service": "upload.file",
@@ -100,6 +104,21 @@
         },
         "needs_device": false,
         "destructive": false,
+        "help": "Upload after destination approval with files.select and network.http. A refusal stops this attempt.",
+        "timeout_ms": 600000
+      },
+      {
+        "id": "upload_keyless",
+        "label": "Upload selected file (poo.wang, anonymous)",
+        "short_label": "poo.wang (anonymous)",
+        "input": "selected_file",
+        "target": {
+          "service": "upload.file",
+          "method": "choose_keyless"
+        },
+        "needs_device": false,
+        "destructive": false,
+        "help": "Upload after destination approval with files.select and network.http. A refusal stops this attempt.",
         "timeout_ms": 600000
       },
       {
@@ -113,6 +132,7 @@
         },
         "needs_device": false,
         "destructive": false,
+        "help": "Upload after destination approval with files.select and network.http. A refusal stops this attempt.",
         "timeout_ms": 600000
       },
       {
@@ -125,6 +145,7 @@
         },
         "needs_device": false,
         "destructive": false,
+        "help": "Manage the saved key with network.http; a missing grant is shown without asking the provider.",
         "timeout_ms": 600000
       }
     ],
@@ -144,7 +165,7 @@
       {
         "id": "destination",
         "label": "Upload destination",
-        "help": "Choose which destination is offered for selected files on Send. poo.wang needs a usable API key; Catbox never uses one.",
+        "help": "Choose which destination is offered for selected files on Send. poo.wang uses a saved API key or uploads anonymously; Catbox never uses a key.",
         "scope": "global",
         "kind": {
           "type": "choice",
@@ -169,8 +190,8 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Upload sends the name and contents of one selected file only after you approve the destination. poo.wang receives it at https://poo.wang/api/upload or in parts at https://poo.wang/api/upload/session/part. Only poo.wang receives your saved key, for checks at https://poo.wang/api/me and for the upload or session creation. Catbox receives the file at https://catbox.moe/user/api.php without a key or account. The extension never receives the file contents or saved key.",
-        "changes": "Choose on Send offers both destinations when a usable poo.wang key is saved. Selecting only Catbox never looks up a key; an unreadable destination stops uploads and key operations. Catbox needs an identified HTTPS client, takes up to 6 MiB here, and returns a public link on https://files.catbox.moe. poo.wang uses a saved key here and uploads expire after 24 hours. Missing prerequisites or disallowed file sizes are unavailable, not permission denials. Cancelling stops remaining key checks; it does not undo a completed save or upload."
+        "explains": "Upload sends the name and contents of one selected file only after you approve the destination. poo.wang receives a saved key only for its API key check and upload or session start. If no key is saved, it uses the service's native anonymous support without a browser cookie or key. Catbox always uploads without an account or key. The extension never receives the file contents or saved key.",
+        "changes": "Keyless poo.wang allows up to 25 MiB per file and 10 file admissions per UTC day per connecting network address. Links expire after 24 hours. A rejected saved key does not switch to anonymous. If the application cannot determine whether a key is saved, neither poo.wang upload is offered. Catbox allows up to 6 MiB here and returns a public link on https://files.catbox.moe. Cancelling does not undo a completed save or upload."
       }
     ]
   }

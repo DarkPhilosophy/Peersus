@@ -1,6 +1,6 @@
 # Upload extension
 
-One extension identity, one source: the official WASM guest, plus an optional native library and process (not recommended). On Send, choose one file and approve sending its name and contents to one destination: poo.wang with a saved API key, or Catbox without one. Only the connection to the provider is encrypted; the provider receives the file as it is and the result link may be public.
+One extension identity, one source: the official WASM guest, plus an optional native library and process (not recommended). On Send, choose one file and approve sending its name and contents to one destination: poo.wang (with a saved API key or anonymously) or Catbox (always anonymous). Only the connection to the provider is encrypted; the provider receives the file as it is and the result link may be public.
 
 ## Platforms and prerequisites
 
@@ -13,21 +13,25 @@ The credential action declares `input: "secret_text"`: the host renders a masked
 
 ## Destinations
 
-**poo.wang (API key required).** Use **API key…** in this extension's settings to save a key. On startup and when these settings are opened or a key is changed, the host reports whether a usable key is saved; the guest hides the poo.wang action when the answer is no. Saving a key, starting a poo.wang upload, or clicking **Check now** asks the host to send the bearer key to `https://poo.wang/api/me`. Only the HTTP status reaches the guest. A 401 or 403 before upload means the key was rejected and stops the upload before a file snapshot or consent; an inconclusive check does not block the attempt.
+**poo.wang (optional API key).** Use **API key…** in this extension's settings to save or remove a key. On Send, **poo.wang (API key)** means a saved key will be used; **poo.wang (anonymous)** is offered only when the host confirms no saved key. If the host cannot determine key state, neither row is offered and **Destinations** explains why; use **Refresh key state** there after fixing the store. An out-of-date row never silently changes the credential mode. Before a keyed upload, after saving a key, and when you press **Check now**, the host checks the bearer at `https://poo.wang/api/me`. A 401 or 403 stops a keyed upload before file selection or consent; a rejected key never falls back to anonymous. An inconclusive provider check still permits the keyed attempt.
 
 The host must confirm a save or removal before any follow-up key check. If a save has already completed, cancelling stops remaining work but does not undo that save. While another action is pending, passive settings redraws can use the last page; opening settings or pressing **Check now** reports that the extension is busy rather than claiming to have refreshed.
 
-After consent, the host sends the file as a multipart `files` field to `https://poo.wang/api/upload` with the bearer key. For files over 3 MiB, it starts a session at `https://poo.wang/api/upload/session` with the key and file name and size. The requests under `/api/upload/session/part` and `/api/upload/session/complete` use opaque session authorization, not the saved API key. The app limits the selected file to 250 MiB and the service also enforces the account's own limits. Both paths request expiration after 24 hours and do not publish to Showcase. The result must be one link matching `https://poo.wang/f/<id>`.
+After consent, the host sends the file as a multipart `files` field to `https://poo.wang/api/upload`. For files over 3 MiB it starts a session at `https://poo.wang/api/upload/session` with the file name and size. Only the upload or session start carries the saved bearer key, or the keyless opt-in below. The `/api/upload/session/part` and `/api/upload/session/complete` requests use opaque session authorization, not the saved API key. The extension limits a keyed upload to 250 MiB; the service also enforces its account limits. Both modes request a 24-hour expiry, never publish to Showcase, and require one result link matching `https://poo.wang/f/<id>`.
 
-This extension does not attempt keyless uploads to poo.wang; its browser-based anonymous upload is a separate flow.
+**Keyless poo.wang.** Only a confirmed absence of a saved key enables this mode; an unreadable key state stops the upload. The upload or session start carries `X-Poo-Upload-Client: native` and no `Origin`, `Cookie`, or `Authorization`. This requires the service's native anonymous support; it is not a browser session. The limit is **25 MiB per file** and **10 admitted files per UTC day per connecting network address**, including admissions for uploads that do not finish. Links expire after **24 hours**.
+
+From the command line, use `peersus run-file upload upload <file>` for the keyed action or `peersus run-file upload upload_keyless <file>` for the anonymous action. Only the action offered for the current key state is accepted.
 
 **Catbox (anonymous).** The Catbox action never asks about, reads or sends a saved API key, even if a poo.wang key is saved. Selecting Catbox as the only destination also skips poo.wang key lookups in startup and settings. After consent, the host sends a multipart POST to `https://catbox.moe/user/api.php` with `reqtype=fileupload` and the file in `fileToUpload`, without `userhash` or a bearer. Catbox allows uploads up to 200 MB, but the app permits only 6 MiB per request part and Catbox does not accept split uploads. Larger files are refused before a snapshot or consent. The host must identify its HTTPS client: Catbox can close the connection before returning an HTTP response when `User-Agent` is absent. The extension cannot set that header.
 
 Catbox replies with a plain-text link. The guest accepts only `https://files.catbox.moe/<one identifier segment>` with optional trailing line endings, without a query, fragment or other content. Consent names both the upload and result origins; the extension never sends file bytes to the result origin. Catbox's [FAQ](https://catbox.moe/faq.php) says anonymous uploads are removed after two years of inactivity.
 
-Provider refusals and malformed results never trigger a retry or show a link. A disabled destination, missing selection, missing or rejected poo.wang key, or disallowed file size reports the upload as unavailable. A missing host permission still reports a permission denial, and a cancelled selection or consent reports cancellation.
+Provider refusals (rate limit, file size, or another rejection) and malformed results never trigger a retry or show a link. A disabled destination, unavailable selection, or unknown key state stops the upload. Upload requires `files.select` and `network.http`; a missing local grant or a neutral refusal stops the attempt without retrying. **Destinations** distinguishes a refused key lookup or check from a provider that could not verify a key. A grant change refreshes readiness without repeating a key check or upload. Withdrawing the action or declining consent still reports cancellation. If the file was accepted and validated but its link could not be shown, the result says it was uploaded; it is not sent again.
 
-If startup cannot read the configured destination or update the available actions, it reports the startup error without proceeding with uploads or key changes. In particular, a missing or invalid destination is never treated as **Choose on Send**, and no key lookup is made. After correcting the startup problem, restart the extension.
+Send shows the host's observed file payload progress for both destinations, regardless of which client starts the action. **Finishing…** means the HTTP client has consumed all the file bytes; the result still depends on the provider response and link presentation. A terminal action label clears after 15 seconds or on the next run.
+
+If startup cannot read the configured destination or update the available actions, it reports the failure without proceeding with uploads or key changes. A missing or invalid destination is never treated as **Choose on Send**, and no key lookup is made. The next action or active settings request makes one new startup attempt; idle time and passive redraws never trigger a retry. No restart is needed after the problem is fixed.
 
 ## Execution format
 
@@ -46,7 +50,7 @@ cargo build --release --target wasm32-unknown-unknown --locked --target-dir targ
 cargo test --locked
 ```
 
-The guest's unit tests drive its protocol with scripted host answers: malformed results, snapshot and authorization ownership, bounds, the key's three outcomes, parts and cancellation.
+The guest's unit tests use scripted host answers to cover startup recovery, keyed and keyless request shapes, bounds, provider refusals, malformed results, failed presentation, and cancellation.
 
 The application carries the tests that run the compiled guest itself. Run this from the **application workspace root**, pointing `guest` to the submission's `wasm/` directory. Use an absolute path if the submission is checked out separately, or `"$PWD/plugins/peersus-upload/wasm"` for the local working copy:
 
