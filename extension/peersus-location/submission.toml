@@ -1,5 +1,7 @@
 schema = 1
 id = "location"
+# Native library and process exception: the native host accepts finished PSF1 pixels, not Location's PSD1 display lists.
+# End this exception when both native forms have display-list presentation. See README.md for the audit results.
 artifacts = ["location-linux.tar.gz", "location-android.tar.gz", "location-macos.tar.gz", "location-windows.tar.gz"]
 
 build = [

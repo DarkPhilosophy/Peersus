@@ -106,7 +106,7 @@ mod tests {
         let view = View {
             lon: 21.23,
             lat: 45.75,
-            span: 0.08,
+            span: crate::OFFLINE_FOCUS,
             roll: 0.,
         };
         let mut map = Cache::default();

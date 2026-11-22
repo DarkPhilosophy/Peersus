@@ -66,6 +66,12 @@ pub(super) fn counts(tiles: &[Placement], span: f64) -> [(usize, usize); STYLES.
     demand(tiles, span).map(|budget| (budget.paths, budget.verbs))
 }
 
+pub(super) fn has_detail(tiles: &[Placement], span: f64) -> bool {
+    STYLES.into_iter().any(|(kind, ..)| {
+        kind.shown(span) && tiles.iter().any(|tile| tile.paths(kind).next().is_some())
+    })
+}
+
 pub(super) fn paint(
     tiles: &[Placement],
     list: &mut List<'_>,

@@ -272,6 +272,16 @@ fn result(id: u64, result: Value) -> Value {
     json!({"type":"result","id":id,"result":result})
 }
 
+/// Encode the bytes a fixture delivers through the host's HTTP resource service.
+pub(super) fn fixture_hex(bytes: &[u8]) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(encoded, "{byte:02x}").unwrap();
+    }
+    encoded
+}
+
 fn found(latitude: f64, longitude: f64, age: u64) -> Value {
     json!({"status":"ok","value":{"latitude":latitude,"longitude":longitude,"accuracy":10.0,"age":age}})
 }
@@ -340,14 +350,271 @@ fn run_all(host: &mut Script, state: &mut State) {
     }
 }
 
+fn list_id(state: &mut State) -> u64 {
+    if state.asked_list == 0 {
+        state.list().unwrap()["id"].as_u64().unwrap()
+    } else {
+        state.asked_list
+    }
+}
+
 fn permissions(host: &mut Script, state: &mut State, peers: Value, now: u64) {
     state.now = now;
-    let request = state.list();
-    host.deliveries.push_back(result(
-        request["id"].as_u64().unwrap(),
-        json!({"status":"ok","value":peers}),
-    ));
+    let id = list_id(state);
+    host.deliveries
+        .push_back(result(id, json!({"status":"ok","value":peers})));
     run_all(host, state);
+}
+
+fn missing_permission(owner: &str, name: &str) -> Value {
+    json!({"status":"missing-permission","permission":{"owner":owner,"name":name}})
+}
+
+fn configuration(enabled: bool, missing: &[&str], peers: Value) -> Value {
+    let missing: Vec<_> = missing
+        .iter()
+        .map(|name| json!({"owner":"host","name":name}))
+        .collect();
+    json!({"status":"ok","value":{
+        "plugin":"location","settings":{"online-streets":enabled,"cache-online-areas":false},
+        "missing_permissions":missing,"peers":peers
+    }})
+}
+
+fn allowed(alias: &str, sends: bool) -> Value {
+    let mut grants = vec![
+        json!({"owner":"host","name":WATCH}),
+        json!({"owner":"location","name":SHARE}),
+    ];
+    if sends {
+        grants.push(json!({"owner":"host","name":SEND}));
+    }
+    json!({"device":alias,"permissions":grants})
+}
+
+#[test]
+fn a_checked_listing_refusal_evicts_old_positions_without_periodic_retries() {
+    let mut state = State {
+        placed: Some(false),
+        ..State::default()
+    };
+    let mut host = Script::default();
+    state.options = true;
+    state.own = Own::Found(told(45., 20.));
+    state.seen.insert("a1".into(), told(44., 19.));
+    let list = list_id(&mut state);
+    step(
+        &mut host,
+        &mut state,
+        &result(list, missing_permission("host", WATCH)),
+    )
+    .unwrap();
+    assert!(state.seen.is_empty());
+    assert!(
+        state.own_now().is_some(),
+        "permission to use the local position is independent"
+    );
+    assert!(
+        state
+            .page()
+            .to_string()
+            .contains("Paired devices: missing permission peers.watch on this device.")
+    );
+    state.now = 2 * IDLE_LIST_EVERY;
+    assert!(state.waited().is_none());
+    let change = json!({"type":"event","provider":"host","service":CONFIG,"version":1,"event":"changed","data":{}});
+    step(&mut host, &mut state, &change).unwrap();
+    let get = asked(&host, CONFIG, "get", 0);
+    step(
+        &mut host,
+        &mut state,
+        &result(get, configuration(false, &[], json!([allowed("a1", true)]))),
+    )
+    .unwrap();
+    assert_eq!(host.sent.len(), 1, "a fresh grant is not a replay");
+    assert!(state.waited().is_none());
+    step(&mut host, &mut state, &event(7, json!({"t":"open"}))).unwrap();
+    assert_eq!(
+        calls(&host, PEERS, "list").len(),
+        1,
+        "an explicit reopen starts a new listing"
+    );
+}
+
+#[test]
+fn a_checked_fix_refusal_stops_automatic_finding_but_not_a_fresh_local_action() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    let peers = json!([peer("a1", "Phone", true)]);
+    permissions(&mut host, &mut state, peers.clone(), 0);
+    let fix = asked(&host, LOCATION, "current", 0);
+    step(
+        &mut host,
+        &mut state,
+        &result(fix, missing_permission("host", READ)),
+    )
+    .unwrap();
+    assert_eq!(
+        state.own_line(),
+        "Locate this device: missing permission location.read on this device."
+    );
+    permissions(&mut host, &mut state, peers.clone(), SHARE_EVERY);
+    assert_eq!(
+        calls(&host, LOCATION, "current").len(),
+        1,
+        "a blocked automatic fix is not retried"
+    );
+    let cfg = state.ask_settings()["id"].as_u64().unwrap();
+    step(
+        &mut host,
+        &mut state,
+        &result(cfg, configuration(false, &[], json!([allowed("a1", true)]))),
+    )
+    .unwrap();
+    permissions(&mut host, &mut state, peers, 2 * SHARE_EVERY);
+    assert_eq!(
+        calls(&host, LOCATION, "current").len(),
+        1,
+        "a new grant does not replay the automatic fix"
+    );
+    step(
+        &mut host,
+        &mut state,
+        &event(6, json!({"t":"press","id":"find"})),
+    )
+    .unwrap();
+    let fresh = asked(&host, LOCATION, "current", 1);
+    step(&mut host, &mut state, &result(fresh, found(44., 19., 0))).unwrap();
+    assert!(state.own_now().is_some());
+    assert!(
+        calls(&host, PEERS, "send").is_empty(),
+        "locating is not a fresh share"
+    );
+}
+
+#[test]
+fn a_receive_only_device_stays_visible_and_cannot_be_sent_a_fix_or_question() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    let mut receiver = peer("a1", "Phone", true);
+    receiver["accepts"] = json!([wire::SERVICE, wire::WANTED]);
+    receiver["allowed"] = json!(false);
+    receiver["missing_permissions"] = json!([{"owner":"host","name":SEND}]);
+    permissions(&mut host, &mut state, json!([receiver]), 0);
+    assert!(calls(&host, LOCATION, "current").is_empty());
+    assert!(calls(&host, PEERS, "send").is_empty());
+    host.incoming
+        .push_back(wire::encode(&told(45., 20.).shared).unwrap());
+    step(&mut host, &mut state, &json!({"type":"call","ticket":3,"service":wire::SERVICE,"method":"receive","args":{"peer":"a1"}})).unwrap();
+    assert!(
+        state.seen.contains_key("a1"),
+        "read and send rights are independent"
+    );
+    assert!(state.device_lines()[0].contains("missing permission peers.send on this device."));
+    let cfg = state.ask_settings()["id"].as_u64().unwrap();
+    step(
+        &mut host,
+        &mut state,
+        &result(cfg, configuration(false, &[WATCH], json!([]))),
+    )
+    .unwrap();
+    assert!(
+        state.seen.is_empty(),
+        "loss of watch permission removes the retained position"
+    );
+    step(&mut host, &mut state, &json!({"type":"call","ticket":4,"service":wire::SERVICE,"method":"receive","args":{"peer":"a1"}})).unwrap();
+    assert_eq!(
+        host.sent.last().unwrap()["result"],
+        json!({"status":"not-accepted"})
+    );
+    assert_eq!(host.opened, [(false, 3)], "no second payload is read");
+}
+
+#[test]
+fn a_named_share_block_and_neutral_ack_leave_other_destinations_operational() {
+    let mut host = Script::default();
+    let mut state = State::default();
+    let peers = json!([
+        peer("a1", "Phone", true),
+        peer("b2", "Desk", true),
+        peer("c3", "Laptop", true)
+    ]);
+    permissions(&mut host, &mut state, peers.clone(), 0);
+    let fix = asked(&host, LOCATION, "current", 0);
+    step(&mut host, &mut state, &result(fix, found(45., 20., 0))).unwrap();
+    let phone = asked(&host, PEERS, "send", 0);
+    step(
+        &mut host,
+        &mut state,
+        &result(phone, missing_permission("location", SHARE)),
+    )
+    .unwrap();
+    let desk = asked(&host, PEERS, "send", 1);
+    let body = br#"{"status":"not-accepted"}"#;
+    let mut refusal = (body.len() as u32).to_be_bytes().to_vec();
+    refusal.extend_from_slice(body);
+    host.incoming.push_back(refusal);
+    step(
+        &mut host,
+        &mut state,
+        &result(desk, json!({"status":"ok","value":{"claim":41}})),
+    )
+    .unwrap();
+    let laptop = asked(&host, PEERS, "send", 2);
+    host.acks = true;
+    step(
+        &mut host,
+        &mut state,
+        &result(laptop, json!({"status":"ok","value":{"claim":42}})),
+    )
+    .unwrap();
+    assert_eq!(host.opened, [(true, 41), (true, 42)]);
+    assert_eq!(host.closed, 2);
+    assert_eq!(
+        state.device_lines()[0],
+        "Phone: missing permission location.sharing on this device."
+    );
+    assert_eq!(state.device_lines()[1], "Desk: not accepted.");
+    assert_eq!(state.share_line().as_deref(), Some("Shared with Laptop."));
+    permissions(&mut host, &mut state, peers, SHARE_EVERY);
+    let next = asked(&host, LOCATION, "current", 1);
+    step(&mut host, &mut state, &result(next, found(44., 19., 0))).unwrap();
+    let sends = calls(&host, PEERS, "send");
+    assert_eq!(sends.len(), 4);
+    assert_eq!(sends[3]["args"]["device"], "c3");
+}
+
+#[test]
+fn a_refused_question_stops_but_a_transient_failure_keeps_the_normal_backoff() {
+    let mut state = State::default();
+    let mut host = Script::default();
+    let mut phone = peer("a1", "Phone", false);
+    let mut desk = peer("b2", "Desk", false);
+    phone["accepts"] = json!([wire::WANTED]);
+    desk["accepts"] = json!([wire::WANTED]);
+    let peers = json!([phone, desk]);
+    permissions(&mut host, &mut state, peers.clone(), 0);
+    let a = asked(&host, PEERS, "send", 0);
+    let b = asked(&host, PEERS, "send", 1);
+    step(
+        &mut host,
+        &mut state,
+        &result(a, json!({"status":"not-accepted"})),
+    )
+    .unwrap();
+    step(
+        &mut host,
+        &mut state,
+        &result(b, json!({"status":"error","code":"timeout"})),
+    )
+    .unwrap();
+    permissions(&mut host, &mut state, peers.clone(), ASK_AGAIN - 1);
+    assert_eq!(calls(&host, PEERS, "send").len(), 2);
+    permissions(&mut host, &mut state, peers, ASK_AGAIN);
+    let sends = calls(&host, PEERS, "send");
+    assert_eq!(sends.len(), 3);
+    assert_eq!(sends[2]["args"]["device"], "b2");
+    assert_eq!(state.device_lines()[0], "Phone: not accepted.");
 }
 
 #[test]
@@ -718,7 +985,7 @@ fn a_device_nothing_is_known_of_is_asked_at_once_and_again_until_it_shares() {
     assert_eq!(streams(&host, wire::WANTED).len(), times + 2);
     // No longer allowed to see any device: what was asked is forgotten with the rest.
     state.now = arrived + STALE + 15_001;
-    let list = state.list()["id"].as_u64().unwrap();
+    let list = list_id(&mut state);
     host.deliveries.push_back(result(
         list,
         json!({"status":"error","code":"denied","message":"no"}),
@@ -878,7 +1145,7 @@ fn what_a_device_shared_stays_known_until_it_shares_again_however_long_that_take
     let mut state = State::default();
     let listing = |host: &mut Script, state: &mut State, at: u64, answer: Value| {
         state.now = at;
-        let list = state.list()["id"].as_u64().unwrap();
+        let list = list_id(state);
         host.deliveries.push_back(result(list, answer));
         run_all(host, state);
     };
@@ -1124,6 +1391,11 @@ fn the_guest_answers_what_comes_in_order_and_ends_quietly_when_the_application_g
     host.deliveries
         .push_back(json!({"type":"call","ticket":2,"method":"other","args":{}}));
     assert_eq!(run(&mut host), 0);
+    assert_eq!(host.sent[0], host::subscribe_config());
+    assert_eq!(
+        (&host.sent[1]["service"], &host.sent[1]["method"]),
+        (&json!(CONFIG), &json!("get"))
+    );
     let replies: Vec<_> = host
         .sent
         .iter()
@@ -1786,31 +2058,38 @@ fn pressing_a_devices_name_on_the_map_takes_the_person_there() {
 
 #[test]
 fn a_device_press_moves_through_intermediate_views_to_the_available_detail() {
-    for (online, target_span) in [(false, world::REGIONAL_SPAN), (true, STREET_FOCUS)] {
-        let mut state = State {
-            online_enabled: online,
-            ..State::default()
-        };
-        state.act(&size(0, 0, 900000, 600000));
-        state.listed(&[peer("alias", "Synthetic", true)]);
-        state.seen.insert("alias".to_owned(), told(45.75, 21.23));
-        let original = state.view;
-        state.surface.picture = art(&state).1;
-        let point = state.surface.picture.markers[0].point;
-        pointer(&mut state, "down", point, 1);
-        pointer(&mut state, "up", point, 2);
-        assert_eq!(state.view, original);
-        assert_eq!(state.page()["milliseconds"], 100);
-        let mut last = original.span;
-        for elapsed in (100..=FOCUS_MS).step_by(100) {
-            state.act(&json!({"t":"tick","id":"clock","at":2 + elapsed}));
-            assert!(state.view.span < last);
-            last = state.view.span;
+    for start in [360., world::REGIONAL_SPAN] {
+        for (lon, lat, target_span) in [(21.23, 45.75, 0.08), (26.10, 44.43, STREET_FOCUS)] {
+            let mut state = State::default();
+            if start < 360. {
+                state.view = world::View {
+                    lon: lon - 0.5,
+                    lat: lat - 0.5,
+                    span: start,
+                    roll: 0.,
+                };
+            }
+            state.act(&size(0, 0, 900000, 600000));
+            state.listed(&[peer("alias", "Synthetic", true)]);
+            state.seen.insert("alias".to_owned(), told(lat, lon));
+            let original = state.view;
+            state.surface.picture = art(&state).1;
+            let point = state.surface.picture.markers[0].point;
+            pointer(&mut state, "down", point, 1);
+            pointer(&mut state, "up", point, 2);
+            assert_eq!(state.view, original);
+            assert_eq!(state.page()["milliseconds"], 100);
+            let mut last = original.span;
+            for elapsed in (100..=FOCUS_MS).step_by(100) {
+                state.act(&json!({"t":"tick","id":"clock","at":2 + elapsed}));
+                assert!(state.view.span < last);
+                last = state.view.span;
+            }
+            assert_eq!(state.view.span, target_span);
+            let (shown_lon, shown_lat) = state.view.centre();
+            assert!((shown_lon - lon).abs() < 1e-10 && (shown_lat - lat).abs() < 1e-10);
+            assert!(state.focus.is_none());
         }
-        assert_eq!(state.view.span, target_span);
-        let (lon, lat) = state.view.centre();
-        assert!((lon - 21.23).abs() < 1e-10 && (lat - 45.75).abs() < 1e-10);
-        assert!(state.focus.is_none());
     }
 }
 
@@ -1881,6 +2160,123 @@ impl MarkerMap {
         world::Camera::new(self.state.view.kept(), self.state.frame())
             .point(lon, 0.)
             .unwrap()
+    }
+}
+
+fn badge_tap(state: &State, id: &str, at: u64) -> [Value; 2] {
+    let [x, y, w, h] = state
+        .surface
+        .picture
+        .markers
+        .iter()
+        .find(|marker| marker.id == id)
+        .and_then(|marker| marker.badge)
+        .expect("the peer's name is drawn");
+    let (left, top, _, _) = state.map_at.unwrap();
+    let x = ((x + w / 2.) * 1_000. + left) as i32;
+    let y = ((y + h / 2.) * 1_000. + top) as i32;
+    [("down", at - 1), ("up", at)]
+        .map(|(phase, at)| json!({"t":"pointer","id":"map","phase":phase,"x":x,"y":y,"at":at}))
+}
+
+#[test]
+fn peer_badges_zoom_and_retarget_from_the_visible_camera() {
+    for (online, latitude, longitude, span) in [
+        (false, 18., 12., 0.08),
+        (true, 18., 12., 0.08),
+        (false, 44.43, 26.10, STREET_FOCUS),
+    ] {
+        let other = longitude + 0.001;
+        let mut map = MarkerMap::default();
+        let config = map.state.ask_settings()["id"].as_u64().unwrap();
+        let missing = if online {
+            [].as_slice()
+        } else {
+            [PUBLIC].as_slice()
+        };
+        map.answer(
+            config,
+            configuration(
+                online,
+                missing,
+                json!([allowed("a1", true), allowed("b2", true)]),
+            ),
+        );
+        if online {
+            let restore = asked(&map.host, online::SERVICE, "restore-read", 0);
+            map.answer(restore, json!({"status":"error","code":"unavailable"}));
+        }
+        map.state
+            .listed(&[peer("a1", "One", true), peer("b2", "Two", true)]);
+        map.state
+            .seen
+            .insert("a1".into(), told(latitude, longitude));
+        map.state.seen.insert("b2".into(), told(latitude, other));
+        map.tick(1_000);
+        next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
+        map.open(PAGE, size(0, 0, 1_540_000, 830_000));
+        map.tick(1_100);
+        assert!(Art::parse(&map.host.written).raster[2] < 1_000);
+
+        let shown = |map: &MarkerMap| map.state.surface.painted.unwrap().view;
+        let arrived = |map: &MarkerMap, longitude: f64, span: f64| {
+            let view = shown(map);
+            let (lon, lat) = view.centre();
+            assert!((lon - longitude).abs() < 1e-9 && (lat - latitude).abs() < 1e-9);
+            assert_eq!(view.span, span);
+        };
+        let select = |map: &mut MarkerMap, peer: &str, at: u64| {
+            for input in badge_tap(&map.state, peer, at) {
+                map.action(PAGE, input);
+            }
+        };
+
+        let world = shown(&map);
+        select(&mut map, "a1", 1_200);
+        assert_eq!(shown(&map), world, "selection does not jump");
+        map.tick(1_400);
+        assert!(span < shown(&map).span && shown(&map).span < world.span);
+        assert!(world.lon < shown(&map).lon && shown(&map).lon < longitude);
+        map.tick(1_200 + FOCUS_MS);
+        arrived(&map, longitude, span);
+        select(&mut map, "a1", 1_710);
+        map.tick(1_750);
+        arrived(&map, longitude, span);
+        select(&mut map, "b2", 1_800);
+        map.tick(1_800 + FOCUS_MS);
+        arrived(&map, other, span);
+
+        map.action(PAGE, json!({"t":"press","id":"closer","at":2_400}));
+        let closer = shown(&map).span;
+        assert!(closer < span);
+        select(&mut map, "a1", 2_500);
+        map.tick(2_500 + FOCUS_MS);
+        arrived(&map, longitude, closer);
+
+        map.action(PAGE, json!({"t":"press","id":"world","at":3_100}));
+        select(&mut map, "a1", 3_200);
+        // Sample while both badges still fit in the viewport.
+        map.tick(3_250);
+        let visible = shown(&map);
+        next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
+        map.tick(3_500);
+        let refused = map.state.view;
+        assert_eq!(shown(&map), visible);
+        assert!(refused.span < visible.span);
+        select(&mut map, "b2", 3_510);
+        assert_eq!(shown(&map), visible);
+        map.tick(3_560);
+        let next = shown(&map);
+        assert!(
+            refused.span < next.span && next.span < visible.span,
+            "a new selection starts from the visible span {}, not the refused span {} (got {})",
+            visible.span,
+            refused.span,
+            next.span
+        );
+        assert!(visible.lon < next.lon && next.lon < refused.lon);
+        map.tick(3_510 + FOCUS_MS);
+        arrived(&map, other, span);
     }
 }
 
@@ -2034,7 +2430,7 @@ fn forgetting_a_device_cancels_its_glide_and_its_next_sighting_is_immediate() {
             } else {
                 json!({"status":"error","code":"denied"})
             };
-            let id = map.state.list()["id"].as_u64().unwrap();
+            let id = list_id(&mut map.state);
             map.answer(id, result);
         }
         assert!(map.state.seen.is_empty() && map.state.peer_glides.is_empty());
@@ -3186,6 +3582,121 @@ fn settings_enable_silent_restore_once_and_turning_off_releases_access() {
 }
 
 #[test]
+fn a_resource_read_block_keeps_the_offline_map_and_needs_a_fresh_online_session() {
+    let mut state = State {
+        camera: Viewport {
+            options: true,
+            ..Viewport::default()
+        },
+        ..State::default()
+    };
+    state.view.span = world::REGIONAL_SPAN;
+    let online_call = |calls: Vec<Value>, method: &str| {
+        calls
+            .into_iter()
+            .find(|call| call["method"] == method)
+            .unwrap_or_else(|| panic!("expected {method}"))["id"]
+            .as_u64()
+            .unwrap()
+    };
+    let cfg = state.ask_settings()["id"].as_u64().unwrap();
+    let restore = online_call(
+        state.told(&result(cfg, configuration(true, &[], json!([])))),
+        "restore-read",
+    );
+    state.told(&result(
+        restore,
+        json!({"status":"ok","value":{"authorization":"old"}}),
+    ));
+    let download = online_call(state.act(&json!({"t":"tick","at":1000})), "get-resource");
+    let read = online_call(
+        state.told(&result(
+            download,
+            json!({"status":"ok","value":{"resource":"first","bytes":4}}),
+        )),
+        "read-resource",
+    );
+    assert!(
+        state
+            .told(&result(read, missing_permission("host", PUBLIC)))
+            .is_empty(),
+        "do not release or read again after refusal"
+    );
+    assert!(!state.online.ready());
+    let page = state.page().to_string();
+    assert!(page.contains("Online maps: missing permission network.public on this device."));
+    assert!(page.contains("Location map. Drag to pan"));
+    state.now += 100_000;
+    let no_https = |calls: Vec<Value>| calls.iter().all(|call| call["service"] != online::SERVICE);
+    assert!(no_https(state.act(&json!({"t":"tick","at":2000}))));
+    assert!(no_https(state.act(&json!({"t":"press","id":"clear-kept"}))));
+    state.act(&json!({"t":"press","id":"options"}));
+    assert!(no_https(state.act(&json!({"t":"press","id":"options"}))));
+    let cfg = state.ask_settings()["id"].as_u64().unwrap();
+    assert!(no_https(
+        state.told(&result(cfg, configuration(false, &[PUBLIC], json!([]))))
+    ));
+    let cfg = state.ask_settings()["id"].as_u64().unwrap();
+    assert!(no_https(
+        state.told(&result(cfg, configuration(true, &[], json!([]))))
+    ));
+    assert!(no_https(state.act(&json!({"t":"tick","at":3000}))));
+    assert_ne!(
+        online_call(state.act(&json!({"t":"open"})), "restore-read"),
+        restore
+    );
+    assert!(
+        state
+            .told(&result(
+                read,
+                json!({"status":"ok","value":{"hex":"00000000","end":true}})
+            ))
+            .is_empty()
+    );
+}
+
+#[test]
+fn a_neutral_release_refusal_does_not_restart_or_expose_a_permission_hint() {
+    let mut state = State {
+        camera: Viewport {
+            options: true,
+            ..Viewport::default()
+        },
+        ..State::default()
+    };
+    let settings = |state: &mut State, enabled: bool| {
+        let id = state.ask_settings()["id"].as_u64().unwrap();
+        state.told(&result(id, configuration(enabled, &[], json!([]))))
+    };
+    let id = |calls: Vec<Value>, method: &str| {
+        calls
+            .iter()
+            .find(|call| call["method"] == method)
+            .expect("expected online operation")["id"]
+            .as_u64()
+            .unwrap()
+    };
+    let restore = id(settings(&mut state, true), "restore-read");
+    state.told(&result(
+        restore,
+        json!({"status":"ok","value":{"authorization":"approved"}}),
+    ));
+    let release = id(settings(&mut state, false), "release-read");
+    assert!(
+        state
+            .told(&result(release, json!({"status":"not-accepted"})))
+            .is_empty()
+    );
+    assert!(
+        state
+            .page()
+            .to_string()
+            .contains("Online maps: not accepted.")
+    );
+    assert!(settings(&mut state, false).is_empty());
+}
+
+#[test]
 fn map_keeps_quick_ticks_between_metadata_and_the_first_tile() {
     let mut state = State {
         online_enabled: true,
@@ -3216,7 +3727,7 @@ fn map_keeps_quick_ticks_between_metadata_and_the_first_tile() {
     ));
     state.told(&result(
         read[0]["id"].as_u64().unwrap(),
-        json!({"status":"ok","value":{"hex":hex::encode(metadata),"end":true}}),
+        json!({"status":"ok","value":{"hex":fixture_hex(metadata),"end":true}}),
     ));
     assert!(
         state
@@ -3241,6 +3752,12 @@ struct StreetScript {
 
 impl StreetScript {
     fn new(view: world::View) -> Self {
+        let mut session = Self::offline(view);
+        session.enable_streets();
+        session
+    }
+
+    fn offline(view: world::View) -> Self {
         let mut session = Self {
             host: Script::default(),
             state: State::default(),
@@ -3251,14 +3768,28 @@ impl StreetScript {
         session.state.view = view;
         session.state.act(&size(0, 0, 640000, 500000));
         session.state.surface.stream = Some(7);
-        session.configure(true);
-        let restore = asked(&session.host, online::SERVICE, "restore-read", 0);
-        session.reply(restore, json!({"authorization":"approved"}));
-        session.tick();
-        let get = asked(&session.host, online::SERVICE, "get-resource", 0);
-        session.next_get = 1;
-        session.read_resource(get, br#"{"tiles":["https://tiles.openfreemap.org/planet/test/{z}/{x}/{y}.pbf"],"maxzoom":14}"#);
         session
+    }
+
+    fn enable_streets(&mut self) {
+        self.configure(true);
+        let restore = calls(&self.host, online::SERVICE, "restore-read")
+            .last()
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap();
+        self.reply(restore, json!({"authorization":"approved"}));
+        self.tick();
+        let get = asked(&self.host, online::SERVICE, "get-resource", self.next_get);
+        self.next_get += 1;
+        self.read_resource(get, br#"{"tiles":["https://tiles.openfreemap.org/planet/test/{z}/{x}/{y}.pbf"],"maxzoom":14}"#);
+    }
+
+    fn select(&mut self, id: &str) {
+        self.now += 20;
+        for input in badge_tap(&self.state, id, self.now) {
+            self.action(input);
+        }
     }
 
     fn send(&mut self, delivery: Value) {
@@ -3302,7 +3833,7 @@ impl StreetScript {
             assert_eq!(read["args"]["offset"], index * 16 * 1024);
             self.reply(
                 read["id"].as_u64().unwrap(),
-                json!({"hex":hex::encode(chunk),"end":(index+1)*16*1024>=data.len()}),
+                json!({"hex":fixture_hex(chunk),"end":(index+1)*16*1024>=data.len()}),
             );
         }
     }
@@ -3359,6 +3890,101 @@ impl StreetScript {
         self.state
             .online
             .shown_keys(self.state.view, self.state.frame())
+    }
+}
+
+#[test]
+fn a_selected_peer_continues_into_drawable_streets_after_opt_in() {
+    let street = world::View {
+        lon: 0.011,
+        lat: 0.011,
+        span: STREET_FOCUS,
+        roll: 0.,
+    }
+    .kept();
+    let offline = world::View {
+        span: 0.08,
+        ..street
+    };
+    let mut session = StreetScript::offline(offline);
+    session.state.listed(&[peer("phone", "Phone", true)]);
+    session
+        .state
+        .seen
+        .insert("phone".into(), told(street.lat, street.lon));
+    session.tick();
+    let shown = |s: &StreetScript| s.state.surface.painted.unwrap().view;
+    session.select("phone");
+    assert_eq!(shown(&session), offline);
+    assert!(
+        session
+            .state
+            .page()
+            .to_string()
+            .contains("Street detail is off")
+    );
+    session.enable_streets();
+    assert_eq!(
+        shown(&session),
+        offline,
+        "approval and metadata are not street coverage"
+    );
+    let keys = tile::visible(street, session.state.frame(), 14);
+    let tile = road_tile(128);
+    for i in 0..keys.len() {
+        let key = session.load(&tile);
+        assert!(
+            keys.contains(&key),
+            "load the selected camera, not the wider offline viewport"
+        );
+        session.show(key);
+        if i + 1 < keys.len() {
+            assert_eq!(
+                shown(&session),
+                offline,
+                "partial coverage must not move the camera"
+            );
+        }
+    }
+    let mut intermediate = false;
+    for _ in 0..7 {
+        session.tick();
+        let view = shown(&session);
+        intermediate |= street.span < view.span && view.span < offline.span;
+        assert_eq!(view.centre(), street.centre());
+    }
+    assert!(intermediate, "late coverage starts a glide, not a jump");
+    assert_eq!(shown(&session), street);
+    assert!(
+        session
+            .art()
+            .paths
+            .iter()
+            .any(|path| path.clip.is_some() && path.color == 8)
+    );
+
+    for span in [360., world::REGIONAL_SPAN] {
+        session.action(json!({"t":"press","id":"world","at":session.now + 1}));
+        if span < 360. {
+            session.state.view = world::View {
+                span,
+                lon: street.lon - 0.1,
+                ..street
+            };
+            session.tick();
+        }
+        let before = shown(&session);
+        assert_eq!(before.span, span);
+        session.select("phone");
+        assert_eq!(shown(&session), before);
+        for _ in 0..5 {
+            session.tick();
+        }
+        assert_eq!(
+            shown(&session),
+            street,
+            "cached streets can be focused in one glide from {span}°"
+        );
     }
 }
 
@@ -3570,6 +4196,59 @@ fn only_a_complete_replacement_changes_the_presented_map() {
         "unavailable tiles fall back to the offline view"
     );
     assert!(!session.state.surface.picture.online_drawn);
+}
+
+#[test]
+fn a_limited_first_frame_still_shows_a_map_on_open_and_reopen() {
+    for (online, missing) in [
+        (false, [].as_slice()),
+        (true, [].as_slice()),
+        (true, [READ, WATCH, PUBLIC].as_slice()),
+    ] {
+        let mut map = MarkerMap::default();
+        let config = map.state.ask_settings()["id"].as_u64().unwrap();
+        map.answer(config, configuration(online, missing, json!([])));
+        if online && missing.is_empty() {
+            let restore = asked(&map.host, online::SERVICE, "restore-read", 0);
+            map.answer(
+                restore,
+                json!({"status":"ok","value":{"authorization":"fixture"}}),
+            );
+        }
+        for at in [1_000, 3_000] {
+            map.tick(at);
+            map.host.written.clear();
+            next_canvas_answers(canvas_sdk::PRESENT_LIMITED);
+            map.open(PAGE, size(0, 0, 1_540_000, 830_000));
+            assert!(
+                map.host.written.is_empty(),
+                "a limited frame was not presented"
+            );
+            map.tick(at + 100);
+            let shown = Art::parse(&map.host.written);
+            assert_eq!((shown.seq, shown.raster), (1, [924, 498, 600]));
+            assert!(
+                shown
+                    .paths
+                    .iter()
+                    .any(|path| path.mode == 0 && path.verbs > 10)
+            );
+            assert!(shown.label("+") && shown.label("−"));
+            let has_coast_stroke = |art: &Art| {
+                art.paths.iter().any(|path| {
+                    path.mode == 1 && path.color == 5 && path.width == 1.2 && path.verbs > 10
+                })
+            };
+            assert!(
+                !has_coast_stroke(&shown),
+                "defer expensive detail for the first map"
+            );
+            map.tick(at + 200);
+            let detailed = Art::parse(&map.host.written);
+            assert!(detailed.seq > shown.seq && has_coast_stroke(&detailed));
+        }
+        assert_eq!(calls(&map.host, canvas_sdk::SERVICE, "open").len(), 2);
+    }
 }
 
 #[test]

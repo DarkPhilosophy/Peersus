@@ -16,7 +16,8 @@ marker, the camera glides with it. The first fix is centred directly.
 - **Where this device is** comes from the application's `peersus.location` service (`current`, the person's `location.read`),
   requested when you select *Locate this device*, or when an eligible recipient is ready for sharing. Linux uses the desktop
   location portal; Android uses the system location manager. System permission and a usable fix are separate from the
-  application's `location.read` grant. A failed lookup does not place a guessed marker.
+  application's `location.read` grant. A failed lookup does not place a guessed marker. A refused lookup is not asked
+  for again in the background; select *Locate this device* to ask for a fresh fix once allowed.
 - **Sharing**: enable `location.sharing` separately for each paired device. `peers.watch` and `peers.send` are also required,
   and the receiving device must run Location and accept the service from this device. The worker checks for eligible peers
   at startup and periodically even when the map is closed. With an eligible recipient it asks for a fresh position at most
@@ -24,15 +25,20 @@ marker, the camera glides with it. The first fix is centred directly.
   transmission after an update.
 - **Asking**: a device of which nothing is known here, or only something more than ten minutes old, is asked where it is
   (the exported `location.wanted` `receive`, under the same `location.sharing` on both sides): at once, then again after
-  fifteen seconds and twice as long each time while it has not shared, in the end once per five minutes. The device asked
-  answers the device that asked, at most once per ten seconds, with the position it already knows; a question it cannot
-  answer yet is kept for a minute and answered by its next share. A question never makes a device ask its system for a
+  fifteen seconds and twice as long each time without a reply, in the end once per five minutes. A checked refusal
+  stops that request instead of entering this backoff. The device asked answers at most once per ten seconds, with
+  the position it already knows; a question it cannot answer yet is kept for a minute and answered by its next share.
+  A question never makes a device ask its system for a
   position sooner than every five minutes. This is what fills the map shortly after the application starts, instead of at
   each device's next turn.
 - **Receiving** is the exported `location.position` `receive`, which the application admits only from a device this device's
   person allowed Location for (`location.sharing`). One position per device is kept, in memory only, and forgotten when the
   extension stops, the person presses *Forget received locations*, or the device is no longer listed as allowed (unpaired,
   or Location no longer allowed for it).
+- **Refusals**: Location names missing local grants. A paired device's refusal says only *not accepted*, whether it
+  arrives before the stream or in its acknowledgement. A refused listing, question or share pauses that operation;
+  reopen Location once allowed to start fresh. A grant update does not replay the stopped work. Grants are independent:
+  a device allowed to share with you can still appear on the map when it cannot be sent anything.
 
 ## How old a position is
 
@@ -86,6 +92,10 @@ The data and reproducible generators are listed in `NOTICE`. No map requests are
 
 **Kept map areas.** With **Keep viewed map areas** on (the default), the application keeps the map index and downloaded tiles on this device, up to 128 MB. Saved areas show immediately without waiting for a download, even offline. Location refreshes older copies in the background and continues showing the saved map until replacement tiles are ready. **Options** on the map shows how many areas are kept and their size; **Clear saved map areas** removes them. Removing Location also removes them. With this setting off, Location neither reads nor saves copies on disk; it holds the current view’s tiles in memory and leaves already saved areas untouched until cleared.
 
+Public HTTPS (`network.public`) is required for opening, reading, counting and clearing saved street detail. A
+checked refusal stops the online session without retrying. The offline globe remains available; after restoring the
+grant, reopen Location or turn street detail off and on to start a fresh session. No saved areas are deleted on refusal.
+
 The right-side zoom scale can be tapped or dragged. Its caption is an estimated camera height above the surface, not GPS altitude.
 The orthographic view has no physical altitude, so the estimate uses a downward-looking 60° perspective camera with the same
 scale at the centre: `elevation = (R / r) × min(width, height) / (2 × tan(30°))`, where `R` is Earth's mean radius and `r` is the
@@ -115,6 +125,13 @@ PEERSUS_TEST_LOCATION_MODULE="$PWD/plugins/peersus-location/wasm/target/wasm32-u
   cargo test --locked -p peersus-plugin-canvas --test location -- --ignored --nocapture
 ```
 
-`submission.toml` builds and tests the WASM guest and produces one WASM package per platform.
+`submission.toml` builds and tests the WebAssembly guest and packages it for Linux, Android, macOS and Windows.
+
+**Native exception:** Location produces neither a native library nor a process binary. The native host table has no
+`canvas_present` callback for `PSD1` display lists; it can only send finished `PSF1` pixel frames. The audit's scratch
+port failed with `Host: CanvasIo` unsatisfied, then `canvas_present` not found. Both scratch native forms opened a
+Canvas stream, but the receiver rejected the raw display list with `invalid canvas frame header`. This exception ends
+when the application offers the same display-list presentation to both native forms.
+
 Before building, the source recipe checks that `wasm/src/canvas_sdk.rs` is a byte-for-byte copy of the SDK's
 `templates/guest/canvas.rs`. Update the SDK file first, then refresh the vendored copy.

@@ -405,6 +405,7 @@ pub fn hit(markers: &[Marker], frame: world::Frame, (x, y): (f64, f64)) -> Hit {
 pub fn render(state: &State, stamp: Stamp, advance: bool, list: &mut List<'_>) -> Picture {
     let mut cache = state.cache.borrow_mut();
     let view = stamp.view;
+    let opening = stamp.detail == tile::Detail::Opening;
     let frame = state.frame();
     let layer = cache.prepare(view, frame, advance);
     let camera = world::Camera::new(view, frame);
@@ -435,18 +436,27 @@ pub fn render(state: &State, stamp: Stamp, advance: bool, list: &mut List<'_>) -
     if let Some(path) = &layer.land {
         path.paint(p.list, Paint::Fill(Color::Border, 184));
         // The fill already defines coastlines; add their contrast stroke at rest.
-        if view.span > 60. && stamp.detail != tile::Detail::Gesture {
+        if view.span > 60. && !opening && stamp.detail != tile::Detail::Gesture {
             path.paint(p.list, Paint::Stroke(Color::Muted, 1.2, 184));
         }
     }
-    layer
-        .detail
-        .borders
-        .paint(p.list, Paint::Stroke(Color::Text, 2., 224));
+    if opening {
+        layer
+            .detail
+            .roads
+            .paint(p.list, Paint::Stroke(Color::Accent, 1., 255));
+    } else {
+        layer
+            .detail
+            .borders
+            .paint(p.list, Paint::Stroke(Color::Text, 2., 224));
+    }
 
     // Only a full replacement can take over. Moving the camera can reproject
     // the last accepted tiles over the complete offline base.
-    let (online_drawn, online_labels, previewing_tiles) =
+    let (online_drawn, online_labels, previewing_tiles) = if opening {
+        (false, Vec::new(), false)
+    } else {
         state.online.with_drawing(view, frame, |detail| {
             let detail = detail
                 .filter(|(_, complete)| state.online_enabled && *complete)
@@ -488,10 +498,11 @@ pub fn render(state: &State, stamp: Stamp, advance: bool, list: &mut List<'_>) -
                     .collect::<Vec<_>>(),
                 preview.is_some(),
             )
-        });
+        })
+    };
 
     let mut countries = Vec::new();
-    for country in &layer.detail.countries {
+    for country in layer.detail.countries.iter().filter(|_| !opening) {
         let Some((area, size)) = country.place(bounds, true, |area| {
             clear(area) && countries.iter().all(|&other| !overlaps(area, other))
         }) else {
@@ -504,7 +515,7 @@ pub fn render(state: &State, stamp: Stamp, advance: bool, list: &mut List<'_>) -
     let label_clear = |area| clear(area) && countries.iter().all(|&other| !overlaps(area, other));
     let mut offline = Vec::new();
     let mut cities = 0;
-    if online_labels.is_empty() {
+    if !opening && online_labels.is_empty() {
         let city_limit = atlas::city_limit(view, frame);
         for (index, &(x, y, name)) in layer.detail.names.iter().enumerate() {
             let city = index >= layer.detail.first_city;

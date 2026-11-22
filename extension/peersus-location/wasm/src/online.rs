@@ -10,6 +10,7 @@ pub const SERVICE: &str = "peersus.http";
 const ORIGIN: &str = "https://tiles.openfreemap.org";
 const ROOT: &str = "/planet";
 const MAX_BYTES: usize = 4 * 1024 * 1024;
+const READ_CHUNK_BYTES: usize = 16 * 1024;
 // During zoom, the last complete level and its replacement can coexist.
 const MAX_CACHED_TILES: usize = 2 * tile::MAX_TILES;
 const CACHED_SOURCE_BYTES: usize = 8 * 1024 * 1024;
@@ -255,6 +256,15 @@ impl Online {
             && !self.select(&visible).1
     }
 
+    pub fn has_drawable_detail(&self, view: View, frame: Frame) -> bool {
+        if !self.ready() || self.tiles.is_empty() || !self.select(&self.visible(view, frame)).1 {
+            return false;
+        }
+        self.with_drawing(view, frame, |drawing| {
+            drawing.is_some_and(|(drawing, complete)| complete && drawing.has_detail())
+        })
+    }
+
     /// Only a successful Canvas presentation authorizes us to save a replacement index.
     pub fn frame_shown(&mut self, view: View, frame: Frame) {
         self.displayed.clear();
@@ -379,8 +389,12 @@ impl Online {
             call("release-read", json!({"authorization":authorization}), 3000)
         });
         let request = self.request;
-        self.forget_tiles();
-        *self = Self::default();
+        // Both an explicit disable and a checked stop invalidate the last online frame.
+        *self = Self {
+            current_view_only: self.current_view_only,
+            drawing_stamp: self.drawing_stamp.wrapping_add(1),
+            ..Self::default()
+        };
         (request, release)
     }
 
@@ -733,21 +747,14 @@ impl Online {
                 total,
                 mut bytes,
             } => {
-                let read = value["hex"]
+                if value["hex"]
                     .as_str()
-                    .filter(|s| s.len() <= 2 * 16 * 1024)
-                    .and_then(|s| hex::decode(s).ok());
-                let Some(read) = read else {
-                    self.unavailable(resource, now);
-                    return None;
-                };
-                if read.len() > total.saturating_sub(bytes.len())
-                    || (read.is_empty() && bytes.len() != total)
+                    .and_then(|chunk| append_chunk(&mut bytes, total, chunk))
+                    .is_none()
                 {
                     self.unavailable(resource, now);
                     return None;
                 }
-                bytes.extend_from_slice(&read);
                 if value["end"].as_bool() != Some(bytes.len() == total) {
                     self.unavailable(resource, now);
                     return None;
@@ -975,6 +982,29 @@ impl Online {
     }
 }
 
+/// Decode one host chunk into the resource buffer, which the caller discards on failure.
+fn append_chunk(bytes: &mut Vec<u8>, total: usize, chunk: &str) -> Option<()> {
+    let (pairs, trailing) = chunk.as_bytes().as_chunks::<2>();
+    let remaining = total.checked_sub(bytes.len())?;
+    if !trailing.is_empty()
+        || pairs.len() > READ_CHUNK_BYTES.min(remaining)
+        || (pairs.is_empty() && remaining != 0)
+    {
+        return None;
+    }
+    let digit = |byte| match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    };
+    bytes.try_reserve(pairs.len()).ok()?;
+    for &[high, low] in pairs {
+        bytes.push((digit(high)? << 4) | digit(low)?);
+    }
+    Some(())
+}
+
 fn refresh_at(now: u64, age: Option<u64>, limit: u64) -> Option<u64> {
     age.map(|age| now.saturating_add((limit + 1).saturating_sub(age) * 1000))
 }
@@ -1002,6 +1032,7 @@ fn handle(value: &Value) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::fixture_hex;
 
     #[test]
     fn a_cached_parent_stays_visible_while_the_new_zoom_downloads() {
@@ -1087,12 +1118,79 @@ mod tests {
         assert!(
             online
                 .result(
-                    &json!({"status":"ok","value":{"hex":hex::encode(bytes),
+                    &json!({"status":"ok","value":{"hex":fixture_hex(bytes),
             "end":true}}),
                     now
                 )
                 .is_none()
         );
+    }
+
+    fn reading_index(bytes: usize) -> Online {
+        let mut online = Online {
+            authorization: Some("fixture".into()),
+            ..Online::default()
+        };
+        assert_eq!(
+            online.advance(0, VIEW, FRAME).unwrap().method,
+            "get-resource"
+        );
+        let read = online
+            .result(
+                &json!({"status":"ok","value":{"resource":"fixture","bytes":bytes}}),
+                0,
+            )
+            .unwrap();
+        assert_eq!(read.method, "read-resource");
+        assert_eq!(read.args["offset"], 0);
+        online
+    }
+
+    #[test]
+    fn a_malformed_or_overlong_chunk_stops_the_resource_read() {
+        const LIMIT: usize = 16 * 1024;
+        for (why, encoded) in [
+            ("odd length", "00a".to_owned()),
+            ("non-hex digit", "00g1".to_owned()),
+            ("overlong", "00".repeat(LIMIT + 1)),
+        ] {
+            // There is room in the resource even for the overlong chunk.
+            let mut online = reading_index(LIMIT + 2);
+            let next = online.result(
+                &json!({"status":"ok","value":{"hex":encoded,"end":false}}),
+                0,
+            );
+            assert!(next.is_none(), "accepted a chunk with {why}");
+            assert!(online.advance(RETRY_AFTER - 1, VIEW, FRAME).is_none());
+            let retry = online.advance(RETRY_AFTER, VIEW, FRAME).unwrap();
+            assert_eq!(
+                retry.method, "get-resource",
+                "must restart the read after {why}"
+            );
+        }
+    }
+
+    #[test]
+    fn resource_reads_accept_both_hex_cases_and_a_full_chunk() {
+        const LIMIT: usize = 16 * 1024;
+        let mut first = OLD.to_vec();
+        first.resize(LIMIT, b' ');
+        let mut online = reading_index(LIMIT + 1);
+        let next = online
+            .result(
+                &json!({"status":"ok","value":{"hex":fixture_hex(&first).to_ascii_uppercase(),"end":false}}),
+                0,
+            )
+            .unwrap();
+        assert_eq!(next.method, "read-resource");
+        assert_eq!(next.args["offset"], LIMIT);
+        // A trailing newline is legal JSON whitespace; the lowercase digit must decode too.
+        assert!(
+            online
+                .result(&json!({"status":"ok","value":{"hex":"0a","end":true}}), 0)
+                .is_none()
+        );
+        assert_eq!(online.metadata.unwrap().prefix, "/planet/old");
     }
 
     fn decode_tile(online: &mut Online, now: u64) {

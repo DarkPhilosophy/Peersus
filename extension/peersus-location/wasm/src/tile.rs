@@ -722,6 +722,8 @@ pub enum Detail {
     Full,
     Gesture,
     Pressure,
+    /// A reduced first frame with the offline map and controls, before detailed layers.
+    Opening,
 }
 
 impl Detail {
@@ -983,6 +985,10 @@ impl Drawing {
         self.path_count(Layer::Road) > 0
             || self.path_count(Layer::LocalRoad) > 0
             || self.path_count(Layer::Path) > 0
+    }
+
+    pub fn has_detail(&self) -> bool {
+        !self.labels.is_empty() || packed::has_detail(&self.tiles, self.span)
     }
 
     fn path_count(&self, kind: Layer) -> usize {

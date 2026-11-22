@@ -71,7 +71,7 @@
       "methods": [
         "get"
       ],
-      "events": []
+      "events": ["changed"]
     },
     {
       "provider": "host",
@@ -147,7 +147,7 @@
       {
         "id": "online-streets",
         "label": "OpenStreetMap street detail",
-        "help": "Show online streets, buildings and place names at close zoom, from OpenFreeMap. OpenFreeMap sees which areas the map shows, also around a device you centre on. Off until you turn it on and approve OpenFreeMap.",
+        "help": "Show online streets, buildings and place names at close zoom, from OpenFreeMap. OpenFreeMap sees which areas the map shows, also around a device you centre on. Off until you turn it on and approve OpenFreeMap. The offline globe remains if Public HTTPS is refused.",
         "scope": "global",
         "kind": {
           "type": "toggle",
@@ -161,7 +161,7 @@
       {
         "id": "cache-online-areas",
         "label": "Keep viewed map areas",
-        "help": "Keep downloaded map areas on this device (up to 128 MB) to avoid downloads when revisiting. Options shows their count and size and can clear them. When off, only the current view stays in memory; no saved areas are read or written. Previously saved areas stay until cleared.",
+        "help": "Keep downloaded map areas on this device (up to 128 MB). With Public HTTPS allowed, Options shows their count and size and can clear them. When off, only the current view stays in memory; no saved areas are read or written. Old saved areas stay until cleared.",
         "scope": "global",
         "kind": {
           "type": "toggle",
@@ -227,11 +227,11 @@
             "k": "list",
             "items": [
               "Enable location sharing in Permissions for each device. When a permitted recipient is connected and ready, this extension requests a fix, initially and then at most once every five minutes. Both devices need Location. Turning the sharing permission off stops further sends to that device.",
-              "Only to devices you allowed. A paired device receives it only if you allowed Location for it here, and its own person allowed Location for this device there.",
+              "Only to devices you allowed. A paired device receives it only if you allowed Location for it here, and its own person allowed Location for this device there. A refusal stops the affected request or share; Location does not retry it on a timer. Missing permissions on this device are named here, but paired devices see no reason for a refusal.",
               "Only the position goes to paired devices you allowed: latitude, longitude, how sure your system was and how old the fix is. It travels through the application's encrypted connection, never to the map provider.",
               "How your system finds it is your system's own. Satellites, or the wireless networks it sees, which your system may look up with an online service of its own; Location receives only the position.",
               "The globe works offline by default. Country and city labels and regional roads use public-domain Natural Earth data. The bundled Bucharest and Monaco street data is © OpenStreetMap contributors (ODbL 1.0).",
-              "Online street detail is optional and separately approved. When it is on, OpenFreeMap receives the addresses of the tiles of every area the map shows, including the area around a device you centre on, and can see your network address. Location does not send GPS fixes, shared positions or peer identities to OpenFreeMap. Downloaded tiles are kept on this device, at most 128 MB, unless you turn keeping off; Options says how many are kept and clears them, and removing Location removes them. OpenFreeMap and OpenMapTiles use OpenStreetMap data (ODbL 1.0)."
+              "Online street detail is optional and separately approved. When it is on, OpenFreeMap receives the addresses of the tiles of every area the map shows, including the area around a device you centre on, and can see your network address. Location does not send GPS fixes, shared positions or peer identities to OpenFreeMap. Downloaded tiles are kept on this device, at most 128 MB, unless you turn keeping off; with Public HTTPS allowed, Options says how many are kept and clears them. Removing Location removes them. A refusal stops online street loading without retrying and leaves the offline globe available. OpenFreeMap and OpenMapTiles use OpenStreetMap data (ODbL 1.0)."
             ]
           }
         ]

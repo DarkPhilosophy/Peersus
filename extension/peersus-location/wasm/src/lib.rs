@@ -27,7 +27,10 @@ mod tile;
 mod wire;
 mod world;
 use canvas_scene::{CanvasIo, Glide, Hit, Marker};
-use host::{Data, Handle, Wire, read_ack, read_limited, write_all};
+use host::{
+    Blocked, Data, DeliveryAck, Handle, Permission, Readiness, Wire, read_ack, read_limited,
+    write_all,
+};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, VecDeque};
 
@@ -35,6 +38,11 @@ const PEERS: &str = "peersus.peers";
 const LOCATION: &str = "peersus.location";
 const CONFIG: &str = "peersus.config";
 const PAGES: &str = "peersus.pages";
+const WATCH: &str = "peers.watch";
+const SEND: &str = "peers.send";
+const READ: &str = "location.read";
+const SHARE: &str = "location.sharing";
+const PUBLIC: &str = "network.public";
 /// The page this extension declares; it lives in its settings.
 const PAGE: &str = "where";
 /// The person's option that also places the page among the application's own pages, and the id of that placement.
@@ -90,6 +98,9 @@ const CLOSER: f64 = 1.6;
 /// A burst of this many logical wheel pixels doubles the magnification.
 const WHEEL_PIXELS_PER_DOUBLING: u16 = 160;
 const STREET_FOCUS: f64 = 0.006;
+// At city scale the 0.01° Natural Earth atlas still shows roads and place names
+// (see the offline city projection test); don't jump straight past that detail.
+const OFFLINE_FOCUS: f64 = 0.08;
 const FOCUS_MS: u64 = 500;
 const MARKER_GLIDE_MS: u64 = 1_000;
 const DETAIL_AFTER_MOTION_MS: u64 = 150;
@@ -124,6 +135,18 @@ mod words {
     pub const NOT_YET: &str = "no location received yet";
     pub const NOT_READY: &str = "offline, or Location is not installed and allowed there";
     pub const SOMEONE: &str = "A paired device";
+
+    pub fn blocked(operation: &str, blocked: &super::Blocked) -> String {
+        match blocked {
+            super::Blocked::MissingPermission(permission) => {
+                format!(
+                    "{operation}: missing permission {} on this device.",
+                    permission.name
+                )
+            }
+            super::Blocked::NotAccepted => format!("{operation}: not accepted."),
+        }
+    }
 }
 
 /// What is known of where this device is.
@@ -157,6 +180,35 @@ struct Device {
     ready: bool,
     /// It takes the question of where it is now: online, allowed here, and its Location accepts that.
     asks: bool,
+    send_missing: bool,
+}
+
+#[derive(Clone, Copy)]
+enum Purpose {
+    Share,
+    Question,
+}
+
+#[derive(Default)]
+struct PeerBlocks {
+    share: Option<Blocked>,
+    question: Option<Blocked>,
+}
+
+impl PeerBlocks {
+    fn for_purpose(&mut self, purpose: Purpose) -> &mut Option<Blocked> {
+        match purpose {
+            Purpose::Share => &mut self.share,
+            Purpose::Question => &mut self.question,
+        }
+    }
+
+    fn stopped(&self, purpose: Purpose) -> bool {
+        match purpose {
+            Purpose::Share => self.share.is_some(),
+            Purpose::Question => self.question.is_some(),
+        }
+    }
 }
 
 /// A position and when (counted time) it was told: this device's by the application, a paired device's when it arrived.
@@ -271,6 +323,7 @@ impl<H: Wire + Data> Data for Ready<'_, H> {
 #[derive(Default)]
 pub struct State {
     calls: u64,
+    readiness: Readiness,
     /// Time that surely passed since the guest started, in milliseconds, whatever the window's own clock began at: what
     /// a page's events measured while one was open, and every idle wait that ran out. Never ahead of the time that
     /// really passed; behind it by `unsure` and `cut` at most.
@@ -287,11 +340,14 @@ pub struct State {
     own: Own,
     own_glide: Option<Glide>,
     asked_own: u64,
+    own_paused: bool,
     focus_fix: bool,
     /// Keep sharing asked: send as soon as this device is found, unless it is turned off before.
     share_kept: bool,
     devices: Vec<Device>,
     devices_denied: bool,
+    list_block: Option<Blocked>,
+    peer_blocks: BTreeMap<String, PeerBlocks>,
     asked_list: u64,
     listed_at: Option<u64>,
     seen: BTreeMap<String, Told>,
@@ -335,6 +391,8 @@ pub struct State {
     observe_rotate: bool,
     online: online::Online,
     online_enabled: bool,
+    online_block: Option<Blocked>,
+    asked_release: u64,
     decoded_at: u64,
     config_at: u64,
     /// The question still out about the map areas saved on this device, and their last answer: how many and their bytes.
@@ -360,6 +418,8 @@ pub struct Viewport {
     last_motion: Option<u64>,
     active_pointer: Option<(Hit, (f64, f64))>,
     focus: Option<Focus>,
+    /// The badge last chosen in this viewport, until the user navigates away.
+    selected: Option<String>,
     /// Where a finger pressed the map, while it is still down.
     dragging: Option<(f64, f64)>,
     touch: Option<TouchGesture>,
@@ -368,6 +428,11 @@ pub struct Viewport {
 }
 
 impl Viewport {
+    fn cancel_focus(&mut self) {
+        self.focus = None;
+        self.selected = None;
+    }
+
     fn drawn_marker(&self, id: &str, now: u64) -> Option<&Marker> {
         // There is no page-close event. Do not use pictures left by a page that stopped ticking
         // while the other one is still mounted.
@@ -694,6 +759,14 @@ fn page_supports(config: &Value, feature: &str) -> bool {
         .is_some_and(|items| items.iter().any(|f| f == feature))
 }
 
+fn cancel_call(id: u64) -> Value {
+    json!({"op":"cancel","id":id})
+}
+
+fn receive_reply(ticket: u64, result: Value) -> Value {
+    json!({"op":"reply","ticket":ticket,"result":result})
+}
+
 impl State {
     fn call(&mut self, service: &str, method: &str, args: Value, timeout: u32) -> (u64, Value) {
         self.calls = self.calls.checked_add(1).unwrap_or(1);
@@ -711,19 +784,32 @@ impl State {
         );
         if track {
             self.online.sent(id);
+        } else {
+            self.asked_release = id;
         }
         call
     }
 
-    fn list(&mut self) -> Value {
+    fn list(&mut self) -> Option<Value> {
+        if self.asked_list != 0 || self.devices_denied || self.list_block.is_some() {
+            return None;
+        }
+        if let Some(block) = self.missing(WATCH) {
+            self.list_block = Some(block);
+            return None;
+        }
         let (id, call) = self.call(PEERS, "list", json!({}), CALL_MS);
         self.asked_list = id;
         self.listed_at = Some(self.now);
-        call
+        Some(call)
     }
 
     /// Ask how many map areas this device keeps for this extension and their bytes, after removing them all when `clear`.
-    fn ask_kept(&mut self, clear: bool) -> Value {
+    fn ask_kept(&mut self, clear: bool) -> Option<Value> {
+        if let Some(block) = self.missing(PUBLIC) {
+            self.online_block = Some(block);
+            return None;
+        }
         let method = if clear {
             "clear-resource-cache"
         } else {
@@ -732,7 +818,7 @@ impl State {
         let (id, call) = self.call(online::SERVICE, method, json!({}), CALL_MS);
         self.asked_kept = id;
         self.clearing_kept = clear;
-        call
+        Some(call)
     }
 
     /// Ask this extension's settings: whether the person wants its page among the application's own. Asked when it starts
@@ -762,12 +848,165 @@ impl State {
         Some(call)
     }
 
-    /// Ask where this device is, for `ask`. One answer serves every reason it was asked for: while one is awaited, nothing
-    /// more is asked.
-    // A local focus request is independent from any in-flight share of the same fix.
+    fn missing(&self, name: &str) -> Option<Blocked> {
+        self.readiness
+            .missing(None, "host", name)
+            .map(Blocked::MissingPermission)
+    }
+
+    fn checked(&mut self, result: &Value, name: &str) -> Option<Blocked> {
+        match Blocked::read(result)? {
+            Blocked::MissingPermission(permission) if permission.is("host", name) => {
+                self.readiness.deny(None, permission.clone());
+                Some(Blocked::MissingPermission(permission))
+            }
+            _ => Some(Blocked::NotAccepted),
+        }
+    }
+
+    fn sharing_missing(&self, alias: &str) -> Option<Permission> {
+        self.readiness
+            .owner()
+            .and_then(|owner| self.readiness.missing(Some(alias), owner, SHARE))
+    }
+
+    fn send_missing(&self, alias: &str) -> Option<Permission> {
+        self.readiness
+            .missing(Some(alias), "host", SEND)
+            .or_else(|| self.sharing_missing(alias))
+    }
+
+    fn can_send(&self, alias: &str, purpose: Purpose) -> bool {
+        self.send_missing(alias).is_none()
+            && self
+                .devices
+                .iter()
+                .find(|d| d.alias == alias)
+                .is_none_or(|d| !d.send_missing)
+            && !self
+                .peer_blocks
+                .get(alias)
+                .is_some_and(|blocks| blocks.stopped(purpose))
+    }
+
+    fn stop_send(&mut self, alias: String, purpose: Purpose, blocked: Blocked) {
+        let blocked = match blocked {
+            Blocked::MissingPermission(permission)
+                if permission.is("host", SEND)
+                    || (permission.name == SHARE
+                        && self
+                            .readiness
+                            .owner()
+                            .is_none_or(|owner| permission.owner == owner)) =>
+            {
+                self.readiness.deny(Some(&alias), permission.clone());
+                self.wanted.remove(&alias);
+                if permission.name == SHARE {
+                    if self.seen.remove(&alias).is_some() {
+                        self.marker_stamp = self.marker_stamp.wrapping_add(1);
+                    }
+                    self.peer_glides.remove(&alias);
+                }
+                Blocked::MissingPermission(permission)
+            }
+            _ => Blocked::NotAccepted,
+        };
+        match purpose {
+            Purpose::Share => {
+                self.wanted.remove(&alias);
+            }
+            Purpose::Question => {
+                self.asked.remove(&alias);
+            }
+        }
+        // Bound remembered races/refusals across device churn; they never outlive the page's next open.
+        if self.peer_blocks.len() < 256 || self.peer_blocks.contains_key(&alias) {
+            *self
+                .peer_blocks
+                .entry(alias)
+                .or_default()
+                .for_purpose(purpose) = Some(blocked);
+        }
+    }
+
+    fn stop_online(&mut self, blocked: Blocked, completed: u64) -> Vec<Value> {
+        self.online_block = Some(blocked);
+        self.kept = None;
+        self.clearing_kept = false;
+        // All HTTPS methods, including release, share this guard. Do not call it again after refusal.
+        let (cancel, _) = self.online.disable();
+        [
+            cancel,
+            std::mem::take(&mut self.asked_kept),
+            std::mem::take(&mut self.asked_release),
+        ]
+        .into_iter()
+        .filter(|&id| id != 0 && id != completed)
+        .map(cancel_call)
+        .collect()
+    }
+
+    /// Refresh what may run. Revocation drops pending work; new permission never renews it.
+    fn apply_readiness(&mut self, config: &Value, calls: &mut Vec<Value>) {
+        if self.readiness.update(config).is_err() {
+            return;
+        }
+        if let Some(block) = self.missing(WATCH) {
+            self.list_block = Some(block);
+            if self.asked_list != 0 {
+                calls.push(cancel_call(std::mem::take(&mut self.asked_list)));
+            }
+            self.listed(&[]);
+        } else if let Some(peers) = config["peers"].as_array() {
+            self.devices.retain_mut(|device| {
+                let alias = Some(device.alias.as_str());
+                device.send_missing = self.readiness.missing(alias, "host", SEND).is_some();
+                peers.iter().any(|peer| peer["device"] == device.alias)
+                    && self
+                        .readiness
+                        .owner()
+                        .is_none_or(|owner| self.readiness.missing(alias, owner, SHARE).is_none())
+            });
+        }
+        if let Some(block) = self.missing(READ) {
+            if self.asked_own != 0 {
+                calls.push(cancel_call(std::mem::take(&mut self.asked_own)));
+            }
+            self.stop_finding(words::blocked("Locate this device", &block));
+        }
+        if let Some(block) = self.missing(PUBLIC)
+            && self.online_block.as_ref() != Some(&block)
+        {
+            calls.extend(self.stop_online(block, 0));
+        }
+    }
+
+    fn stop_finding(&mut self, words: String) {
+        if self.own.marker().is_some() {
+            self.marker_stamp = self.marker_stamp.wrapping_add(1);
+        }
+        self.own_glide = None;
+        self.focus_fix = false;
+        self.share_kept = false;
+        self.sending.clear();
+        self.outgoing.clear();
+        self.wanted.clear();
+        self.own_paused = true;
+        self.own = Own::Not(words);
+    }
+
+    /// One fix serves every reason it was asked for. Local focus is independent of an in-flight share.
     fn find(&mut self, ask: Ask) -> Option<Value> {
+        if let Some(block) = self.missing(READ) {
+            self.stop_finding(words::blocked("Locate this device", &block));
+            return None;
+        }
+        if matches!(ask, Ask::Keep) && self.own_paused {
+            return None;
+        }
         match ask {
             Ask::Show => {
+                self.own_paused = false;
                 self.focus_fix = true;
                 self.focus_surface = self.primary_surface;
             }
@@ -795,7 +1034,7 @@ impl State {
         let ready: Vec<String> = self
             .devices
             .iter()
-            .filter(|device| device.ready)
+            .filter(|device| device.ready && self.can_send(&device.alias, Purpose::Share))
             .map(|device| device.alias.clone())
             .collect();
         self.nobody = ready.is_empty();
@@ -837,7 +1076,10 @@ impl State {
         let ready: Vec<String> = self
             .wanted
             .keys()
-            .filter(|alias| self.devices.iter().any(|d| d.ready && d.alias == **alias))
+            .filter(|alias| {
+                self.devices.iter().any(|d| d.ready && d.alias == **alias)
+                    && self.can_send(alias, Purpose::Share)
+            })
             .cloned()
             .collect();
         ready
@@ -892,14 +1134,17 @@ impl State {
         self.ui_time = None;
         self.own_glide = None;
         self.peer_glides.clear();
-        self.camera.focus = None;
-        self.other_surface.focus = None;
+        self.camera.cancel_focus();
+        self.other_surface.cancel_focus();
         self.uncounted();
-        (self.asked_list == 0
-            && self
-                .listed_at
-                .is_none_or(|at| self.now.saturating_sub(at) >= IDLE_LIST_EVERY))
-        .then(|| self.list())
+        if self
+            .listed_at
+            .is_none_or(|at| self.now.saturating_sub(at) >= IDLE_LIST_EVERY)
+        {
+            self.list()
+        } else {
+            None
+        }
     }
 
     /// What is said of the age of a position: nothing while its device keeps its turn, and of one older than a turn
@@ -994,6 +1239,7 @@ impl State {
         } else {
             &mut self.other_surface
         };
+        page.selected = None;
         let target = world::View {
             lon: fix.longitude,
             lat: fix.latitude,
@@ -1024,18 +1270,37 @@ impl State {
             return Vec::new();
         };
         let result = &delivery["result"];
+        let ok = result["status"] == "ok";
+        let denied = result["status"] == "error" && result["code"] == "denied";
         if self.online.request(id) {
+            if let Some(block) = self
+                .checked(result, PUBLIC)
+                .or(denied.then_some(Blocked::NotAccepted))
+            {
+                return self.stop_online(block, id);
+            }
             let next = self.online.result(result, self.now);
             return next
                 .map(|r| self.online_call(r, true))
                 .into_iter()
                 .collect();
         }
-        let ok = result["status"] == "ok";
-        let denied = result["code"] == "denied";
+        if id == self.asked_release {
+            self.asked_release = 0;
+            return self
+                .checked(result, PUBLIC)
+                .or(denied.then_some(Blocked::NotAccepted))
+                .map_or_else(Vec::new, |block| self.stop_online(block, id));
+        }
         if id == self.asked_kept {
             self.asked_kept = 0;
             self.clearing_kept = false;
+            if let Some(block) = self
+                .checked(result, PUBLIC)
+                .or(denied.then_some(Blocked::NotAccepted))
+            {
+                return self.stop_online(block, id);
+            }
             let value = &result["value"];
             self.kept = ok
                 .then(|| value["resources"].as_u64().zip(value["bytes"].as_u64()))
@@ -1052,17 +1317,28 @@ impl State {
                 .as_bool()
                 .unwrap_or(false);
             let mut calls: Vec<_> = self.place(config).into_iter().collect();
+            let was_publicly_allowed = self.missing(PUBLIC).is_none();
+            self.apply_readiness(config, &mut calls);
             if enabled != self.online_enabled {
                 self.online_enabled = enabled;
                 if enabled {
-                    let restore = self.online.restore();
-                    calls.push(self.online_call(restore, true));
+                    // A grant can make the owner's effective setting true again. Only a new
+                    // opt-in from an already permitted state may reopen a stopped session.
+                    if self.missing(PUBLIC).is_none()
+                        && (self.online_block.is_none() || was_publicly_allowed)
+                    {
+                        self.online_block = None;
+                        let restore = self.online.restore();
+                        calls.push(self.online_call(restore, true));
+                    }
                 } else {
                     let (cancel, release) = self.online.disable();
                     if cancel != 0 {
-                        calls.push(json!({"op":"cancel","id":cancel}));
+                        calls.push(cancel_call(cancel));
                     }
-                    if let Some(release) = release {
+                    if self.online_block.is_none()
+                        && let Some(release) = release
+                    {
                         calls.push(self.online_call(release, false));
                     }
                 }
@@ -1086,10 +1362,15 @@ impl State {
             self.marker_stamp = self.marker_stamp.wrapping_add(1);
             self.asked_list = 0;
             self.devices_denied = denied;
+            self.list_block = self.checked(result, WATCH);
             if let Some(peers) = result["value"].as_array().filter(|_| ok) {
                 self.listed(peers);
                 let mut calls = self.ask_devices();
-                if self.devices.iter().any(|d| d.ready) {
+                if self
+                    .devices
+                    .iter()
+                    .any(|d| d.ready && self.can_send(&d.alias, Purpose::Share))
+                {
                     if self
                         .kept_at
                         .is_none_or(|at| self.now.saturating_sub(at) >= SHARE_EVERY)
@@ -1101,24 +1382,21 @@ impl State {
                     }
                 }
                 return calls;
-            } else if denied {
-                // No device may be seen any more: nothing of one is shown either. Only a refusal says that: a listing
-                // the application could not answer just now (busy, late) takes nothing away, and is asked again.
-                self.devices.clear();
-                self.seen.clear();
-                self.peer_glides.clear();
-                self.sending.clear();
-                self.outgoing.clear();
-                self.asking.clear();
-                self.asks.clear();
-                self.asked.clear();
-                self.wanted.clear();
-                self.answered.clear();
-                self.share_kept = false;
+            } else if denied || self.list_block.is_some() {
+                // Unavailability cannot take information away; a checked refusal does.
+                self.listed(&[]);
             }
         } else if id == self.asked_own {
             self.marker_stamp = self.marker_stamp.wrapping_add(1);
             self.asked_own = 0;
+            if let Some(block) = self.checked(result, READ) {
+                self.stop_finding(words::blocked("Locate this device", &block));
+                return Vec::new();
+            }
+            if denied {
+                self.stop_finding(words::NOT_ALLOWED.to_owned());
+                return Vec::new();
+            }
             let share = std::mem::take(&mut self.share_kept);
             let focus = std::mem::take(&mut self.focus_fix);
             match result["value"]
@@ -1143,11 +1421,6 @@ impl State {
                         return self.share(told);
                     }
                 }
-                _ if denied => {
-                    self.own_glide = None;
-                    self.own = Own::Not(words::NOT_ALLOWED.to_owned());
-                }
-                // The application's own words of why it could not, when it gave some.
                 _ => {
                     self.own_glide = None;
                     self.own = Own::Not(
@@ -1161,6 +1434,10 @@ impl State {
             }
         } else if let Some(index) = self.sending.iter().position(|sending| sending.number == id) {
             let sending = self.sending.swap_remove(index);
+            if let Some(block) = Blocked::read(result).or(denied.then_some(Blocked::NotAccepted)) {
+                self.stop_send(sending.alias, Purpose::Share, block);
+                return Vec::new();
+            }
             match result["value"]["claim"].as_u64().filter(|_| ok) {
                 Some(claim) => self.outgoing.push(Sending {
                     number: claim,
@@ -1172,7 +1449,9 @@ impl State {
             }
         } else if let Some(index) = self.asking.iter().position(|(number, _)| *number == id) {
             let (_, alias) = self.asking.swap_remove(index);
-            if let Some(claim) = result["value"]["claim"].as_u64().filter(|_| ok) {
+            if let Some(block) = Blocked::read(result).or(denied.then_some(Blocked::NotAccepted)) {
+                self.stop_send(alias, Purpose::Question, block);
+            } else if let Some(claim) = result["value"]["claim"].as_u64().filter(|_| ok) {
                 self.asks.push((claim, alias));
             }
         }
@@ -1184,11 +1463,21 @@ impl State {
     fn listed(&mut self, peers: &[Value]) {
         self.devices = peers
             .iter()
-            .filter(|peer| peer["allowed"] == true)
             .filter_map(|peer| {
                 let alias = peer["device"]
                     .as_str()
                     .filter(|alias| !alias.is_empty() && alias.len() <= ALIAS_MAX)?;
+                // `allowed` means *all* peer grants. Without only `peers.send`, the device
+                // can still share its position with us; it simply cannot be sent anything.
+                let only_send = peer["missing_permissions"]
+                    .as_array()
+                    .is_some_and(|misses| {
+                        misses.len() == 1 && host::missing_permissions(peer).eq([("host", SEND)])
+                    });
+                if (peer["allowed"] != true && !only_send) || self.sharing_missing(alias).is_some()
+                {
+                    return None;
+                }
                 let takes = |service: &str| {
                     peer["accepts"]
                         .as_array()
@@ -1200,27 +1489,44 @@ impl State {
                     name: clipped(peer["name"].as_str().unwrap_or(words::SOMEONE), NAME_MAX),
                     ready: online && takes(wire::SERVICE),
                     asks: online && takes(wire::WANTED),
+                    send_missing: only_send
+                        || self.readiness.missing(Some(alias), "host", SEND).is_some(),
                 })
             })
             .collect();
+        self.prune_devices();
+    }
+
+    fn prune_devices(&mut self) {
         let devices = &self.devices;
-        self.seen
-            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
+        let visible = |alias: &str| devices.iter().any(|d| d.alias == alias);
+        let seen = self.seen.len();
+        self.seen.retain(|alias, _| visible(alias));
+        if seen != self.seen.len() {
+            self.marker_stamp = self.marker_stamp.wrapping_add(1);
+        }
         self.peer_glides
             .retain(|alias, _| self.seen.contains_key(alias));
-        let ready = |s: &Sending| devices.iter().any(|d| d.ready && d.alias == s.alias);
+        let ready = |s: &Sending| {
+            devices
+                .iter()
+                .any(|d| d.ready && !d.send_missing && d.alias == s.alias)
+        };
         self.sending.retain(ready);
         self.outgoing.retain(ready);
-        let asks = |(_, alias): &(u64, String)| devices.iter().any(|d| d.asks && d.alias == *alias);
+        let asks = |(_, alias): &(u64, String)| {
+            devices
+                .iter()
+                .any(|d| d.asks && !d.send_missing && d.alias == *alias)
+        };
         self.asking.retain(asks);
         self.asks.retain(asks);
-        self.asked
-            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
+        self.asked.retain(|alias, _| visible(alias));
         self.wanted
-            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
-        self.answered
-            .retain(|alias, _| devices.iter().any(|device| device.alias == *alias));
-        if !devices.iter().any(|d| d.ready) {
+            .retain(|alias, _| devices.iter().any(|d| !d.send_missing && d.alias == *alias));
+        self.answered.retain(|alias, _| visible(alias));
+        self.delivered.retain(|alias, _| visible(alias));
+        if !devices.iter().any(|d| d.ready && !d.send_missing) {
             self.share_kept = false;
         }
     }
@@ -1233,7 +1539,7 @@ impl State {
         let unknown: Vec<String> = self
             .devices
             .iter()
-            .filter(|device| device.asks)
+            .filter(|device| device.asks && self.can_send(&device.alias, Purpose::Question))
             .filter(|device| {
                 self.seen
                     .get(&device.alias)
@@ -1290,13 +1596,19 @@ impl State {
         self.camera.event_at = Some(self.now);
         let mut calls = Vec::new();
         let before = self.view;
+        let input = (event["t"].as_str(), event["id"].as_str());
         if matches!(
-            event["t"].as_str(),
-            Some("open" | "wheel" | "pinch" | "rotate" | "pointer" | "press")
+            input,
+            (Some("open"), _)
+                | (Some("wheel" | "pinch" | "rotate" | "pointer"), Some("map"))
+                | (
+                    Some("press"),
+                    Some("find" | "forget" | "centre" | "closer" | "wider" | "world")
+                )
         ) {
-            self.focus = None;
+            self.cancel_focus();
         }
-        match (event["t"].as_str(), event["id"].as_str()) {
+        match input {
             (Some("open"), _) => {
                 // A newly mounted map has no gesture of its own.
                 self.clear_page_glides();
@@ -1310,7 +1622,18 @@ impl State {
                 self.surface = canvas_scene::Surface::default();
                 self.last_page = None;
                 *self.cache.get_mut() = map_cache::Cache::default();
-                calls.extend([self.list(), self.ask_settings()]);
+                self.devices_denied = false;
+                self.list_block = None;
+                self.peer_blocks.clear();
+                calls.extend(self.list());
+                calls.push(self.ask_settings());
+                if self.online_enabled
+                    && self.missing(PUBLIC).is_none()
+                    && self.online_block.take().is_some()
+                {
+                    let restore = self.online.restore();
+                    calls.push(self.online_call(restore, true));
+                }
             }
             (Some("press"), Some("find")) => calls.extend(self.find(Ask::Show)),
             (Some("press"), Some("forget")) => {
@@ -1321,15 +1644,17 @@ impl State {
             (Some("press"), Some("options")) => {
                 self.options = !self.options;
                 if self.options && !self.clearing_kept {
-                    calls.push(self.ask_kept(false));
+                    calls.extend(self.ask_kept(false));
                 }
             }
             (Some("press"), Some("clear-kept")) if !self.clearing_kept => {
-                let cancel = self.online.forget_tiles();
-                if cancel != 0 {
-                    calls.push(json!({"op":"cancel","id":cancel}));
+                if let Some(clear) = self.ask_kept(true) {
+                    let cancel = self.online.forget_tiles();
+                    if cancel != 0 {
+                        calls.push(cancel_call(cancel));
+                    }
+                    calls.push(clear);
                 }
-                calls.push(self.ask_kept(true));
             }
             (Some("press"), Some("centre")) => self.centre_first(),
             (Some("press"), Some("closer")) => self.view = self.view.zoomed(CLOSER, None),
@@ -1356,6 +1681,7 @@ impl State {
                         self.focus = None;
                     }
                 }
+                self.continue_marker_focus();
                 if self.asked_config == 0
                     && self.now.saturating_sub(self.config_at) >= u64::from(TICK)
                 {
@@ -1366,8 +1692,9 @@ impl State {
                     && self
                         .listed_at
                         .is_none_or(|at| self.now.saturating_sub(at) >= LIST_EVERY)
+                    && let Some(list) = self.list()
                 {
-                    calls.extend([self.list(), self.ask_settings()]);
+                    calls.push(list);
                 }
             }
             _ => {}
@@ -1384,11 +1711,14 @@ impl State {
             self.settled = at;
             self.last_motion = Some(self.now);
         }
-        if self.online_enabled && !self.clearing_kept && self.focus.is_none() {
-            let (view, frame) = (self.view, self.frame());
+        if self.can_load_streets()
+            && self.focus.is_none()
+            && !matches!(self.active_pointer, Some((Hit::Marker(_), _)))
+        {
+            let (view, frame) = (self.online_view(), self.frame());
             let cancel = self.online.cached_first(self.now, view, frame);
             if cancel != 0 {
-                calls.push(json!({"op":"cancel","id":cancel}));
+                calls.push(cancel_call(cancel));
             }
             if let Some(request) = self.online.advance(self.now, view, frame) {
                 calls.push(self.online_call(request, true));
@@ -1460,7 +1790,7 @@ impl State {
     /// allowed nothing for, so none listed is said the same way whether or not any device is paired.
     fn device_lines(&self) -> Vec<String> {
         if self.devices.is_empty() {
-            return (!self.devices_denied)
+            return (!self.devices_denied && self.list_block.is_none())
                 .then(|| words::NONE_ALLOWED.to_owned())
                 .into_iter()
                 .collect();
@@ -1478,7 +1808,29 @@ impl State {
                     None if device.ready => words::NOT_YET.to_owned(),
                     None => words::NOT_READY.to_owned(),
                 };
-                format!("{}: {state}", device.name)
+                let local_send = self
+                    .send_missing(&device.alias)
+                    .or_else(|| {
+                        device.send_missing.then(|| Permission {
+                            owner: "host".into(),
+                            name: SEND.into(),
+                        })
+                    })
+                    .map(Blocked::MissingPermission);
+                let blocked = local_send.as_ref().or_else(|| {
+                    self.peer_blocks
+                        .get(&device.alias)
+                        .and_then(|blocks| blocks.share.as_ref().or(blocks.question.as_ref()))
+                });
+                match (self.seen.contains_key(&device.alias), blocked) {
+                    (true, Some(block)) => format!(
+                        "{}: {state}. {}",
+                        device.name,
+                        words::blocked("Send", block)
+                    ),
+                    (false, Some(block)) => words::blocked(&device.name, block),
+                    (_, None) => format!("{}: {state}", device.name),
+                }
             })
             .collect();
         if let Some(more) = self
@@ -1570,34 +1922,99 @@ impl State {
         }
     }
 
-    fn focus_marker(&mut self, id: &str) {
-        let Some(fix) = (if id == canvas_scene::OWN {
-            self.own_now()
+    fn marker_fix(&self, id: &str) -> Option<geo::Fix> {
+        if id == canvas_scene::OWN {
+            self.own.marker()
         } else {
-            self.seen.get(id).map(|told| told.shared)
-        })
-        .map(|shared| shared.fix) else {
+            self.seen.get(id)
+        }
+        .map(|told| told.shared.fix)
+    }
+
+    fn prune_selections(&mut self) {
+        let own = self.own.marker().is_some();
+        let seen = &self.seen;
+        for page in [&mut self.camera, &mut self.other_surface] {
+            if page.selected.as_deref().is_some_and(|id| {
+                if id == canvas_scene::OWN {
+                    !own
+                } else {
+                    !seen.contains_key(id)
+                }
+            }) {
+                page.cancel_focus();
+            }
+        }
+    }
+
+    fn can_load_streets(&self) -> bool {
+        self.online_enabled && self.online_block.is_none() && !self.clearing_kept
+    }
+
+    fn online_view(&self) -> world::View {
+        if self
+            .selected
+            .as_deref()
+            .and_then(|id| self.marker_fix(id))
+            .is_none()
+        {
+            return self.view;
+        }
+        // Look for detail at the camera the user chose, not at the wider fallback
+        // or the unrelated places the animation crosses on its way there.
+        let view = self.focus.as_ref().map_or(self.view, |focus| focus.target);
+        world::View {
+            span: view.span.min(STREET_FOCUS),
+            ..view
+        }
+    }
+
+    fn visible_view(&self) -> world::View {
+        // A refused camera sample was never shown.
+        self.surface
+            .painted
+            .map_or(self.view, |painted| painted.view)
+    }
+
+    fn start_marker_focus(&mut self, from: world::View, target: world::View) {
+        self.view = from;
+        self.focus = (target != from).then_some(Focus {
+            from,
+            target,
+            start: Some(self.now),
+            duration: FOCUS_MS,
+        });
+    }
+
+    fn focus_marker(&mut self, id: &str) {
+        let Some(fix) = self.marker_fix(id) else {
             return;
         };
-        let span = if self.online_enabled {
-            STREET_FOCUS
-        } else {
-            focus_span(fix.longitude, fix.latitude)
-        };
-        let target = world::View {
+        let from = self.visible_view();
+        let mut target = world::View {
             lon: fix.longitude,
             lat: fix.latitude,
-            span: self.view.span.min(span),
-            roll: self.view.roll,
+            span: from.span.min(STREET_FOCUS),
+            roll: from.roll,
         }
         .kept();
-        if target != self.view {
-            self.focus = Some(Focus {
-                from: self.view,
-                target,
-                start: Some(self.now),
-                duration: FOCUS_MS,
-            });
+        if from.span > STREET_FOCUS
+            && !streets::covered(fix.longitude, fix.latitude)
+            && !(self.can_load_streets() && self.online.has_drawable_detail(target, self.frame()))
+        {
+            target.span = from.span.min(OFFLINE_FOCUS);
+        }
+        self.selected = Some(id.to_owned());
+        self.start_marker_focus(from, target);
+    }
+
+    fn continue_marker_focus(&mut self) {
+        if self.can_load_streets() && self.focus.is_none() && self.active_pointer.is_none() {
+            let target = self.online_view();
+            if target.span < self.view.span && self.online.has_drawable_detail(target, self.frame())
+            {
+                self.start_marker_focus(self.visible_view(), target);
+            }
         }
     }
 
@@ -1779,22 +2196,31 @@ impl State {
             vec![button("options", "Options")],
         );
         let (lon, lat) = self.view.centre();
-        let updating = self.online_enabled && self.online.busy(self.now, self.view, self.frame());
+        let updating =
+            self.can_load_streets() && self.online.busy(self.now, self.online_view(), self.frame());
         let attribution = if online_drawn {
             Some("© OpenStreetMap contributors · © OpenMapTiles · OpenFreeMap")
         } else if self.view.span < 0.4 && streets::covered(lon, lat) {
             Some("© OpenStreetMap contributors · ODbL")
         } else if updating {
             Some("Loading online streets…")
-        } else if self.view.span < 0.4 && !self.online_enabled {
+        } else if self.view.span <= OFFLINE_FOCUS && !self.online_enabled {
             Some("Street detail is off: turn on OpenStreetMap street detail in Location's settings")
+        } else if self.selected.is_some()
+            && (STREET_FOCUS < self.view.span && self.view.span <= OFFLINE_FOCUS)
+        {
+            self.online.notice().or(Some(
+                "Street detail is unavailable. The offline map is still shown.",
+            ))
         } else {
             None
         };
         let mut viewport = vec![map];
         if self.options {
             let mut panel = Vec::new();
-            if let Some(notice) = self.online.notice() {
+            if let Some(block) = &self.online_block {
+                panel.push(text(&words::blocked("Online maps", block), "muted"));
+            } else if let Some(notice) = self.online.notice() {
                 panel.push(text(notice, "muted"));
             }
             panel.extend([
@@ -1806,7 +2232,9 @@ impl State {
             if !matches!(self.own, Own::Unknown) {
                 panel.push(text(&self.own_line(), "muted"));
             }
-            if self.devices_denied {
+            if let Some(block) = &self.list_block {
+                panel.push(text(&words::blocked("Paired devices", block), "muted"));
+            } else if self.devices_denied {
                 panel.push(text(words::DEVICES_DENIED, "muted"));
             }
             for line in self.device_lines() {
@@ -1883,52 +2311,73 @@ impl State {
     /// application to say each reached its device. Where this device was asked or found since changes nothing of it.
     fn flush<H: Wire + Data>(&mut self, host: &mut H) {
         for sending in std::mem::take(&mut self.outgoing) {
+            if !self.can_send(&sending.alias, Purpose::Share) {
+                continue;
+            }
             // As it leaves now: the age it was found with, plus the time since. One grown too old for another Location to
             // understand is not written.
-            let delivered = wire::encode(&sending.told.aged(self.now)).is_some_and(|bytes| {
-                match host.open(true, sending.number) {
-                    Ok(handle) => {
-                        let delivered = self.deliver(host, handle, &bytes);
-                        host.close(handle);
-                        delivered
-                    }
-                    Err(_) => false,
+            let mut delivered = false;
+            if let Some(bytes) = wire::encode(&sending.told.aged(self.now))
+                && let Ok(handle) = host.open(true, sending.number)
+            {
+                let ack = self.deliver(host, handle, &bytes);
+                host.close(handle);
+                if ack == Ok(DeliveryAck::NotAccepted) {
+                    self.stop_send(sending.alias, Purpose::Share, Blocked::NotAccepted);
+                    continue;
                 }
-            });
+                delivered = ack == Ok(DeliveryAck::Delivered(bytes.len() as u64));
+            }
             self.delivered.insert(sending.alias, delivered);
         }
         // A question is the same few bytes for every device, and what came of it is not said: its answer is a share.
-        for (claim, _) in std::mem::take(&mut self.asks) {
-            if let Ok(handle) = host.open(true, claim) {
-                self.deliver(host, handle, wire::WANTED_MESSAGE);
+        for (claim, alias) in std::mem::take(&mut self.asks) {
+            if self.can_send(&alias, Purpose::Question)
+                && let Ok(handle) = host.open(true, claim)
+            {
+                let ack = self.deliver(host, handle, wire::WANTED_MESSAGE);
                 host.close(handle);
+                if ack == Ok(DeliveryAck::NotAccepted) {
+                    self.stop_send(alias, Purpose::Question, Blocked::NotAccepted);
+                }
             }
         }
     }
 
-    fn deliver<H: Wire + Data>(&mut self, host: &mut H, handle: Handle, bytes: &[u8]) -> bool {
-        write_all(host, handle, bytes).is_ok()
-            && host.shutdown(handle).is_ok()
-            && read_ack(
-                &mut Ready {
-                    host,
-                    kept: &mut self.waiting,
-                    wait: ACK_MS,
-                    cut: &mut self.cut,
-                },
-                handle,
-            )
-            .is_ok_and(|count| u64::try_from(bytes.len()) == Ok(count))
+    fn deliver<H: Wire + Data>(
+        &mut self,
+        host: &mut H,
+        handle: Handle,
+        bytes: &[u8],
+    ) -> Result<DeliveryAck, &'static str> {
+        write_all(host, handle, bytes)?;
+        host.shutdown(handle)?;
+        read_ack(
+            &mut Ready {
+                host,
+                kept: &mut self.waiting,
+                wait: ACK_MS,
+                cut: &mut self.cut,
+            },
+            handle,
+        )
     }
 
     /// A paired device shared its position: read it, keep it under the name the application gave that device.
     fn receive<H: Wire + Data>(&mut self, host: &mut H, delivery: &Value) -> Option<Value> {
         let ticket = delivery["ticket"].as_u64()?;
+        if self.missing(WATCH).is_some()
+            || delivery["args"]["peer"]
+                .as_str()
+                .is_some_and(|alias| self.sharing_missing(alias).is_some())
+        {
+            return Some(receive_reply(ticket, Blocked::NotAccepted.value()));
+        }
         let result = match self.take(host, ticket, &delivery["args"]) {
             Ok(()) => json!({"status":"ok","value":true}),
             Err(reason) => json!({"status":"error","code":"failed","message":reason}),
         };
-        Some(json!({"op":"reply","ticket":ticket,"result":result}))
+        Some(receive_reply(ticket, result))
     }
 
     fn take<H: Wire + Data>(
@@ -1994,6 +2443,19 @@ impl State {
         let Some(ticket) = delivery["ticket"].as_u64() else {
             return (Vec::new(), None);
         };
+        let asker = delivery["args"]["peer"]
+            .as_str()
+            .filter(|alias| !alias.is_empty() && alias.len() <= ALIAS_MAX);
+        if self.missing(WATCH).is_some()
+            || self.missing(READ).is_some()
+            || self.list_block.is_some()
+            || asker.is_some_and(|alias| !self.can_send(alias, Purpose::Share))
+        {
+            return (
+                Vec::new(),
+                Some(receive_reply(ticket, Blocked::NotAccepted.value())),
+            );
+        }
         let understood = match host.open(false, ticket) {
             Ok(handle) => {
                 let read = read_limited(
@@ -2011,9 +2473,6 @@ impl State {
             }
             Err(_) => false,
         };
-        let asker = delivery["args"]["peer"]
-            .as_str()
-            .filter(|alias| !alias.is_empty() && alias.len() <= ALIAS_MAX);
         let mut calls = Vec::new();
         if understood
             && let Some(asker) = asker
@@ -2024,19 +2483,14 @@ impl State {
             && (self.wanted.contains_key(asker) || self.wanted.len() < MOST_SEEN)
         {
             self.wanted.insert(asker.to_owned(), self.now);
-            if self.asked_list == 0 {
-                calls.push(self.list());
-            }
+            calls.extend(self.list());
         }
         let result = if understood {
             json!({"status":"ok","value":true})
         } else {
             json!({"status":"error","code":"failed","message":"What was sent was not understood"})
         };
-        (
-            calls,
-            Some(json!({"op":"reply","ticket":ticket,"result":result})),
-        )
+        (calls, Some(receive_reply(ticket, result)))
     }
 }
 
@@ -2063,15 +2517,21 @@ impl State {
             online: self.online_enabled.then(|| self.online.revision()),
             detail: tile::Detail::Full,
         };
-        if self.sharp_gesture() {
+        let opening = self.surface.painted.is_none() && self.surface.raster_pressure.is_some();
+        if self.sharp_gesture() && !opening {
             stamp.detail = tile::Detail::Gesture;
         } else if let Some(pressure) = &self.surface.raster_pressure
-            && (self.map_moving()
+            && (opening
+                || self.map_moving()
                 || stamp.markers.1.is_some()
                 || pressure.full_refused == Some(stamp))
         {
             stamp.metrics = stamp.metrics.at_scale(pressure.scale);
-            stamp.detail = tile::Detail::Pressure;
+            stamp.detail = if opening {
+                tile::Detail::Opening
+            } else {
+                tile::Detail::Pressure
+            };
         }
         Some(stamp)
     }
@@ -2150,6 +2610,7 @@ impl State {
                 painted.metrics.bounds == stamp.metrics.bounds
                     && painted.metrics.palette == stamp.metrics.palette
                     && painted.markers == stamp.markers
+                    && (self.selected.is_none() || painted.view == stamp.view)
             })
             && self
                 .online
@@ -2184,14 +2645,14 @@ impl State {
                 if !moving && !stamp.detail.preview() {
                     self.surface.raster_pressure = None;
                 }
-                if !self.surface.picture.previewing_tiles {
+                if stamp.detail != tile::Detail::Opening && !self.surface.picture.previewing_tiles {
                     self.online.frame_shown(stamp.view, self.frame());
                 }
             }
             Some(canvas_sdk::PRESENT_LIMITED) => {
-                // The same status also reports a full stream quota. In the
-                // sharp gesture path, hold the last frame, not a blurrier one.
-                if self.surface.seq > 0 && stamp.detail != tile::Detail::Gesture {
+                // The same status also reports a full stream quota. A newly opened canvas
+                // has no last frame to hold, so it must be able to use the pressure fallback.
+                if self.surface.painted.is_none() || stamp.detail != tile::Detail::Gesture {
                     let scale = metrics.raster.scale;
                     let floor = MIN_PREVIEW_RASTER_SCALE
                         .min(self.surface.metrics.map_or(scale, |m| m.raster.scale));
@@ -2235,6 +2696,9 @@ fn step<H: CanvasIo>(
     let id = delivery["id"].as_u64();
     let online_result = result && id.is_some_and(|id| state.online.request(id));
     let (calls, reply, tick) = match delivery["type"].as_str() {
+        Some("event") if host::config_changed(delivery) => {
+            (vec![state.ask_settings()], None, false)
+        }
         Some("result") if id.is_some() && state.surface.opening == id => {
             state.open_canvas(host, &delivery["result"]);
             (Vec::new(), None, false)
@@ -2257,6 +2721,7 @@ fn step<H: CanvasIo>(
         Some("call") => state.answer(delivery),
         _ => (Vec::new(), None, false),
     };
+    state.prune_selections();
     if let Some(handle) = state.retire_canvas.take() {
         host.close(handle);
     }
@@ -2278,15 +2743,18 @@ fn step<H: CanvasIo>(
         || camera_input
             && !state.sharp_gesture()
             && state.now.saturating_sub(state.decoded_at) >= 100;
-    if state.online_enabled && decode_turn && state.online.decode_pending() {
+    let first_frame_due = state.surface.painted.is_none()
+        && state.surface.stream.is_some()
+        && state.now >= state.surface.retry_at;
+    if !first_frame_due && state.online_enabled && decode_turn && state.online.decode_pending() {
         state.decoded_at = state.now;
-        let (view, frame) = (state.view, state.frame());
+        let (view, frame) = (state.online_view(), state.frame());
         state.online.tick(state.now, view, frame);
     } else {
         state.pump_canvas(host, tick)?;
     }
-    if online_result && state.online_enabled && !state.clearing_kept && state.focus.is_none() {
-        let (view, frame) = (state.view, state.frame());
+    if online_result && state.can_load_streets() && state.focus.is_none() {
+        let (view, frame) = (state.online_view(), state.frame());
         if let Some(request) = state.online.advance_cached(state.now, view, frame) {
             host.send(state.online_call(request, true))?;
         }
@@ -2331,13 +2799,18 @@ fn serve<H: CanvasIo>(host: &mut H, state: &mut State) -> i32 {
 /// The whole life of the guest. Returns zero when the application goes away, non-zero when it cannot be written to.
 fn run<H: CanvasIo>(host: &mut H) -> i32 {
     let mut state = State::default();
+    if host.send(host::subscribe_config()).is_err() {
+        return 1;
+    }
     // Its settings first: the page is placed among the application's pages when the person asked for it, whether or not it
     // is ever opened.
     let settings = state.ask_settings();
     if host.send(settings).is_err() {
         return 1;
     }
-    if host.send(state.list()).is_err() {
+    if let Some(list) = state.list()
+        && host.send(list).is_err()
+    {
         return 1;
     }
     serve(host, &mut state)
