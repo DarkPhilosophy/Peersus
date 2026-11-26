@@ -139,6 +139,10 @@ pub(crate) struct Row {
     /// (`clock.wall`). Another device's clock is never trusted for it, so nothing about time goes on the wire.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<WallTime>,
+    /// A peer asked to clear it while this device still owed another device work that names it: it is removed as soon as
+    /// that work is done.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub clearing: bool,
 }
 impl Row {
     /// This message as another device names it, in a reaction or a reply this device sends.
@@ -158,6 +162,15 @@ impl Row {
     }
     pub fn storage_key(&self) -> String {
         row_key(&self.room, self.member.as_ref(), self.mine, &self.key)
+    }
+}
+/// Whether `work` names a row: its delivery or deletion when this device wrote it (`mine`, by its `id`), or a receipt or
+/// reaction for it (by its `target`).
+fn names(work: &Work, mine: bool, id: &Id, target: &Target) -> bool {
+    match work {
+        Work::Message(named) | Work::Delete(named) => mine && named == id,
+        Work::Seen(named) | Work::React { target: named, .. } => named == target,
+        _ => false,
     }
 }
 fn row_key(room: &RoomKey, member: Option<&ScopeId>, mine: bool, id: &Id) -> String {
@@ -558,6 +571,7 @@ impl Engine {
             reactions: BTreeMap::new(),
             seen: false,
             at: self.wall,
+            clearing: false,
         };
         self.data.rows.insert(row.storage_key(), row);
         self.data.rooms.insert(room, info);
@@ -1085,8 +1099,32 @@ impl Engine {
             }
             _ => {}
         }
+        self.settle_clears(&job.room);
         let _ = now;
         Ok(())
+    }
+
+    /// Whether this device still owes a device other than `except` work that names `row`.
+    fn owed(&self, row: &Row, except: Option<&ScopeId>) -> bool {
+        let target = row.target();
+        self.data.jobs.values().any(|job| {
+            job.room == row.room
+                && Some(&job.to) != except
+                && names(&job.work, row.mine, &row.key, &target)
+        })
+    }
+    /// Remove the rows of `room` a peer asked to clear whose owed work is now done.
+    fn settle_clears(&mut self, room: &RoomKey) {
+        let done: Vec<_> = self
+            .data
+            .rows
+            .iter()
+            .filter(|(_, row)| row.clearing && &row.room == room && !self.owed(row, None))
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in done {
+            self.data.rows.remove(&key);
+        }
     }
 
     fn rate(&mut self, peer: &ScopeId, category: u8, now: u64) -> bool {
@@ -1327,53 +1365,45 @@ impl Engine {
                         let group = self.data.rooms.get(&room).and_then(|r| r.group.as_ref());
                         let ids = read_clear(payload, group)?;
                         let actor = actor.as_ref().unwrap_or(peer);
-                        // A row stays while this device still owes another device work that names it (a group message
-                        // not yet delivered to another member, a deletion or receipt it waits for): one recipient's
-                        // clear never takes a message away from another.
-                        let owed = |row: &Row| {
-                            let target = row.target();
-                            self.data.jobs.values().any(|job| {
-                                job.room == room
-                                    && &job.to != actor
-                                    && match &job.work {
-                                        Work::Message(id) | Work::Delete(id) => {
-                                            row.mine && id == &row.key
-                                        }
-                                        Work::Seen(t) | Work::React { target: t, .. } => {
-                                            t == &target
-                                        }
-                                        _ => false,
-                                    }
-                            })
-                        };
-                        let removed: Vec<_> = ids
+                        // A row this device still owes another device work for (a group message not yet delivered to
+                        // another member, a deletion or receipt it waits for) is removed once that work is done: one
+                        // recipient's clear never takes a message away from another.
+                        let named: Vec<_> = ids
                             .iter()
                             .filter_map(|target| {
-                                self.target(&room, target)
-                                    .filter(|row| {
-                                        (!row.mine
-                                            || row
-                                                .delivery
-                                                .get(actor)
-                                                .is_some_and(|d| d.delivered()))
-                                            && !owed(row)
-                                    })
-                                    .map(|row| (row.storage_key(), row.mine, row.target()))
+                                self.target(&room, target).filter(|row| {
+                                    !row.mine
+                                        || row.delivery.get(actor).is_some_and(|d| d.delivered())
+                                })
+                            })
+                            .map(|row| {
+                                let owed = self.owed(row, Some(actor));
+                                (
+                                    row.storage_key(),
+                                    row.mine,
+                                    row.key.clone(),
+                                    row.target(),
+                                    owed,
+                                )
                             })
                             .collect();
-                        for (key, _, _) in &removed {
-                            self.data.rows.remove(key);
-                        }
+                        // Nothing more is sent to the requester about any of them, nor to anyone about a removed one.
                         self.data.jobs.retain(|_, job| {
                             job.room != room
-                                || !removed.iter().any(|(_, mine, target)| match &job.work {
-                                    Work::Seen(t) | Work::React { target: t, .. } => t == target,
-                                    Work::Message(id) | Work::Delete(id) => {
-                                        *mine && id == &target.id
-                                    }
-                                    _ => false,
+                                || !named.iter().any(|(_, mine, id, target, owed)| {
+                                    names(&job.work, *mine, id, target)
+                                        && (!owed || &job.to == actor)
                                 })
                         });
+                        for (key, _, _, _, owed) in named {
+                            if owed {
+                                if let Some(row) = self.data.rows.get_mut(&key) {
+                                    row.clearing = true;
+                                }
+                            } else {
+                                self.data.rows.remove(&key);
+                            }
+                        }
                         Verdict::Applied
                     }
                 }
@@ -1533,6 +1563,7 @@ impl Engine {
                     unix_minute: sent_minute(sent, wall.unix_minute),
                     ..wall
                 }),
+                clearing: false,
             },
         );
         Verdict::Applied

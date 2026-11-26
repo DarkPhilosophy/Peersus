@@ -338,6 +338,9 @@ impl Runner {
         let force = matches!(event, Event::Open);
         if (force || matches!(event, Event::Tick { .. })) && self.due <= now {
             self.refresh(link, now);
+            if self.fault {
+                return Err(Fault::Storage);
+            }
         }
         if matches!(event, Event::Open | Event::Tick { .. })
             && let Some(room) = self.pages.get(name).and_then(|page| page.room()).cloned()

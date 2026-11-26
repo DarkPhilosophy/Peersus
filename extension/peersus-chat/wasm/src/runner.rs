@@ -138,6 +138,10 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
             return 1;
         };
         state.expire(&mut link, now);
+        // A change that may or may not have been kept stops everything at once: nothing more is handled or sent.
+        if state.fault {
+            return 1;
+        }
         if now >= state.wall_due {
             // Often enough that a message's minute is right, rarely enough to cost nothing; without the grant the
             // answer is `None` and messages show no time.
@@ -147,14 +151,11 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
         state.expire_drafts(&mut link, now);
         state.notify_waiting(&mut link, now);
         state.pump_sound(&mut link, now);
-        // A change that may or may not have been kept stops everything at once: nothing more is handled or sent.
-        if state.fault {
-            return 1;
-        }
-        if (state.due == 0 || state.due <= now && !state.engine.data.jobs.is_empty())
+        let stalled = (state.due == 0 || state.due <= now && !state.engine.data.jobs.is_empty())
             && !state.refresh(&mut link, now)
-            && link.stopped()
-        {
+            && link.stopped();
+        // A refresh keeps what it learned too: one that may not have been kept stops here as well.
+        if stalled || state.fault {
             return 1;
         }
         if let Some(message) = link.deferred.pop_front()
@@ -216,6 +217,10 @@ impl Runner {
         asset: Option<(String, u64)>,
         ticket: Option<u64>,
     ) -> Result<(), Fault> {
+        // After a commit that may or may not have been kept, nothing more is kept or acknowledged from a guessed revision.
+        if self.fault {
+            return Err(Fault::Storage);
+        }
         match store::commit(
             link,
             self.revision,
@@ -491,6 +496,9 @@ impl Runner {
                 if peer.is_none() {
                     // A legitimate inbound call can race discovery/grants or a worker restart.
                     self.refresh(link, now);
+                    if self.fault {
+                        return false;
+                    }
                 }
                 let Some(peer) = self
                     .alias
@@ -594,6 +602,9 @@ impl Runner {
             }
         ) {
             self.refresh(link, now);
+            if self.fault {
+                return Err(Fault::Storage);
+            }
         }
         let policy = self
             .peers

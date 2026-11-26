@@ -1847,8 +1847,17 @@ fn a_message_past_the_order_bound_is_taken_at_the_bound_and_its_retry_is_the_sam
         .unwrap();
     assert_eq!(kept.order, bound);
     assert_eq!(right.data.rooms[&RoomKey::Direct(a.clone())].order, bound);
-    // Sent again (its answer lost), it is the message already kept, not a conflict.
-    assert_eq!(take(&mut right), Verdict::Applied);
+    // Sent again in a new packet (its answer lost), it is the message already kept at the bound, not a conflict.
+    let mut again = offer.packet.clone();
+    if let Packet::Mutation { key, .. } = &mut again {
+        key.seq += 1;
+    }
+    assert_eq!(
+        right
+            .receive(&a, again, &offer.clear, 3, Policy::default(), None)
+            .unwrap(),
+        Verdict::Applied
+    );
     assert_eq!(right.data.rows.len(), 2);
 }
 
@@ -1908,22 +1917,16 @@ fn a_group_message_still_owed_to_another_member_survives_one_member_s_clear() {
             clear: true,
         },
     );
+    // Kept while the third member waits for it, marked to go.
     let kept = left.data.rows.values().find(|row| row.key == id).unwrap();
     assert_eq!(kept.delivery[&sc], Delivery::Queued);
-    // The third member still gets it.
+    assert!(kept.clearing);
+    // The third member still gets it, and then the clear the second asked for is done.
     left.set_route(c.clone(), Route::Ready);
     send(&mut left, &mut right, &c, &a, 4, Policy::default());
     send(&mut left, &mut right, &c, &a, 5, Policy::default());
     assert!(right.data.rows.values().any(|row| row.key == id));
-    assert_eq!(
-        left.data
-            .rows
-            .values()
-            .find(|row| row.key == id)
-            .unwrap()
-            .delivery[&sc],
-        Delivery::Sent
-    );
+    assert!(!left.data.rows.values().any(|row| row.key == id));
 }
 
 #[test]
@@ -1954,4 +1957,86 @@ fn a_long_chain_of_replies_stays_in_the_thread_of_its_first_message() {
         Some("0")
     );
     assert!(chat.root(&row(&chat, "0")).is_none());
+}
+
+#[test]
+fn every_older_message_of_a_conversation_too_long_for_one_page_is_reached_and_the_newest_come_back()
+{
+    use crate::ui::{Context, Features, Page, Thumbs};
+    use peersus_api::elements::{Event, Node};
+    use std::collections::BTreeMap;
+
+    let b = token(2);
+    let room = RoomKey::Direct(b.clone());
+    let mut chat = Engine::default();
+    const COUNT: usize = 100;
+    for n in 0..COUNT {
+        // As long as a message may be, so a page holds only some of them.
+        let text = format!("m{n} {}", "word ".repeat(196));
+        chat.queue(room.clone(), token(3), body(&text), None)
+            .unwrap();
+        // Only the page is under test: what waits to be sent stays within its quota.
+        chat.data.jobs.clear();
+    }
+    let (directory, thumbs) = (BTreeMap::new(), Thumbs::default());
+    let context = Context {
+        engine: &chat,
+        directory: &directory,
+        locale: Default::default(),
+        features: Features::default(),
+        thumbs: &thumbs,
+        waves: &crate::ui::NO_WAVES,
+        listening: None,
+    };
+    let shown = |page: &mut Page| {
+        let tree = Node::parse(&page.render(context, true)).unwrap();
+        tree.validate().unwrap();
+        let mut numbers = BTreeSet::new();
+        let mut buttons = BTreeSet::new();
+        tree.visit(&mut |node| match node {
+            Node::Text { text, .. } => {
+                if let Some(n) = text
+                    .strip_prefix('m')
+                    .and_then(|rest| rest.split(' ').next())
+                    .and_then(|n| n.parse::<usize>().ok())
+                {
+                    numbers.insert(n);
+                }
+            }
+            Node::Button { id, .. } => {
+                buttons.insert(id.clone());
+            }
+            _ => {}
+        });
+        (numbers, buttons)
+    };
+    let mut page = Page::default();
+    page.open(room.clone());
+    let (mut numbers, mut buttons) = shown(&mut page);
+    assert!(numbers.contains(&(COUNT - 1)) && !numbers.contains(&0));
+    let mut seen = numbers.clone();
+    let mut presses = 0;
+    while buttons.contains("older") {
+        let (oldest, count) = (*numbers.first().unwrap(), numbers.len());
+        assert!(
+            page.event(context, Event::Press { id: "older".into() })
+                .is_none()
+        );
+        (numbers, buttons) = shown(&mut page);
+        // Each press shows older messages, and no fewer of them.
+        assert!(*numbers.first().unwrap() < oldest, "{oldest} → {numbers:?}");
+        assert!(numbers.len() >= count.min(oldest), "{count} → {numbers:?}");
+        seen.extend(&numbers);
+        presses += 1;
+        assert!(presses < COUNT, "older messages never end");
+    }
+    assert_eq!(seen, (0..COUNT).collect(), "every message is reached");
+    // Away from the newest messages, one press brings them back.
+    assert!(buttons.contains("newer"));
+    assert!(
+        page.event(context, Event::Press { id: "newer".into() })
+            .is_none()
+    );
+    let (numbers, buttons) = shown(&mut page);
+    assert!(numbers.contains(&(COUNT - 1)) && !buttons.contains("newer"));
 }

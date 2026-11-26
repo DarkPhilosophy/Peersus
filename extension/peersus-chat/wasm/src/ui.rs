@@ -538,6 +538,7 @@ enum Action {
     GroupTitle,
     MessageText,
     Older,
+    Newer,
     Show(Overlay),
     Close,
     Confirm,
@@ -706,6 +707,13 @@ pub struct Page {
     /// How many messages of the conversation's line the last page made showed: a page made again does not fall below it
     /// while that many still fit, so asking for older messages never shows fewer.
     fitted: usize,
+    /// Whether the last page made showed fewer messages than it asked for, because more did not fit.
+    full: bool,
+    /// The oldest message of the conversation's line the last page made showed, by its key.
+    oldest: std::cell::Cell<Option<String>>,
+    /// The line is shown up to, not including, this message (by its key): set when older messages are asked for on a page
+    /// that already showed all it could, so every message can be reached. `None` shows up to the newest.
+    before: Option<String>,
 }
 impl Page {
     pub fn room(&self) -> Option<&RoomKey> {
@@ -728,7 +736,7 @@ impl Page {
         }
         self.screen = screen;
         self.overlay = Overlay::None;
-        self.older = 0;
+        self.newest();
         self.fitted = 0;
         self.group.clear();
         self.feedback = None;
@@ -763,7 +771,7 @@ impl Page {
         } else {
             self.visit = self.visit.saturating_add(1);
             self.overlay = Overlay::None;
-            self.older = 0;
+            self.newest();
             self.text.clear();
             self.field = self.field.saturating_add(1);
             self.busy = None;
@@ -775,7 +783,7 @@ impl Page {
             Ok(()) => {
                 self.text.clear();
                 self.feedback = None;
-                self.older = 0;
+                self.newest();
                 self.replying = None;
             }
             Err(error) => {
@@ -784,6 +792,11 @@ impl Page {
         }
         // The common field clears on submit; remount it with the retained text after failure.
         self.field = self.field.saturating_add(1);
+    }
+    /// Back to the newest messages, as many as fit.
+    fn newest(&mut self) {
+        self.older = 0;
+        self.before = None;
     }
     /// A group that could not be made: its form keeps the name it was given.
     pub fn group_refused(&mut self, error: Fault) {
@@ -912,7 +925,16 @@ impl Page {
                         None
                     }
                     Action::Older => {
-                        self.older = self.older.saturating_add(ROWS);
+                        // A page that showed all it could moves on to the messages before its oldest, as many as it
+                        // showed; else it shows more.
+                        match self.oldest.get_mut().clone().filter(|_| self.full) {
+                            Some(oldest) => self.before = Some(oldest),
+                            None => self.older = self.older.saturating_add(ROWS),
+                        }
+                        None
+                    }
+                    Action::Newer => {
+                        self.newest();
                         None
                     }
                     Action::Show(overlay) => {
@@ -1040,6 +1062,7 @@ impl Page {
             }
             if value.is_some() {
                 self.fitted = shown;
+                self.full = self.fit.is_some();
             }
             self.bindings = bindings;
             self.bindings.old.clear();
@@ -1483,25 +1506,33 @@ impl Page {
                 .and_then(|body| body.text.as_ref())
                 .map_or(64, |text| text.len() + 64)
         };
-        // The newest messages, as many as fit the page, and older ones only when asked for.
-        let mut start = line.len();
+        // The newest messages, as many as fit the page, and older ones only when asked for: more of them while they fit,
+        // then those before the oldest a full page showed.
+        let end = self
+            .before
+            .as_ref()
+            .and_then(|before| line.iter().position(|(_, key, _)| key == before))
+            .unwrap_or(line.len());
+        let mut start = end;
         let mut budget = ROW_TEXT.saturating_add(self.older.saturating_mul(ROW_TEXT / ROWS));
         let limit = ROWS
             .saturating_add(self.older)
             .min(self.fit.unwrap_or(usize::MAX));
-        while start > 0 && line.len() - start < limit {
+        while start > 0 && end - start < limit {
             let (_, key, row) = &line[start - 1];
             let replies = threads
                 .get(key)
                 .map_or(&[][..], |replies| self.newest_replies(key, replies));
             let cost = weight(row) + replies.iter().map(|reply| weight(reply)).sum::<usize>();
-            if cost > budget && line.len() > start {
+            if cost > budget && end > start {
                 break;
             }
             budget = budget.saturating_sub(cost);
             start -= 1;
         }
-        self.shown.set(line.len() - start);
+        self.shown.set(end - start);
+        self.oldest
+            .set(line.get(start).map(|(_, key, _)| key.clone()));
         let mut lines = Vec::new();
         if start > 0 {
             lines.push(boxed(
@@ -1534,7 +1565,7 @@ impl Page {
                 )],
             ));
         }
-        let shown = &line[start..];
+        let shown = &line[start..end];
         let answered = |i: usize| {
             shown
                 .get(i)
@@ -1558,6 +1589,20 @@ impl Page {
             if let Some(replies) = threads.get(key) {
                 lines.push(self.replies(c, room, row, key, replies, b));
             }
+        }
+        if end < line.len() {
+            lines.push(boxed(
+                Style {
+                    width: FULL,
+                    center: true,
+                    ..Style::default()
+                },
+                vec![b.button_at(
+                    "newer".into(),
+                    Action::Newer,
+                    l.t("Show newer messages", "Arată mesajele mai noi"),
+                )],
+            ));
         }
         if let Some(info) = c.engine.data.rooms.get(room)
             && !info.cleared.is_empty()
