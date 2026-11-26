@@ -1,0 +1,109 @@
+# Test fixture: a few messages of the language file of the languages branch, the ones the tests read.
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ro\n"
+"X-Language-Name: Română\n"
+"Plural-Forms: nplurals=3; plural=(n==1 ? 0 : (n==0 || (n%100 > 0 && n%100 < 20)) ? 1 : 2);\n"
+
+msgid "Language"
+msgstr "Limbă"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} vrea să îți trimită un fișier"
+
+msgid "{duration} ago"
+msgstr "acum {duration}"
+
+msgid "Battery"
+msgstr "Baterie"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Limitat: cât telefonul este inactiv, sistemul poate tăia rețeaua serviciului din fundal. Permite în setările bateriei."
+
+msgid "Version {version} is available."
+msgstr "Versiunea {version} este disponibilă."
+
+msgid "up to date"
+msgstr "la zi"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} fișier"
+msgstr[1] "{count} fișiere"
+msgstr[2] "{count} de fișiere"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minut"
+msgstr[1] "{count} minute"
+msgstr[2] "{count} de minute"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} oră"
+msgstr[1] "{count} ore"
+msgstr[2] "{count} de ore"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} zi"
+msgstr[1] "{count} zile"
+msgstr[2] "{count} de zile"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} lună"
+msgstr[1] "{count} luni"
+msgstr[2] "{count} de luni"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} an"
+msgstr[1] "{count} ani"
+msgstr[2] "{count} de ani"
+
+msgid "{files} selected"
+msgstr "{files} selectate"
+
+msgid "+ {count} more"
+msgstr "+ încă {count}"
+
+msgid "{files} are waiting in all"
+msgstr "În total așteaptă {files}"
+
+msgid "SENDING"
+msgstr "SE TRIMITE"
+
+msgid "Sending 1 file."
+msgstr "Se trimite 1 fișier."
+
+msgid "Sending {files}."
+msgstr "Se trimit {files}."
+
+msgid "Left out: {items}."
+msgstr "Omise: {items}."
+
+msgid "Not files: {count}"
+msgstr "Nu sunt fișiere: {count}"
+
+msgid "Could not be read: {count}"
+msgstr "Nu s-au putut citi: {count}"
+
+msgid "Window bar position"
+msgstr "Poziția barei ferestrei"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Alege unde apar comenzile ferestrei și navigarea principală."
+
+msgid "Top"
+msgstr "Sus"
+
+msgid "Bottom"
+msgstr "Jos"

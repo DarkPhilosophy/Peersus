@@ -1,0 +1,94 @@
+name: Architecture map data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - crates/**
+      - android/**
+      - xtask/**
+      - templates/**
+      - scripts/**
+      - Cargo.toml
+      - Cargo.lock
+      - AGENTS.md
+      - build.sh
+      - check.sh
+      - dev.sh
+      - docs/architecture.md
+      - docs/api/**
+      - docs/extension-store.md
+      - .github/workflows/artifacts.yml
+      - .github/workflows/extension-validate.yml
+      - .github/workflows/extension-approve.yml
+      - .github/workflows/pages.yml
+      - .github/workflows/release.yml
+      - .github/workflows/architecture-map.yml
+  workflow_dispatch:
+
+# Like the CodeFlow card, the generated data is one replaced commit on a fixed branch, never main.
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-map
+  cancel-in-progress: true
+
+jobs:
+  map:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      # No checkout persists credentials. Only the publishing step receives the write token.
+      contents: write
+    env:
+      MAP_BRANCH: architecture-map
+    steps:
+      - name: Check out the source at the triggering main commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Check out the extension sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: extension
+          path: extensions
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Check extraction and generate the public map
+        working-directory: source
+        env:
+          PEERSUS_ARCHITECTURE_TEST_EXTENSIONS: ${{ github.workspace }}/extensions
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python3 scripts/test-gen-architecture-map.py
+          revision="$(git rev-parse HEAD)"
+          test "$revision" = "$GITHUB_SHA"
+          source_date="$(git show -s --format=%cI "$revision")"
+          python3 scripts/gen-architecture-map.py --data-only --output ../map-publication \
+            --extensions-root ../extensions --commit "$revision" --commit-date "$source_date"
+          python3 scripts/gen-architecture-map.py --check-data ../map-publication/map.json
+
+      - name: Publish the validated map data
+        working-directory: map-publication
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMIT_NAME: ${{ vars.DEV_COMMIT_NAME }}
+          COMMIT_EMAIL: ${{ vars.DEV_COMMIT_EMAIL }}
+        run: |
+          test -n "$COMMIT_NAME" && test -n "$COMMIT_EMAIL"
+          git init --quiet --initial-branch "$MAP_BRANCH"
+          git add map.json
+          git -c user.name="$COMMIT_NAME" -c user.email="$COMMIT_EMAIL" \
+            commit --quiet --message "Architecture map for ${GITHUB_SHA}"
+          git push --force --quiet \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${MAP_BRANCH}"

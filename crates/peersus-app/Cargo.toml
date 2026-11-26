@@ -1,0 +1,131 @@
+[package]
+name = "peersus-app"
+description = "Peersus application owner: runtime, plugin host, command line and local control"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Only the external Android distribution enables application-UID native extensions.
+# Play builds never enable this feature; desktop execution formats are unchanged.
+android-native-extensions = []
+# Authenticated private development catalog; normal distributions remain anonymous.
+private-store = ["peersus-core/private-store"]
+# The prerelease channel: a private build that follows `pre` with its own update key.
+prerelease-channel = ["private-store"]
+# Builds the small plugin the application's integration tests run as a real process.
+# Never part of a normal build or of the product.
+test-plugin = []
+# Makes the program keep its identity in memory instead of in the system credential store,
+# so that tests can start it without reading or creating the user's real identity there. It
+# is a build feature and not a setting on purpose: a product build does not contain it, so
+# nothing at run time, whatever the environment says, can switch the real store off.
+test-identity = []
+# A client that answers from one fixed snapshot and refuses every command, for the
+# interface's read-only demo. A product build does not contain it: no flag, and no
+# environment variable can ever turn the owner's real client into this one.
+demo = []
+# Optimized development builds (`./dev.sh deploy`): the reviewed `peersus::dev` events and the development reports.
+# Never enabled by release preparation (`cargo xtask build` refuses a release program that holds them).
+development-diagnostics = ["peersus-diagnostics/development"]
+production-diagnostics = ["peersus-diagnostics/production"]
+
+[[bin]]
+name = "peersus"
+path = "src/bin/peersus.rs"
+
+[[bin]]
+name = "peersus-test-plugin"
+path = "src/bin/test_plugin.rs"
+required-features = ["test-plugin"]
+
+[[example]]
+name = "store_demo"
+path = "examples/store_demo.rs"
+required-features = ["test-plugin"]
+
+[dependencies]
+peersus-core.workspace = true
+peersus-net.workspace = true
+peersus-api.workspace = true
+peersus-plugin.workspace = true
+peersus-diagnostics.workspace = true
+tracing.workspace = true
+clap.workspace = true
+iroh.workspace = true
+tokio.workspace = true
+bytes.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+jiff.workspace = true
+toml.workspace = true
+thiserror.workspace = true
+hmac.workspace = true
+sha2.workspace = true
+rand.workspace = true
+hex.workspace = true
+tempfile.workspace = true
+tar.workspace = true
+flate2.workspace = true
+object.workspace = true
+wasmparser.workspace = true
+ed25519-dalek.workspace = true
+reqwest.workspace = true
+rustls.workspace = true
+zeroize.workspace = true
+# The free and total space of a volume, read by the system readings on every platform.
+fs2.workspace = true
+# The sound extensions play, as finished samples (`sound_output`), on every platform.
+cpal.workspace = true
+# How strong each range of frequencies of a recording under way is (`microphone`).
+rustfft.workspace = true
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+keyring.workspace = true
+rfd.workspace = true
+peersus-clipboard-platform.workspace = true
+
+# The system bus provides logind sleep notifications. Share the theme watcher's
+# zbus major version; Android uses its own platform signal.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "6.2.1", default-features = false, features = ["tokio", "proxy", "service"] }
+dbus-secret-service.workspace = true
+futures-lite = "2.6.1"
+evdev.workspace = true
+ashpd.workspace = true
+reis.workspace = true
+x11rb.workspace = true
+xcursor = "=0.3.11"
+
+[target.'cfg(unix)'.dependencies]
+rustix.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework.workspace = true
+smappservice-rs.workspace = true
+objc2.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-service.workspace = true
+winreg.workspace = true
+display-info.workspace = true
+
+[target.'cfg(any(windows, target_os = "macos"))'.dependencies]
+enigo.workspace = true
+
+[dev-dependencies]
+image.workspace = true
+rqrr.workspace = true
+qrcodegen.workspace = true
+rcgen = { version = "=0.14.10", default-features = false, features = ["crypto", "ring"] }
+tokio-rustls = { version = "=0.26.6", default-features = false, features = ["ring", "tls12"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+# A connection between two ends with no bus between them, for a stand-in of a system service in tests.
+zbus = { version = "6.2.1", default-features = false, features = ["tokio", "proxy", "service", "p2p"] }
+
+[lints]
+workspace = true

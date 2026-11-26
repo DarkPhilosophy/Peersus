@@ -1,0 +1,57 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Canvas demo",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "description": "Draws a responsive field of 1,500 strokes and text in a desktop WASM extension."
+  },
+  "program": "canvas_guest.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "platforms": ["linux", "macos", "windows"],
+  "capabilities": {},
+  "imports": [
+    {"provider": "host", "service": "peersus.canvas", "version": 1, "methods": ["open"], "events": []},
+    {"provider": "host", "service": "peersus.config", "version": 1, "methods": ["get"], "events": []},
+    {"provider": "host", "service": "peersus.pages", "version": 1, "methods": ["set"], "events": []}
+  ],
+  "exports": [{
+    "service": "canvas-demo.view",
+    "version": 1,
+    "description": "Draws and responds to the demo page.",
+    "consumers": ["host"],
+    "methods": {"page": {"description": "Return the demo page and consume its interactions."}},
+    "events": {}
+  }],
+  "contributions": {
+    "pages": [{
+      "id": "demo",
+      "label": "Canvas demo",
+      "placement": "settings",
+      "surface": "elements",
+      "source": {"service": "canvas-demo.view", "method": "page"},
+      "icon": "chart"
+    }],
+    "settings": [{
+      "id": "show-canvas",
+      "label": "Show Canvas demo in navigation",
+      "kind": {"type": "toggle", "default": false}
+    }]
+  },
+  "agreements": {"pages": [
+    {
+      "kind": "licence",
+      "title": "Apache License 2.0",
+      "explains": "Use, change, and share the example under Apache-2.0, keeping its licence and notices.",
+      "changes": "The example runs as an extension; no data or device permissions are granted.",
+      "spdx": "Apache-2.0",
+      "links": [{"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}]
+    },
+    {
+      "kind": "notice",
+      "title": "What Canvas demo does",
+      "explains": "It draws synthetic strokes and text, and handles panning and zooming on its own page.",
+      "changes": "Nothing is collected, persisted or transmitted to another device."
+    }
+  ]}
+}

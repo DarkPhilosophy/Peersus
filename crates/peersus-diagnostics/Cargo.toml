@@ -1,0 +1,40 @@
+[package]
+name = "peersus-diagnostics"
+description = "Application-owned structured diagnostics for desktop and Android"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# An optimized development build (the Android development libraries, the desktop programs `./dev.sh deploy` installs):
+# the reviewed `peersus::dev` events and the development reports (see `incident`). Enabled through each program's
+# `development-diagnostics` feature, never by release preparation. Debug-assertions builds have it too.
+development = []
+# The desktop release task asserts at compile time that development support is absent.
+production = []
+
+[dependencies]
+peersus-api.workspace = true
+tracing.workspace = true
+tracing-log = "0.2.0"
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["std", "fmt", "registry", "env-filter", "tracing-log"] }
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+tracing-appender = { version = "0.2.5", default-features = false }
+
+[target.'cfg(target_os = "android")'.dependencies]
+tracing-android = "0.2.0"
+rustix.workspace = true
+
+# Starting the crash capture helper and naming it as tracer (`crash_watch`).
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix.workspace = true
+
+[dev-dependencies]
+log = "0.4.34"
+tempfile.workspace = true
+
+[lints]
+workspace = true

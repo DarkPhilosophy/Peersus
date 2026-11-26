@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>peersus.axxa.dev — the Peersus relay</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<link rel="stylesheet" href="relay.css">
+</head>
+<body>
+<main>
+  <p class="eyebrow">PEERSUS · RELAY</p>
+  <h1>peersus.axxa.dev is the <span>Peersus</span> relay.</h1>
+  <p class="lead">Peersus moves files directly between your own devices. When two devices cannot reach each other directly, this server passes their encrypted traffic along, and nothing more.</p>
+  <div class="status"><i></i> relay online</div>
+
+  <div class="flow" aria-label="How a relayed transfer travels">
+    <div><b>Your phone</b><span>encrypts</span></div>
+    <span aria-hidden="true">→</span>
+    <div class="relay"><b>peersus.axxa.dev</b><span>forwards only</span></div>
+    <span aria-hidden="true">→</span>
+    <div><b>Your laptop</b><span>decrypts</span></div>
+  </div>
+
+  <h2>What this server does</h2>
+  <ul>
+    <li>It helps two Peersus devices find each other and, if no direct path opens, forwards the traffic between them.</li>
+    <li>Peersus always tries a direct connection first; the relay is only the fallback.</li>
+    <li>It is an <a href="https://www.iroh.computer/" rel="external noopener">iroh</a> relay, the open networking layer Peersus is built on.</li>
+  </ul>
+
+  <h2>What it cannot do</h2>
+  <ul>
+    <li>Read your files: transfers are end-to-end encrypted between your devices, and the relay never holds a key.</li>
+    <li>Store anything: data passes through and is not kept.</li>
+    <li>Know your contents. What it does see is connection metadata, such as which device addresses talk and when.</li>
+  </ul>
+
+  <div class="facts">
+    <div><b>Address in Peersus</b><code>peersus.axxa.dev</code></div>
+    <div><b>Shown in the app as</b>axxa.dev · Project relay</div>
+    <div><b>Software</b>iroh-relay</div>
+  </div>
+
+  <h2>Using it</h2>
+  <p>Nothing to set up: Peersus lists this relay by default, next to the public <code>n0</code> relays. In <em>Settings → Network → Relay</em> you can switch it off, change the order relays are tried in, or add a relay of your own.</p>
+
+  <div class="actions">
+    <a class="button primary" href="index.html">The Peersus project →</a>
+    <a class="button" href="https://ko-fi.com/DarkPhilosophy" rel="external noopener noreferrer">Support on Ko-fi ↗</a>
+  </div>
+
+  <footer>Peersus is free software (Apache-2.0). This relay is provided as is, without guarantees of availability.</footer>
+</main>
+</body>
+</html>

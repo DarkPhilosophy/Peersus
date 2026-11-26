@@ -1,0 +1,82 @@
+# Test fixture: a few messages of the language file of the languages branch, the ones the tests read.
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: cs\n"
+"X-Language-Name: Čeština\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+
+msgid "Language"
+msgstr "Jazyk"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} ti chce poslat soubor"
+
+msgid "{duration} ago"
+msgstr "před {duration}"
+
+msgid "Battery"
+msgstr "Baterie"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Omezeno: když je telefon nečinný, může systém odpojit síť služby na pozadí. Povolte to v nastavení baterie."
+
+msgid "Version {version} is available."
+msgstr "Je k dispozici verze {version}."
+
+msgid "up to date"
+msgstr "aktuální"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} soubor"
+msgstr[1] "{count} soubory"
+msgstr[2] "{count} souborů"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minutou"
+msgstr[1] "{count} minutami"
+msgstr[2] "{count} minutami"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} hodinou"
+msgstr[1] "{count} hodinami"
+msgstr[2] "{count} hodinami"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dnem"
+msgstr[1] "{count} dny"
+msgstr[2] "{count} dny"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} měsícem"
+msgstr[1] "{count} měsíci"
+msgstr[2] "{count} měsíci"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} rokem"
+msgstr[1] "{count} lety"
+msgstr[2] "{count} lety"
+
+msgid "Window bar position"
+msgstr "Poloha lišty okna"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Vyberte, kde se mají zobrazit ovládací prvky okna a hlavní navigace."
+
+msgid "Top"
+msgstr "Nahoře"
+
+msgid "Bottom"
+msgstr "Dole"

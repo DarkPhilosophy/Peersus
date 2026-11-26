@@ -1,0 +1,276 @@
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    rc::Rc,
+};
+
+use freya_core::{
+    integration::*,
+    metrics::Metrics,
+};
+use freya_engine::prelude::{
+    Canvas,
+    FontCollection,
+};
+pub use keyboard_types::{
+    Code,
+    Key,
+    Modifiers,
+};
+use winit::{
+    event::WindowEvent,
+    window::{
+        Window,
+        WindowId,
+    },
+};
+
+use crate::renderer::{
+    RendererMessage,
+    RendererSender,
+    RendererWindowMessage,
+    RendererWindowPayload,
+};
+
+#[derive(Clone)]
+pub struct PluginHandle {
+    pub proxy: RendererSender,
+}
+
+impl PluginHandle {
+    pub fn new(proxy: &RendererSender) -> Self {
+        Self {
+            proxy: proxy.clone(),
+        }
+    }
+
+    /// Emit a [PlatformEvent]. Useful to simulate certain events.
+    pub fn send_platform_event(&self, event: PlatformEvent, window_id: WindowId) {
+        self.proxy
+            .send_message(RendererMessage::Window(RendererWindowMessage {
+                window_id,
+                payload: RendererWindowPayload::PlatformEvent(event),
+            }))
+            .ok();
+    }
+
+    /// Queue a message for the renderer.
+    pub fn send_renderer_message(&self, message: RendererMessage) {
+        self.proxy.send_message(message).ok();
+    }
+}
+
+/// Manages all loaded plugins.
+#[derive(Default, Clone)]
+pub struct PluginsManager {
+    plugins: Rc<RefCell<HashMap<&'static str, Box<dyn FreyaPlugin>>>>,
+}
+
+impl PluginsManager {
+    /// Add a plugin by its ID. First insert wins.
+    pub fn add_plugin(&mut self, plugin: impl FreyaPlugin + 'static) {
+        self.plugins
+            .borrow_mut()
+            .entry(plugin.plugin_id())
+            .or_insert(Box::new(plugin));
+    }
+
+    pub fn send(&mut self, mut event: PluginEvent, handle: PluginHandle) {
+        for plugin in self.plugins.borrow_mut().values_mut() {
+            plugin.on_event(&mut event, handle.clone())
+        }
+    }
+
+    /// Observer reporting every tasks polling batch of a [Runner] as plugin events.
+    pub fn tasks_poll_observer<'a>(
+        &'a mut self,
+        window: &'a dyn Window,
+        handle: PluginHandle,
+    ) -> impl FnMut(TasksPollStage) + 'a {
+        move |stage| {
+            let event = match stage {
+                TasksPollStage::Started => PluginEvent::StartedPollingTasks { window },
+                TasksPollStage::Finished => PluginEvent::FinishedPollingTasks { window },
+            };
+            self.send(event, handle.clone())
+        }
+    }
+
+    /// Compose the root element through all plugins' root components.
+    pub fn wrap_root(&self, mut root: Element) -> Element {
+        for plugin in self.plugins.borrow().values() {
+            root = plugin.root_component(root);
+        }
+        root
+    }
+}
+
+/// Event emitted to Plugins.
+pub enum PluginEvent<'a> {
+    /// A runner just got created.
+    RunnerCreated { runner: &'a mut Runner },
+
+    /// A window tree was created.
+    TreeCreated {
+        window: &'a dyn Window,
+        tree: &'a mut Tree,
+    },
+
+    /// A raw Winit window event before Freya handles it.
+    WindowEvent {
+        window: &'a dyn Window,
+        raw: &'a WindowEvent,
+        tree: &'a mut Tree,
+    },
+
+    /// A window resumed.
+    WindowResumed {
+        window: &'a dyn Window,
+        tree: &'a mut Tree,
+        /// Before rebuilding the Android driver and reattaching the native window.
+        #[cfg(target_os = "android")]
+        recreation_started: std::time::Instant,
+        #[cfg(target_os = "android")]
+        graphics_driver: &'static str,
+    },
+
+    /// A Window just got created.
+    WindowCreated {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+        animation_clock: &'a AnimationClock,
+        runner: &'a mut Runner,
+        graphics_driver: &'static str,
+        gpu_name: Option<&'a str>,
+    },
+
+    /// The graphics driver was rebuilt at runtime.
+    GraphicsDriverChanged {
+        window: &'a dyn Window,
+        graphics_driver: &'static str,
+        gpu_name: Option<&'a str>,
+    },
+
+    /// A Window just got closed.
+    WindowClosed {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    /// After having rendered, presented and everything else.
+    AfterRedraw {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+    },
+
+    /// Before presenting the canvas to the window.
+    BeforePresenting {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+    },
+
+    /// After attempting to present. `presented` is false if the backend skipped or refused the frame.
+    AfterPresenting {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+        presented: bool,
+    },
+
+    /// Before starting to render the app to the Canvas.
+    BeforeRender {
+        window: &'a dyn Window,
+        canvas: &'a Canvas,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+    },
+
+    /// After rendering the app to the Canvas.
+    AfterRender {
+        window: &'a dyn Window,
+        canvas: &'a Canvas,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+        animation_clock: &'a AnimationClock,
+        metrics: Metrics,
+    },
+
+    /// Before starting to measure the layout.
+    StartedMeasuringLayout {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    /// After measuringg the layout.
+    FinishedMeasuringLayout {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    /// Before starting to process the queued events.
+    StartedMeasuringEvents {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    /// After processing the queued events.
+    FinishedMeasuringEvents {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    StartedUpdatingTree {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    FinishedUpdatingTree {
+        window: &'a dyn Window,
+        tree: &'a Tree,
+    },
+
+    /// Before starting to poll a batch of async tasks.
+    StartedPollingTasks { window: &'a dyn Window },
+
+    /// After polling a batch of async tasks.
+    FinishedPollingTasks { window: &'a dyn Window },
+
+    BeforeAccessibility {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+    },
+
+    AfterAccessibility {
+        window: &'a dyn Window,
+        font_collection: &'a FontCollection,
+        tree: &'a Tree,
+    },
+
+    /// A keyboard input was received.
+    KeyboardInput {
+        window: &'a dyn Window,
+        key: Key,
+        code: Code,
+        modifiers: Modifiers,
+        is_pressed: bool,
+    },
+}
+
+/// Skeleton for Freya plugins.
+pub trait FreyaPlugin {
+    /// Unique identifier for this plugin. Used for deduplication.
+    fn plugin_id(&self) -> &'static str;
+
+    /// React on events emitted by Freya.
+    fn on_event(&mut self, event: &mut PluginEvent, handle: PluginHandle);
+
+    /// Wrap the root element with a custom component.
+    /// Called during window creation. The default implementation returns the element unchanged.
+    fn root_component(&self, root: Element) -> Element {
+        root
+    }
+}
