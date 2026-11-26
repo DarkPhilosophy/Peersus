@@ -1,0 +1,51 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Chat",
+    "version": "0.1.0",
+    "author": "Peersus contributors",
+    "link": "https://github.com/DarkPhilosophy/Peersus",
+    "description": "Private messaging with paired devices; this device keeps its own history and offline queue."
+  },
+  "platforms": ["linux", "android", "macos", "windows"],
+  "program": "peersus_chat_wasm.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {
+    "chat.use": "Send and receive chat messages, attachments, reactions, and receipts with this paired device. Changing or clearing your copies is separately opt-in."
+  },
+  "imports": [
+    {"provider":"host","service":"peersus.peers","version":1,"methods":["list","send","references","new-scope"],"events":[]},
+    {"provider":"host","service":"peersus.config","version":1,"methods":["get"],"events":["changed"]},
+    {"provider":"host","service":"peersus.clock","version":1,"methods":["now","wall"],"events":[]},
+    {"provider":"host","service":"peersus.storage","version":1,"methods":["list","read","stage","append","seal","abort","commit"],"events":[]},
+    {"provider":"host","service":"peersus.files","version":1,"methods":["choose","release","stage-selected","save"],"events":[]},
+    {"provider":"host","service":"peersus.pages","version":1,"methods":["set"],"events":[]},
+    {"provider":"host","service":"peersus.language","version":1,"methods":["get"],"events":["changed"]},
+    {"provider":"host","service":"peersus.pictures","version":1,"methods":["keep","forget","decode"],"events":[]},
+    {"provider":"host","service":"peersus.audio","version":1,"methods":["play","queue","pause","resume","stop","state","decode","record","finish","cancel","levels"],"events":[]},
+    {"provider":"host","service":"peersus.notify","version":1,"methods":["show","opened"],"events":["opened"]}
+  ],
+  "exports": [
+    {"service":"chat.events","version":1,"description":"Exchanges chat operations between paired devices.","consumers":["host"],
+     "methods":{"receive":{"capability":"chat.use","description":"Receive bounded chat operations from an authenticated paired device."}},"events":{}},
+    {"service":"chat.local","version":1,"description":"Handles local conversation actions.","consumers":["host"],
+     "methods":{"view":{"description":"Show conversations and handle this page's own events."}},"events":{}}
+  ],
+  "contributions": {
+    "pages": [
+      {"id":"conversations","label":"Chat","placement":"settings","icon":"chat","surface":"elements","needs_device":false,
+       "source":{"service":"chat.local","method":"view"}}
+    ],
+    "settings": [
+      {"id":"show-chat","label":"Add Chat to navigation","help":"Show Chat as a separate page. You can always open it from this extension’s settings.","scope":"global","kind":{"type":"toggle","default":false}},
+      {"id":"allow-message-deletion","label":"Allow this device to delete its sent messages here","help":"A request can replace this device’s own messages here with a deletion marker. Off keeps your copies.","scope":"device","kind":{"type":"toggle","default":false}},
+      {"id":"allow-chat-clear","label":"Allow this device to request clearing shared history","help":"A request can remove your copies of messages already exchanged with this device. This does not remove newer or unsent messages.","scope":"device","kind":{"type":"toggle","default":false}}
+    ]
+  },
+  "agreements": {
+    "pages": [
+      {"kind":"licence","title":"Apache License 2.0","explains":"You may use, copy, change and share this extension under Apache-2.0. Keep its licence and notices with copies you share.","changes":"Accepting this agreement grants no permission to your devices or files.","spdx":"Apache-2.0","links":[{"label":"Apache License 2.0 text","url":"https://www.apache.org/licenses/LICENSE-2.0"}]},
+      {"kind":"notice","title":"Messages stay on the participating devices","explains":"Chat keeps local copies of messages and chosen attachments, and queues sends until a paired recipient is reachable. Group recipients see the group title and member labels.","changes":"Each recipient keeps its own copy. Remote deletion and clear requests are optional and may be declined. Exported copies are outside Chat's control."}
+    ]
+  }
+}

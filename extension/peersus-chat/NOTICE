@@ -1,0 +1,7 @@
+Peersus Chat
+Copyright Peersus contributors
+
+Licensed under the Apache License, Version 2.0. The extension uses the Peersus
+extension API and includes unchanged Peersus guest SDK boundary files. It runs
+as an optional program hosted by Peersus. No external message or file service
+is used by the Chat protocol.
