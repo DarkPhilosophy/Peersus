@@ -53,6 +53,7 @@
         "write",
         "append",
         "commit",
+        "abort",
         "reset",
         "release"
       ],

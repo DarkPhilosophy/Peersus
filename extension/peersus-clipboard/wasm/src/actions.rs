@@ -43,6 +43,8 @@ pub mod answer {
     pub const BUSY: &str = "The clipboard extension has too many requests waiting";
     pub const NOT_ACCEPTED: &str = "What was sent was not accepted";
     pub const NOT_PLACED: &str = "The text could not be placed on the clipboard";
+    pub const NOT_DISCARDED: &str =
+        "The text could not be placed and the pending clipboard write could not be discarded";
     pub const UNKNOWN: &str = "Nothing here answers that";
     pub const CANCELLED: &str = "The operation was cancelled";
 }
@@ -167,7 +169,7 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                 Some(CLIPBOARD),
                 Some("read" | "observe" | "selected" | "chunk" | "reset" | "release"),
             ) => Some(READ),
-            (Some(CLIPBOARD), Some("write" | "append" | "commit")) => Some(WRITE),
+            (Some(CLIPBOARD), Some("write" | "append" | "commit" | "abort")) => Some(WRITE),
             _ => None,
         };
         if let Some(permission) = guard.and_then(|name| self.readiness.missing(None, "host", name))
@@ -461,13 +463,25 @@ impl<'a, H: Wire + Data> Session<'a, H> {
                 .map(drop)
                 .map_err(|error| error.with_message(answer::NOT_PLACED))
         });
-        // Whatever happened, nothing of an unfinished replacement is left with the application.
-        let _ = self.release();
-        // Only a text that really reached the clipboard is remembered as received: it must not be sent back as a copy.
-        if done.is_ok() {
-            self.placed = Some(text);
+        match done {
+            Ok(()) => {
+                let _ = self.release();
+                // Only text that reached the clipboard must not be sent back as a copy.
+                self.placed = Some(text);
+                Ok(())
+            }
+            Err(error) => {
+                // Abort only this write; releasing captures requires a separate read grant.
+                let reason = self.reason;
+                let aborted = self.call("host", CLIPBOARD, "abort", json!({"put":put}));
+                self.reason = reason;
+                if matches!(aborted, Ok(reply) if reply["aborted"].is_boolean()) {
+                    Err(error)
+                } else {
+                    Err(error.with_message(answer::NOT_DISCARDED))
+                }
+            }
         }
-        done
     }
 }
 
@@ -670,6 +684,55 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["write", "append", "commit"]
         );
+    }
+
+    #[test]
+    fn write_only_failure_aborts_the_staged_replacement_without_reading() {
+        for failing in ["append", "commit"] {
+            let mut readiness = Readiness::default();
+            readiness
+                .update(
+                    &json!({"plugin":"clipboard","peers":[],"missing_permissions":[
+                        {"owner":"host","name":"clipboard.read"}
+                    ]}),
+                )
+                .unwrap();
+            let mut host = Script::default();
+            host.incoming.push_back(wire::encode("hi").unwrap());
+            host.results
+                .push_back(json!({"status":"ok","value":{"put":"put-1"}}));
+            if failing == "commit" {
+                host.results
+                    .push_back(json!({"status":"ok","value":{"next":2}}));
+            }
+            host.results.extend([
+                json!({"status":"error","code":"unavailable"}),
+                json!({"status":"ok","value":{"aborted":true}}),
+            ]);
+            let Handled::Replied { reply, placed, .. } = super::handle(
+                &mut host,
+                &call("receive", json!({})),
+                &mut 0,
+                &mut readiness,
+            ) else {
+                panic!("the refused write must reply");
+            };
+            assert_eq!(reply["result"]["code"], "unavailable");
+            assert_eq!(placed, None);
+            let mut expected = vec!["write", "append"];
+            if failing == "commit" {
+                expected.push("commit");
+            }
+            expected.push("abort");
+            assert_eq!(
+                host.sent
+                    .iter()
+                    .filter_map(|sent| sent["method"].as_str())
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            assert_eq!(host.sent.last().unwrap()["args"], json!({"put":"put-1"}));
+        }
     }
 
     #[test]
@@ -1098,7 +1161,7 @@ mod tests {
         host.results
             .push_back(json!({"status":"error","code":"platform-refused","message":"x"}));
         host.results
-            .push_back(json!({"status":"ok","value":{"released":true}}));
+            .push_back(json!({"status":"ok","value":{"aborted":false}}));
         let mut next = 0;
         let Handled::Replied { reply, .. } =
             handle(&mut host, &call("receive", json!({})), &mut next)
@@ -1106,7 +1169,8 @@ mod tests {
             panic!("replied");
         };
         assert_eq!(reply["result"]["message"], answer::NOT_PLACED);
-        assert_eq!(host.sent.last().unwrap()["method"], "release");
+        assert_eq!(host.sent.last().unwrap()["method"], "abort");
+        assert_eq!(host.sent.last().unwrap()["args"], json!({"put":"put-1"}));
     }
 
     #[test]
