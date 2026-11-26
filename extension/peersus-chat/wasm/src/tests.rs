@@ -1966,77 +1966,105 @@ fn every_older_message_of_a_conversation_too_long_for_one_page_is_reached_and_th
     use peersus_api::elements::{Event, Node};
     use std::collections::BTreeMap;
 
-    let b = token(2);
-    let room = RoomKey::Direct(b.clone());
-    let mut chat = Engine::default();
     const COUNT: usize = 100;
-    for n in 0..COUNT {
-        // As long as a message may be, so a page holds only some of them.
-        let text = format!("m{n} {}", "word ".repeat(196));
-        chat.queue(room.clone(), token(3), body(&text), None)
-            .unwrap();
-        // Only the page is under test: what waits to be sent stays within its quota.
-        chat.data.jobs.clear();
-    }
-    let (directory, thumbs) = (BTreeMap::new(), Thumbs::default());
-    let context = Context {
-        engine: &chat,
-        directory: &directory,
-        locale: Default::default(),
-        features: Features::default(),
-        thumbs: &thumbs,
-        waves: &crate::ui::NO_WAVES,
-        listening: None,
-    };
-    let shown = |page: &mut Page| {
-        let tree = Node::parse(&page.render(context, true)).unwrap();
-        tree.validate().unwrap();
-        let mut numbers = BTreeSet::new();
-        let mut buttons = BTreeSet::new();
-        tree.visit(&mut |node| match node {
-            Node::Text { text, .. } => {
-                if let Some(n) = text
-                    .strip_prefix('m')
-                    .and_then(|rest| rest.split(' ').next())
-                    .and_then(|n| n.parse::<usize>().ok())
-                {
-                    numbers.insert(n);
+    // Messages that fill the text budget first and then the page's byte bound (quotes take two bytes on the wire for
+    // one of text), of one size or of several; `same` when every message is as large.
+    let shapes: [(&str, fn(usize) -> String, bool); 6] = [
+        ("words", |_| "word ".repeat(196), true),
+        // Short enough that [`ROWS`] of them fit, too long for twice as many.
+        ("short", |_| "x".repeat(200), true),
+        ("medium", |_| "x".repeat(450), true),
+        ("quotes", |_| "\"".repeat(900), true),
+        ("quotes, shorter", |_| "\"".repeat(700), true),
+        ("mixed", |n| "\"".repeat([40, 990, 300, 700][n % 4]), false),
+    ];
+    for (shape, filler, same) in shapes {
+        let b = token(2);
+        let room = RoomKey::Direct(b.clone());
+        let mut chat = Engine::default();
+        for n in 0..COUNT {
+            let text = format!("m{n} {}", filler(n));
+            chat.queue(room.clone(), token(3), body(&text), None)
+                .unwrap();
+            // Only the page is under test: what waits to be sent stays within its quota.
+            chat.data.jobs.clear();
+        }
+        let (directory, thumbs) = (BTreeMap::new(), Thumbs::default());
+        let context = Context {
+            engine: &chat,
+            directory: &directory,
+            locale: Default::default(),
+            features: Features::default(),
+            thumbs: &thumbs,
+            waves: &crate::ui::NO_WAVES,
+            listening: None,
+        };
+        let shown = |page: &mut Page| {
+            let tree = Node::parse(&page.render(context, true)).unwrap();
+            tree.validate().unwrap();
+            let mut numbers = BTreeSet::new();
+            let mut buttons = BTreeSet::new();
+            tree.visit(&mut |node| match node {
+                Node::Text { text, .. } => {
+                    if let Some(n) = text
+                        .strip_prefix('m')
+                        .and_then(|rest| rest.split(' ').next())
+                        .and_then(|n| n.parse::<usize>().ok())
+                    {
+                        numbers.insert(n);
+                    }
                 }
-            }
-            Node::Button { id, .. } => {
-                buttons.insert(id.clone());
-            }
-            _ => {}
-        });
-        (numbers, buttons)
-    };
-    let mut page = Page::default();
-    page.open(room.clone());
-    let (mut numbers, mut buttons) = shown(&mut page);
-    assert!(numbers.contains(&(COUNT - 1)) && !numbers.contains(&0));
-    let mut seen = numbers.clone();
-    let mut presses = 0;
-    while buttons.contains("older") {
-        let (oldest, count) = (*numbers.first().unwrap(), numbers.len());
+                Node::Button { id, .. } => {
+                    buttons.insert(id.clone());
+                }
+                _ => {}
+            });
+            (numbers, buttons)
+        };
+        let mut page = Page::default();
+        page.open(room.clone());
+        let (mut numbers, mut buttons) = shown(&mut page);
         assert!(
-            page.event(context, Event::Press { id: "older".into() })
+            numbers.contains(&(COUNT - 1)) && !numbers.contains(&0),
+            "{shape}: {numbers:?}"
+        );
+        let mut seen = numbers.clone();
+        let mut presses = 0;
+        while buttons.contains("older") {
+            let (oldest, count) = (*numbers.first().unwrap(), numbers.len());
+            assert!(
+                page.event(context, Event::Press { id: "older".into() })
+                    .is_none()
+            );
+            (numbers, buttons) = shown(&mut page);
+            // Each press shows older messages, and, where they are all as large, no fewer of them.
+            assert!(
+                *numbers.first().unwrap() < oldest,
+                "{shape}: {oldest} → {numbers:?}"
+            );
+            assert!(
+                !same || numbers.len() >= count.min(oldest),
+                "{shape}: {count} → {numbers:?}"
+            );
+            seen.extend(&numbers);
+            presses += 1;
+            assert!(presses < COUNT, "{shape}: older messages never end");
+        }
+        assert_eq!(
+            seen,
+            (0..COUNT).collect(),
+            "{shape}: every message is reached"
+        );
+        // Away from the newest messages, one press brings them back.
+        assert!(buttons.contains("newer"), "{shape}");
+        assert!(
+            page.event(context, Event::Press { id: "newer".into() })
                 .is_none()
         );
-        (numbers, buttons) = shown(&mut page);
-        // Each press shows older messages, and no fewer of them.
-        assert!(*numbers.first().unwrap() < oldest, "{oldest} → {numbers:?}");
-        assert!(numbers.len() >= count.min(oldest), "{count} → {numbers:?}");
-        seen.extend(&numbers);
-        presses += 1;
-        assert!(presses < COUNT, "older messages never end");
+        let (numbers, buttons) = shown(&mut page);
+        assert!(
+            numbers.contains(&(COUNT - 1)) && !buttons.contains("newer"),
+            "{shape}"
+        );
     }
-    assert_eq!(seen, (0..COUNT).collect(), "every message is reached");
-    // Away from the newest messages, one press brings them back.
-    assert!(buttons.contains("newer"));
-    assert!(
-        page.event(context, Event::Press { id: "newer".into() })
-            .is_none()
-    );
-    let (numbers, buttons) = shown(&mut page);
-    assert!(numbers.contains(&(COUNT - 1)) && !buttons.contains("newer"));
 }

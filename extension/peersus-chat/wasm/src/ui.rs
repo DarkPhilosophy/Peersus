@@ -714,6 +714,9 @@ pub struct Page {
     /// The line is shown up to, not including, this message (by its key): set when older messages are asked for on a page
     /// that already showed all it could, so every message can be reached. `None` shows up to the newest.
     before: Option<String>,
+    /// Older messages were asked for and the page grew to show them: the oldest message it showed before, so a page that
+    /// could show none older (more did not fit) moves on instead.
+    asked_older: Option<String>,
 }
 impl Page {
     pub fn room(&self) -> Option<&RoomKey> {
@@ -797,6 +800,7 @@ impl Page {
     fn newest(&mut self) {
         self.older = 0;
         self.before = None;
+        self.asked_older = None;
     }
     /// A group that could not be made: its form keeps the name it was given.
     pub fn group_refused(&mut self, error: Fault) {
@@ -927,9 +931,12 @@ impl Page {
                     Action::Older => {
                         // A page that showed all it could moves on to the messages before its oldest, as many as it
                         // showed; else it shows more.
-                        match self.oldest.get_mut().clone().filter(|_| self.full) {
-                            Some(oldest) => self.before = Some(oldest),
-                            None => self.older = self.older.saturating_add(ROWS),
+                        let oldest = self.oldest.get_mut().clone();
+                        if self.full {
+                            self.before = oldest;
+                        } else {
+                            self.older = self.older.saturating_add(ROWS);
+                            self.asked_older = oldest;
                         }
                         None
                     }
@@ -1061,6 +1068,13 @@ impl Page {
                 continue;
             }
             if value.is_some() {
+                if let Some(oldest) = self.asked_older.take()
+                    && self.oldest.get_mut().as_ref() == Some(&oldest)
+                {
+                    self.before = Some(oldest);
+                    self.fit = None;
+                    continue;
+                }
                 self.fitted = shown;
                 self.full = self.fit.is_some();
             }
@@ -3777,7 +3791,8 @@ fn delivery(l: Locale, value: Delivery) -> &'static str {
 fn removal(l: Locale, value: Removal, clear: bool) -> &'static str {
     match (clear, value) {
         (true, Removal::Pending) => l.t("Clear requested", "Golire solicitată"),
-        (true, Removal::Applied) => l.t("Shared history cleared", "Istoric comun golit"),
+        // Accepted: what the device still owes someone else goes once that is delivered, so "cleared" would be early.
+        (true, Removal::Applied) => l.t("Clear accepted", "Golire acceptată"),
         (true, Removal::LocalOnly) => l.t(
             "Not cleared there (local only)",
             "Negolit acolo (doar local)",

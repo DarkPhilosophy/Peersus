@@ -167,6 +167,10 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
             return 1;
         }
         state.dispatch(&mut link, now);
+        // Dispatch keeps what it sent: one that may not have been kept stops here too, before any wait or answer.
+        if state.fault {
+            return 1;
+        }
         if !link.deferred.is_empty() {
             continue;
         }
