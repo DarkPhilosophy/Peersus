@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Drawn for Peersus. -->
+  <rect x="17" y="4" width="14" height="26" rx="7" stroke="currentColor" stroke-width="4" fill="none" />
+  <path d="M9 22C9 30.3 15.7 37 24 37C32.3 37 39 30.3 39 22" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none" />
+  <path d="M24 37V44" stroke="currentColor" stroke-width="4" stroke-linecap="round" fill="none" />
+</svg>

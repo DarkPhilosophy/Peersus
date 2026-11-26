@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Derived from IconPark (https://github.com/bytedance/IconPark), Apache-2.0, Copyright 2019-present Bytedance Inc. Changed: split by layer, colours replaced by currentColor. -->
+  <path d="M4 26V42H44V26" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+  <path d="M4 26H16L19 31H29L32 26H44" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
+</svg>

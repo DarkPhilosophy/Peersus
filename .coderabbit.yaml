@@ -1,0 +1,77 @@
+# Same file on `main` and `extension`. Extension submissions target `extension`, which CodeRabbit skips unless listed.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+    - "^extension$"
+  path_filters:
+  - "!**/target/**"
+  - "!**/Cargo.lock"
+  - "!vendor/**"
+  - "!.backup/**"
+  path_instructions:
+  - path: "**"
+    instructions: |
+      Peersus: private Rust workspace (2024~2026, MSRV 1.96), peer-to-peer file transfer with optional,
+      separately installed extensions. Review against these architecture rules and report only concrete,
+      evidenced defects (behaviour, security, contract), not style preferences:
+      - The host is extension-agnostic: no extension name, ID, settings key, page or behaviour appears as a
+        condition or special case in core, UI, app host or platform adapters. Extensions are identified by a
+        host-assigned ID; everything they add is declared as data and rendered generically.
+      - Common behaviour is reused, not duplicated (one text-field path, one switch path, one helper per job).
+        No flag-heavy abstractions mixing distinct semantics, no speculative infrastructure without a consumer.
+      - Errors and unsupported capabilities stay explicit: no fake fields, hidden no-ops, invented fallbacks or
+        compatibility aliases without a real consumer.
+      - Secret text never reaches logs, diagnostics, accessibility or clipboard paths.
+      - Tests must assert behaviour (state transitions, validation, errors, limits). Flag tests that only check
+        source strings, echo fields or assert non-emptiness.
+  - path: "crates/peersus-api/**"
+    instructions: |
+      The shared extension/app contract: data and validation only. No broker, processes, toolkit, OS,
+      network or product concepts. Changes here affect every extension: check compatibility of serialized
+      forms (unknown fields, older peers) and that each new field has a real consumer.
+  - path: "crates/peersus-plugin*/**"
+    instructions: |
+      Extension runtime and broker. HARD GUARD: an extension can never stop, block, slow or disconnect the app.
+      Every value from an extension (manifest, contributions, replies, calls, events, stream bytes) is
+      untrusted: validated at the boundary, refused explicitly when not understood, never `unwrap`/`expect`/
+      `panic` on it, no unbounded loops or waits on the main loop. Calls, events, notifications, data and
+      connections have quotas and rate limits; over the limit they are refused or deferred, never queued
+      without bound. Routing is by (service, version) to the exporting provider, never by a service name.
+  - path: "crates/peersus-{core,app,ui,net}/**"
+    instructions: |
+      Core holds the product model and knows no concrete extension. Per-device grants and extension settings
+      are generic maps keyed by extension ID. `peersus-ui/src/view.rs` holds all display rules and must not
+      depend on the toolkit; Freya rendering only renders `Snapshot` and contributions. Mobile has its own
+      layout (safe-area insets), not a shrunken desktop one. `unsafe_code` is forbidden in these crates.
+  - path: "crates/peersus-{ui-android,plugin-android}/**"
+    instructions: |
+      Narrow, audited JNI only. Every `unsafe` block needs a `// SAFETY:` comment stating the invariant.
+      Translate native events once in the adapter; keep validation and state transitions platform-independent.
+  - path: "android/**"
+    instructions: |
+      Android adapter. Elevated providers (Shizuku/Stellar) act only on this app's own components after explicit,
+      revocable consent; never change other apps' services or global state, never bypass Android approvals.
+      A manual revocation by the person is never undone. Background work is bounded and event-driven.
+  - path: "extension/**"
+    instructions: |
+      Extension source submission (one directory per PR). Check: the extension uses only the published host
+      ABI/`peersus-api` contract, no host internals; it declares every permission it uses in its manifest and
+      uses per-device permissions for peer actions; all host and peer data is treated as untrusted (bounded
+      sizes, timeouts, no panics on input); no hardcoded device names, endpoints or credentials; README states
+      platforms and real limitations honestly; `submission.toml`, `ownership.json`, LICENSE/NOTICE present;
+      no build output (`target/`) committed. Do not ask for features beyond the submission's stated scope.
+  - path: ".github/workflows/**"
+    instructions: |
+      Untrusted extension source is built without secrets and validated on a different runner. Actions are
+      pinned by full commit SHA. Heavy jobs start only by the maintainer-applied `run:ci` label or manual
+      dispatch; admission depends on a `pull_request` run bound to the exact head commit. Flag any change that
+      exposes secrets to PR code, widens token permissions or lets contributors start paid runs.
+chat:
+  auto_reply: true

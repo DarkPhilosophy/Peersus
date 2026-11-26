@@ -1,0 +1,211 @@
+name: Admit reviewed extension
+# Named by what it admits, so a pending approval says which submission it is.
+run-name: "Sign and stage ${{ inputs.candidate }} · PR #${{ inputs.pr }} · source ${{ inputs.commit }} · CI ${{ inputs.run_id }}"
+# Explicit maintainer dispatch; no contributor source is checked out or executed.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: 'Extension ID and version from the reviewed artifact (e.g. test@0.1.3)'
+        required: true
+        type: string
+      pr:
+        description: Reviewed source submission PR number
+        required: true
+        type: string
+      run_id:
+        description: Successful Extension source submission workflow run ID
+        required: true
+        type: string
+      commit:
+        description: Exact reviewed source head commit (40 lowercase hex)
+        required: true
+        type: string
+      sha256:
+        description: Reviewed review.json SHA-256 (64 lowercase hex)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: extension-approval-${{ inputs.pr }}
+  cancel-in-progress: false
+jobs:
+  summary:
+    # Runs before anyone is asked: checks everything but the approval and writes, in this run's summary, what approving
+    # admits: the version transition, source run, archive digests, benchmark verdict and agreement change.
+    # A missing, stale or mismatched preview never reaches the protected environment.
+    name: What approving admits
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      subject: ${{ steps.preview.outputs.subject }}
+      transition: ${{ steps.preview.outputs.transition }}
+      evidence: ${{ steps.preview.outputs.evidence }}
+    steps:
+      - name: Validate dispatch inputs
+        env:
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$PR" =~ ^[1-9][0-9]*$ && "$RUN" =~ ^[1-9][0-9]*$ ]]
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ && "$SHA256" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-reviewed-${{ inputs.pr }}-${{ inputs.commit }}
+          path: reviewed
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-impact-${{ inputs.pr }}-${{ inputs.commit }}
+          path: impact
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Describe what approving admits
+        id: preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+          EXPECTED_CANDIDATE: ${{ inputs.candidate }}
+        run: |
+          python3 trusted/scripts/verify-extension-admission.py --preview --repository "$REPOSITORY" \
+            --run "$RUN" --pr "$PR" --commit "$COMMIT" --review reviewed/review.json --sha256 "$SHA256" \
+            --impact impact >> "$GITHUB_STEP_SUMMARY"
+  notice:
+    # The approval is asked on this run's page, which names neither the extension nor its PR in GitHub's lists. Say it where the
+    # maintainer reads about the extension: on the submission's PR, with the link to answer.
+    name: Tell the PR what waits for approval
+    needs: summary
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions:
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          TRANSITION: ${{ needs.summary.outputs.transition }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$PR" =~ ^[1-9][0-9]*$ ]]
+          gh pr comment "$PR" --repo "$REPOSITORY" --body "**Waiting for your approval: sign and stage \`$TRANSITION\` from this PR.**
+
+          Open [the admission run summary]($RUN_URL#summary) for archive digests, benchmark verdict and whether the licence and notice changed, then **Review deployments**:
+          - **Approve and deploy** signs and stages this exact build for the store. It does not merge this PR, publish a release, install anything or grant permissions.
+          - **Reject** signs nothing and changes nothing."
+  approve:
+    name: "Sign and stage ${{ needs.summary.outputs.transition }} · PR #${{ inputs.pr }} · CI ${{ inputs.run_id }} (see run summary)"
+    needs: summary
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-24.04
+    environment:
+      name: extension-approval
+      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}#summary
+    timeout-minutes: 15
+    steps:
+      - name: Validate dispatch inputs
+        env:
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$PR" =~ ^[1-9][0-9]*$ && "$RUN" =~ ^[1-9][0-9]*$ ]]
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ && "$SHA256" =~ ^[0-9a-f]{64}$ ]]
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-reviewed-${{ inputs.pr }}-${{ inputs.commit }}
+          path: reviewed
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: extension-impact-${{ inputs.pr }}-${{ inputs.commit }}
+          path: impact
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Require exact successful CI, unchanged benchmark evidence and human approval
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ inputs.pr }}
+          RUN: ${{ inputs.run_id }}
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+          EXPECTED_CANDIDATE: ${{ needs.summary.outputs.subject }}
+          EVIDENCE: ${{ needs.summary.outputs.evidence }}
+        run: |
+          python3 trusted/scripts/verify-extension-admission.py --repository "$REPOSITORY" --run "$RUN" \
+            --pr "$PR" --commit "$COMMIT" --review reviewed/review.json --sha256 "$SHA256" \
+            --impact impact --expected-evidence "$EVIDENCE" --admission-run "$GITHUB_RUN_ID"
+      - name: Revalidate every exact archive as data, without rebuilding contributor source
+        env:
+          COMMIT: ${{ inputs.commit }}
+          SHA256: ${{ inputs.sha256 }}
+        run: |
+          set -euo pipefail
+          id=$(python3 -c 'import json; print(json.load(open("reviewed/review.json"))["id"])')
+          sdk=$(python3 -c 'import json; print(json.load(open("reviewed/review.json"))["sdk"])')
+          mkdir "$RUNNER_TEMP/packages"
+          cp reviewed/*.tar.gz "$RUNNER_TEMP/packages/"
+          python3 trusted/scripts/validate-extension-build.py --directory "$RUNNER_TEMP/packages" \
+            --id "$id" --commit "$COMMIT" --sdk "$sdk" --out "$RUNNER_TEMP/revalidated"
+          actual=$(sha256sum "$RUNNER_TEMP/revalidated/review.json" | cut -d' ' -f1)
+          test "$actual" = "$SHA256"
+      - name: Install pinned trusted signing toolchain
+        working-directory: trusted
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - name: Require a valid licence-and-notice agreement in every signed manifest
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/manifests"
+          for archive in "$RUNNER_TEMP/revalidated"/*.tar.gz; do
+            name=$(basename "$archive" .tar.gz)
+            mkdir "$RUNNER_TEMP/manifests/$name"
+            tar -xzf "$archive" -C "$RUNNER_TEMP/manifests/$name" --wildcards '*/plugin.json'
+          done
+          for package in "$RUNNER_TEMP/manifests"/*/*/; do
+            python3 trusted/scripts/check-extension-manifest.py "$package"
+          done
+      - name: Sign the independently reviewed plugin version and all its platform builds
+        working-directory: trusted
+        env:
+          CATALOG_SIGNING_KEY: ${{ secrets.CATALOG_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          cargo run --locked --release -p xtask -- catalog-sign --admission \
+            --review "$RUNNER_TEMP/revalidated/review.json" --out "$RUNNER_TEMP/approved-release"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: approved-release-${{ inputs.pr }}-${{ inputs.commit }}
+          path: ${{ runner.temp }}/approved-release/
+          if-no-files-found: error
+          retention-days: 90

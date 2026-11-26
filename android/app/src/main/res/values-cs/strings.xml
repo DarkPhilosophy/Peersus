@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Připojení zařízení</string>
+    <string name="available_title">Připraveno k přenosu souborů</string>
+    <string name="available_body">Spárovaná zařízení se mohou připojit. Otevřete aplikaci a spravujte režim na pozadí.</string>
+    <string name="requests_channel">Příchozí žádosti o přenos</string>
+    <string name="offer_accept">Přijmout</string>
+    <string name="offer_cancel">Zrušit</string>
+    <string name="received_channel">Přijaté soubory</string>
+    <string name="notices_channel">Oznámení</string>
+    <string name="notifications_disabled">Oznámení jsou vypnutá. Můžete je zapnout v nastavení aplikace v Androidu.</string>
+    <plurals name="received_title">
+        <item quantity="one">Soubor přijat</item>
+        <item quantity="few">Soubory přijaty</item>
+        <item quantity="many">Soubory přijaty</item>
+        <item quantity="other">Soubory přijaty</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Přijaté soubory: %1$d. Otevřete aplikaci a prohlédněte si je.</item>
+        <item quantity="few">Přijaté soubory: %1$d. Otevřete aplikaci a prohlédněte si je.</item>
+        <item quantity="many">Přijaté soubory: %1$d. Otevřete aplikaci a prohlédněte si je.</item>
+        <item quantity="other">Přijaté soubory: %1$d. Otevřete aplikaci a prohlédněte si je.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Příchozí přenos souboru</item>
+        <item quantity="few">Příchozí přenosy souborů</item>
+        <item quantity="many">Příchozí přenosy souborů</item>
+        <item quantity="other">Příchozí přenosy souborů</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Soubory čekající na váš souhlas: %1$d. Klepnutím je zkontrolujte.</item>
+        <item quantity="few">Soubory čekající na váš souhlas: %1$d. Klepnutím je zkontrolujte.</item>
+        <item quantity="many">Soubory čekající na váš souhlas: %1$d. Klepnutím je zkontrolujte.</item>
+        <item quantity="other">Soubory čekající na váš souhlas: %1$d. Klepnutím je zkontrolujte.</item>
+    </plurals>
+</resources>

@@ -1,0 +1,560 @@
+//! The language control of Settings: a button that shows the language in use, and beside it a quiet strip of
+//! the other languages sliding past, so a person can see that more are offered without a list being thrown on
+//! the page. Pressing the button opens the whole list over the page; pressing a language in it, or the strip
+//! itself, chooses it.
+//!
+//! What moves where is [`Ribbon`], which knows no toolkit and is tested on its own. The components below only
+//! draw it.
+use freya::{animation::*, prelude::*};
+use peersus_core::{Settings, config::Language, config::SettingsPatch, model::Command};
+
+use crate::{i18n, link::Link, motion, theme::Palette, view::LanguageChoice};
+
+/// How the strip of languages moves: one slow, endless slide to the left, with the two ends fading out so that a
+/// language comes and goes without a hard edge.
+pub struct Ribbon;
+
+impl Ribbon {
+    /// How long one language takes to pass, in milliseconds: slow enough to read, quick enough to show them all.
+    pub const MS_PER_ITEM: u64 = 1600;
+    /// The width a fade takes at each end of the strip, in pixels.
+    pub const FADE: f32 = 36.;
+    /// The width every language takes in the strip, in pixels: the same for all, so the length of a row is known exactly and
+    /// a lap can end where the next one begins. Wide enough for the longest name at the button's text size.
+    pub const ITEM: f32 = 136.;
+
+    /// The offset of the strip at `progress` (0 to 1 of a whole lap), in pixels: it slides left by the width of
+    /// the whole row, so the end of the lap looks exactly like the start and the loop has no seam.
+    pub fn offset(progress: f32, lap: f32) -> f32 {
+        -(progress.clamp(0., 1.) * lap.max(0.))
+    }
+
+    /// The width of a row of `items` languages, in pixels: exactly one lap.
+    pub fn row_width(items: usize) -> f32 {
+        items as f32 * Self::ITEM
+    }
+
+    /// How much of its colour a thing keeps at `x` pixels from the left of a strip `width` wide: nothing at the
+    /// very edge, all of it past the fade, and a smooth ramp between, the same at both ends.
+    pub fn fade(x: f32, width: f32) -> f32 {
+        if width <= 0. || Self::FADE <= 0. {
+            return 1.;
+        }
+        let edge = x.min(width - x).clamp(0., Self::FADE) / Self::FADE;
+        // Smoothstep, so there is no visible corner where the ramp meets the flat part.
+        edge * edge * (3. - 2. * edge)
+    }
+
+    /// The time of a whole lap over `items`, in milliseconds. Never zero, so the animation always has a length.
+    pub fn lap_ms(items: usize) -> u64 {
+        Self::MS_PER_ITEM * items.max(1) as u64
+    }
+
+    /// The languages the strip shows: all but the one in use, in the order of the list.
+    pub fn others(current: Language, choices: &[LanguageChoice]) -> Vec<LanguageChoice> {
+        choices
+            .iter()
+            .filter(|choice| choice.language != current)
+            .cloned()
+            .collect()
+    }
+}
+
+/// The patch that chooses `language`. One not held yet is downloaded by the owner, and shown once it is held.
+fn choose(link: &Link, language: Language) {
+    link.send(Command::PatchSettings {
+        patch: Box::new(SettingsPatch {
+            language: Some(Some(language)),
+            ..Default::default()
+        }),
+    });
+}
+
+/// What choosing `choice` downloads, in words, when it is a file this device does not have yet and the offer said its size:
+/// a person sees the cost before the download starts. English is in the code and a held file costs nothing.
+fn download_size(choice: &LanguageChoice) -> Option<String> {
+    (!choice.language.is_english() && !choice.downloaded && !choice.imported && choice.bytes > 0)
+        .then(|| crate::view::size_in_words(choice.bytes))
+}
+
+/// One language in the list: its own name, in its own language, and what choosing it downloads when it is not held yet.
+#[derive(PartialEq)]
+struct Name {
+    language: Language,
+    name: String,
+    size: Option<String>,
+    palette: Palette,
+    selected: bool,
+    on_choose: EventHandler<Language>,
+}
+impl Component for Name {
+    fn render(&self) -> impl IntoElement {
+        let (language, palette) = (self.language, self.palette);
+        let on_choose = self.on_choose.clone();
+        let mut hovered = use_state(|| false);
+        rect()
+            .height(Size::px(Picker::BUTTON_HEIGHT))
+            .width(Size::fill())
+            .padding((10., 16.))
+            .corner_radius(8.)
+            .horizontal()
+            .cross_align(Alignment::center())
+            .content(Content::flex())
+            .spacing(10.)
+            .background(if self.selected {
+                palette.raised
+            } else if hovered() {
+                palette.surface
+            } else {
+                palette.header
+            })
+            .on_pointer_enter(move |_| hovered.set(true))
+            .on_pointer_leave(move |_| hovered.set(false))
+            // The press must not reach the layer under the list, which closes it before the choice is made.
+            .on_press(move |e: Event<PressEventData>| {
+                e.stop_propagation();
+                on_choose.call(language);
+            })
+            .child(
+                rect().width(Size::flex(1.)).child(
+                    label()
+                        .text(self.name.clone())
+                        .color(if self.selected {
+                            palette.text
+                        } else {
+                            palette.muted
+                        })
+                        .font_size(15.)
+                        .max_lines(1),
+                ),
+            )
+            .maybe_child(self.size.clone().map(|size| {
+                label()
+                    .text(size)
+                    .color(palette.muted)
+                    .font_size(12.)
+                    .max_lines(1)
+            }))
+    }
+}
+
+/// The strip of the other languages, sliding past forever, with a small arrow at its start that points at the
+/// button it belongs to. Pressing it opens the list, like the button does.
+#[derive(PartialEq)]
+struct Strip {
+    current: Language,
+    choices: Vec<LanguageChoice>,
+    palette: Palette,
+    /// The colour of what the strip lies on, which its two fades start from.
+    ground: (u8, u8, u8),
+    reduced_motion: bool,
+    on_open: EventHandler<()>,
+}
+impl Component for Strip {
+    fn render(&self) -> impl IntoElement {
+        let (palette, current) = (self.palette, self.current);
+        let on_open = self.on_open.clone();
+        let items = Ribbon::others(current, &self.choices);
+        let lap = Ribbon::lap_ms(items.len());
+        // One lap, again and again, while the strip is on screen: the toolkit restarts it when it ends. Off screen, or with reduced
+        // motion, it stands still and nothing is redrawn for it.
+        let mut visible = use_state(|| false);
+        let animation = use_animation_with_dependencies(
+            &(current, self.reduced_motion, visible()),
+            move |conf, (_, reduced, shown)| {
+                // A still strip must not restart: a zero-length lap would end and begin again on every frame.
+                if !*reduced && *shown {
+                    conf.on_creation(OnCreation::Run);
+                    conf.on_change(OnChange::Rerun);
+                    conf.on_finish(OnFinish::restart());
+                }
+                AnimNum::new(0., 1.).time(lap).function(Function::Linear)
+            },
+        );
+        let progress: f32 = animation.get().value();
+        // Every language takes the same width, and the lap is exactly the width of one whole row: the row is drawn twice, one
+        // after the other, so when the first copy has gone past the second sits where the first began, and the end of a lap is
+        // the start of the next with nothing to see in between.
+        let offset = Ribbon::offset(progress, Ribbon::row_width(items.len()));
+        let row = || -> Element {
+            rect()
+                .horizontal()
+                .children(items.iter().map(|language| -> Element {
+                    rect()
+                        .width(Size::px(Ribbon::ITEM))
+                        .child(
+                            // A name comes from a language file, of any length: one longer than its slot ends in an ellipsis
+                            // instead of running under the next.
+                            label()
+                                .text(language.name.clone())
+                                .color(palette.muted)
+                                .font_size(Picker::FONT_SIZE)
+                                .width(Size::px(Ribbon::ITEM - 12.))
+                                .max_lines(1)
+                                .text_overflow(TextOverflow::Ellipsis),
+                        )
+                        .into()
+                }))
+                .into()
+        };
+        let track = rect()
+            .horizontal()
+            .offset_x(offset)
+            .child(row())
+            .child(row());
+        let fade = |side_left: bool| -> Element {
+            // From the colour of the PAGE the strip lies on (not the header's, which is another colour) to nothing: what is under it shows
+            // through more and more toward the middle, so a name comes and goes without a hard edge at either side.
+            let solid = Color::from_rgb(self.ground.0, self.ground.1, self.ground.2);
+            let clear = solid.with_a(0);
+            // The renderer's 270 degrees runs left to right; each solid stop belongs at the outside edge.
+            let (angle, from, to) = if side_left {
+                (270., solid, clear)
+            } else {
+                (90., solid, clear)
+            };
+            let at = Position::new_absolute().top(0.);
+            rect()
+                .position(if side_left { at.left(0.) } else { at.right(0.) })
+                // Names are nested four levels below this viewport; paint above them, not beneath their text.
+                .layer(Layer::Relative(4))
+                .width(Size::px(Ribbon::FADE))
+                .height(Size::fill())
+                .background(
+                    LinearGradient::new()
+                        .angle(angle)
+                        .stop((from, 0.))
+                        .stop((to, 100.)),
+                )
+                .into()
+        };
+        rect()
+            .width(Size::flex(1.))
+            .on_visible(move |_| visible.set(true))
+            .on_hidden(move |_| visible.set(false))
+            .height(Size::px(Picker::BUTTON_HEIGHT))
+            .horizontal()
+            .cross_align(Alignment::center())
+            // The whole strip opens the list, as the button does.
+            .on_press(move |_| on_open.call(()))
+            .child(
+                rect()
+                    .width(Size::flex(1.))
+                    .height(Size::fill())
+                    .overflow(Overflow::Clip)
+                    .main_align(Alignment::Center)
+                    .child(track)
+                    .child(fade(true))
+                    .child(fade(false)),
+            )
+    }
+}
+
+/// The control: the button with the language in use, the strip beside it, and the list over the page.
+#[derive(PartialEq)]
+pub struct Picker {
+    pub link: Link,
+    pub settings: Settings,
+    /// What can be chosen (see [`crate::view::language_choices`]), and the language wanted now.
+    pub choices: Vec<LanguageChoice>,
+    pub current: Language,
+    pub palette: Palette,
+    /// The colour of what the control lies on: the strip fades into it at both ends.
+    pub ground: (u8, u8, u8),
+    /// Window edges reserved for the system and the main navigation.
+    pub inset_top: f32,
+    pub inset_bottom: f32,
+}
+impl Component for Picker {
+    fn render(&self) -> impl IntoElement {
+        let (palette, current, reduced) =
+            (self.palette, self.current, self.settings.reduced_motion);
+        let window = Platform::get().current_window();
+        let (width, height) = {
+            let size = *window.root_size.read();
+            (size.width.max(0.), size.height.max(0.))
+        };
+        let mut open = use_state(|| false);
+        crate::back::use_back(open(), EventHandler::new(move |()| open.set(false)));
+        let mut anchor = use_state(|| (0_f32, 0_f32, 0_f32));
+        let on_open = EventHandler::new(move |()| open.set(true));
+        let button = rect()
+            .horizontal()
+            .height(Size::px(Self::BUTTON_HEIGHT))
+            .cross_align(Alignment::center())
+            .spacing(10.)
+            .padding((0., 16.))
+            .corner_radius(10.)
+            .background(palette.raised)
+            .border(
+                Border::new()
+                    .fill(palette.border)
+                    .width(1.)
+                    .alignment(BorderAlignment::Inner),
+            )
+            .on_sized(move |e: Event<SizedEventData>| {
+                anchor.set_if_modified((e.area.min_x(), e.area.min_y(), e.area.max_y()));
+            })
+            .on_press({
+                let on_open = on_open.clone();
+                move |_| on_open.call(())
+            })
+            .child(
+                label()
+                    .text(
+                        crate::view::choice_of(&self.choices, current)
+                            .map_or_else(|| current.tag().to_owned(), |choice| choice.name.clone()),
+                    )
+                    .color(palette.text)
+                    .font_size(Self::FONT_SIZE),
+            )
+            // A plain mark that says "opens a list", and nothing that belongs to another part of the program.
+            .child(
+                label()
+                    .text("\u{25BE}")
+                    .color(palette.muted)
+                    .font_size(Self::FONT_SIZE),
+            );
+        let link = self.link.clone();
+        // Follow the button in window coordinates, flip above it when there is
+        // more room there, and scroll the choices rather than clipping them.
+        let progress = motion::use_progress(open(), reduced);
+        let shown = if reduced {
+            crate::view::Popup::still()
+        } else {
+            crate::view::Popup::at(progress)
+        };
+        let mounted = crate::view::Motion::mounted(open(), progress);
+        let (anchor_x, anchor_top, anchor_bottom) = anchor();
+        let desired_height = self.choices.len() as f32 * (Self::BUTTON_HEIGHT + 2.) + 10.;
+        let min_top = self.inset_top + 16.;
+        let max_bottom = (height - self.inset_bottom - 16.).max(min_top);
+        let below = (max_bottom - anchor_bottom - 6.).max(0.);
+        let above = (anchor_top - min_top - 6.).max(0.);
+        let flip = below < desired_height && above > below;
+        let panel_height = desired_height
+            .min(if flip { above } else { below })
+            .min((max_bottom - min_top).max(0.));
+        let panel_width = (width - 32.).clamp(0., 260.);
+        let left = anchor_x.clamp(16., (width - panel_width - 16.).max(16.));
+        let top = if flip {
+            anchor_top - 6. - panel_height
+        } else {
+            anchor_bottom + 6.
+        }
+        .clamp(min_top, (max_bottom - panel_height).max(min_top));
+        let list = {
+            let panel = rect()
+                .position(Position::new_global().top(top).left(left))
+                .layer(Layer::Overlay)
+                .width(Size::px(panel_width))
+                .height(Size::px(panel_height))
+                .padding(6.)
+                .corner_radius(12.)
+                .background(palette.header)
+                .border(
+                    Border::new()
+                        .fill(palette.border)
+                        .width(1.)
+                        .alignment(BorderAlignment::Inner),
+                )
+                .opacity(shown.opacity)
+                .offset_y(shown.lift)
+                .scale(shown.scale)
+                .transform_origin(TransformOrigin::top_left())
+                // Keep list gestures from scrolling the Settings page beneath it.
+                .on_pointer_down(|e: Event<PointerEventData>| e.stop_propagation())
+                .on_pointer_move(|e: Event<PointerEventData>| e.stop_propagation())
+                .on_wheel(|e: Event<WheelEventData>| e.stop_propagation())
+                .on_touch_start(|e: Event<TouchEventData>| e.stop_propagation())
+                .on_touch_move(|e: Event<TouchEventData>| e.stop_propagation())
+                .on_touch_end(|e: Event<TouchEventData>| e.stop_propagation());
+            let mut rows = rect().width(Size::fill()).spacing(2.);
+            for choice in &self.choices {
+                let link = link.clone();
+                rows = rows.child(Name {
+                    language: choice.language,
+                    name: choice.name.clone(),
+                    size: download_size(choice),
+                    palette,
+                    selected: choice.language == current,
+                    on_choose: EventHandler::new(move |chosen| {
+                        open.set(false);
+                        choose(&link, chosen);
+                    }),
+                });
+            }
+            panel.child(ScrollView::new().auto_hide_scrollbars(false).child(rows))
+        };
+        // A layer as large as the WINDOW under the list, that takes a click anywhere else to close it. `Size::fill()` here would only fill the
+        // row this component is in, so a click outside the row would never reach it and the list would stay open: the window's own size is
+        // given in pixels, as the other full-window layers are.
+        let away = rect()
+            .layer(Layer::Overlay)
+            .position(Position::new_global().top(0.).left(0.))
+            .width(Size::px(width))
+            .height(Size::px(height))
+            .on_pointer_down(move |_| open.set(false))
+            .on_pointer_move(|e: Event<PointerEventData>| e.stop_propagation())
+            .on_wheel(|e: Event<WheelEventData>| e.stop_propagation())
+            .on_touch_start(|e: Event<TouchEventData>| e.stop_propagation())
+            .on_touch_move(|e: Event<TouchEventData>| e.stop_propagation())
+            .on_touch_end(|e: Event<TouchEventData>| e.stop_propagation());
+        rect()
+            .width(Size::fill())
+            .spacing(8.)
+            .child(
+                label()
+                    .text(i18n::tr("Language"))
+                    .color(palette.muted)
+                    .font_size(13.),
+            )
+            .child(
+                rect()
+                    .width(Size::fill())
+                    .horizontal()
+                    .cross_align(Alignment::center())
+                    .spacing(16.)
+                    .child(button)
+                    .child(Strip {
+                        current,
+                        choices: self.choices.clone(),
+                        palette,
+                        ground: self.ground,
+                        reduced_motion: reduced,
+                        on_open: on_open.clone(),
+                    }),
+            )
+            .maybe_child(mounted.then(|| Element::from(away)))
+            .maybe_child(mounted.then(|| Element::from(list)))
+    }
+}
+
+impl Picker {
+    /// The height of the button, in pixels: where the list starts under it, and the height of the strip beside it, so that the two are one size.
+    const BUTTON_HEIGHT: f32 = 44.;
+    const FONT_SIZE: f32 = 16.;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use peersus_core::config::Language;
+
+    fn choices(tags: &[&str]) -> Vec<LanguageChoice> {
+        tags.iter()
+            .map(|tag| {
+                let language = Language::parse(tag).unwrap();
+                LanguageChoice {
+                    language,
+                    name: tag.to_string(),
+                    percent: 100,
+                    downloaded: false,
+                    imported: false,
+                    offered: true,
+                    bytes: 0,
+                    machine: false,
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn the_strip_shows_every_language_but_the_one_in_use() {
+        let all = choices(&["en", "ro", "de", "pl"]);
+        for current in &all {
+            let others = Ribbon::others(current.language, &all);
+            assert_eq!(others.len(), all.len() - 1);
+            assert!(
+                others
+                    .iter()
+                    .all(|other| other.language != current.language)
+            );
+        }
+    }
+
+    #[test]
+    fn only_a_language_still_to_download_says_what_it_downloads() {
+        let mut offered = choices(&["ro"]).remove(0);
+        offered.bytes = 48 * 1024;
+        assert_eq!(
+            download_size(&offered),
+            Some(crate::view::size_in_words(48 * 1024))
+        );
+        for held in [
+            LanguageChoice {
+                downloaded: true,
+                ..offered.clone()
+            },
+            LanguageChoice {
+                imported: true,
+                ..offered.clone()
+            },
+            LanguageChoice {
+                bytes: 0,
+                ..offered.clone()
+            },
+            LanguageChoice {
+                language: Language::ENGLISH,
+                ..offered.clone()
+            },
+        ] {
+            assert_eq!(download_size(&held), None, "{held:?}");
+        }
+    }
+
+    #[test]
+    fn a_lap_ends_exactly_one_row_to_the_left_of_where_it_began() {
+        assert_eq!(Ribbon::offset(0., 500.), 0.);
+        assert_eq!(Ribbon::offset(1., 500.), -500.);
+        // Out of range is held at the ends and never past them, so the strip cannot drift off.
+        assert_eq!(Ribbon::offset(-3., 500.), 0.);
+        assert_eq!(Ribbon::offset(9., 500.), -500.);
+    }
+
+    #[test]
+    fn a_language_fades_to_nothing_at_both_ends_and_is_whole_in_the_middle() {
+        let width = 300.;
+        assert_eq!(Ribbon::fade(0., width), 0.);
+        assert_eq!(Ribbon::fade(width, width), 0.);
+        assert_eq!(Ribbon::fade(width / 2., width), 1.);
+        // Both ends are the same, so neither looks cut and the other not.
+        for step in 0..=Ribbon::FADE as i32 {
+            let x = step as f32;
+            assert!((Ribbon::fade(x, width) - Ribbon::fade(width - x, width)).abs() < 1e-6);
+        }
+        // And it rises without ever falling on the way in.
+        let mut last = 0.;
+        for step in 0..=Ribbon::FADE as i32 {
+            let now = Ribbon::fade(step as f32, width);
+            assert!(now >= last, "the fade dips at {step}");
+            last = now;
+        }
+    }
+
+    #[test]
+    fn a_strip_too_narrow_to_fade_still_has_a_defined_colour() {
+        for width in [0., -5.] {
+            assert_eq!(Ribbon::fade(10., width), 1.);
+        }
+        assert!(Ribbon::fade(1., 4.) <= 1.);
+    }
+
+    #[test]
+    fn a_lap_always_takes_some_time_and_grows_with_the_number_of_languages() {
+        assert!(Ribbon::lap_ms(0) > 0);
+        assert!(Ribbon::lap_ms(11) > Ribbon::lap_ms(3));
+    }
+
+    #[test]
+    fn a_row_is_exactly_as_wide_as_the_slots_that_make_it_so_the_loop_has_no_seam() {
+        // The lap and the row are the same number, so the second copy is where the first began when a lap ends.
+        for items in [1usize, 11] {
+            assert_eq!(Ribbon::row_width(items), items as f32 * Ribbon::ITEM);
+        }
+        assert_eq!(
+            Ribbon::offset(1., Ribbon::row_width(11)),
+            -Ribbon::row_width(11)
+        );
+    }
+}

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Cihaz bağlantısı</string>
+    <string name="available_title">Dosya aktarımlarına hazır</string>
+    <string name="available_body">Eşleştirilmiş cihazlar bağlanabilir. Arka plan modunu yönetmek için uygulamayı aç.</string>
+    <string name="requests_channel">Gelen aktarım istekleri</string>
+    <string name="offer_accept">Kabul et</string>
+    <string name="offer_cancel">İptal</string>
+    <string name="received_channel">Alınan dosyalar</string>
+    <string name="notices_channel">Bildirimler</string>
+    <string name="notifications_disabled">Bildirimler kapalı. Android uygulama ayarlarından açabilirsin.</string>
+    <plurals name="received_title">
+        <item quantity="one">Dosya alındı</item>
+        <item quantity="other">Dosyalar alındı</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">Alınan dosya sayısı: %1$d. Görmek için uygulamayı aç.</item>
+        <item quantity="other">Alınan dosya sayısı: %1$d. Görmek için uygulamayı aç.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Gelen dosya aktarımı</item>
+        <item quantity="other">Gelen dosya aktarımları</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">Onayını bekleyen dosya sayısı: %1$d. İncelemek için dokun.</item>
+        <item quantity="other">Onayını bekleyen dosya sayısı: %1$d. İncelemek için dokun.</item>
+    </plurals>
+</resources>
