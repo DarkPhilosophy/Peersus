@@ -773,8 +773,15 @@ impl State {
                     .find(|i| i.target.owner == owner)
                 {
                     predecessor.handoff_failed = true;
-                } else if self.handoffs.remove(owner) && !matches!(&reason, Refusal::Blocked(_)) {
-                    let _ = self.release(host, owner, false);
+                } else if self.handoffs.contains(owner) {
+                    // The record of the inherited hold goes only once its input is released (or the grant to
+                    // release it is gone): a release the host refuses stays pending, and the next refused
+                    // receive from that device tries again. An accepted successor takes it over instead.
+                    if matches!(&reason, Refusal::Blocked(_))
+                        || self.release(host, owner, false).is_ok()
+                    {
+                        self.handoffs.remove(owner);
+                    }
                 }
                 return Err(reason);
             }
@@ -3089,6 +3096,70 @@ mod multiplex_tests {
                 assert_eq!(host.closed, [1]);
             }
         }
+    }
+
+    #[test]
+    fn a_refused_release_of_inherited_input_stays_pending_and_is_tried_again() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"settings":{"independent":false}}}));
+        state
+            .receive(&mut host, 1, &json!({"peer":"controller"}))
+            .unwrap();
+        host.streams.insert(
+            1,
+            VecDeque::from([
+                format!("{{\"t\":\"button\",\"button\":\"left\",\"down\":true}}\n{CONTINUES}\n")
+                    .into_bytes(),
+                Vec::new(),
+            ]),
+        );
+        host.wire
+            .results
+            .push_back(json!({"status":"ok","value":{"applied":1}}));
+        for _ in 0..2 {
+            host.ready.push_back(1);
+            assert_eq!(state.next(&mut host), Ok(None));
+        }
+        assert!(state.handoffs.contains("controller"));
+        let releases = |host: &Concurrent| {
+            host.wire
+                .sent
+                .iter()
+                .filter(|m| m["method"] == "release")
+                .count()
+        };
+        // A refused replacement asks to release the inherited press; the host refuses that cleanup.
+        host.wire.results.extend([
+            json!({"status":"error","code":"denied"}),
+            json!({"status":"error","code":"failed"}),
+        ]);
+        let refused = |host: &mut Concurrent, state: &mut State, ticket: u64| {
+            super::handle(host, state,
+                &json!({"type":"call","ticket":ticket,"method":"receive","args":{"peer":"controller"}})).unwrap()
+        };
+        assert_eq!(
+            refused(&mut host, &mut state, 2)["result"]["message"],
+            answer::DENIED
+        );
+        assert_eq!(releases(&host), 1);
+        assert!(
+            state.handoffs.contains("controller"),
+            "the hold is still owed a release"
+        );
+        // The next refused receive from that device releases it, and only then is the record gone.
+        host.wire.results.extend([
+            json!({"status":"error","code":"denied"}),
+            json!({"status":"ok","value":{"released":true}}),
+        ]);
+        assert_eq!(
+            refused(&mut host, &mut state, 3)["result"]["message"],
+            answer::DENIED
+        );
+        assert_eq!(releases(&host), 2);
+        assert!(state.handoffs.is_empty());
     }
 
     #[test]
