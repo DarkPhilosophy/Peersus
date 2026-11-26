@@ -25,7 +25,7 @@ pub struct Ui {
     /// When and on which half the last tap landed: a press soon after it, held and swiped, drags
     /// with that button.
     last_tap: Option<(u64, &'static str)>,
-    /// Backspace held: when it is said again, as a keyboard repeats a held key.
+    /// When Backspace went down, independently of activity on other controls.
     erasing: Option<u64>,
     wheel: Option<i32>,
     owed: i32,
@@ -412,9 +412,9 @@ impl Ui {
             result => result,
         }
     }
-    /// Whether a finger is still on something that sends input: the pad, the wheel or Backspace.
-    fn busy(&self) -> bool {
-        self.pad.is_some() || self.wheel.is_some() || self.erasing.is_some()
+    /// Whether a finger is still on the pad or wheel.
+    fn pointer_busy(&self) -> bool {
+        self.pad.is_some() || self.wheel.is_some()
     }
     /// Which button a tap at `x` is: left on the left half of the pad, right on its right half.
     fn side(&self, x: i32) -> &'static str {
@@ -430,7 +430,7 @@ impl Ui {
     /// Whether anything is held on the other computer: a finger on the pad, the wheel or
     /// Backspace, or a locked button.
     fn holding(&self) -> bool {
-        self.busy() || !self.locked.is_empty()
+        self.pointer_busy() || self.erasing.is_some() || !self.locked.is_empty()
     }
     /// A gesture ended with nothing held: the connection is closed so the other computer is free,
     /// and its pointer stays where it is.
@@ -515,10 +515,13 @@ impl Ui {
                 let idle = self
                     .last_input
                     .is_some_and(|last| at.saturating_sub(last) >= 2000);
-                let stuck = self.busy()
+                let stuck = self.pointer_busy()
                     && self
                         .last_gesture_at
                         .is_some_and(|last| at.saturating_sub(last) >= STUCK_MS);
+                let expired_backspace = self
+                    .erasing
+                    .is_some_and(|down| at.saturating_sub(down) >= STUCK_MS);
                 // Ending a gesture nobody holds is housekeeping: the person did nothing that could fail, so a close the
                 // other device never acknowledged is not said to them.
                 if stuck {
@@ -528,13 +531,16 @@ impl Ui {
                             self.send(state, host, vec![button_input(pad.drag_side, false)], at);
                     }
                     let _ = self.end(state, host);
+                } else if expired_backspace {
+                    self.erasing = None;
+                    let _ = self.rest(state, host);
                 } else if !self.holding() && idle {
                     let _ = self.end(state, host);
-                } else if let Some(next) = self.erasing.filter(|next| at >= *next) {
-                    // Backspace held repeats, at every tick of the page's clock. A repeat is not the person
-                    // touching anything, so it does not move the stuck-input clock: a Backspace whose lift
-                    // was lost stops erasing after `STUCK_MS` like any other lost gesture.
-                    self.erasing = Some(at.max(next));
+                } else if self
+                    .erasing
+                    .is_some_and(|down| at.saturating_sub(down) >= REPEAT_AFTER_MS)
+                {
+                    // A repeat is driven by the clock, not a fresh press.
                     if self.send(state, host, vec![json!({"t":"key","key":"backspace"})], at)? {
                         return Ok(self.tree());
                     }
@@ -550,7 +556,7 @@ impl Ui {
                 let refreshed = self.list_block.is_none()
                     && at.saturating_sub(self.refreshed) >= 2000
                     && self.refresh(state, host, at).unwrap_or(false);
-                if stuck || refreshed {
+                if stuck || expired_backspace || refreshed {
                     return Ok(self.tree());
                 }
             }
@@ -582,7 +588,24 @@ impl Ui {
                 if self.send(state, host, inputs, at)? {
                     return Ok(self.tree());
                 }
-                self.rest(state, host)?;
+                if self.holding() {
+                    // Close this batch to read its acknowledgement without
+                    // releasing the held button or ending another gesture.
+                    self.opened = None;
+                    match state.rotate(host) {
+                        Ok(()) => {}
+                        Err(Refusal::Blocked(_)) => {
+                            let _ = self.observe_stop(state, host);
+                            return Ok(self.tree());
+                        }
+                        Err(Refusal::Other(reason)) => {
+                            let _ = self.end(state, host);
+                            return Err(reason);
+                        }
+                    }
+                } else {
+                    self.rest(state, host)?;
+                }
             }
             // The pad's measured bounds: which half of it a tap lands on says which button it is.
             Some("size") if id == "pad" => {
@@ -634,8 +657,7 @@ impl Ui {
                     "backspace" => {
                         match phase {
                             "down" => {
-                                self.last_gesture_at = Some(at);
-                                self.erasing = Some(at.saturating_add(REPEAT_AFTER_MS));
+                                self.erasing = Some(at);
                                 inputs.push(json!({"t":"key","key":"backspace"}));
                             }
                             "up" | "cancel" => self.erasing = None,
@@ -1646,6 +1668,38 @@ mod tests {
     }
 
     #[test]
+    fn keyboard_submission_awaits_acknowledgement_without_releasing_a_locked_button() {
+        for confirmed in [false, true] {
+            let (mut ui, mut state, mut host) = ready();
+            event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 10);
+            host.acks = confirmed;
+            host.silent = !confirmed;
+            let result = ui.event(
+                &mut state,
+                &mut host,
+                &json!({"t":"submit","id":"keyboard","text":"abc","at":11}),
+            );
+            if confirmed {
+                assert!(result.is_ok());
+                assert_eq!(ui.locked, ["left"]);
+            } else {
+                assert_eq!(result, Err(remote::answer::STOPPED));
+                assert!(ui.locked.is_empty());
+            }
+            assert!(state.outgoing.is_none());
+            assert_eq!(host.shutdowns, 1);
+            assert_eq!(
+                written(&host),
+                [
+                    button_input("left", true),
+                    json!({"t":"text","text":"abc"}),
+                    json!({"continues":true}),
+                ]
+            );
+        }
+    }
+
+    #[test]
     fn wheel_lift_and_cancellation_redraw_at_rest_even_without_an_acknowledgement() {
         for phase in ["up", "cancel"] {
             let (mut ui, mut state, mut host) = ready();
@@ -2210,6 +2264,58 @@ mod tests {
             written(&host),
             vec![key.clone(), key],
             "no erasing after the timeout"
+        );
+    }
+
+    #[test]
+    fn wheel_activity_does_not_prolong_a_backspace_whose_lift_was_lost() {
+        let (mut ui, mut state, mut host) = ready();
+        event(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "backspace",
+            "down",
+            0,
+            0,
+            100,
+        );
+        event(
+            &mut ui, &mut state, &mut host, "wheel", "down", 0, 0, STUCK_MS,
+        );
+        event(
+            &mut ui,
+            &mut state,
+            &mut host,
+            "wheel",
+            "move",
+            0,
+            24000,
+            STUCK_MS + 1,
+        );
+        host.results.push_back(
+            json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
+        );
+        let out = ui
+            .event(
+                &mut state,
+                &mut host,
+                &json!({"t":"tick","id":"idle","at":100 + STUCK_MS}),
+            )
+            .unwrap();
+        assert_eq!(out, ui.tree());
+        assert!(ui.erasing.is_none());
+        assert!(ui.wheel.is_some());
+        let input: Vec<_> = written(&host)
+            .into_iter()
+            .filter(|event| event.get("t").is_some())
+            .collect();
+        assert_eq!(
+            input,
+            [
+                json!({"t":"key","key":"backspace"}),
+                json!({"t":"scroll","dx":0,"dy":1}),
+            ]
         );
     }
 

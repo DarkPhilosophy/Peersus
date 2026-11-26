@@ -11,7 +11,10 @@ const INITIAL_HEIGHT: f64 = 360.;
 const MAX_PLANE_AT: i64 = 1 << 40;
 // Absolute box offsets accepted by peersus-api's page element validator, in milli-pixels.
 const MAX_PAGE_AT: i32 = 16_384_000;
-const DEVICES_PER_PAGE: usize = 4;
+const MAX_DEVICE_ROWS: usize = 4;
+const MENU_HEADER: f64 = 52.;
+const MENU_ROW: f64 = 48.;
+const MENU_PAGING: f64 = 44.;
 
 fn placement_fits(at: [i64; 2], extent: [i64; 2]) -> bool {
     at.into_iter()
@@ -27,9 +30,6 @@ fn page_coordinate(value: &Value) -> Result<f64, &'static str> {
         .ok_or(answer::NOT_UNDERSTOOD)
 }
 
-fn last_menu_page(peers: usize) -> usize {
-    peers.saturating_sub(1) / DEVICES_PER_PAGE
-}
 #[derive(Clone, Deserialize, PartialEq)]
 struct Display {
     x: i32,
@@ -608,17 +608,30 @@ impl Ui {
     fn peer_count(&self) -> usize {
         self.items.iter().filter(|item| !item.local).count()
     }
+    fn menu_rows(&self, peers: usize) -> usize {
+        let fit = |reserved: f64| {
+            (((self.height() - reserved) / MENU_ROW).max(1.) as usize).min(MAX_DEVICE_ROWS)
+        };
+        let without_navigation = fit(MENU_HEADER);
+        if peers <= without_navigation {
+            without_navigation
+        } else {
+            fit(MENU_HEADER + MENU_PAGING)
+        }
+    }
+    fn last_menu_page(&self, peers: usize) -> usize {
+        peers.saturating_sub(1) / self.menu_rows(peers)
+    }
     fn menu_height(&self) -> f64 {
         let count = self.peer_count();
-        let page = self.menu_page.min(last_menu_page(count));
+        let rows = self.menu_rows(count);
+        let page = self.menu_page.min(self.last_menu_page(count));
         if self.choosing && self.relative_item().is_some() {
             238.
         } else if self.choosing {
-            52. + count
-                .saturating_sub(page * DEVICES_PER_PAGE)
-                .min(DEVICES_PER_PAGE) as f64
-                * 48.
-                + if count > DEVICES_PER_PAGE { 44. } else { 0. }
+            MENU_HEADER
+                + count.saturating_sub(page * rows).min(rows) as f64 * MENU_ROW
+                + if count > rows { MENU_PAGING } else { 0. }
         } else {
             44.
         }
@@ -788,7 +801,7 @@ impl Ui {
                     self.relative_menu = None;
                 }
                 "devices-next" | "devices-previous" => {
-                    let last = last_menu_page(self.peer_count());
+                    let last = self.last_menu_page(self.peer_count());
                     let page = self.menu_page.min(last);
                     self.menu_page = if id == "devices-next" {
                         (page + 1).min(last)
@@ -1199,11 +1212,10 @@ impl Ui {
             .enumerate()
             .filter(|(_, item)| !item.local)
             .collect();
-        let page = self.menu_page.min(last_menu_page(peers.len()));
-        let shown = peers
-            .iter()
-            .skip(page * DEVICES_PER_PAGE)
-            .take(DEVICES_PER_PAGE);
+        let rows = self.menu_rows(peers.len());
+        let last = self.last_menu_page(peers.len());
+        let page = self.menu_page.min(last);
+        let shown = peers.iter().skip(page * rows).take(rows);
         let height = self.menu_height();
         let at = self.menu_position(height);
         let mut menu = vec![button(
@@ -1273,12 +1285,12 @@ impl Ui {
             if peers.is_empty() {
                 menu.push(text("No paired devices."));
             }
-            if peers.len() > DEVICES_PER_PAGE {
+            if last > 0 {
                 let mut navigation = Vec::new();
                 if page > 0 {
                     navigation.push(button("devices-previous", "Previous"));
                 }
-                if page < last_menu_page(peers.len()) {
+                if page < last {
                     navigation.push(button("devices-next", "Next"));
                 }
                 menu.push(bx(None, json!({"horizontal":true,"gap":8}), navigation));
@@ -1922,6 +1934,51 @@ mod tests {
         );
         ui.pointer = Some([opened[0] + 20., opened[1] + 20.]);
         assert_eq!(ui.menu_position(100.), opened);
+    }
+
+    #[test]
+    fn all_device_rows_and_paging_fit_a_short_canvas() {
+        let mut ui = ready();
+        ui.bounds[3] = 200.;
+        ui.choosing = true;
+        for n in 2..=5 {
+            let mut item = ui.items[1].clone();
+            item.device = format!("device-{n}");
+            ui.items.push(item);
+        }
+        let mut found = Vec::new();
+        let mut host = Script::default();
+        let mut state = State::default();
+        loop {
+            let tree = ui.tree();
+            let menu = menu(&tree);
+            let y = menu["style"]["at"][1].as_i64().unwrap() as f64 / 1000.;
+            assert!(y + ui.menu_height() <= ui.height());
+            let nodes = menu["children"].as_array().unwrap();
+            found.extend(nodes.iter().filter_map(|node| {
+                node["id"]
+                    .as_str()?
+                    .strip_prefix("menu-device-")?
+                    .parse::<usize>()
+                    .ok()
+            }));
+            if !nodes.iter().any(|node| {
+                node["children"].as_array().is_some_and(|buttons| {
+                    buttons.iter().any(|button| button["id"] == "devices-next")
+                })
+            }) {
+                break;
+            }
+            assert!(found.len() < 5, "last page must not offer Next");
+            ui.event(
+                &mut state,
+                &mut host,
+                &json!({"t":"press","id":"devices-next"}),
+                None,
+            )
+            .unwrap();
+        }
+        assert_eq!(found, [1, 2, 3, 4, 5]);
     }
 
     #[test]

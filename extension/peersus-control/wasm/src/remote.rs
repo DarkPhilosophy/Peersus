@@ -968,6 +968,15 @@ impl State {
     }
 
     fn advance<H: Wire + Data>(&mut self, host: &mut H, handle: Handle) -> Option<Value> {
+        // The queued control delivery owns cleanup. Do not consume any more
+        // bytes for this ticket, even when the host's poll picked it first.
+        if self
+            .incoming
+            .get(&handle)
+            .is_some_and(|incoming| replay_cancelled(&self.waiting, incoming.ticket))
+        {
+            return None;
+        }
         let mut incoming = self.incoming.remove(&handle)?;
         let result = self.replay(host, handle, &mut incoming);
         if matches!(result, Ok(false)) {
@@ -3355,6 +3364,37 @@ mod multiplex_tests {
                 assert_eq!(release["args"], json!({"owner":"controller","keep":false}));
             }
         }
+    }
+
+    #[test]
+    fn a_readable_stream_is_not_read_when_its_cancellation_is_already_queued() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state
+            .receive(&mut host, 1, &json!({"peer":"controller"}))
+            .unwrap();
+        host.streams.insert(
+            1,
+            VecDeque::from([b"{\"t\":\"key\",\"key\":\"enter\"}\n".to_vec()]),
+        );
+        host.ready.push_back(1);
+        let cancel = json!({"type":"cancelled","ticket":1});
+        state.waiting.push(cancel.clone());
+        // The existing cancellation handler releases the owner once it receives the delivery.
+        host.wire.results.push_back(ok(json!({})));
+        assert_eq!(state.next(&mut host), Ok(Some(cancel.clone())));
+        assert_eq!(host.streams[&1].len(), 1);
+        assert!(super::handle(&mut host, &mut state, &cancel).is_none());
+        assert_eq!(host.closed, [1]);
+        assert!(
+            host.wire
+                .sent
+                .iter()
+                .all(|call| call["method"] != "inject" && call["op"] != "reply")
+        );
     }
 
     #[test]
