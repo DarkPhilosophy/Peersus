@@ -118,7 +118,7 @@ struct Job<'a, W> {
     wire: &'a mut W,
     ticket: u64,
     next: u64,
-    file: Option<Value>,
+    file: Option<String>,
     authorization: Option<Value>,
     cancelled: bool,
     starting: bool,
@@ -260,12 +260,19 @@ impl<W: Wire> Job<'_, W> {
     /// One accepted request under the current authorization, whole: a destination that answers with text is read for text.
     fn accepted(&mut self, mut args: Value) -> Result<Value, ActionError> {
         args["authorization"] = self.authorization.clone().ok_or("Missing authorization")?;
+        let too_large = if args.get("multipart").is_some() {
+            "The server rejected the file as too large; no retry was attempted"
+        } else if args.get("part").is_some() {
+            "The server rejected a file part as too large; no retry was attempted"
+        } else if args["json"].get("receipts").is_some() {
+            "The server rejected the upload completion request as too large; no retry was attempted"
+        } else {
+            "The server rejected the upload session request as too large; no retry was attempted"
+        };
         let response = self.call("peersus.http", "request", args)?;
         match response["status"].as_u64() {
             Some(200..=299) => Ok(response),
-            Some(413) => Err(ActionError::TooLarge(
-                "The server rejected the file as too large; no retry was attempted",
-            )),
+            Some(413) => Err(ActionError::TooLarge(too_large)),
             Some(429) => Err(ActionError::RateLimited),
             Some(100..=599) => Err(ActionError::Refused),
             _ => Err(ActionError::Failed("Invalid HTTPS response status")),
@@ -507,7 +514,11 @@ impl<W: Wire> Job<'_, W> {
                 }
                 _ => error,
             })?;
-        self.file = Some(selected["file"].clone());
+        let file = selected["file"]
+            .as_str()
+            .filter(|file| !file.is_empty())
+            .ok_or("Invalid selected file handle")?;
+        self.file = Some(file.to_owned());
         let size = selected["bytes"].as_u64().ok_or("Invalid selected size")?;
         if size > max_bytes {
             return Err(ActionError::TooLarge(limit_message));
@@ -552,9 +563,11 @@ impl<W: Wire> Job<'_, W> {
                 .as_u64()
                 .filter(|size| (PART..=6 * 1024 * 1024).contains(size))
                 .ok_or("Invalid server part size")?;
+            // The validated file and part sizes bound this to at most ceil(250 / 3)
+            // parts; do not impose a second, smaller limit on valid files.
             let parts = session["parts"]
                 .as_u64()
-                .filter(|parts| *parts > 0 && *parts <= 45 && size.div_ceil(part_size) == *parts)
+                .filter(|parts| size.div_ceil(part_size) == *parts)
                 .ok_or("Invalid server part count")?;
             let token = session["token"].clone();
             if token["secret"].as_str().is_none() {
@@ -974,6 +987,94 @@ mod tests {
         assert_eq!(wire.sent[5]["args"], json!({"file":"chosen"}));
         assert!(wire.replies.is_empty());
     }
+    #[test]
+    fn selection_without_an_opaque_handle_never_requests_authorization() {
+        for file in [Value::Null, json!(""), json!(17)] {
+            let mut wire = Script {
+                replies: VecDeque::from([json!({"file":file,"name":"small.txt","bytes":7})]),
+                sent: Vec::new(),
+            };
+            let mut upload = job(&mut wire);
+            assert_eq!(
+                upload.run(42, PooAuth::Keyed),
+                Err(ActionError::Failed("Invalid selected file handle"))
+            );
+            upload.release();
+            assert_eq!(wire.sent.len(), 1);
+            assert_eq!(wire.sent[0]["method"], "selected");
+        }
+    }
+
+    #[test]
+    fn maximum_keyed_file_completes_with_the_minimum_server_part_size() {
+        let parts = MAX_FILE.div_ceil(PART);
+        let mut wire = Script {
+            replies: VecDeque::from([
+                json!({"file":"chosen","name":"large.bin","bytes":MAX_FILE}),
+                json!({"authorization":"approved"}),
+                json!({"status":200,"json":{"partSize":PART,"parts":parts,"token":{"secret":"session"}}}),
+            ]),
+            sent: Vec::new(),
+        };
+        for index in 0..parts {
+            wire.replies.push_back(json!({"status":200,"json":{
+                "success":true,"index":index,"acceptedBytes":(MAX_FILE-index*PART).min(PART),
+                "receipt":{"secret":format!("part-{index}")}
+            }}));
+        }
+        wire.replies.extend([
+            json!({"status":200,"json":uploaded()}),
+            json!({"presented":true}),
+        ]);
+        assert_eq!(
+            job(&mut wire).run(42, PooAuth::Keyed).unwrap(),
+            format!("{ORIGIN}/f/example")
+        );
+        let final_part = &wire.sent[2 + usize::try_from(parts).unwrap()]["args"]["part"];
+        assert_eq!(final_part["offset"], (parts - 1) * PART);
+        assert_eq!(final_part["length"], MAX_FILE - (parts - 1) * PART);
+        let complete = &wire.sent[3 + usize::try_from(parts).unwrap()]["args"];
+        assert_eq!(complete["path"], "/api/upload/session/complete");
+        assert_eq!(
+            complete["json"]["receipts"].as_array().unwrap().len() as u64,
+            parts
+        );
+    }
+
+    #[test]
+    fn payload_and_session_size_refusals_keep_the_request_context() {
+        for (request, expected) in [
+            (
+                json!({"multipart":{}}),
+                "The server rejected the file as too large; no retry was attempted",
+            ),
+            (
+                json!({"part":{}}),
+                "The server rejected a file part as too large; no retry was attempted",
+            ),
+            (
+                json!({"json":{"size":7}}),
+                "The server rejected the upload session request as too large; no retry was attempted",
+            ),
+            (
+                json!({"json":{"receipts":[]}}),
+                "The server rejected the upload completion request as too large; no retry was attempted",
+            ),
+        ] {
+            let mut wire = Script {
+                replies: VecDeque::from([json!({"status":413})]),
+                sent: Vec::new(),
+            };
+            let mut upload = job(&mut wire);
+            upload.authorization = Some(json!("approved"));
+            assert_eq!(
+                upload.accepted(request),
+                Err(ActionError::TooLarge(expected))
+            );
+            assert_eq!(wire.sent.len(), 1);
+        }
+    }
+
     #[test]
     fn session_upload_keeps_tokens_and_receipts_opaque_and_obeys_server_parts() {
         for mode in [PooAuth::Keyed, PooAuth::Keyless] {

@@ -190,7 +190,7 @@
       {
         "kind": "notice",
         "title": "What this extension does",
-        "explains": "Upload sends the name and contents of one selected file only after you approve the destination. poo.wang receives a saved key only for its API key check and upload or session start. If no key is saved, it uses the service's native anonymous support without a browser cookie or key. Catbox always uploads without an account or key. The extension never receives the file contents or saved key.",
+        "explains": "Upload sends the name and contents of one selected file only after you approve the destination. Starting a multipart session sends the file name and size before any file bytes. poo.wang receives a saved key only for its API key check and upload or session start. If no key is saved, it uses the service's native anonymous support without a browser cookie or key. Catbox always uploads without an account or key. The extension never receives the file contents or saved key.",
         "changes": "Keyless poo.wang allows up to 25 MiB per file and 10 file admissions per UTC day per connecting network address. Links expire after 24 hours. A rejected saved key does not switch to anonymous. If the application cannot determine whether a key is saved, neither poo.wang upload is offered. Catbox allows up to 6 MiB here and returns a public link on https://files.catbox.moe. Cancelling does not undo a completed save or upload."
       }
     ]

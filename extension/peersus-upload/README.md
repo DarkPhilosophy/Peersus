@@ -39,7 +39,7 @@ The **WASM guest is the official build**. The store requires Linux, Android and 
 
 The same guest source also builds as a native library (`cargo build --release --features native` in `wasm/`, packaged with `--native-library libpeersus_upload_wasm.so` as `upload-linux-native_library.tar.gz`) and, linked into the native host, as a process (`upload-linux-process.tar.gz`); every submission builds and validates both. They speak the identical protocol through the native host's function table instead of WebAssembly imports, so behaviour is the same; only the isolation is weaker. The store installs the WASM build only: the other two travel with the signed release for a person to install by hand, with limited support.
 
-The shared library and process variants are Linux-only. The complete file-picker, credential and live upload workflow has not been verified here on macOS or Windows. Those WASM packages are not evidence of end-to-end support.
+The manifest lists Linux, Android, macOS and Windows because this submission packages the WASM guest for all four. The shared library and process variants are Linux-only. The complete file-picker, credential and live upload workflow has not been verified here on macOS or Windows; a WASM archive is not evidence of end-to-end support.
 
 ## Build and test
 
