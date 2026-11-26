@@ -1,0 +1,70 @@
+[package]
+name = "peersus-ui-android"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Peersus on Android: the entry the system calls, and the owner started inside the application. The interface is peersus-ui."
+
+# `cdylib` is what the Android host loads (`libpeersus_android.so`); `rlib` lets the host's tests link it.
+[lib]
+name = "peersus_android"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[[example]]
+name = "renderer_probe"
+path = "examples/renderer_probe.rs"
+crate-type = ["cdylib"]
+required-features = ["renderer-probe"]
+
+[features]
+native-extensions = ["peersus-app/android-native-extensions"]
+development-diagnostics = ["peersus-ui/development-diagnostics"]
+production-diagnostics = ["peersus-app/production-diagnostics"]
+private-store = ["peersus-app/private-store", "peersus-core/private-store", "peersus-ui/private-store"]
+prerelease-channel = ["private-store", "peersus-app/prerelease-channel"]
+renderer-probe = ["peersus-ui/renderer-probe", "development-diagnostics"]
+
+# Everything here is for Android. On any other target the crate is empty, so that `cargo build --workspace`
+# on a desktop neither needs the Android toolchain nor pulls its libraries.
+[target.'cfg(target_os = "android")'.dependencies]
+peersus-ui = { workspace = true }
+peersus-app = { workspace = true }
+peersus-core = { workspace = true }
+peersus-net = { workspace = true }
+peersus-api = { workspace = true }
+peersus-plugin = { workspace = true }
+peersus-diagnostics = { workspace = true }
+serde_json = { workspace = true }
+freya = { workspace = true }
+freya-android = { workspace = true }
+freya-core = { workspace = true }
+freya-winit = { workspace = true }
+iroh = { workspace = true }
+tokio = { workspace = true }
+# The one thing the platform asks of the build: which Android activity to use. `native-activity` is the one
+# an earlier trial ran on a device with; the host's `MainActivity` extends `NativeActivity`.
+winit = { workspace = true, features = ["android-native-activity"] }
+tracing = { workspace = true }
+jni = { workspace = true }
+tempfile = { workspace = true }
+zeroize = { workspace = true }
+reqwest = { workspace = true }
+rustls-platform-verifier = "=0.7.1"
+jni-verifier = { package = "jni", version = "=0.22.4" }
+
+[dev-dependencies]
+# Host tests exercise shared notification data and the pure Android battery code mapping.
+peersus-app = { workspace = true }
+peersus-core = { workspace = true }
+
+# Android platform crates permit only audited JNI/descriptor ownership boundaries.
+# `deny` remains the default; the platform modules explicitly document their FFI allowance.
+# Ordinary shared Rust crates continue to inherit the workspace's `forbid`.
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+correctness = "deny"

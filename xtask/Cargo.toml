@@ -1,0 +1,20 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Peersus build and quality gate tooling: checks, builds, catalog packaging"
+publish = false
+
+[dependencies]
+ed25519-dalek.workspace = true
+flate2.workspace = true
+hex.workspace = true
+peersus-api.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tar.workspace = true
+toml.workspace = true
+
+[lints]
+workspace = true

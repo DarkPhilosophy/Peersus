@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="connectivity_channel">Connessione dei dispositivi</string>
+    <string name="available_title">Disponibile per i trasferimenti di file</string>
+    <string name="available_body">I dispositivi associati possono connettersi. Apri l’app per gestire la modalità in background.</string>
+    <string name="requests_channel">Richieste di trasferimento in arrivo</string>
+    <string name="offer_accept">Accetta</string>
+    <string name="offer_cancel">Annulla</string>
+    <string name="received_channel">File ricevuti</string>
+    <string name="notices_channel">Avvisi</string>
+    <string name="notifications_disabled">Le notifiche sono disattivate. Puoi attivarle nelle impostazioni Android dell’app.</string>
+    <plurals name="received_title">
+        <item quantity="one">File ricevuto</item>
+        <item quantity="other">File ricevuti</item>
+    </plurals>
+    <plurals name="received_body">
+        <item quantity="one">File ricevuti: %1$d. Apri l’app per visualizzarli.</item>
+        <item quantity="other">File ricevuti: %1$d. Apri l’app per visualizzarli.</item>
+    </plurals>
+    <plurals name="requests_title">
+        <item quantity="one">Trasferimento di file in arrivo</item>
+        <item quantity="other">Trasferimenti di file in arrivo</item>
+    </plurals>
+    <plurals name="requests_body">
+        <item quantity="one">File in attesa della tua approvazione: %1$d. Tocca per esaminarli.</item>
+        <item quantity="other">File in attesa della tua approvazione: %1$d. Tocca per esaminarli.</item>
+    </plurals>
+</resources>

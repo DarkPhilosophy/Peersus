@@ -1,0 +1,79 @@
+# Test fixture: a few messages of the language file of the languages branch, the ones the tests read.
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: de\n"
+"X-Language-Name: Deutsch\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} möchte dir eine Datei senden"
+
+msgid "{duration} ago"
+msgstr "vor {duration}"
+
+msgid "Battery"
+msgstr "Akku"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Eingeschränkt: Im Leerlauf kann das System das Netzwerk des Hintergrunddienstes trennen. Erlaube es in den Akku-Einstellungen."
+
+msgid "Version {version} is available."
+msgstr "Version {version} ist verfügbar."
+
+msgid "up to date"
+msgstr "aktuell"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} Datei"
+msgstr[1] "{count} Dateien"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} Minute"
+msgstr[1] "{count} Minuten"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} Stunde"
+msgstr[1] "{count} Stunden"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} Tag"
+msgstr[1] "{count} Tagen"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} Monat"
+msgstr[1] "{count} Monaten"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} Jahr"
+msgstr[1] "{count} Jahren"
+
+msgid "never seen"
+msgstr "noch nie gesehen"
+
+msgid "Window bar position"
+msgstr "Position der Fensterleiste"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Wähle, wo die Fenstersteuerung und die Hauptnavigation angezeigt werden."
+
+msgid "Top"
+msgstr "Oben"
+
+msgid "Bottom"
+msgstr "Unten"

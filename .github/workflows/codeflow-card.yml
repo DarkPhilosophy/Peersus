@@ -1,0 +1,94 @@
+name: CodeFlow card
+
+on:
+  # Every publication of main is a new root commit (one-commit development snapshot), which GitHub cannot diff
+  # against the previous tip: a `paths` filter then skips the run silently. So every push to main counts.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The card is a picture of the source tree's structure, drawn by a third-party static analyzer
+# (braedonsaunders/codeflow, MIT) that only reads files on the runner. Nothing leaves the runner.
+#
+# `main` is never written: the picture and its history live on the `codeflow-card` branch, which
+# holds nothing else and which the README shows by address. That is why the analyzer is run
+# directly and not through its own action, which commits into the branch it analyzes.
+permissions:
+  contents: read
+
+# A run under way finishes; only a newer pending one replaces an older pending one.
+concurrency:
+  group: codeflow-card
+  cancel-in-progress: false
+
+jobs:
+  card:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      # The token could write any branch; it is given to the last step alone, which pushes one
+      # fixed ref. No checkout keeps credentials, so the analyzer runs without it.
+      contents: write
+    env:
+      CARD_BRANCH: codeflow-card
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      # A reviewed commit, never a moving tag: third-party code in a job whose token can write.
+      - name: Check out the analyzer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: braedonsaunders/codeflow
+          ref: b70af01cfd1a1cec4b02075b124fdd1ec8cc33be
+          path: codeflow
+          persist-credentials: false
+
+      # The earlier runs, for the card's trend lines. Absent on the first run.
+      - name: Fetch the card's history
+        run: |
+          mkdir card
+          if git -C source ls-remote --exit-code --heads origin "$CARD_BRANCH" >/dev/null; then
+            git -C source fetch --depth 1 origin "$CARD_BRANCH"
+            git -C source show "FETCH_HEAD:codeflow-card.json" > card/codeflow-card.json || rm -f card/codeflow-card.json
+          fi
+
+      # Left out of the count: the vendored toolkit, which is not this project's code, and lock
+      # files, which are not code. Tests are counted: they are this project's code.
+      #
+      # The runner sets GITHUB_WORKSPACE and GITHUB_ACTIONS for every step and a step's `env:` does
+      # not replace them, so they are given on the command itself: the analyzer then reads the
+      # source alone (not the analyzer's own checkout beside it), writes where the next step reads,
+      # and does not try to commit by itself.
+      - name: Draw the card
+        working-directory: codeflow
+        env:
+          INPUT_EXCLUDE: 'vendor/**, *.lock'
+          INPUT_OUTPUT: ${{ github.workspace }}/card/codeflow-card.svg
+          INPUT_STATE: ${{ github.workspace }}/card/codeflow-card.json
+          INPUT_STYLE: compact
+          INPUT_THEME: auto
+        run: |
+          GITHUB_ACTIONS=false GITHUB_WORKSPACE="$GITHUB_WORKSPACE/source" node card/index.js
+          test -s "$INPUT_OUTPUT"
+
+      - name: Publish the card
+        working-directory: card
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          # In the owner's name, as every commit of this project (the same variables the dependency roll uses).
+          COMMIT_NAME: ${{ vars.DEV_COMMIT_NAME }}
+          COMMIT_EMAIL: ${{ vars.DEV_COMMIT_EMAIL }}
+        run: |
+          test -n "$COMMIT_NAME" && test -n "$COMMIT_EMAIL"
+          git init --quiet --initial-branch "$CARD_BRANCH"
+          git add codeflow-card.svg codeflow-card.json
+          git -c user.name="$COMMIT_NAME" -c user.email="$COMMIT_EMAIL" \
+              commit --quiet --message "CodeFlow card for ${GITHUB_SHA}"
+          # One commit, replaced each time: the branch keeps no history of its own to grow.
+          git push --force --quiet \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${CARD_BRANCH}"

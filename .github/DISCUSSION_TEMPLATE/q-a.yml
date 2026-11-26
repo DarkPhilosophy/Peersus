@@ -1,0 +1,19 @@
+title: "[Question] "
+body:
+  - type: markdown
+    attributes:
+      value: Include only synthetic or redacted diagnostics. Never share tokens, pairing invitations, identity material or private file contents.
+  - type: input
+    id: environment
+    attributes:
+      label: Revision, platform and build flavor
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What has been tried and what happened?

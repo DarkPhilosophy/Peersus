@@ -1,0 +1,49 @@
+{
+  "manifest_version": 1,
+  "package": {
+    "name": "Hello",
+    "version": "0.1.0",
+    "author": "Your name",
+    "link": "https://example.com/your-extension",
+    "description": "The smallest extension that answers a call: replace this sentence with what yours does."
+  },
+  "program": "hello_guest.wasm",
+  "execution": {"kind": "wasm", "abi": 1},
+  "capabilities": {},
+  "imports": [],
+  "exports": [{
+    "service": "hello.greeting", "version": 1,
+    "description": "Says hello. It reads nothing from this device and sends nothing anywhere.",
+    "consumers": ["host"],
+    "methods": {
+      "greet": {"description": "Answer with a greeting."}
+    },
+    "events": {}
+  }],
+  "contributions": {
+    "actions": [
+      {"id": "greet", "label": "Say hello", "target": {"service": "hello.greeting", "method": "greet"}, "needs_device": false, "destructive": false, "timeout_ms": 10000}
+    ],
+    "settings": []
+  },
+  "agreements": {
+    "pages": [
+      {
+        "kind": "licence",
+        "title": "Apache License 2.0",
+        "explains": "This example extension is licensed under Apache-2.0: you may use, copy, change and share it, and you must keep its licence and notices with copies you share.",
+        "changes": "Accepting lets the application install and run this extension; it grants no extra rights over your files, devices or data.",
+        "spdx": "Apache-2.0",
+        "links": [
+          {"label": "Apache License 2.0 text", "url": "https://www.apache.org/licenses/LICENSE-2.0"}
+        ]
+      },
+      {
+        "kind": "notice",
+        "title": "What this extension does",
+        "explains": "Hello answers a 'Say hello' action with a greeting. It reads nothing from this device and sends nothing anywhere; the example's author and source are listed in the package metadata above.",
+        "changes": "After installing, a 'Say hello' action appears. Nothing is collected, stored or transmitted. Removing the extension removes the action."
+      }
+    ]
+  }
+}

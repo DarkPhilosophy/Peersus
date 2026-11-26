@@ -1,0 +1,17 @@
+[package]
+name = "peersus-render"
+description = "Bounded CPU rendering for a separately supervised Peersus extension"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# `webp`: the decoder of `picture`, and the same feature set the window enables, so one Skia build serves both.
+freya-skia-safe = { workspace = true, features = ["textlayout", "webp"] }
+peersus-api.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

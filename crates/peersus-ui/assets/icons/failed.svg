@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Drawn for Peersus. -->
+  <circle cx="24" cy="24" r="17" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M24 14V26" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <circle cx="24" cy="33" r="2.5" fill="currentColor" />
+</svg>

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Peersus
+GenericName=File transfer between your devices
+Comment=Share files and clipboard between your devices
+Exec=peersus %u
+Icon=io.github.DarkPhilosophy.Peersus
+Terminal=false
+Categories=Network;FileTransfer;
+MimeType=x-scheme-handler/peersus;
+Keywords=send;receive;share;files;transfer;devices;phone;pair;clipboard;
+StartupNotify=true
+StartupWMClass=io.github.DarkPhilosophy.Peersus

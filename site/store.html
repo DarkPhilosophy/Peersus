@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="The Peersus extension store: the signed list of extensions a maintainer approved, with versions, authors, sizes and SHA-256 digests. Display only: the application verifies the signature."><meta name="color-scheme" content="light dark"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'"><title>Extension store — Peersus</title><link rel="icon" href="brand/peersus.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css"><script src="tour.js" defer></script><script src="store.js" defer></script><script src="downloads.js" defer></script><script src="app.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a><header class="site-header"></header>
+<main class="document store" id="main">
+<p class="eyebrow" id="store-eyebrow">EXTENSIONS</p>
+<h1 id="store-title">Extension store</h1>
+<p class="intro" id="store-lede">Extensions the maintainer approved for Peersus. Install opens them in Peersus, which checks every signature itself.</p>
+<div class="store-toolbar">
+<label class="store-search"><span class="visually-hidden">Search extensions</span><input id="store-search" type="search" placeholder="Search extensions…" autocomplete="off" spellcheck="false"></label>
+<label class="store-select"><span class="visually-hidden">Platform</span><select id="store-platform"><option value="">All platforms</option><option value="android">Android</option><option value="linux">Linux</option><option value="windows">Windows</option><option value="macos">macOS</option></select></label>
+<label class="store-select"><span class="visually-hidden">Order</span><select id="store-sort"><option value="name">Name A–Z</option><option value="size">Smallest first</option></select></label>
+</div>
+<p id="store-status" class="store-status" role="status">Loading the store…</p>
+<ul id="store-list" class="store-grid" aria-label="Extensions"></ul>
+<p id="store-empty" class="store-empty" hidden>No extension matches your search.</p>
+<noscript><p class="notice">The list needs JavaScript to load; no tracking is involved. You can also browse it inside Peersus, in Settings → Extensions → Store.</p></noscript>
+<dialog id="store-detail" class="store-detail" aria-labelledby="store-detail-name"></dialog>
+<section class="store-how" aria-labelledby="store-how-title">
+<h2 id="store-how-title">How the store works</h2>
+<p>This page only lists what was approved; it cannot approve or check anything. Peersus verifies the maintainer’s signature with its built-in key, refuses an archive whose size or SHA-256 differs from the signed entry, and installs a new extension with every permission refused. Updating forgets what the old version was allowed to do.</p>
+<p>Download is there to read what you would install. An archive installed by hand is treated as coming from outside the store, with its own warning. To compare a download with its signed digest:</p>
+<pre><code>sha256sum &lt;archive&gt;</code></pre>
+</section>
+<section class="store-project" aria-labelledby="store-project-title"><h2 id="store-project-title">What the project is building</h2>
+<p class="extension-lede">Four extensions are written by the project. They are described here so you know what to expect. None of them is in the store yet, and nothing on this site installs them.</p>
+<ul class="extension-notes" aria-label="Extensions written by the project">
+<li><h3>Monitor</h3><p>How this device is doing: processor, graphics, memory, storage, network and battery, each shown only if you allow it. Numbers from another device are not shown yet.</p><p class="extension-state">NOT IN THE STORE YET</p></li>
+<li><h3>Control</h3><p>Use your phone as a touchpad and keyboard for a paired computer. Both devices have to allow it.</p><p class="extension-state">NOT IN THE STORE YET</p></li>
+<li><h3>Clipboard</h3><p>Share text between paired devices, by hand or, if you allow it, automatically. Android only lets an app read the clipboard while it is in front.</p><p class="extension-state">NOT IN THE STORE YET · UNDER DEVELOPMENT</p></li>
+<li><h3>Upload</h3><p>Upload one file you choose, to a destination you approve. A provider may keep a readable copy: this is not the end-to-end encrypted transfer.</p><p class="extension-state">NOT IN THE STORE YET · UNDER DEVELOPMENT</p></li>
+</ul>
+</section>
+</main><footer></footer></body></html>

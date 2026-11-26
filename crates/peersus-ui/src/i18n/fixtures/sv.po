@@ -1,0 +1,76 @@
+# Test fixture: a few messages of the language file of the languages branch, the ones the tests read.
+
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: sv\n"
+"X-Language-Name: Svenska\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Language"
+msgstr "Språk"
+
+msgid "{name} wants to send you a file"
+msgstr "{name} vill skicka en fil till dig"
+
+msgid "{duration} ago"
+msgstr "för {duration} sedan"
+
+msgid "Battery"
+msgstr "Batteri"
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr "Begränsad: när telefonen är inaktiv kan systemet stänga av bakgrundstjänstens nätverk. Tillåt det i batteriinställningarna."
+
+msgid "Version {version} is available."
+msgstr "Version {version} är tillgänglig."
+
+msgid "up to date"
+msgstr "aktuell"
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] "{count} fil"
+msgstr[1] "{count} filer"
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] "{count} minut"
+msgstr[1] "{count} minuter"
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] "{count} timme"
+msgstr[1] "{count} timmar"
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] "{count} dag"
+msgstr[1] "{count} dagar"
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] "{count} månad"
+msgstr[1] "{count} månader"
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] "{count} år"
+msgstr[1] "{count} år"
+
+msgid "Window bar position"
+msgstr "Fönsterlistens placering"
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr "Välj var fönsterknapparna och huvudnavigeringen ska visas."
+
+msgid "Top"
+msgstr "Uppe"
+
+msgid "Bottom"
+msgstr "Nere"

@@ -1,0 +1,35 @@
+[package]
+name = "peersus-plugin-runtime"
+description = "Bounded interpreter and transport for separately supervised plugin modules"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Optimized development builds (`./dev.sh deploy`): the reviewed `peersus::dev` events and the development reports.
+development-diagnostics = ["peersus-diagnostics/development"]
+
+[dependencies]
+peersus-api.workspace = true
+peersus-diagnostics.workspace = true
+peersus-plugin.workspace = true
+serde_json.workspace = true
+# `auto-dispatch`: the fast tail-call interpreter loop where the target and the optimization level allow it, and the
+# portable loop otherwise. The workspace profile keeps the interpreter optimized with its checks off, which the
+# tail calls need (see the root manifest); `portable-dispatch` cost about three times the work per guest instruction.
+wasmi = { version = "=2.0.3", default-features = false, features = ["std", "validate", "auto-dispatch", "memory64"] }
+
+[dev-dependencies]
+wat.workspace = true
+tempfile.workspace = true
+tokio.workspace = true
+
+# `poll` waits on the control and data connections: poll(2) on Unix, WSAPoll on Windows.
+[dependencies.rustix]
+workspace = true
+features = ["event"]
+
+[lints]
+workspace = true

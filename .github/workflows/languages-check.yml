@@ -1,0 +1,44 @@
+name: Check language files
+# Lives on main and, as a copy, at the root of the languages branch, where it runs (as extension-validate.yml does for the
+# extension branch): main must be replaced first, since the template and the checker come from it. The languages branch
+# holds only data. The checker and the template come from the default branch; nothing on this branch
+# is executed.
+on:
+  push:
+    branches: [languages]
+  pull_request:
+    branches: [languages]
+permissions:
+  contents: read
+concurrency:
+  group: languages-check-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    name: Every file fits the template and the offer is current
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: trusted
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: branch
+          persist-credentials: false
+      - name: Rust toolchain of the default branch
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("trusted/rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - name: Check the current release's files
+        working-directory: trusted
+        run: |
+          test -f crates/peersus-ui/languages/messages.pot || {
+            echo "::error::The default branch has no language template yet; replace main before pushing the languages branch."
+            exit 1
+          }
+          release=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          cargo run --locked -q -p xtask -- check-languages "../branch/languages/$release"
