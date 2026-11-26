@@ -1,6 +1,6 @@
 //! Map guest records to opaque objects; no host code sees a room or message schema.
 use crate::{
-    core::{Data, RoomKey},
+    core::{Data, Job, RoomKey},
     host::{self, Wire},
     sdk::extension_data as api,
     serde::{Serialize, de::DeserializeOwned},
@@ -10,6 +10,10 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, VecDeque};
 
 pub(crate) type Result<T, E = Fault> = std::result::Result<T, E>;
+/// Where job `n` is kept: under its room, so a conversation's work is found with it.
+fn job_key(n: u64, job: &Job) -> String {
+    format!("jobs/{}/{n:016x}", job.room.namespace())
+}
 pub(crate) fn parse<T: DeserializeOwned>(value: Value) -> Result<T> {
     serde_json::from_value(value).map_err(|_| Fault::Storage)
 }
@@ -368,10 +372,13 @@ pub(crate) fn load<H: Wire + host::Data>(link: &mut Link<'_, H>) -> Result<(u64,
                 }
                 "jobs" => {
                     let (_, number) = suffix.split_once('/').ok_or(Fault::Storage)?;
-                    data.jobs.insert(
-                        u64::from_str_radix(number, 16).map_err(|_| Fault::Storage)?,
-                        decoded(&bytes)?,
-                    );
+                    let number = u64::from_str_radix(number, 16).map_err(|_| Fault::Storage)?;
+                    let job: Job = decoded(&bytes)?;
+                    // Kept under another room's name, it would be removed from where it is not and come back as work.
+                    if job_key(number, &job) != name {
+                        return Err(Fault::Storage);
+                    }
+                    data.jobs.insert(number, job);
                 }
                 "lanes" => {
                     data.lanes.insert(
@@ -470,9 +477,7 @@ pub(crate) fn commit<H: Wire + host::Data>(
             format!("rooms/{}", k.namespace())
         })?;
         batch.diff(link, &before.rows, &after.rows, |k, _| format!("rows/{k}"))?;
-        batch.diff(link, &before.jobs, &after.jobs, |n, job| {
-            format!("jobs/{}/{n:016x}", job.room.namespace())
-        })?;
+        batch.diff(link, &before.jobs, &after.jobs, |n, job| job_key(*n, job))?;
         batch.diff(link, &before.lanes, &after.lanes, |id, _| {
             format!("lanes/{}", id.as_str())
         })?;

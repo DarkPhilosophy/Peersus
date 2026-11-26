@@ -120,40 +120,56 @@ impl Runner {
     /// Make the picture of one more photo of `room`, the newest not tried yet: read the photo this device holds, decode it in
     /// this process, and have the application keep the small picture for the page. One a turn, so a conversation full of photos
     /// fills in a little at a time and never holds up the page.
-    fn make_thumb<H: Wire + host::Data>(&mut self, link: &mut Link<'_, H>, room: &RoomKey) {
-        let Some((asset, bytes)) = self.thumbs.wanted(&self.engine, room) else {
+    /// A photo that cannot be read or kept now is tried again later; only one that is no picture is not tried again.
+    fn make_thumb<H: Wire + host::Data>(
+        &mut self,
+        link: &mut Link<'_, H>,
+        room: &RoomKey,
+        now: u64,
+    ) {
+        let Some((asset, bytes)) = self.thumbs.wanted(&self.engine, room, now) else {
             return;
         };
-        let thumb = link
-            .read_whole(&asset, self.revision, bytes)
-            .ok()
-            .and_then(|photo| media_sdk::decode_picture(&photo, ui::THUMB_EDGE))
-            .and_then(|(width, height, rgba)| {
-                let gone = self.thumbs.make_room();
-                if !gone.is_empty() {
-                    link.forget_pictures(gone);
-                }
-                let id = self.thumbs.id();
-                link.keep_picture(&id, width, height, &rgba).ok()?;
-                Some(ui::Thumb {
-                    id,
-                    width: width as u16,
-                    height: height as u16,
-                })
-            });
-        self.thumbs.made(asset, thumb);
+        let Ok(photo) = link.read_whole(&asset, self.revision, bytes) else {
+            self.thumbs.unread(asset, now);
+            return;
+        };
+        let Some((width, height, rgba)) = media_sdk::decode_picture(&photo, ui::THUMB_EDGE) else {
+            self.thumbs.made(asset, None);
+            return;
+        };
+        let gone = self.thumbs.make_room();
+        if !gone.is_empty() {
+            link.forget_pictures(gone);
+        }
+        let id = self.thumbs.id();
+        if link.keep_picture(&id, width, height, &rgba).is_err() {
+            self.thumbs.unread(asset, now);
+            return;
+        }
+        let thumb = ui::Thumb {
+            id,
+            width: width as u16,
+            height: height as u16,
+        };
+        self.thumbs.made(asset, Some(thumb));
     }
 
     /// Measure the waveform of one more sound of `room` whose message carries none, from the WAV this device holds. One a turn.
-    fn make_wave<H: Wire + host::Data>(&mut self, link: &mut Link<'_, H>, room: &RoomKey) {
-        let Some((asset, bytes)) = self.waves.wanted(&self.engine, room) else {
+    /// A sound that cannot be read now is tried again later.
+    fn make_wave<H: Wire + host::Data>(
+        &mut self,
+        link: &mut Link<'_, H>,
+        room: &RoomKey,
+        now: u64,
+    ) {
+        let Some((asset, bytes)) = self.waves.wanted(&self.engine, room, now) else {
             return;
         };
-        let wave = link
-            .read_whole(&asset, self.revision, bytes)
-            .ok()
-            .and_then(|sound| ui::measure_wav(&sound));
-        self.waves.made(asset, wave);
+        match link.read_whole(&asset, self.revision, bytes) {
+            Ok(sound) => self.waves.made(asset, ui::measure_wav(&sound)),
+            Err(_) => self.waves.unread(asset, now),
+        }
     }
 
     /// Keep the pictures `view` shows for itself in step with it: the chosen photo before it is sent, and the photo opened over
@@ -285,8 +301,21 @@ impl Runner {
             if self.local(link, Local::Open(room.clone())).is_err() {
                 continue;
             }
-            for view in self.pages.values_mut() {
+            // As when the person goes to another conversation themselves: a draft prepared in the one left is let go of.
+            let names: Vec<String> = self.pages.keys().cloned().collect();
+            for name in names {
+                let Some(mut view) = self.pages.remove(&name) else {
+                    continue;
+                };
+                let visit = view.visit;
                 view.open(room.clone());
+                if view.visit != visit
+                    && let Some(draft) = view.draft.take()
+                {
+                    link.abort(draft.stage.stage);
+                }
+                self.sync_pictures(link, &name, &mut view);
+                self.pages.insert(name, view);
             }
             self.opening = Some(room);
         }
@@ -313,8 +342,8 @@ impl Runner {
         if matches!(event, Event::Open | Event::Tick { .. })
             && let Some(room) = self.pages.get(name).and_then(|page| page.room()).cloned()
         {
-            self.make_thumb(link, &room);
-            self.make_wave(link, &room);
+            self.make_thumb(link, &room, now);
+            self.make_wave(link, &room, now);
         }
         let mut view = match self.pages.remove(name) {
             Some(view) => view,
@@ -387,7 +416,7 @@ impl Runner {
                     .and_then(|value| store::parse(value["room"].clone()))
                 {
                     Ok(room) => view.open(room),
-                    Err(error) => view.submitted(Err(error)),
+                    Err(error) => view.group_refused(error),
                 }
                 return;
             }
@@ -579,7 +608,9 @@ impl Runner {
                 ) {
                     Ok(_) => view.replying = None,
                     Err(error) => {
-                        view.draft = Some(draft);
+                        if let Some(old) = view.draft.replace(draft) {
+                            link.abort(old.stage.stage);
+                        }
                         fail(view, error);
                     }
                 }
@@ -754,14 +785,17 @@ impl Runner {
                                     if media_type.is_none() {
                                         view.feedback = Some(Feedback::NoMedia);
                                     }
-                                    view.draft = Some(Draft {
+                                    let draft = Draft {
                                         selected: media,
                                         media_type,
                                         name,
                                         stage,
                                         expires: now.saturating_add(DRAFT_LIFE_MS),
                                         wave: None,
-                                    });
+                                    };
+                                    if let Some(old) = view.draft.replace(draft) {
+                                        link.abort(old.stage.stage);
+                                    }
                                 }
                                 Err(error) => {
                                     link.abort(stage.stage);

@@ -149,6 +149,7 @@ fn dump_pages() {
 
 use super::{core::*, wire::*};
 use peersus_api::extension_data::ScopeId;
+use std::collections::BTreeSet;
 
 fn token(n: u64) -> ScopeId {
     ScopeId::try_from(format!("{n:064x}")).unwrap()
@@ -415,7 +416,20 @@ fn local_clear_emits_nothing_and_remote_clear_only_removes_named_shared_rows() {
             clear: true,
         },
     );
-    assert_eq!(right.data.rows.len(), 2);
+    // Only the message the requester holds goes: the one it cleared earlier on its own side, and the receiver's own that
+    // never reached it, stay, and the latter is still waiting to be sent.
+    let texts: BTreeSet<_> = right
+        .data
+        .rows
+        .values()
+        .filter_map(|row| row.body.as_ref()?.text.as_deref())
+        .collect();
+    assert_eq!(
+        texts,
+        BTreeSet::from(["keep remotely", "the requester never received this"])
+    );
+    let unsent = right.data.rows.values().find(|row| row.mine).unwrap();
+    assert_eq!(unsent.delivery[&a], Delivery::Queued);
     assert_eq!(left.data.rooms[&room].cleared[&b], Removal::Applied);
 }
 
@@ -1793,4 +1807,151 @@ fn replies_sit_in_the_thread_of_the_message_they_answer_and_the_menu_starts_one(
     );
     page.submitted(Ok(()));
     assert!(page.replying.is_none());
+}
+
+#[test]
+fn a_message_past_the_order_bound_is_taken_at_the_bound_and_its_retry_is_the_same_message() {
+    let (a, b) = (token(1), token(2));
+    let room = RoomKey::Direct(b.clone());
+    let mut left = Engine::default();
+    let mut right = Engine::default();
+    left.set_route(b.clone(), Route::Ready);
+    left.queue(room.clone(), token(3), body("first"), None)
+        .unwrap();
+    send(&mut left, &mut right, &b, &a, 1, Policy::default());
+    let start = right.data.rooms[&RoomKey::Direct(a.clone())].order;
+    // The writer's order moved far, as it does after a message from someone this device has not heard from.
+    left.data.rooms.get_mut(&room).unwrap().order += 1 << 30;
+    left.queue(room.clone(), token(3), body("far ahead"), None)
+        .unwrap();
+    let offer = reserve(&mut left, &b, 2).unwrap();
+    let take = |right: &mut Engine| {
+        right
+            .receive(
+                &a,
+                offer.packet.clone(),
+                &offer.clear,
+                2,
+                Policy::default(),
+                None,
+            )
+            .unwrap()
+    };
+    assert_eq!(take(&mut right), Verdict::Applied);
+    let bound = start + (1 << 24);
+    let kept = right
+        .data
+        .rows
+        .values()
+        .find(|row| row.body.as_ref().and_then(|b| b.text.as_deref()) == Some("far ahead"))
+        .unwrap();
+    assert_eq!(kept.order, bound);
+    assert_eq!(right.data.rooms[&RoomKey::Direct(a.clone())].order, bound);
+    // Sent again (its answer lost), it is the message already kept, not a conflict.
+    assert_eq!(take(&mut right), Verdict::Applied);
+    assert_eq!(right.data.rows.len(), 2);
+}
+
+#[test]
+fn a_group_message_still_owed_to_another_member_survives_one_member_s_clear() {
+    let (a, b, c) = (token(1), token(2), token(3));
+    let (sa, sb, sc, scope) = (token(11), token(12), token(13), token(50));
+    let mut left = Engine::default();
+    let mut middle = Engine::default();
+    let mut right = Engine::default();
+    let group = Group {
+        id: scope.clone(),
+        title: "Workshop".into(),
+        creator: sa.clone(),
+        roster: [(&sa, "First"), (&sb, "Second"), (&sc, "Third")]
+            .into_iter()
+            .map(|(id, label)| Member {
+                id: id.clone(),
+                label: label.into(),
+            })
+            .collect(),
+    };
+    left.set_group_routes(
+        scope.clone(),
+        sa.clone(),
+        [(b.clone(), sb.clone()), (c.clone(), sc.clone())].into(),
+    );
+    middle.set_group_routes(
+        scope.clone(),
+        sb.clone(),
+        [(a.clone(), sa.clone()), (c.clone(), sc.clone())].into(),
+    );
+    right.set_group_routes(
+        scope.clone(),
+        sc.clone(),
+        [(a.clone(), sa.clone()), (b.clone(), sb.clone())].into(),
+    );
+    let room = left.create_group(group, sa).unwrap();
+    let id = left
+        .queue(room.clone(), token(101), body("for everyone"), None)
+        .unwrap();
+    left.set_route(b.clone(), Route::Ready);
+    left.set_route(c.clone(), Route::Offline);
+    send(&mut left, &mut middle, &b, &a, 1, Policy::default());
+    send(&mut left, &mut middle, &b, &a, 2, Policy::default());
+    // The second member asks to clear what it shares with the author, while the third has not received the message yet.
+    middle.clear(&room, true, false).unwrap();
+    middle.set_route(a.clone(), Route::Ready);
+    send(
+        &mut middle,
+        &mut left,
+        &a,
+        &b,
+        3,
+        Policy {
+            delete: false,
+            clear: true,
+        },
+    );
+    let kept = left.data.rows.values().find(|row| row.key == id).unwrap();
+    assert_eq!(kept.delivery[&sc], Delivery::Queued);
+    // The third member still gets it.
+    left.set_route(c.clone(), Route::Ready);
+    send(&mut left, &mut right, &c, &a, 4, Policy::default());
+    send(&mut left, &mut right, &c, &a, 5, Policy::default());
+    assert!(right.data.rows.values().any(|row| row.key == id));
+    assert_eq!(
+        left.data
+            .rows
+            .values()
+            .find(|row| row.key == id)
+            .unwrap()
+            .delivery[&sc],
+        Delivery::Sent
+    );
+}
+
+#[test]
+fn a_long_chain_of_replies_stays_in_the_thread_of_its_first_message() {
+    let b = token(2);
+    let room = RoomKey::Direct(b.clone());
+    let mut chat = Engine::default();
+    chat.queue(room.clone(), token(3), body("0"), None).unwrap();
+    let row = |chat: &Engine, text: &str| {
+        chat.data
+            .rows
+            .values()
+            .find(|row| row.body.as_ref().and_then(|b| b.text.as_deref()) == Some(text))
+            .unwrap()
+            .clone()
+    };
+    for n in 1..=20 {
+        let reply = Body {
+            reply: Some(row(&chat, &(n - 1).to_string()).target()),
+            ..body(&n.to_string())
+        };
+        chat.queue(room.clone(), token(3), reply, None).unwrap();
+    }
+    let last = row(&chat, "20");
+    let root = chat.root(&last).unwrap();
+    assert_eq!(
+        root.body.as_ref().and_then(|b| b.text.as_deref()),
+        Some("0")
+    );
+    assert!(chat.root(&row(&chat, "0")).is_none());
 }

@@ -147,6 +147,10 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
         state.expire_drafts(&mut link, now);
         state.notify_waiting(&mut link, now);
         state.pump_sound(&mut link, now);
+        // A change that may or may not have been kept stops everything at once: nothing more is handled or sent.
+        if state.fault {
+            return 1;
+        }
         if (state.due == 0 || state.due <= now && !state.engine.data.jobs.is_empty())
             && !state.refresh(&mut link, now)
             && link.stopped()
@@ -156,6 +160,9 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
         if let Some(message) = link.deferred.pop_front()
             && !state.control(&mut link, message, now)
         {
+            return 1;
+        }
+        if state.fault {
             return 1;
         }
         state.dispatch(&mut link, now);
@@ -175,6 +182,10 @@ pub(crate) fn run<H: Wire + host::Data>(host: &mut H) -> i32 {
             || state.listening.is_some();
         let Ok(ready) = link.host.poll(&handles, if pending { POLL_MS } else { -1 }) else {
             return 0;
+        };
+        // The wait may have been long: what woke it is handled at the time it came.
+        let Ok(now) = link.clock() else {
+            return 1;
         };
         if ready == Some(0) {
             let Ok(message) = link.host.receive() else {
@@ -491,12 +502,17 @@ impl Runner {
                 let Ok(handle) = link.host.open(false, ticket) else {
                     return reply(link, ticket, Err(Fault::Invalid));
                 };
+                // The time to send the data counts from the stream's opening, after any discovery above.
+                let Ok(opened) = link.clock() else {
+                    link.host.close(handle);
+                    return false;
+                };
                 self.incoming.insert(
                     handle,
                     Incoming {
                         peer,
                         ticket,
-                        expires: now.saturating_add(DATA_WAIT),
+                        expires: opened.saturating_add(DATA_WAIT),
                         bytes: Vec::new(),
                         cleared: Default::default(),
                     },
@@ -706,7 +722,8 @@ impl Runner {
                             key.epoch.as_str(),
                             key.seq
                         );
-                        let answer = self.engine.finish_attachment(
+                        // A finish refused here commits nothing, and its upload is already let go of: so is its stage.
+                        let answer = match self.engine.finish_attachment(
                             peer,
                             key.clone(),
                             held.scope,
@@ -717,7 +734,13 @@ impl Runner {
                             },
                             now,
                             reference.clone(),
-                        )?;
+                        ) {
+                            Ok(answer) => answer,
+                            Err(fault) => {
+                                link.abort(stage);
+                                return Err(fault);
+                            }
+                        };
                         if answer == Verdict::Applied {
                             promotion = Some((reference, stage));
                         }
@@ -1157,6 +1180,9 @@ impl Runner {
                 json!({})
             }
         };
+        // What the change lets go of in transfers under way is let go of only once the change is kept: one that could not
+        // be kept leaves them as they were.
+        self.commit(link, previous, promotion, None)?;
         if self
             .outgoing
             .as_ref()
@@ -1200,7 +1226,6 @@ impl Runner {
                 link.abort(old.stage);
             }
         }
-        self.commit(link, previous, promotion, None)?;
         Ok(value)
     }
 }

@@ -16,8 +16,8 @@ msgstr "La cererea acestui dispozitiv, mesajele trimise de el pot fi înlocuite 
 msgid "Allow this device to request clearing shared history"
 msgstr "Permite acestui dispozitiv să ceară golirea istoricului comun"
 
-msgid "A request can remove copies of messages this device already shared with you. This does not remove newer or unsent messages."
-msgstr "O cerere poate elimina copii ale mesajelor deja partajate cu acest dispozitiv. Mesajele mai noi sau netrimise nu sunt șterse."
+msgid "A request can remove your copies of messages already exchanged with this device. This does not remove newer or unsent messages."
+msgstr "O cerere poate elimina copiile tale ale mesajelor deja schimbate cu acest dispozitiv. Mesajele mai noi sau netrimise nu sunt șterse."
 
 msgid "Chat"
 msgstr "Conversații"

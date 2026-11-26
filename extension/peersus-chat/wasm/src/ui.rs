@@ -161,19 +161,42 @@ const THUMBS: usize =
     (crate::sdk::pictures::MAX_KEPT_BYTES - picture_bytes(VIEW_EDGE) - picture_bytes(THUMB_EDGE))
         / picture_bytes(THUMB_EDGE);
 
+/// The files a picture or a waveform could not be read from for now, by storage key: each is tried again after
+/// [`Unread::WAIT`], never remembered as a file that has none.
+#[derive(Default)]
+pub struct Unread {
+    until: BTreeMap<String, u64>,
+}
+impl Unread {
+    const WAIT: u64 = 5_000;
+    /// Most files waited on; past them all are tried again.
+    const KEPT: usize = 256;
+    fn ready(&self, asset: &str, now: u64) -> bool {
+        self.until.get(asset).is_none_or(|until| *until <= now)
+    }
+    fn failed(&mut self, asset: String, now: u64) {
+        if self.until.len() >= Self::KEPT {
+            self.until.clear();
+        }
+        self.until.insert(asset, now.saturating_add(Self::WAIT));
+    }
+}
+
 /// The photo pictures made so far, by the photo's storage key: made once each, the oldest let go of past [`THUMBS`].
 #[derive(Default)]
 pub struct Thumbs {
     made: BTreeMap<String, Option<Thumb>>,
     order: std::collections::VecDeque<String>,
     next: u64,
+    unread: Unread,
 }
 impl Thumbs {
     pub fn get(&self, asset: &str) -> Option<&Thumb> {
         self.made.get(asset).and_then(Option::as_ref)
     }
-    /// The newest photo of `room` whose picture has not been tried yet, among the newest [`THUMBS`]: its storage key and size.
-    pub fn wanted(&self, engine: &Engine, room: &RoomKey) -> Option<(String, u32)> {
+    /// The newest photo of `room` whose picture has not been made or found unmakeable, among the newest [`THUMBS`], and not
+    /// waiting to be read again at `now`: its storage key and size.
+    pub fn wanted(&self, engine: &Engine, room: &RoomKey, now: u64) -> Option<(String, u32)> {
         let mut photos: Vec<_> = engine
             .data
             .rows
@@ -192,7 +215,7 @@ impl Thumbs {
         photos
             .into_iter()
             .take(THUMBS)
-            .find(|(_, asset, _)| !self.made.contains_key(*asset))
+            .find(|(_, asset, _)| !self.made.contains_key(*asset) && self.unread.ready(asset, now))
             .map(|(_, asset, bytes)| (asset.clone(), bytes))
     }
     /// A fresh id for the picture of a photo.
@@ -213,12 +236,16 @@ impl Thumbs {
         }
         gone
     }
-    /// What became of the photo `asset`: its picture, or none when it could not be made (it is not tried again).
+    /// What became of the photo `asset`: its picture, or none when it is no picture this can make (it is not tried again).
     pub fn made(&mut self, asset: String, thumb: Option<Thumb>) {
         if thumb.is_some() {
             self.order.push_back(asset.clone());
         }
         self.made.insert(asset, thumb);
+    }
+    /// The photo `asset` could not be read or kept at `now`: it is tried again a little later.
+    pub fn unread(&mut self, asset: String, now: u64) {
+        self.unread.failed(asset, now);
     }
 }
 
@@ -227,11 +254,15 @@ impl Thumbs {
 #[derive(Default)]
 pub struct Waves {
     made: BTreeMap<String, Option<String>>,
+    unread: Unread,
 }
 /// No waveform measured: what a page drawn in a test has.
 #[cfg(test)]
 pub static NO_WAVES: Waves = Waves {
     made: BTreeMap::new(),
+    unread: Unread {
+        until: BTreeMap::new(),
+    },
 };
 impl Waves {
     /// The largest sound measured: two minutes of a recording, with room to spare.
@@ -242,9 +273,9 @@ impl Waves {
     pub fn get(&self, asset: &str) -> Option<&str> {
         self.made.get(asset).and_then(Option::as_deref)
     }
-    /// The newest WAV of `room` this device holds whose message carries no waveform and that was not tried yet: its storage
-    /// key and size.
-    pub fn wanted(&self, engine: &Engine, room: &RoomKey) -> Option<(String, u32)> {
+    /// The newest WAV of `room` this device holds whose message carries no waveform, that was not measured yet and is not
+    /// waiting to be read again at `now`: its storage key and size.
+    pub fn wanted(&self, engine: &Engine, room: &RoomKey, now: u64) -> Option<(String, u32)> {
         engine
             .data
             .rows
@@ -257,7 +288,8 @@ impl Waves {
                 (file.wave.is_none()
                     && file.media_type == "audio/wav"
                     && file.bytes <= Self::MAX_BYTES
-                    && !self.made.contains_key(asset))
+                    && !self.made.contains_key(asset)
+                    && self.unread.ready(asset, now))
                 .then_some((row.order, asset, file.bytes))
             })
             .max_by_key(|found| found.0)
@@ -269,6 +301,10 @@ impl Waves {
             self.made.clear();
         }
         self.made.insert(asset, wave);
+    }
+    /// The sound `asset` could not be read at `now`: it is tried again a little later.
+    pub fn unread(&mut self, asset: String, now: u64) {
+        self.unread.failed(asset, now);
     }
 }
 
@@ -636,6 +672,9 @@ pub struct Page {
     pub feedback: Option<Feedback>,
     text: String,
     field: u64,
+    /// The new group's name, apart from the message being written so that neither form takes the other's text.
+    title: String,
+    title_field: u64,
     pub visit: u64,
     pub draft: Option<Draft>,
     pub busy: Option<Busy>,
@@ -664,6 +703,9 @@ pub struct Page {
     fit: Option<usize>,
     /// While a page is made: how many messages of the conversation's own line it shows.
     shown: std::cell::Cell<usize>,
+    /// How many messages of the conversation's line the last page made showed: a page made again does not fall below it
+    /// while that many still fit, so asking for older messages never shows fewer.
+    fitted: usize,
 }
 impl Page {
     pub fn room(&self) -> Option<&RoomKey> {
@@ -687,6 +729,7 @@ impl Page {
         self.screen = screen;
         self.overlay = Overlay::None;
         self.older = 0;
+        self.fitted = 0;
         self.group.clear();
         self.feedback = None;
         self.text.clear();
@@ -741,6 +784,11 @@ impl Page {
         }
         // The common field clears on submit; remount it with the retained text after failure.
         self.field = self.field.saturating_add(1);
+    }
+    /// A group that could not be made: its form keeps the name it was given.
+    pub fn group_refused(&mut self, error: Fault) {
+        self.feedback = Some(Feedback::Failure(error));
+        self.title_field = self.title_field.saturating_add(1);
     }
     /// Whether `event` can change nothing on the page: the pointer over a box this page does not press.
     pub fn passing(event: &Event) -> bool {
@@ -824,7 +872,7 @@ impl Page {
                 Some(Effect::Text(room?, text))
             }
             (Event::Submit { text, .. }, Action::GroupTitle) if self.group.len() >= 2 => {
-                self.text = text.trim().to_owned();
+                self.title = text.trim().to_owned();
                 let aliases: Vec<_> = self
                     .group
                     .iter()
@@ -837,10 +885,10 @@ impl Page {
                     })
                     .collect();
                 if aliases.len() != self.group.len() {
-                    self.submitted(Err(Fault::Missing));
+                    self.group_refused(Fault::Missing);
                     return None;
                 }
-                Some(Effect::Group(aliases, self.text.clone()))
+                Some(Effect::Group(aliases, self.title.clone()))
             }
             (Event::Back { .. }, _) => {
                 self.feedback = None;
@@ -870,8 +918,8 @@ impl Page {
                     Action::Show(overlay) => {
                         if overlay == Overlay::NewGroup && self.overlay != Overlay::NewGroup {
                             self.group.clear();
-                            self.text.clear();
-                            self.field = self.field.saturating_add(1);
+                            self.title.clear();
+                            self.title_field = self.title_field.saturating_add(1);
                         }
                         self.overlay = overlay;
                         None
@@ -982,8 +1030,16 @@ impl Page {
                 .filter(sdk_wire_size);
             let shown = self.shown.get();
             if value.is_none() && shown > MIN_FIT {
-                self.fit = Some(shown * 3 / 4);
+                let fewer = shown * 3 / 4;
+                self.fit = Some(if self.fitted < shown {
+                    fewer.max(self.fitted)
+                } else {
+                    fewer
+                });
                 continue;
+            }
+            if value.is_some() {
+                self.fitted = shown;
             }
             self.bindings = bindings;
             self.bindings.old.clear();
@@ -1377,9 +1433,24 @@ impl Page {
         // that line (replies that name each other) stays in the line, quoting what it answers.
         let mut threads: BTreeMap<String, Vec<&Row>> = BTreeMap::new();
         let mut line = Vec::new();
+        // Oldest first, the message a reply answers is usually placed already: the reply is in that message's thread, found
+        // without walking the chain again.
+        let mut thread_of: BTreeMap<String, String> = BTreeMap::new();
         for row in rows {
-            match c.engine.root(row) {
-                Some(root) => threads.entry(root.storage_key()).or_default().push(row),
+            let key = row.storage_key();
+            let root = c
+                .engine
+                .replied(row)
+                .and_then(|up| {
+                    thread_of
+                        .get(&up.storage_key())
+                        .cloned()
+                        .or_else(|| c.engine.root(row).map(Row::storage_key))
+                })
+                .filter(|root| root != &key);
+            thread_of.insert(key.clone(), root.clone().unwrap_or(key));
+            match root {
+                Some(root) => threads.entry(root).or_default().push(row),
                 None => line.push(row),
             }
         }
@@ -1624,9 +1695,10 @@ impl Page {
             )]
         };
         if recording.is_none() {
-            composer.push(self.field(
+            composer.push(field(
                 b,
                 Action::MessageText,
+                (&self.text, self.field),
                 l.t("Write a message", "Scrie un mesaj"),
                 Length::Flex(1),
             ));
@@ -2352,9 +2424,10 @@ impl Page {
                         ),
                         Tone::Muted,
                     ));
-                    items.push(self.field(
+                    items.push(field(
                         b,
                         Action::GroupTitle,
+                        (&self.title, self.title_field),
                         l.t("Group name", "Numele grupului"),
                         FULL,
                     ));
@@ -2514,7 +2587,10 @@ impl Page {
                         text(l.t("Saving files is off for Chat. Turn on “Save a file” for Chat in Settings › Extensions.","Salvarea fișierelor este oprită pentru Chat. Pornește „Salvează un fișier” pentru Chat în Setări › Extensii."),Tone::Muted)
                     });
                 }
-                if room.is_some_and(|room| !c.engine.options(room, &row.key).is_empty()) {
+                // Only this device's own message is deleted, and it is the one its id names here: a received message
+                // that carries the same id offers nothing.
+                if row.mine && room.is_some_and(|room| !c.engine.options(room, &row.key).is_empty())
+                {
                     menu.push(b.button(
                         Action::Show(Overlay::Delete(key.clone())),
                         l.t("Delete…", "Șterge…"),
@@ -2595,7 +2671,7 @@ impl Page {
             }
             Overlay::Delete(key) => {
                 let room = room?;
-                let row = row(key)?;
+                let row = row(key).filter(|row| row.mine)?;
                 let options = c.engine.options(room, &row.key);
                 if options.is_empty() {
                     items.push(text(l.t("Delete message", "Șterge mesajul"), Tone::Title));
@@ -2644,23 +2720,30 @@ impl Page {
         }
         Some(items)
     }
+}
 
-    fn field(&self, b: &mut Bindings, action: Action, placeholder: &str, width: Length) -> Node {
-        let id = b.id(action);
-        Node::Box {
-            id: Some(format!("field-{:x}-{id}", self.field)),
-            style: Style {
-                width,
-                ..Style::default()
-            },
-            observe: Vec::new(),
-            children: vec![Node::Field {
-                id,
-                placeholder: placeholder.into(),
-                value: short(&self.text, elements::MAX_FIELD),
-                height: None,
-            }],
-        }
+/// A text field holding `value`, remounted (and so given `value` again) when `generation` changes.
+fn field(
+    b: &mut Bindings,
+    action: Action,
+    (value, generation): (&str, u64),
+    placeholder: &str,
+    width: Length,
+) -> Node {
+    let id = b.id(action);
+    Node::Box {
+        id: Some(format!("field-{generation:x}-{id}")),
+        style: Style {
+            width,
+            ..Style::default()
+        },
+        observe: Vec::new(),
+        children: vec![Node::Field {
+            id,
+            placeholder: placeholder.into(),
+            value: short(value, elements::MAX_FIELD),
+            height: None,
+        }],
     }
 }
 

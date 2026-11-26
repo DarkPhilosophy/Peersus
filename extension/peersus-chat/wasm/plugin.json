@@ -39,7 +39,7 @@
     "settings": [
       {"id":"show-chat","label":"Add Chat to navigation","help":"Show Chat as a separate page. You can always open it from this extension’s settings.","scope":"global","kind":{"type":"toggle","default":false}},
       {"id":"allow-message-deletion","label":"Allow this device to delete its sent messages here","help":"A request can replace this device’s own messages here with a deletion marker. Off keeps your copies.","scope":"device","kind":{"type":"toggle","default":false}},
-      {"id":"allow-chat-clear","label":"Allow this device to request clearing shared history","help":"A request can remove copies of messages this device already shared with you. This does not remove newer or unsent messages.","scope":"device","kind":{"type":"toggle","default":false}}
+      {"id":"allow-chat-clear","label":"Allow this device to request clearing shared history","help":"A request can remove your copies of messages already exchanged with this device. This does not remove newer or unsent messages.","scope":"device","kind":{"type":"toggle","default":false}}
     ]
   },
   "agreements": {

@@ -1327,16 +1327,36 @@ impl Engine {
                         let group = self.data.rooms.get(&room).and_then(|r| r.group.as_ref());
                         let ids = read_clear(payload, group)?;
                         let actor = actor.as_ref().unwrap_or(peer);
+                        // A row stays while this device still owes another device work that names it (a group message
+                        // not yet delivered to another member, a deletion or receipt it waits for): one recipient's
+                        // clear never takes a message away from another.
+                        let owed = |row: &Row| {
+                            let target = row.target();
+                            self.data.jobs.values().any(|job| {
+                                job.room == room
+                                    && &job.to != actor
+                                    && match &job.work {
+                                        Work::Message(id) | Work::Delete(id) => {
+                                            row.mine && id == &row.key
+                                        }
+                                        Work::Seen(t) | Work::React { target: t, .. } => {
+                                            t == &target
+                                        }
+                                        _ => false,
+                                    }
+                            })
+                        };
                         let removed: Vec<_> = ids
                             .iter()
                             .filter_map(|target| {
                                 self.target(&room, target)
                                     .filter(|row| {
-                                        if row.mine {
-                                            row.delivery.get(actor).is_some_and(|d| d.delivered())
-                                        } else {
-                                            true
-                                        }
+                                        (!row.mine
+                                            || row
+                                                .delivery
+                                                .get(actor)
+                                                .is_some_and(|d| d.delivered()))
+                                            && !owed(row)
                                     })
                                     .map(|row| (row.storage_key(), row.mine, row.target()))
                             })
@@ -1436,13 +1456,15 @@ impl Engine {
             .get(&row_key(&row.room, member, mine, &target.id))
     }
     /// The first message of the thread `row` is in, when it answers a message this device holds: a reply to a reply belongs
-    /// to the same thread. Bounded, so replies that name each other end, and never `row` itself.
+    /// to the same thread. A chain is at most a conversation's rows long, and replies that name each other end where they
+    /// come back round; never `row` itself.
     pub fn root(&self, row: &Row) -> Option<&Row> {
         let mut root = self.replied(row)?;
-        for _ in 0..8 {
+        let mut seen = BTreeSet::from([row.storage_key(), root.storage_key()]);
+        while seen.len() <= MAX_ROOM_ROWS {
             match self.replied(root) {
-                Some(up) => root = up,
-                None => break,
+                Some(up) if seen.insert(up.storage_key()) => root = up,
+                _ => break,
             }
         }
         (root.storage_key() != row.storage_key()).then_some(root)
@@ -1458,8 +1480,9 @@ impl Engine {
         let IncomingMessage { id, order, body } = message;
         let key = row_key(room, actor.as_ref(), false, &id);
         if let Some(row) = self.data.rows.get(&key) {
+            // A message placed at the bound keeps a lower order here than the one it was sent with.
             return if row.body.as_ref() == Some(&body)
-                && row.order == order
+                && row.order <= order
                 && row.from.as_ref() == Some(peer)
             {
                 Verdict::Applied
@@ -1473,17 +1496,22 @@ impl Engine {
         if body.attachments.is_empty() == asset.is_some() {
             return Verdict::Invalid;
         }
-        let info = self.data.rooms.entry(room.clone()).or_default();
-        let ceiling = if info.order == 0 {
-            (1 << 48) - 1
-        } else {
-            info.order.saturating_add(1 << 24)
-        };
-        if order > ceiling
-            || matches!(room, RoomKey::Direct(_)) && info.origin.as_ref() == Some(&id.epoch)
+        let known = self.data.rooms.get(room);
+        if matches!(room, RoomKey::Direct(_))
+            && known.and_then(|info| info.origin.as_ref()) == Some(&id.epoch)
         {
             return Verdict::Invalid;
         }
+        // How far a peer moves a conversation's order is bounded, so no one pushes it to its end. A message past the
+        // bound is still taken, placed at it: refusing it would refuse a member whose order moved with a message this
+        // device has not seen yet.
+        let current = known.map_or(0, |info| info.order);
+        let order = order.min(if current == 0 {
+            (1 << 48) - 1
+        } else {
+            current.saturating_add(1 << 24)
+        });
+        let info = self.data.rooms.entry(room.clone()).or_default();
         info.order = info.order.max(order);
         let sent = body.sent;
         self.data.rows.insert(
