@@ -1,0 +1,19 @@
+schema = 1
+id = "location"
+# Native library and process exception: the native host accepts finished PSF1 pixels, not Location's PSD1 display lists.
+# End this exception when both native forms have display-list presentation. See README.md for the audit results.
+artifacts = ["location-linux.tar.gz", "location-android.tar.gz", "location-macos.tar.gz", "location-windows.tar.gz"]
+
+build = [
+  ["cmp", "{sdk}/templates/guest/canvas.rs", "{source}/wasm/src/canvas_sdk.rs"],
+  ["cargo", "build", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--release", "--target", "wasm32-unknown-unknown", "--target-dir", "{sdk}/target"],
+]
+test = [
+  ["cargo", "test", "--manifest-path", "{source}/wasm/Cargo.toml", "--locked", "--target-dir", "{sdk}/target"],
+]
+package = [
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "linux", "--id", "location"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "android", "--id", "location"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "macos", "--id", "location"],
+  ["python3", "{sdk}/scripts/package-native-extension.py", "--source", "{source}/wasm", "--sdk", "{sdk}", "--target-dir", "{sdk}/target", "--out", "{out}", "--platform", "windows", "--id", "location"],
+]
