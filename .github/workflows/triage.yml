@@ -8,7 +8,7 @@ on:
   pull_request_review:
     types: [submitted]
   workflow_run:
-    workflows: [Quality gates, Extension source submission, Generated documentation, Dependency advisory audit]
+    workflows: [Quality gates, Extension source submission, Generated documentation, Security audit]
     types: [completed]
   # By hand (Actions → Run workflow): refresh every open PR's labels, for example after a settings change.
   workflow_dispatch:
@@ -37,5 +37,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          REQUIRED_REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
         run: python3 scripts/triage-pull-request.py

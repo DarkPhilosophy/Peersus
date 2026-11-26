@@ -11,6 +11,9 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  # The readiness gate reads what the reviewer bots report on the head.
+  checks: read
+  statuses: read
 concurrency:
   # Per label, so adding some other label to the PR never cancels a running check.
   group: extension-check-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
@@ -34,16 +37,15 @@ jobs:
       - id: sdk
         working-directory: trusted
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      # Before any build: the reviewers read this exact commit and every current thread is resolved.
-      # Reviewer logins: repository variable REQUIRED_REVIEWERS, comma-separated, or the script's default.
+      # Before any build: every reviewer bot that started on this exact commit finished, at least one did, and every
+      # current thread is resolved.
       - name: Reviewers finished and their threads addressed
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           HEAD: ${{ github.event.pull_request.head.sha }}
-          REVIEWERS: ${{ vars.REQUIRED_REVIEWERS }}
-        run: python3 trusted/scripts/verify-review-readiness.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD" --reviewers "$REVIEWERS"
+        run: python3 trusted/scripts/verify-review-readiness.py --repository "$REPOSITORY" --pr "$PR" --commit "$HEAD"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/pull/${{ github.event.pull_request.number }}/head
