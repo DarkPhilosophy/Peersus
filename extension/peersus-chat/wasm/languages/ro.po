@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: ro\n"
+"X-Language-Name: Română\n"
+
+msgid "Private messaging with paired devices; this device keeps its own history and offline queue."
+msgstr "Mesaje private între dispozitive asociate. Acest dispozitiv își păstrează istoricul și mesajele în așteptare."
+
+msgid "Allow this device to delete its sent messages here"
+msgstr "Permite ștergerea aici a mesajelor trimise de acest dispozitiv"
+
+msgid "A request can replace this device’s own messages here with a deletion marker. Off keeps your copies."
+msgstr "La cererea acestui dispozitiv, mesajele trimise de el pot fi înlocuite aici cu un marcaj de ștergere. Dacă opțiunea este dezactivată, copiile tale sunt păstrate."
+
+msgid "Allow this device to request clearing shared history"
+msgstr "Permite acestui dispozitiv să ceară golirea istoricului comun"
+
+msgid "A request can remove copies of messages this device already shared with you. This does not remove newer or unsent messages."
+msgstr "O cerere poate elimina copii ale mesajelor deja partajate cu acest dispozitiv. Mesajele mai noi sau netrimise nu sunt șterse."
+
+msgid "Chat"
+msgstr "Conversații"
+
+msgid "Add Chat to navigation"
+msgstr "Adaugă Conversații la navigare"
+
+msgid "Show Chat as a separate page. You can always open it from this extension’s settings."
+msgstr "Afișează Conversații ca pagină separată. Poți deschide întotdeauna pagina din setările extensiei."
