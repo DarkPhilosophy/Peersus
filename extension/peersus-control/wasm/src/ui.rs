@@ -32,8 +32,10 @@ pub struct Ui {
     /// How far the wheel has been turned, for its ridges to follow the finger.
     scrolled: i32,
     last_input: Option<u64>,
-    /// Human input on a held control, even before that control sends any input.
-    last_gesture_at: Option<u64>,
+    /// Human input on the pad and on the wheel, each apart, even before that control sends any input: a lift lost on
+    /// one is found by its own silence, whatever the other does.
+    pad_at: Option<u64>,
+    wheel_at: Option<u64>,
     refreshed: u64,
     clock: u64,
     /// When the connection now open was opened: it is rotated well before the other side's call
@@ -432,6 +434,14 @@ impl Ui {
     fn holding(&self) -> bool {
         self.pointer_busy() || self.erasing.is_some() || !self.locked.is_empty()
     }
+    /// What a drag ending with `button` sends: its release, unless a lock still holds that button.
+    fn let_go(&self, button: &'static str) -> Vec<Value> {
+        if self.locked.contains(&button) {
+            Vec::new()
+        } else {
+            vec![button_input(button, false)]
+        }
+    }
     /// A gesture ended with nothing held: the connection is closed so the other computer is free,
     /// and its pointer stays where it is.
     fn rest<H: Wire + Data>(
@@ -444,7 +454,8 @@ impl Ui {
         }
         self.opened = None;
         self.last_input = None;
-        self.last_gesture_at = None;
+        self.pad_at = None;
+        self.wheel_at = None;
         Self::page_result(state.rest(host))
     }
     fn reset_gesture(&mut self) {
@@ -456,7 +467,8 @@ impl Ui {
         // Ending lets go of everything on the other computer, locked buttons with it.
         self.locked.clear();
         self.last_input = None;
-        self.last_gesture_at = None;
+        self.pad_at = None;
+        self.wheel_at = None;
         self.opened = None;
     }
 
@@ -515,10 +527,19 @@ impl Ui {
                 let idle = self
                     .last_input
                     .is_some_and(|last| at.saturating_sub(last) >= 2000);
-                let stuck = self.pointer_busy()
-                    && self
-                        .last_gesture_at
-                        .is_some_and(|last| at.saturating_sub(last) >= STUCK_MS);
+                let silent = |last: Option<u64>| {
+                    last.is_some_and(|last| at.saturating_sub(last) >= STUCK_MS)
+                };
+                let pad_stuck = self.pad.is_some() && silent(self.pad_at);
+                let wheel_stuck = self.wheel.is_some() && silent(self.wheel_at);
+                // Each control's lost lift ends only that control; the gesture ends when every live control is
+                // silent.
+                let live = [
+                    (self.pad.is_some(), pad_stuck),
+                    (self.wheel.is_some(), wheel_stuck),
+                ];
+                let stuck = live.iter().any(|&(_, quiet)| quiet)
+                    && live.iter().all(|&(on, quiet)| !on || quiet);
                 let expired_backspace = self
                     .erasing
                     .is_some_and(|down| at.saturating_sub(down) >= STUCK_MS);
@@ -527,10 +548,22 @@ impl Ui {
                 if stuck {
                     // A drag whose finger's lift was lost lets go of its button.
                     if let Some(pad) = self.pad.take().filter(|pad| pad.dragging) {
-                        let _ =
-                            self.send(state, host, vec![button_input(pad.drag_side, false)], at);
+                        let _ = self.send(state, host, self.let_go(pad.drag_side), at);
                     }
                     let _ = self.end(state, host);
+                } else if pad_stuck {
+                    // Only the pad's lift was lost: its drag lets go, the wheel turning goes on.
+                    if let Some(pad) = self.pad.take().filter(|pad| pad.dragging) {
+                        let _ = self.send(state, host, self.let_go(pad.drag_side), at);
+                    }
+                    self.pad_at = None;
+                    return Ok(self.tree());
+                } else if wheel_stuck {
+                    // Only the wheel's lift was lost: it holds nothing on the other computer, the pad goes on.
+                    self.wheel = None;
+                    self.wheel_at = None;
+                    self.owed = 0;
+                    return Ok(self.tree());
                 } else if expired_backspace {
                     self.erasing = None;
                     let _ = self.rest(state, host);
@@ -550,7 +583,19 @@ impl Ui {
                     .is_some_and(|opened| at.saturating_sub(opened) >= 5000)
                 {
                     self.opened = None;
-                    let _ = state.rotate(host);
+                    // As after a submit: a rotation that failed leaves nothing held here, whatever the other
+                    // computer still holds, and the page says so.
+                    match state.rotate(host) {
+                        Ok(()) => {}
+                        Err(Refusal::Blocked(_)) => {
+                            let _ = self.observe_stop(state, host);
+                            return Ok(self.tree());
+                        }
+                        Err(Refusal::Other(_)) => {
+                            let _ = self.end(state, host);
+                            return Ok(self.tree());
+                        }
+                    }
                 }
                 // The list is read again in the background: one read that fails keeps the list as it was.
                 let refreshed = self.list_block.is_none()
@@ -620,6 +665,16 @@ impl Ui {
                 self.pad_bounds = Some((x, width));
                 return Ok(Value::Null);
             }
+            // The page is no longer seen: nothing is left held on the other computer while nobody can see it.
+            Some("visibility") if id == "pad" => {
+                let seen = event["visible"].as_bool() == Some(true)
+                    && event["foreground"].as_bool() == Some(true);
+                if !seen && self.holding() {
+                    let _ = self.end(state, host);
+                    return Ok(self.tree());
+                }
+                return Ok(Value::Null);
+            }
             Some("pointer") => {
                 let phase = event["phase"]
                     .as_str()
@@ -641,13 +696,23 @@ impl Ui {
                             return Ok(Value::Null);
                         }
                         let button = if id == "left" { "left" } else { "right" };
+                        // A pad drag with the same button already holds it: the lock joins or leaves that
+                        // hold without pressing or letting go a second time.
+                        let dragging = self
+                            .pad
+                            .as_ref()
+                            .is_some_and(|pad| pad.dragging && pad.drag_side == button);
                         if let Some(index) = self.locked.iter().position(|locked| *locked == button)
                         {
                             self.locked.remove(index);
-                            inputs.push(button_input(button, false));
+                            if !dragging {
+                                inputs.push(button_input(button, false));
+                            }
                         } else {
                             self.locked.push(button);
-                            inputs.push(button_input(button, true));
+                            if !dragging {
+                                inputs.push(button_input(button, true));
+                            }
                         }
                         self.send(state, host, inputs, at)?;
                         let _ = self.rest(state, host);
@@ -675,7 +740,7 @@ impl Ui {
                     "pad" => {
                         match phase {
                             "down" => {
-                                self.last_gesture_at = Some(at);
+                                self.pad_at = Some(at);
                                 let tapped = self
                                     .last_tap
                                     .take()
@@ -697,7 +762,7 @@ impl Ui {
                                     let dx = (f64::from(x) - f64::from(pad.x)) / 1000.;
                                     let dy = (f64::from(y) - f64::from(pad.y)) / 1000.;
                                     if dx != 0. || dy != 0. {
-                                        self.last_gesture_at = Some(at);
+                                        self.pad_at = Some(at);
                                         // Only a press that follows a tap drags; a swipe on its own only moves, however
                                         // long the finger rested before it. With a button locked, the pad only moves.
                                         let starts =
@@ -721,8 +786,9 @@ impl Ui {
                             }
                             "up" | "cancel" => {
                                 if let Some(pad) = self.pad.take() {
+                                    self.pad_at = None;
                                     if pad.dragging {
-                                        inputs.push(button_input(pad.drag_side, false));
+                                        inputs.extend(self.let_go(pad.drag_side));
                                     } else if self.locked.is_empty()
                                         && phase == "up"
                                         && pad.travelled < TAP_TRAVEL
@@ -753,7 +819,7 @@ impl Ui {
                     "wheel" => {
                         match phase {
                             "down" => {
-                                self.last_gesture_at = Some(at);
+                                self.wheel_at = Some(at);
                                 self.wheel = Some(y);
                                 self.owed = 0;
                             }
@@ -762,7 +828,7 @@ impl Ui {
                                     let moved = y.saturating_sub(*previous);
                                     *previous = y;
                                     if moved != 0 {
-                                        self.last_gesture_at = Some(at);
+                                        self.wheel_at = Some(at);
                                     }
                                     self.scrolled = self.scrolled.wrapping_add(moved);
                                     self.owed = self.owed.saturating_add(moved);
@@ -773,7 +839,10 @@ impl Ui {
                                     }
                                 }
                             }
-                            "up" | "cancel" => self.wheel = None,
+                            "up" | "cancel" => {
+                                self.wheel = None;
+                                self.wheel_at = None;
+                            }
                             _ => {}
                         }
                         // The wheel is drawn as it turns: its ridges follow the finger.
@@ -981,7 +1050,8 @@ impl Ui {
             pad_content,
         );
         // Measured, so a tap knows which half it landed on.
-        pad["observe"] = json!(["size"]);
+        // Seen leaving (another page, the window hidden or put away): whatever is held is let go.
+        pad["observe"] = json!(["size", "visibility"]);
         let surface = pad;
         let erasing = self.erasing.is_some();
         let keyboard = bx(
@@ -1374,8 +1444,8 @@ mod tests {
         assert_eq!(pad["id"], "pad");
         assert_eq!(
             pad["observe"],
-            json!(["size"]),
-            "measured, so a tap knows its half"
+            json!(["size", "visibility"]),
+            "measured, so a tap knows its half, and seen, so leaving lets go of what is held"
         );
         let over = pad["children"].as_array().unwrap().last().unwrap();
         assert_eq!(
@@ -2112,6 +2182,110 @@ mod tests {
                 button_input("left", false),
             ]
         );
+    }
+
+    /// A left drag under way: tapped on the left half, pressed again at once and swiped.
+    fn left_drag(ui: &mut Ui, state: &mut State, host: &mut Script) {
+        event(ui, state, host, "pad", "down", 1000, 1000, 80);
+        event(ui, state, host, "pad", "up", 1000, 1000, 90);
+        claim(host);
+        event(ui, state, host, "pad", "down", 1000, 1000, 100);
+        event(ui, state, host, "pad", "move", 2000, 1000, 120);
+        assert!(ui.pad.as_ref().is_some_and(|pad| pad.dragging));
+    }
+    fn buttons(host: &Script) -> Vec<Value> {
+        written(host)
+            .into_iter()
+            .filter(|e| e["t"] == "button")
+            .collect()
+    }
+
+    #[test]
+    fn a_lock_taken_during_a_drag_keeps_the_button_down_when_the_finger_lifts() {
+        let (mut ui, mut state, mut host) = ready();
+        left_drag(&mut ui, &mut state, &mut host);
+        let before = buttons(&host).len();
+        // The drag already holds left: the lock joins it without a second press, and the lift leaves it down.
+        event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 130);
+        event(&mut ui, &mut state, &mut host, "pad", "up", 2000, 1000, 140);
+        assert_eq!(
+            buttons(&host).len(),
+            before,
+            "no press or release while one of them holds it"
+        );
+        assert_eq!(ui.locked, ["left"]);
+        // The lock's own key lets it go.
+        claim(&mut host);
+        event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 150);
+        assert_eq!(buttons(&host)[before..], [button_input("left", false)]);
+    }
+
+    #[test]
+    fn a_lost_pad_lift_expires_on_its_own_silence_while_the_wheel_turns() {
+        let (mut ui, mut state, mut host) = ready();
+        left_drag(&mut ui, &mut state, &mut host);
+        event(&mut ui, &mut state, &mut host, "wheel", "down", 0, 0, 200);
+        // The wheel keeps turning; the pad's finger has said nothing since 120.
+        for at in [10_000, 20_000, 30_000] {
+            event(
+                &mut ui,
+                &mut state,
+                &mut host,
+                "wheel",
+                "move",
+                0,
+                (at / 10) as i32,
+                at,
+            );
+        }
+        host.results.push_back(
+            json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
+        );
+        ui.event(
+            &mut state,
+            &mut host,
+            &json!({"t":"tick","at":120 + STUCK_MS}),
+        )
+        .unwrap();
+        assert!(ui.pad.is_none(), "the pad's drag is let go");
+        assert_eq!(buttons(&host).last(), Some(&button_input("left", false)));
+        assert!(ui.wheel.is_some(), "the wheel turning goes on");
+    }
+
+    #[test]
+    fn leaving_the_page_lets_go_of_a_locked_button() {
+        let (mut ui, mut state, mut host) = ready();
+        event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 100);
+        assert!(ui.holding());
+        // Still seen: nothing changes.
+        let seen = json!({"t":"visibility","id":"pad","visible":true,"foreground":true});
+        assert!(ui.event(&mut state, &mut host, &seen).unwrap().is_null());
+        assert!(ui.holding());
+        // The page is no longer seen: the hold ends and the connection with it.
+        let gone = json!({"t":"visibility","id":"pad","visible":false,"foreground":false});
+        ui.event(&mut state, &mut host, &gone).unwrap();
+        assert!(!ui.holding() && ui.locked.is_empty());
+        assert!(state.outgoing.is_none());
+    }
+
+    #[test]
+    fn a_failed_background_rotation_lets_go_here_and_redraws() {
+        let (mut ui, mut state, mut host) = ready();
+        event(&mut ui, &mut state, &mut host, "left", "down", 0, 0, 100);
+        assert!(ui.holding() && ui.opened.is_some());
+        // The other side never acknowledges the rotation.
+        host.acks = false;
+        host.results.push_back(
+            json!({"status":"ok","value":[{"device":"scoped","name":"Computer","online":true}]}),
+        );
+        let drawn = ui
+            .event(&mut state, &mut host, &json!({"t":"tick","at":100 + 5000}))
+            .unwrap();
+        assert!(
+            !ui.holding() && ui.locked.is_empty(),
+            "nothing is shown held after it"
+        );
+        assert_eq!(drawn, ui.tree());
     }
 
     #[test]

@@ -16,6 +16,38 @@ const MENU_HEADER: f64 = 52.;
 const MENU_ROW: f64 = 48.;
 const MENU_PAGING: f64 = 44.;
 
+/// The manual zoom's bounds. A fitted view may be smaller still; a step from it starts where it is and never jumps to
+/// the minimum.
+const MIN_ZOOM: f64 = 0.005;
+const MAX_ZOOM: f64 = 2.;
+fn zoom_step(scale: f64, factor: f64) -> f64 {
+    (scale * factor).clamp(MIN_ZOOM.min(scale), MAX_ZOOM)
+}
+/// A canvas measurement (`size` event): where it sits and how large it is, in logical pixels.
+fn canvas_measure(event: &Value) -> Result<[f64; 4], &'static str> {
+    let length = |key: &str| {
+        event[key]
+            .as_i64()
+            .filter(|n| (0..=i64::from(MAX_PAGE_AT)).contains(n))
+            .map(|n| n as f64 / 1000.)
+            .ok_or(answer::NOT_UNDERSTOOD)
+    };
+    Ok([
+        page_coordinate(&event["x"])?,
+        page_coordinate(&event["y"])?,
+        length("width")?,
+        length("height")?,
+    ])
+}
+/// A short, stable name of a device for an element ID (FNV-1a), whatever characters the host's name of it holds.
+fn device_tag(device: &str) -> String {
+    let hash = device
+        .bytes()
+        .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
+            (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+        });
+    format!("{hash:016x}")
+}
 fn placement_fits(at: [i64; 2], extent: [i64; 2]) -> bool {
     at.into_iter()
         .zip(extent)
@@ -138,6 +170,8 @@ pub struct Ui {
 const NEEDS_SCREENS: &str = "To arrange devices here, allow Control to see this computer's screens in Settings, Permissions.";
 const NEEDS_ARRANGE: &str =
     "Cannot save the arrangement: missing permission displays.arrange on this device.";
+/// What the page says when a save failed: the arrangement it shows may no longer be the host's until it is read again.
+const SAVE_FAILED: &str = "The layout could not be saved. Reload before making another change.";
 fn text(s: impl Into<String>) -> Value {
     json!({"k":"text","text":s.into(),"tone":"muted"})
 }
@@ -325,6 +359,10 @@ impl Ui {
     /// A refusal to read the arrangement belongs on the page, not in a failed page response.
     fn read_again<H: Wire>(&mut self, state: &mut State, host: &mut H) {
         let result = self.refresh(state, host);
+        // A failed save asked for a reload: one that succeeded answers it. A failed read keeps it.
+        if result.is_ok() && self.error.as_deref() == Some(SAVE_FAILED) {
+            self.error = None;
+        }
         self.watch_block = matches!(
             &result,
             Err(Refusal::Blocked(Blocked::MissingPermission(_)))
@@ -373,7 +411,7 @@ impl Ui {
                     )
                 }
                 Refusal::Other(answer::CANCELLED) => answer::CANCELLED.into(),
-                _ => "The layout could not be saved. Reload before making another change.".into(),
+                _ => SAVE_FAILED.into(),
             })?;
         self.load(value).map_err(Into::into)
     }
@@ -421,6 +459,14 @@ impl Ui {
                 0,
             ]
         });
+        // Detached, a device goes where it was last free; a place that no longer fits its size is refused, as a drag
+        // or a free placement there would be, and it stays attached.
+        if side.is_none() && !placement_fits(free, self.items[index].extent()) {
+            self.error = Some(
+                "This device's last free place no longer fits its size. Move it first.".into(),
+            );
+            return;
+        }
         self.items[index].relative_to_local = side;
         self.items[index].at = Some(free);
         if let Err(reason) = self.save(state, host) {
@@ -474,6 +520,13 @@ impl Ui {
     fn height(&self) -> f64 {
         self.bounds[3].max(1.)
     }
+    /// Whether a page point (logical pixels) is on the canvas.
+    fn on_canvas(&self, point: [f64; 2]) -> bool {
+        point[0] >= self.bounds[0]
+            && point[0] <= self.bounds[0] + self.bounds[2]
+            && point[1] >= self.bounds[1]
+            && point[1] <= self.bounds[1] + self.height()
+    }
     fn view(&self) -> (f64, [f64; 2]) {
         self.zoom.unwrap_or_else(|| {
             let all = self.monitors();
@@ -484,9 +537,8 @@ impl Ui {
             let b = all.iter().map(Rect::bottom).max().unwrap_or(1080) as f64;
             let sx = (r - l).max(1.);
             let sy = (b - t).max(1.);
-            let scale = (w / (sx * 1.3))
-                .min(self.height() / (sy * 1.3))
-                .clamp(0.005, 2.);
+            // Fitting is not bound by the manual zoom's minimum: devices far apart still all fit.
+            let scale = (w / (sx * 1.3)).min(self.height() / (sy * 1.3)).min(2.);
             (
                 scale,
                 [
@@ -715,6 +767,13 @@ impl Ui {
         // One layout is shown on more than one page. A gesture is on one of them: while it lasts, the
         // other page's ticks and measurements must not swap the canvas under it.
         if self.grab.is_some() && page.is_some() && self.grab_page.as_deref() != page {
+            // That page's new measurement is still kept for it, for when it is the one shown again.
+            if let Some(page) = page
+                && event["t"] == "size"
+                && event["id"] == "canvas"
+            {
+                self.pages.insert(page.to_owned(), canvas_measure(event)?);
+            }
             return Ok(Value::Null);
         }
         if let Some(bounds) = page.and_then(|page| self.pages.get(page)) {
@@ -741,26 +800,14 @@ impl Ui {
                     return Ok(Value::Null);
                 }
                 self.refreshed = at;
-                let before = (self.items.clone(), self.unseen.take());
+                let before = (self.items.clone(), self.unseen.take(), self.error.clone());
                 self.read_again(state, host);
-                if before.0 == self.items && before.1 == self.unseen {
+                if before.0 == self.items && before.1 == self.unseen && before.2 == self.error {
                     return Ok(Value::Null);
                 }
             }
             Some("size") if id == "canvas" => {
-                let length = |key: &str| {
-                    event[key]
-                        .as_i64()
-                        .filter(|n| (0..=i64::from(MAX_PAGE_AT)).contains(n))
-                        .map(|n| n as f64 / 1000.)
-                        .ok_or(answer::NOT_UNDERSTOOD)
-                };
-                let next = [
-                    page_coordinate(&event["x"])?,
-                    page_coordinate(&event["y"])?,
-                    length("width")?,
-                    length("height")?,
-                ];
+                let next = canvas_measure(event)?;
                 let resized = (next[2] - self.bounds[2]).abs() >= 0.5
                     || (next[3] - self.bounds[3]).abs() >= 0.5;
                 self.bounds = next;
@@ -778,7 +825,7 @@ impl Ui {
                 if dy == 0 {
                     return Ok(Value::Null);
                 }
-                let next = (scale * if dy > 0 { 1.15 } else { 1. / 1.15 }).clamp(0.005, 2.);
+                let next = zoom_step(scale, if dy > 0 { 1.15 } else { 1. / 1.15 });
                 let x = page_coordinate(&event["x"])? - self.bounds[0];
                 let y = page_coordinate(&event["y"])? - self.bounds[1];
                 self.zoom = Some((
@@ -791,8 +838,8 @@ impl Ui {
             }
             Some("press") => match id {
                 "fit" => self.zoom = None,
-                "minus" => self.zoom = Some(((scale / 1.25).clamp(0.005, 2.), origin)),
-                "plus" => self.zoom = Some(((scale * 1.25).clamp(0.005, 2.), origin)),
+                "minus" => self.zoom = Some((zoom_step(scale, 1. / 1.25), origin)),
+                "plus" => self.zoom = Some((zoom_step(scale, 1.25), origin)),
                 _ if !self.editable() => return Ok(Value::Null),
                 "devices" => {
                     let at = self.menu_position(self.menu_height());
@@ -835,14 +882,18 @@ impl Ui {
                     }
                 }
                 _ => {
+                    // The press names the device the button was drawn for: after a reload moved the list under
+                    // an older drawing, it no longer matches and nothing is removed.
                     if let Some(index) = id
                         .strip_prefix("remove-")
-                        .and_then(|n| n.parse::<usize>().ok())
-                        .filter(|n| {
-                            *n < self.items.len()
-                                && !self.items[*n].local
-                                && self.items[*n].at.is_some()
+                        .and_then(|rest| rest.split_once('-'))
+                        .and_then(|(n, tag)| Some((n.parse::<usize>().ok()?, tag)))
+                        .filter(|(n, tag)| {
+                            self.items.get(*n).is_some_and(|item| {
+                                !item.local && item.at.is_some() && *tag == device_tag(&item.device)
+                            })
                         })
+                        .map(|(n, _)| n)
                     {
                         let old = self.items[index].at;
                         self.error = None;
@@ -1044,11 +1095,7 @@ impl Ui {
                             Some(Grab::Menu {
                                 index, was, moved, ..
                             }) => {
-                                let inside = point[0] >= self.bounds[0]
-                                    && point[0] <= self.bounds[0] + self.bounds[2]
-                                    && point[1] >= self.bounds[1]
-                                    && point[1] <= self.bounds[1] + self.height();
-                                if event["phase"] == "cancel" || (moved && !inside) {
+                                if event["phase"] == "cancel" || (moved && !self.on_canvas(point)) {
                                     self.items[index].at = was;
                                 } else {
                                     if !moved && was.is_none() {
@@ -1077,7 +1124,10 @@ impl Ui {
                                 self.menu_anchor = None;
                             }
                             Some(Grab::Relative { index, moved, .. }) if event["phase"] == "up" => {
-                                if moved {
+                                // Let go outside the canvas, an attached device keeps its side, as a device
+                                // dropped there from the menu is not placed.
+                                if moved && !self.on_canvas(point) {
+                                } else if moved {
                                     if let Some(side) = self.side_near(
                                         [point[0] - self.bounds[0], point[1] - self.bounds[1]],
                                         scale,
@@ -1274,7 +1324,10 @@ impl Ui {
                     },
                 ));
                 if item.at.is_some() {
-                    row.push(button(format!("remove-{n}"), "×"));
+                    row.push(button(
+                        format!("remove-{n}-{}", device_tag(&item.device)),
+                        "×",
+                    ));
                 }
                 menu.push(bx(
                     Some(&format!("menu-device-{n}")),
@@ -1410,7 +1463,7 @@ mod tests {
         ui.event(
             &mut state,
             &mut host,
-            &json!({"t":"press","id":"remove-1"}),
+            &json!({"t":"press","id":format!("remove-1-{}", device_tag(&ui.items[1].device))}),
             None,
         )
         .unwrap();
@@ -1502,6 +1555,114 @@ mod tests {
         assert_eq!(rect["style"]["width"]["value"], 100);
         assert_eq!(host.sent[1]["args"]["expected"], projected["placements"]);
         assert_eq!(host.sent[1]["args"]["placements"], scene()["placements"]);
+    }
+
+    #[test]
+    fn a_successful_reload_answers_a_failed_save_and_a_failed_one_keeps_it() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.error = Some(SAVE_FAILED.into());
+        host.results
+            .push_back(json!({"status":"error","code":"failed"}));
+        ui.read_again(&mut state, &mut host);
+        assert_eq!(ui.error.as_deref(), Some(SAVE_FAILED));
+        host.results
+            .push_back(json!({"status":"ok","value":scene()}));
+        let tree = ui
+            .event(&mut state, &mut host, &json!({"t":"tick","at":2500}), None)
+            .unwrap();
+        assert!(ui.error.is_none());
+        assert!(!tree.is_null(), "the page is drawn again without the error");
+    }
+
+    #[test]
+    fn detaching_to_a_free_place_that_no_longer_fits_keeps_the_device_attached() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.items[1].relative_to_local = Some(Side::Right);
+        ui.items[1].at = Some([MAX_PLANE_AT - 50, 0]);
+        ui.set_relative(&mut state, &mut host, 1, None);
+        assert_eq!(ui.items[1].relative_to_local, Some(Side::Right));
+        assert_eq!(ui.items[1].at, Some([MAX_PLANE_AT - 50, 0]));
+        assert!(ui.error.is_some() && host.sent.is_empty());
+        // A remembered place that fits is restored exactly.
+        ui.items[1].at = Some([500, 0]);
+        let mut free = scene();
+        free["devices"][1]["at"] = json!([500, 0]);
+        free["placements"][0]["x"] = json!(500);
+        host.results.push_back(json!({"status":"ok","value":free}));
+        ui.set_relative(&mut state, &mut host, 1, None);
+        assert_eq!(
+            host.sent[0]["args"]["placements"][0],
+            json!({"device":"scoped","x":500,"y":0})
+        );
+        assert_eq!(ui.items[1].relative_to_local, None);
+    }
+
+    #[test]
+    fn fitting_shows_devices_far_apart_and_a_zoom_step_starts_from_the_fit() {
+        let mut ui = Ui::default();
+        let mut far = scene();
+        far["devices"][1]["at"] = json!([200_000, 0]);
+        far["placements"][0]["x"] = json!(200_000);
+        ui.load(far).unwrap();
+        ui.bounds = [0., 0., 600., INITIAL_HEIGHT];
+        let (scale, origin) = ui.view();
+        assert!(scale > 0. && scale < MIN_ZOOM);
+        for rect in ui.monitors() {
+            assert!(rect.x as f64 >= origin[0] && rect.right() as f64 <= origin[0] + 600. / scale);
+        }
+        assert_eq!(
+            zoom_step(scale, 1.25),
+            scale * 1.25,
+            "no jump to the manual minimum"
+        );
+        assert_eq!(zoom_step(scale, 1. / 1.25), scale, "never below the fit");
+    }
+
+    #[test]
+    fn another_pages_measurement_during_a_drag_is_kept_for_that_page_only() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.grab = Some(Grab::Pan {
+            from: [0., 0.],
+            was: [0., 0.],
+        });
+        ui.grab_page = Some("settings".into());
+        let before = ui.bounds;
+        let size = json!({"t":"size","id":"canvas","x":0,"y":0,"width":800_000,"height":500_000});
+        assert!(
+            ui.event(&mut state, &mut host, &size, Some("layout"))
+                .unwrap()
+                .is_null()
+        );
+        assert_eq!(
+            ui.bounds, before,
+            "the canvas under the drag is not swapped"
+        );
+        assert_eq!(ui.pages["layout"], [0., 0., 800., 500.]);
+    }
+
+    #[test]
+    fn an_attached_device_let_go_outside_the_canvas_keeps_its_side() {
+        let mut ui = ready();
+        let mut state = State::default();
+        let mut host = Script::default();
+        ui.items[1].relative_to_local = Some(Side::Right);
+        ui.grab = Some(Grab::Relative {
+            index: 1,
+            from: [500., 100.],
+            side: None,
+            moved: true,
+        });
+        // Released left of the canvas, beside the local desktop's left side.
+        let up = json!({"t":"pointer","id":"canvas","phase":"up","x":-100_000,"y":50_000});
+        ui.event(&mut state, &mut host, &up, None).unwrap();
+        assert_eq!(ui.items[1].relative_to_local, Some(Side::Right));
+        assert!(host.sent.is_empty(), "nothing is saved");
     }
 
     #[test]
@@ -2074,7 +2235,15 @@ mod tests {
             20_000,
         );
         assert_eq!(ui.items[1].at, Some([140, 0]));
-        let remove = json!({"t":"press","id":"remove-2"});
+        let remove = json!({"t":"press","id":format!("remove-2-{}", device_tag("other"))});
+        // A press drawn for another device at that place removes nothing.
+        let stale =
+            json!({"t":"press","id":format!("remove-2-{}", device_tag(&ui.items[1].device))});
+        assert!(
+            ui.event(&mut state, &mut host, &stale, None)
+                .unwrap()
+                .is_null()
+        );
         assert!(
             ui.event(&mut state, &mut host, &remove, None)
                 .unwrap()

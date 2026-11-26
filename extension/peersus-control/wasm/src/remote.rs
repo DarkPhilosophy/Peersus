@@ -328,7 +328,7 @@ impl State {
     }
 
     fn on_config_changed<H: Wire + Data>(&mut self, host: &mut H) {
-        let _ = self.configure_pages(host);
+        self.pages_failed = self.configure_pages(host).is_err();
         if let Some(device) = self
             .outgoing
             .as_ref()
@@ -1110,6 +1110,11 @@ impl State {
                 self.call(host, INPUT, "inject", args)
             };
             match result {
+                // A cancellation can arrive while this batch was answered: nothing more of the stream is
+                // applied, and a cancelled last batch cannot complete a `continues` handoff.
+                Ok(_) if replay_cancelled(&self.waiting, incoming.ticket) => {
+                    return Err(answer::CANCELLED.into());
+                }
                 Ok(_) => return Ok(()),
                 Err(Refusal::Other(REPLAY_BUSY)) => {
                     let delay = backoffs.next().ok_or(REPLAY_BUSY)?;
@@ -1311,6 +1316,11 @@ fn outcome(result: Result<(), Refusal>) -> Value {
 
 /// Answer one delivery. `None` for anything that is not a call.
 pub fn handle<H: Wire + Data>(host: &mut H, state: &mut State, delivery: &Value) -> Option<Value> {
+    // A page placement the host refused is not left behind the settings: the next delivery tries it again, so
+    // nothing waits for a later change of the settings or a restart.
+    if state.pages_failed && !config_changed(delivery) {
+        state.pages_failed = state.configure_pages(host).is_err();
+    }
     if config_changed(delivery) {
         state.on_config_changed(host);
         return None;
@@ -1412,6 +1422,37 @@ mod tests {
         let mut framed = (bytes.len() as u32).to_be_bytes().to_vec();
         framed.extend_from_slice(bytes);
         framed
+    }
+
+    #[test]
+    fn a_page_placement_the_host_refused_is_tried_again_with_the_next_delivery() {
+        let mut state = State::default();
+        let mut host = Script::default();
+        let config = configuration(json!({"layout-page": true}));
+        host.results.extend([
+            ok(config.clone()),
+            json!({"status":"error","code":"failed"}),
+        ]);
+        super::handle(&mut host, &mut state, &config_event());
+        assert_eq!(state.placed_pages, None);
+        host.results.extend([ok(config), ok(json!({}))]);
+        super::handle(
+            &mut host,
+            &mut state,
+            &json!({"type":"event","service":"other"}),
+        );
+        assert_eq!(state.placed_pages, Some(vec!["layout-page"]));
+        let asked = host.sent.len();
+        super::handle(
+            &mut host,
+            &mut state,
+            &json!({"type":"event","service":"other"}),
+        );
+        assert_eq!(
+            host.sent.len(),
+            asked,
+            "a placement that holds is not asked again"
+        );
     }
 
     #[test]
@@ -2715,6 +2756,39 @@ mod multiplex_tests {
             1
         );
         assert_eq!(host.wire.sent.last().unwrap()["method"], "release");
+    }
+
+    #[test]
+    fn a_cancellation_answered_with_an_applied_batch_stops_the_next_batch() {
+        let mut host = Concurrent::default();
+        let mut state = State::default();
+        host.wire
+            .results
+            .push_back(ok(json!({"settings":{"independent":false}})));
+        state.receive(&mut host, 7, &json!({"peer":"pc"})).unwrap();
+        // One read holds a batch and one event more.
+        let events = "{\"t\":\"scroll\",\"dx\":0,\"dy\":1}\n".repeat(MOST_BATCH + 1);
+        host.streams.insert(7, [events.into_bytes()].into());
+        // The cancellation comes in while the first batch is being answered.
+        host.wire
+            .deliveries
+            .push_back(json!({"type":"cancelled","ticket":7}));
+        host.wire.results.extend([
+            ok(json!({"applied":MOST_BATCH})),
+            ok(json!({"released":true})),
+        ]);
+        assert!(state.advance(&mut host, 7).is_none());
+        assert_eq!(
+            host.wire
+                .sent
+                .iter()
+                .filter(|call| call["method"] == "inject")
+                .count(),
+            1,
+            "the event past the batch is never applied"
+        );
+        assert_eq!(host.wire.sent.last().unwrap()["method"], "release");
+        assert!(state.incoming.is_empty() && state.handoffs.is_empty());
     }
 
     #[test]
