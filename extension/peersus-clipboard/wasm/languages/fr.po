@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: fr\n"
+"X-Language-Name: Français\n"
+
+msgid "Send clipboard text"
+msgstr "Envoyer le texte du presse-papiers"
+
+msgid "Send shared text"
+msgstr "Envoyer le texte partagé"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Synchroniser automatiquement le texte du presse-papiers"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Envoyer automatiquement le texte du presse-papiers à cet appareil"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Nécessite la synchronisation automatique et, pour cet appareil, l'autorisation de le voir, l'autorisation du presse-papiers et l'autorisation d'envoi."
+
+msgid "Send"
+msgstr "Envoyer"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Activez-le ici et pour chaque appareil. Les nouvelles copies ne sont envoyées que tant que cet appareil peut lire le presse-papiers, et les contenus sensibles sont exclus. Un refus met fin à cette tentative."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Partage du texte du presse-papiers avec des autorisations explicites et une synchronisation automatique facultative."

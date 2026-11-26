@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: pl\n"
+"X-Language-Name: Polski\n"
+
+msgid "Send clipboard text"
+msgstr "Wyślij tekst ze schowka"
+
+msgid "Send shared text"
+msgstr "Wyślij udostępniony tekst"
+
+msgid "Automatically synchronize clipboard text"
+msgstr "Automatycznie synchronizuj tekst ze schowka"
+
+msgid "Automatically send clipboard text to this device"
+msgstr "Automatycznie wysyłaj tekst ze schowka na to urządzenie"
+
+msgid "Requires automatic synchronization and, for this device, permission to see it, the clipboard permission and the send permission."
+msgstr "Wymaga automatycznej synchronizacji oraz, dla tego urządzenia, uprawnienia do jego widzenia, uprawnienia do schowka i uprawnienia do wysyłania."
+
+msgid "Send"
+msgstr "Wyślij"
+
+msgid "Opt in here and per device. New copies are sent only while this device can read the clipboard, and sensitive clips are excluded. A refusal stops that attempt."
+msgstr "Włącz tutaj i dla każdego urządzenia. Nowe kopie są wysyłane tylko wtedy, gdy to urządzenie może odczytać schowek, a treści poufne są pomijane. Odmowa kończy tę próbę."
+
+msgid "Clipboard text sharing with explicit permissions and optional automatic synchronization."
+msgstr "Udostępnianie tekstu ze schowka z wyraźnymi uprawnieniami i opcjonalną automatyczną synchronizacją."
