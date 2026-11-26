@@ -44,8 +44,16 @@ fn arm<H: Wire + Data>(
     let now = Eligibility::of(&config);
     if let Some(paused) = &state.paused {
         let granted = refreshed
-            && matches!(paused, Paused::Checked(Blocked::MissingPermission(permission))
-                if session.readiness.missing(None, &permission.owner, &permission.name).is_none());
+            && match paused {
+                Paused::Checked(Blocked::MissingPermission(permission)) => session
+                    .readiness
+                    .missing(None, &permission.owner, &permission.name)
+                    .is_none(),
+                // An untyped refusal has no permission to look up. A fresh readiness
+                // report can re-arm observation only when both local grants are present.
+                Paused::LegacyDenied => observation_block(session).is_none(),
+                Paused::Checked(Blocked::NotAccepted) => false,
+            };
         if !config_signal || !(granted || state.consent_changed(&now)) {
             return Some(false);
         }
@@ -782,6 +790,51 @@ mod tests {
             Pass::Done
         );
         assert_eq!(host.written, wire::encode("fresh after the grant").unwrap());
+    }
+
+    #[test]
+    fn a_fresh_restored_grant_rearms_a_legacy_denial_without_sending_the_baseline() {
+        let devices = [("phone", true, true)];
+        let mut state = Automatic::new();
+        let mut host = Script::default();
+        host.results.extend([
+            config(true, &devices),
+            json!({"status":"error","code":"denied"}),
+        ]);
+        let mut next = 0;
+        let mut backlog = Default::default();
+        assert_eq!(
+            start(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert!(matches!(state.paused, Some(Paused::LegacyDenied)));
+
+        let mut missing = config(true, &devices);
+        missing["value"]["missing_permissions"] = json!([{"owner":"host","name":"clipboard.read"}]);
+        host.results.push_back(missing);
+        assert_eq!(
+            on_config_changed(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert!(!state.can_observe());
+        assert_eq!(
+            methods(&host)
+                .iter()
+                .filter(|method| *method == "peersus.clipboard.reset")
+                .count(),
+            1
+        );
+
+        host.results.extend([config(true, &devices), reset_ok()]);
+        host.results
+            .extend(captured("before permission returned", true));
+        assert_eq!(
+            on_config_changed(&mut host, &mut state, &mut next, &mut backlog),
+            Pass::Done
+        );
+        assert!(state.can_observe());
+        assert!(host.opened.is_empty());
+        assert!(host.results.is_empty());
     }
 
     #[test]
