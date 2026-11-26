@@ -15,9 +15,9 @@ pub enum Trouble {
     Nonsense,
     /// No answer to this call, ever. Later calls are answered.
     Late,
-    /// Work without end inside one turn.
+    /// Exhausts the WebAssembly interpreter's per-turn fuel.
     Spin,
-    /// Memory taken until there is no more.
+    /// Reaches the WebAssembly interpreter's linear-memory limit.
     Fill,
     /// The entry point returns an error.
     Leave,
@@ -53,13 +53,13 @@ pub const TROUBLES: &[(Trouble, &str, &str, &str)] = &[
         Trouble::Spin,
         "spin",
         "Spin",
-        "Stops this extension when its work allowance runs out and says so; the rest goes on.",
+        "Runs only in WebAssembly: the interpreter stops this extension when its per-turn fuel runs out.",
     ),
     (
         Trouble::Fill,
         "fill",
         "Fill memory",
-        "Stops this extension at its memory limit and says so; the application's memory is not touched.",
+        "Runs only in WebAssembly: the interpreter caps this extension's linear memory, and allocation failure stops the extension.",
     ),
     (
         Trouble::Leave,
@@ -94,6 +94,9 @@ pub enum After {
     Answer,
     /// Leave it unanswered.
     Skip,
+    /// Refuse an interpreter-only case and explain why in the returned page.
+    #[cfg(not(target_family = "wasm"))]
+    RefuseInterpreterTest,
     /// End the extension with an error.
     Leave,
 }
@@ -123,7 +126,8 @@ pub fn make<H: Wire>(host: &mut H, trouble: Trouble, ticket: u64) -> After {
             After::Answer
         }
         Trouble::Nonsense => {
-            let _ = host.send(json!("not an operation at all"))
+            let _ = host
+                .send(json!("not an operation at all"))
                 .and_then(|()| host.send(json!({"op":"dance","with":"nobody"})))
                 .and_then(|()| {
                     host.send(json!({"op":"reply","ticket":ticket.wrapping_add(1_000_000),
@@ -136,12 +140,16 @@ pub fn make<H: Wire>(host: &mut H, trouble: Trouble, ticket: u64) -> After {
             After::Skip
         }
         Trouble::Late => After::Skip,
+        #[cfg(not(target_family = "wasm"))]
+        Trouble::Spin | Trouble::Fill => After::RefuseInterpreterTest,
+        #[cfg(target_family = "wasm")]
         Trouble::Spin => {
             let mut turns = 0u64;
             loop {
                 turns = core::hint::black_box(turns.wrapping_add(1));
             }
         }
+        #[cfg(target_family = "wasm")]
         Trouble::Fill => {
             let mut held = Vec::new();
             loop {
@@ -173,7 +181,9 @@ mod tests {
             None
         );
         assert_eq!(
-            asked(&json!({"type":"call","method":"event","args":{"event":{"t":"submit","id":"spin"}}})),
+            asked(
+                &json!({"type":"call","method":"event","args":{"event":{"t":"submit","id":"spin"}}})
+            ),
             None
         );
     }
