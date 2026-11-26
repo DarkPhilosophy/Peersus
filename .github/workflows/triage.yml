@@ -18,12 +18,18 @@ permissions:
   statuses: read
   pull-requests: write
   issues: write
-concurrency:
-  group: triage-${{ github.repository }}
-  cancel-in-progress: false
 jobs:
   labels:
     name: PR metadata labels
+    # A person's review (a reply in a thread, a comment, an approval) changes no label; only a reviewer bot's can.
+    # Skipped here, it spends no runner and never takes the place of a pending run that matters.
+    if: github.event_name != 'pull_request_review' || github.event.review.user.type == 'Bot'
+    # Each PR apart: events on one PR fold into its newest pending run, and a PR's events never cancel another's.
+    # A completed workflow names its PR when it ran on this repository's branch, else its head commit (a fork);
+    # a run by hand refreshes them all.
+    concurrency:
+      group: triage-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha || 'all' }}
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -36,5 +42,6 @@ jobs:
       - name: Refresh platform, artifact and current-head CI labels
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: python3 scripts/triage-pull-request.py
