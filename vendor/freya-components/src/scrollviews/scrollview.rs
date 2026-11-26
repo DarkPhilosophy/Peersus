@@ -1,0 +1,553 @@
+use std::{
+    rc::Rc,
+    time::Duration,
+};
+
+use freya_core::prelude::*;
+use freya_sdk::timeout::use_timeout;
+use torin::{
+    node::Node,
+    prelude::{
+        Direction,
+        Length,
+    },
+    size::Size,
+};
+
+use crate::scrollviews::{
+    ScrollBar,
+    ScrollBarContext,
+    ScrollBarThumbEvents,
+    ScrollConfig,
+    ScrollController,
+    ScrollPoint,
+    shared::{
+        Axis,
+        get_container_sizes,
+        get_corrected_scroll_position,
+        get_scroll_position_from_cursor,
+        get_scroll_position_from_wheel,
+        get_scrollbar_pos_and_size,
+        handle_key_event,
+        is_scrollbar_visible,
+    },
+    touch_drag::use_touch_drag,
+    use_scroll_controller,
+};
+
+/// Scrollable area with bidirectional support and scrollbars.
+///
+/// It renders all of its children and scrolls over them, which makes it a good fit for small or
+/// medium amounts of content. For large data sets prefer
+/// [`VirtualScrollView`](crate::scrollviews::VirtualScrollView), which only renders the visible
+/// items. It scrolls vertically by default, use [`horizontal`](DirectionExt::horizontal) for a
+/// horizontal layout. To drive the scroll position from code, build it with
+/// [`new_controlled`](ScrollView::new_controlled) and a [`ScrollController`].
+///
+/// # Example
+///
+/// ```rust
+/// # use freya::prelude::*;
+/// fn app() -> impl IntoElement {
+///     ScrollView::new()
+///         .child("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum laoreet tristique diam, ut gravida enim. Phasellus viverra vitae risus sit amet iaculis. Morbi porttitor quis nisl eu vulputate. Etiam vitae ligula a purus suscipit iaculis non ac risus. Suspendisse potenti. Aenean orci massa, ornare ut elit id, tristique commodo dui. Vestibulum laoreet tristique diam, ut gravida enim. Phasellus viverra vitae risus sit amet iaculis. Vestibulum laoreet tristique diam, ut gravida enim. Phasellus viverra vitae risus sit amet iaculis. Vestibulum laoreet tristique diam, ut gravida enim. Phasellus viverra vitae risus sit amet iaculis.")
+/// }
+/// ```
+///
+/// See the [interactive components demo](https://freyaui.dev/demo).
+#[derive(Clone, PartialEq)]
+pub struct ScrollView {
+    children: Rc<Vec<Element>>,
+    layout: LayoutData,
+    show_scrollbar: bool,
+    auto_hide_scrollbars: bool,
+    scroll_with_arrows: bool,
+    scroll_controller: Option<ScrollController>,
+    follows_scroll_controller: bool,
+    invert_scroll_wheel: bool,
+    drag_scrolling: bool,
+    on_sized: Option<EventHandler<Event<SizedEventData>>>,
+    scrollbar: Callback<ScrollBarContext, Element>,
+    key: DiffKey,
+}
+
+impl ChildrenExt for ScrollView {
+    fn children_mut(&mut self) -> &mut Vec<Element> {
+        Rc::make_mut(&mut self.children)
+    }
+}
+
+impl KeyExt for ScrollView {
+    fn key_mut(&mut self) -> &mut DiffKey {
+        &mut self.key
+    }
+}
+
+impl Default for ScrollView {
+    fn default() -> Self {
+        Self {
+            children: Rc::default(),
+            layout: Node {
+                width: Size::fill(),
+                height: Size::fill(),
+                ..Default::default()
+            }
+            .into(),
+            show_scrollbar: true,
+            auto_hide_scrollbars: true,
+            scroll_with_arrows: true,
+            scroll_controller: None,
+            follows_scroll_controller: false,
+            invert_scroll_wheel: false,
+            drag_scrolling: true,
+            on_sized: None,
+            scrollbar: ScrollBar::default_renderer(),
+            key: DiffKey::None,
+        }
+    }
+}
+
+impl ScrollView {
+    /// Creates an uncontrolled scroll view that manages its own scroll position.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a scroll view driven by the given [`ScrollController`].
+    pub fn new_controlled(scroll_controller: ScrollController) -> Self {
+        Self {
+            scroll_controller: Some(scroll_controller),
+            ..Default::default()
+        }
+    }
+
+    /// Attaches a controller and updates its bounds from this view's layout.
+    pub fn scroll_controller(
+        mut self,
+        scroll_controller: impl Into<Option<ScrollController>>,
+    ) -> Self {
+        self.scroll_controller = scroll_controller.into();
+        self.follows_scroll_controller = false;
+        self
+    }
+
+    /// Attaches a controller without updating its bounds from this view's layout.
+    pub fn follow_scroll_controller(mut self, scroll_controller: ScrollController) -> Self {
+        self.scroll_controller = Some(scroll_controller);
+        self.follows_scroll_controller = true;
+        self
+    }
+
+    /// Toggles whether the scrollbars are shown when the content overflows.
+    pub fn show_scrollbar(mut self, show_scrollbar: bool) -> Self {
+        self.show_scrollbar = show_scrollbar;
+        self
+    }
+
+    /// Toggles hiding idle scrollbars, enabled by default.
+    /// When disabled, scrollbars remain visible while the content overflows.
+    pub fn auto_hide_scrollbars(mut self, auto_hide_scrollbars: bool) -> Self {
+        self.auto_hide_scrollbars = auto_hide_scrollbars;
+        self
+    }
+
+    /// Sets the gap between children along the scroll direction.
+    pub fn spacing(mut self, spacing: f32) -> Self {
+        self.layout.spacing = Length::new(spacing);
+        self
+    }
+
+    /// Toggles whether the arrow keys scroll the view while it is focused.
+    pub fn scroll_with_arrows(mut self, scroll_with_arrows: impl Into<bool>) -> Self {
+        self.scroll_with_arrows = scroll_with_arrows.into();
+        self
+    }
+
+    /// Inverts the direction of the mouse wheel relative to the content.
+    pub fn invert_scroll_wheel(mut self, invert_scroll_wheel: impl Into<bool>) -> Self {
+        self.invert_scroll_wheel = invert_scroll_wheel.into();
+        self
+    }
+
+    /// Toggles scrolling by dragging the content, useful mainly for touch input.
+    pub fn drag_scrolling(mut self, drag_scrolling: bool) -> Self {
+        self.drag_scrolling = drag_scrolling;
+        self
+    }
+
+    /// Sets the renderer used for each visible scrollbar.
+    pub fn scrollbar(mut self, scrollbar: impl Into<Callback<ScrollBarContext, Element>>) -> Self {
+        self.scrollbar = scrollbar.into();
+        self
+    }
+
+    /// Sets a handler called with the scroll view's area whenever it is laid out.
+    pub fn on_sized(mut self, on_sized: impl Into<EventHandler<Event<SizedEventData>>>) -> Self {
+        self.on_sized = Some(on_sized.into());
+        self
+    }
+
+    /// Caps the width of the scroll view.
+    pub fn max_width(mut self, max_width: impl Into<Size>) -> Self {
+        self.layout.maximum_width = max_width.into();
+        self
+    }
+
+    /// Caps the height of the scroll view.
+    pub fn max_height(mut self, max_height: impl Into<Size>) -> Self {
+        self.layout.maximum_height = max_height.into();
+        self
+    }
+}
+
+impl LayoutExt for ScrollView {
+    fn layout_mut(&mut self) -> &mut LayoutData {
+        &mut self.layout
+    }
+}
+
+impl DirectionExt for ScrollView {
+    /// Sets the layout direction the children flow and scroll in.
+    fn direction(mut self, direction: Direction) -> Self {
+        self.layout.direction = direction;
+        self
+    }
+}
+
+impl ContainerSizeExt for ScrollView {}
+impl ContainerPositionExt for ScrollView {}
+
+impl Component for ScrollView {
+    fn render(self: &ScrollView) -> impl IntoElement {
+        let a11y_id = use_a11y();
+        let mut timeout = use_timeout(|| Duration::from_millis(800));
+        let mut pressing_shift = use_state(|| false);
+        let mut clicking_scrollbar = use_state::<Option<(Axis, f64)>>(|| None);
+        let mut size = use_state(SizedEventData::default);
+        let mut scroll_controller = self
+            .scroll_controller
+            .unwrap_or_else(|| use_scroll_controller(ScrollConfig::default));
+        let mut touch_drag = use_touch_drag(a11y_id);
+        let (scrolled_x, scrolled_y) = scroll_controller.into();
+        let layout = &self.layout.layout;
+        let direction = layout.direction;
+        let drag_scrolling = self.drag_scrolling;
+        let follows_scroll_controller = self.follows_scroll_controller;
+
+        let content_size = size.read().inner_sizes.to_f64();
+        let viewport_size = size.read().area.size.to_f64();
+        let corrected_scrolled_x =
+            get_corrected_scroll_position(content_size.width, viewport_size.width, scrolled_x);
+        let corrected_scrolled_y =
+            get_corrected_scroll_position(content_size.height, viewport_size.height, scrolled_y);
+
+        let smooth_position = scroll_controller
+            .animated_position(ScrollPoint::new(corrected_scrolled_x, corrected_scrolled_y));
+        let rendered_position = ScrollPoint::new(
+            get_corrected_scroll_position(
+                content_size.width,
+                viewport_size.width,
+                smooth_position.x,
+            ),
+            get_corrected_scroll_position(
+                content_size.height,
+                viewport_size.height,
+                smooth_position.y,
+            ),
+        );
+
+        let horizontal_scrollbar_is_visible =
+            is_scrollbar_visible(self.show_scrollbar, content_size.width, viewport_size.width);
+        let vertical_scrollbar_is_visible = is_scrollbar_visible(
+            self.show_scrollbar,
+            content_size.height,
+            viewport_size.height,
+        );
+
+        let (scrollbar_x, scrollbar_width) = get_scrollbar_pos_and_size(
+            content_size.width,
+            viewport_size.width,
+            rendered_position.x,
+        );
+        let (scrollbar_y, scrollbar_height) = get_scrollbar_pos_and_size(
+            content_size.height,
+            viewport_size.height,
+            rendered_position.y,
+        );
+
+        let (container_width, content_width) = get_container_sizes(layout.width.clone());
+        let (container_height, content_height) = get_container_sizes(layout.height.clone());
+
+        let scroll_with_arrows = self.scroll_with_arrows;
+        let invert_scroll_wheel = self.invert_scroll_wheel;
+
+        let on_capture_global_pointer_up = move |e: Event<PointerEventData>| {
+            if clicking_scrollbar.read().is_some() {
+                e.prevent_default();
+                clicking_scrollbar.set_if_modified(None);
+            }
+
+            if touch_drag.release() && drag_scrolling {
+                e.prevent_default();
+                let content = size.read().inner_sizes.to_f64();
+                let viewport = size.read().area.size.to_f64();
+                scroll_controller.release_drag(rendered_position, content, viewport);
+            }
+        };
+
+        let on_wheel = move |e: Event<WheelEventData>| {
+            // Only invert direction on deviced-sourced wheel events
+            let invert_direction = e.source.is_device()
+                && (*pressing_shift.read() || invert_scroll_wheel)
+                && (!*pressing_shift.read() || !invert_scroll_wheel);
+
+            let (x_movement, y_movement) = if invert_direction {
+                (e.delta_y, e.delta_x)
+            } else {
+                (e.delta_x, e.delta_y)
+            };
+
+            // TODO(marc2332): Enable and test touchpad smooth scrolling in mac and windows
+            let scroll_gesture =
+                TargetPlatform::get() == TargetPlatform::Linux && e.source == WheelSource::Pixel;
+            if scroll_gesture
+                && scroll_controller.scroll_gesture_phase(e.phase, (x_movement, y_movement).into())
+            {
+                return;
+            }
+
+            let animate = e.source == WheelSource::Line || scroll_gesture;
+            if !animate {
+                scroll_controller.stop();
+            }
+            let position = if animate || follows_scroll_controller {
+                scroll_controller.position()
+            } else {
+                rendered_position
+            };
+            let local_bounds = (
+                size.read().inner_sizes.to_f64(),
+                size.read().area.size.to_f64(),
+            );
+            let (content, viewport) = if follows_scroll_controller {
+                scroll_controller.bounds.read().unwrap_or(local_bounds)
+            } else {
+                local_bounds
+            };
+
+            // Vertical scroll
+            let scroll_position_y = get_scroll_position_from_wheel(
+                y_movement,
+                content.height,
+                viewport.height,
+                position.y,
+            );
+
+            // Horizontal scroll
+            let scroll_position_x = get_scroll_position_from_wheel(
+                x_movement,
+                content.width,
+                viewport.width,
+                position.x,
+            );
+            if animate
+                && ((x_movement != 0. && scroll_position_x != position.x)
+                    || (y_movement != 0. && scroll_position_y != position.y))
+            {
+                let position = scroll_controller.animated_position(scroll_controller.position());
+                scroll_controller.animate_from(position);
+            }
+            let changed_y = y_movement != 0. && scroll_controller.scroll_to_y(scroll_position_y);
+            let changed_x = x_movement != 0. && scroll_controller.scroll_to_x(scroll_position_x);
+            if changed_x || changed_y {
+                e.stop_propagation();
+            }
+            timeout.reset();
+        };
+
+        let on_mouse_move = move |_| {
+            timeout.reset();
+        };
+
+        let on_capture_global_pointer_move = move |e: Event<PointerEventData>| {
+            if drag_scrolling && let Some(delta) = touch_drag.movement(e.global_location()) {
+                scroll_controller.drag(delta);
+                scroll_controller.scroll_to_y(rendered_position.y + delta.y);
+                scroll_controller.scroll_to_x(rendered_position.x + delta.x);
+
+                e.prevent_default();
+                timeout.reset();
+                a11y_id.request_focus();
+                return;
+            }
+
+            let clicking_scrollbar = clicking_scrollbar.peek();
+
+            if clicking_scrollbar.is_some() {
+                scroll_controller.stop();
+            }
+
+            if let Some((Axis::Y, y)) = *clicking_scrollbar {
+                let coordinates = e.element_location();
+                let cursor_y = coordinates.y - y - size.read().area.min_y() as f64;
+
+                let scroll_position = get_scroll_position_from_cursor(
+                    cursor_y,
+                    size.read().inner_sizes.height.into(),
+                    size.read().area.height().into(),
+                );
+
+                scroll_controller.scroll_to_y(scroll_position);
+            } else if let Some((Axis::X, x)) = *clicking_scrollbar {
+                let coordinates = e.element_location();
+                let cursor_x = coordinates.x - x - size.read().area.min_x() as f64;
+
+                let scroll_position = get_scroll_position_from_cursor(
+                    cursor_x,
+                    size.read().inner_sizes.width.into(),
+                    size.read().area.width().into(),
+                );
+
+                scroll_controller.scroll_to_x(scroll_position);
+            }
+
+            if clicking_scrollbar.is_some() {
+                e.prevent_default();
+                timeout.reset();
+                a11y_id.request_focus();
+            }
+        };
+
+        let on_key_down = move |e: Event<KeyboardEventData>| {
+            let position = ScrollPoint::new(corrected_scrolled_x, corrected_scrolled_y);
+            if let Some(target) = handle_key_event(
+                e.data(),
+                a11y_id,
+                position,
+                content_size,
+                viewport_size,
+                direction,
+                scroll_with_arrows,
+            ) {
+                if target != position {
+                    scroll_controller.animate_from(rendered_position);
+                }
+                scroll_controller.scroll_to_x(target.x);
+                scroll_controller.scroll_to_y(target.y);
+                e.stop_propagation();
+                timeout.reset();
+            }
+        };
+
+        let on_global_key_down = move |e: Event<KeyboardEventData>| {
+            let data = e;
+            if data.key == Key::Named(NamedKey::Shift) {
+                pressing_shift.set_if_modified(true);
+            }
+        };
+
+        let on_global_key_up = move |e: Event<KeyboardEventData>| {
+            let data = e;
+            if data.key == Key::Named(NamedKey::Shift) {
+                pressing_shift.set_if_modified(false);
+            }
+        };
+
+        let on_pointer_down = move |e: Event<PointerEventData>| {
+            if drag_scrolling && matches!(e.data(), PointerEventData::Touch(_)) {
+                scroll_controller.begin_drag();
+                let size = size.read();
+                touch_drag.press(
+                    e.global_location(),
+                    rendered_position,
+                    size.inner_sizes.to_f64(),
+                    size.area.size.to_f64(),
+                );
+            }
+        };
+
+        rect()
+            .width(layout.width.clone())
+            .height(layout.height.clone())
+            .max_width(layout.maximum_width.clone())
+            .max_height(layout.maximum_height.clone())
+            .a11y_id(a11y_id)
+            .a11y_role(AccessibilityRole::ScrollView)
+            .a11y_builder(move |node| {
+                node.set_scroll_x(rendered_position.x);
+                node.set_scroll_y(rendered_position.y)
+            })
+            .scrollable(true)
+            .map(self.on_sized.clone(), |el, on_sized| el.on_sized(on_sized))
+            .on_wheel(on_wheel)
+            .on_capture_global_pointer_up(on_capture_global_pointer_up)
+            .on_mouse_move(on_mouse_move)
+            .on_capture_global_pointer_move(on_capture_global_pointer_move)
+            .on_key_down(on_key_down)
+            .on_global_key_up(on_global_key_up)
+            .on_global_key_down(on_global_key_down)
+            .on_pointer_down(on_pointer_down)
+            .child(
+                rect()
+                    .width(container_width)
+                    .height(container_height)
+                    .horizontal()
+                    .child(
+                        rect()
+                            .direction(direction)
+                            .width(content_width)
+                            .height(content_height)
+                            .max_width(layout.maximum_width.clone())
+                            .max_height(layout.maximum_height.clone())
+                            .offset_x(-rendered_position.x as f32)
+                            .offset_y(-rendered_position.y as f32)
+                            .spacing(layout.spacing.get())
+                            .overflow(Overflow::Clip)
+                            .on_sized(move |e: Event<SizedEventData>| {
+                                size.set_if_modified(e.clone());
+                                if !follows_scroll_controller {
+                                    scroll_controller
+                                        .apply_layout(e.inner_sizes.to_f64(), e.area.size.to_f64());
+                                }
+                            })
+                            .retained_children(self.children.clone()),
+                    )
+                    .maybe_child(vertical_scrollbar_is_visible.then_some({
+                        rect().child(self.scrollbar.call(ScrollBarContext {
+                            axis: Axis::Y,
+                            scroll_position: rendered_position,
+                            viewport_size,
+                            content_size,
+                            scroll_controller,
+                            timeout,
+                            auto_hide_scrollbars: self.auto_hide_scrollbars,
+                            clicking_scrollbar,
+                            thumb_events: ScrollBarThumbEvents::new(Axis::Y, clicking_scrollbar),
+                            thumb_offset: scrollbar_y,
+                            track_size: Size::px(size.read().area.height()),
+                            thumb_length: scrollbar_height,
+                        }))
+                    })),
+            )
+            .maybe_child(horizontal_scrollbar_is_visible.then_some({
+                rect().child(self.scrollbar.call(ScrollBarContext {
+                    axis: Axis::X,
+                    scroll_position: rendered_position,
+                    viewport_size,
+                    content_size,
+                    scroll_controller,
+                    timeout,
+                    auto_hide_scrollbars: self.auto_hide_scrollbars,
+                    clicking_scrollbar,
+                    thumb_events: ScrollBarThumbEvents::new(Axis::X, clicking_scrollbar),
+                    thumb_offset: scrollbar_x,
+                    track_size: Size::px(size.read().area.width()),
+                    thumb_length: scrollbar_width,
+                }))
+            }))
+    }
+
+    fn render_key(&self) -> DiffKey {
+        self.key.clone().or(self.default_key())
+    }
+}

@@ -1,0 +1,212 @@
+use freya_core::prelude::*;
+use torin::{
+    prelude::Direction,
+    size::Size,
+};
+
+use crate::scrollviews::{
+    ScrollPoint,
+    ScrollSize,
+};
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Axis {
+    X,
+    Y,
+}
+
+#[doc(hidden)]
+pub fn get_scroll_position_from_wheel(
+    wheel_movement: f64,
+    inner_size: f64,
+    viewport_size: f64,
+    scroll_position: f64,
+) -> f64 {
+    if viewport_size >= inner_size {
+        return 0.;
+    }
+
+    let new_position = scroll_position - wheel_movement;
+
+    if new_position <= 0.0 && wheel_movement > 0.0 {
+        return 0.;
+    }
+
+    let max_position = inner_size - viewport_size;
+    if new_position >= max_position && wheel_movement < 0.0 {
+        return max_position;
+    }
+
+    new_position
+}
+
+#[doc(hidden)]
+pub fn get_corrected_scroll_position(
+    inner_size: f64,
+    viewport_size: f64,
+    scroll_position: f64,
+) -> f64 {
+    scroll_position.clamp(0., (inner_size - viewport_size).max(0.))
+}
+
+#[doc(hidden)]
+pub fn get_container_sizes(size: Size) -> (Size, Size) {
+    if size == Size::Inner {
+        (size.clone(), size)
+    } else {
+        (Size::percent(100.), Size::fill())
+    }
+}
+
+#[doc(hidden)]
+pub fn is_scrollbar_visible(
+    is_scrollbar_enabled: bool,
+    inner_size: f64,
+    viewport_size: f64,
+) -> bool {
+    is_scrollbar_enabled && viewport_size > MIN_SCROLLBAR_SIZE && viewport_size < inner_size
+}
+
+const MIN_SCROLLBAR_SIZE: f64 = 50.0;
+
+pub const SCROLLBAR_MARGIN: f32 = 3.0;
+
+/// Thumb size, scrollable content range and thumb travel range inside the track.
+fn get_thumb_ranges(inner_size: f64, viewport_size: f64) -> (f64, f64, f64) {
+    let track_size = viewport_size - SCROLLBAR_MARGIN as f64 * 2.0;
+    let viewable_ratio = viewport_size / inner_size;
+    let minimum_thumb_size = if track_size > MIN_SCROLLBAR_SIZE {
+        MIN_SCROLLBAR_SIZE
+    } else {
+        0.
+    };
+    let scrollbar_size = (track_size * viewable_ratio).max(minimum_thumb_size);
+
+    let available_scroll_range = inner_size - viewport_size;
+    let available_thumb_range = track_size - scrollbar_size;
+
+    (
+        scrollbar_size,
+        available_scroll_range,
+        available_thumb_range,
+    )
+}
+
+#[doc(hidden)]
+pub fn get_scrollbar_pos_and_size(
+    inner_size: f64,
+    viewport_size: f64,
+    scroll_position: f64,
+) -> (f32, f32) {
+    if viewport_size <= MIN_SCROLLBAR_SIZE || viewport_size >= inner_size {
+        return (0.0, 0.0);
+    }
+
+    let (scrollbar_size, available_scroll_range, available_thumb_range) =
+        get_thumb_ranges(inner_size, viewport_size);
+
+    let normalized_scroll = scroll_position / available_scroll_range;
+    let scrollbar_position = normalized_scroll * available_thumb_range;
+
+    (scrollbar_position as f32, scrollbar_size as f32)
+}
+
+#[doc(hidden)]
+pub fn get_scroll_position_from_cursor(
+    cursor_position: f64,
+    inner_size: f64,
+    viewport_size: f64,
+) -> f64 {
+    if viewport_size <= MIN_SCROLLBAR_SIZE || viewport_size >= inner_size {
+        return 0.;
+    }
+
+    let (_, available_scroll_range, available_thumb_range) =
+        get_thumb_ranges(inner_size, viewport_size);
+
+    let cursor_clamped =
+        (cursor_position - SCROLLBAR_MARGIN as f64).clamp(0.0, available_thumb_range);
+
+    let normalized_scroll = cursor_clamped / available_thumb_range;
+    normalized_scroll * available_scroll_range
+}
+
+pub fn handle_key_event(
+    event: &KeyboardEventData,
+    a11y_id: AccessibilityId,
+    mut position: ScrollPoint,
+    content: ScrollSize,
+    viewport: ScrollSize,
+    direction: Direction,
+    scroll_with_arrows: bool,
+) -> Option<ScrollPoint> {
+    let key = match &event.key {
+        Key::Named(key) => *key,
+        Key::Character(text) if text == " " && a11y_id.is_focused() => match event.modifiers {
+            modifiers if modifiers.is_empty() => NamedKey::PageDown,
+            Modifiers::SHIFT => NamedKey::PageUp,
+            _ => return None,
+        },
+        _ => return None,
+    };
+
+    let axis = match key {
+        NamedKey::ArrowLeft | NamedKey::ArrowRight if scroll_with_arrows => Axis::X,
+        NamedKey::ArrowUp | NamedKey::ArrowDown if scroll_with_arrows => Axis::Y,
+        NamedKey::PageUp | NamedKey::PageDown | NamedKey::Home | NamedKey::End => {
+            match (
+                content.width > viewport.width,
+                content.height > viewport.height,
+            ) {
+                (true, false) => Axis::X,
+                (false, true) => Axis::Y,
+                _ if direction == Direction::Horizontal => Axis::X,
+                _ => Axis::Y,
+            }
+        }
+        _ => return None,
+    };
+
+    let (offset, content_size, viewport_size) = match axis {
+        Axis::X => (&mut position.x, content.width, viewport.width),
+        Axis::Y => (&mut position.y, content.height, viewport.height),
+    };
+    let line = viewport_size / 5.0;
+    let target = match key {
+        NamedKey::ArrowUp | NamedKey::ArrowLeft => *offset - line,
+        NamedKey::ArrowDown | NamedKey::ArrowRight => *offset + line,
+        NamedKey::PageUp => *offset - viewport_size,
+        NamedKey::PageDown => *offset + viewport_size,
+        NamedKey::Home => 0.,
+        NamedKey::End => content_size - viewport_size,
+        _ => return None,
+    };
+    *offset = get_corrected_scroll_position(content_size, viewport_size, target);
+    Some(position)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::scrollviews::shared::{
+        SCROLLBAR_MARGIN,
+        get_scroll_position_from_cursor,
+        get_scrollbar_pos_and_size,
+    };
+
+    #[test]
+    fn scrollbar_can_drag_when_the_track_is_smaller_than_the_minimum_thumb() {
+        for viewport_size in 51..=56 {
+            let viewport_size = viewport_size as f64;
+            let inner_size = viewport_size * 2.;
+            let track_size = viewport_size - SCROLLBAR_MARGIN as f64 * 2.;
+
+            let (_, thumb_size) = get_scrollbar_pos_and_size(inner_size, viewport_size, 0.);
+
+            assert!((thumb_size as f64) < track_size);
+            assert_eq!(
+                get_scroll_position_from_cursor(viewport_size, inner_size, viewport_size),
+                viewport_size
+            );
+        }
+    }
+}

@@ -1,0 +1,149 @@
+name: Development release
+# Explicit request only (Actions → Run workflow). Builds one channel: `dev` (the one development builds and
+# site/install.sh verify, development update key) or `pre` (prereleases for testers, their own update key), with the
+# ordinary public extension store. Signs it with that channel's key and the fixed Android signing key, and publishes one
+# GitHub prerelease under v<version>-<channel>.<build>. Nothing runs on push, tag or schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Channel to publish
+        type: choice
+        options: [dev, pre]
+        default: dev
+      build:
+        description: Build number, greater than every published build of any channel (Android takes it as the package version)
+        type: string
+        required: true
+      runtime_sha256:
+        description: Optional. The SHA-256 the AppImage type2-runtime project publishes for its x86_64 runtime; without it no AppImage is built.
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: private-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      FORCE_SKIA_BUILD: '1'
+      PEERSUS_PRIVATE_STORE_BUILD: '0'
+      PEERSUS_BUILD_NUMBER: ${{ inputs.build }}
+      CHANNEL: ${{ inputs.channel }}
+      PEERSUS_UPDATE_CHANNEL: ${{ inputs.channel }}
+      # The certificate of the fixed Android signing key (public). Every development package, local or released, is signed
+      # with it, so Android accepts each one as an update of the last.
+      ANDROID_SIGNER_SHA256: e8002af87c8bb94c5e9617362942f0ff2ab0804538991de38436292abe44e250
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "$PEERSUS_BUILD_NUMBER" in ''|*[!0-9]*|0*) echo "build must be a whole number of at least 1"; exit 1 ;; esac
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          case "$CHANNEL" in dev|pre) ;; *) echo "unknown channel $CHANNEL"; exit 1 ;; esac
+          # One build sequence for every channel: Android installs a package only over a lower version, so moving a
+          # device from one channel to another needs a higher build than any it may hold.
+          newest=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --jq '.[].ref' \
+            | sed -n 's#^refs/tags/v[0-9.]*-[a-z0-9]*\.\([0-9]*\)$#\1#p' | sort -n | tail -n 1)
+          if [ -n "$newest" ] && [ "$PEERSUS_BUILD_NUMBER" -le "$newest" ]; then
+            echo "build $PEERSUS_BUILD_NUMBER is not newer than the published build $newest"; exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "TAG=v$version-$CHANNEL.$PEERSUS_BUILD_NUMBER" >> "$GITHUB_ENV"
+      - name: Install declared toolchain
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+      - run: sh scripts/install-linux-deps.sh
+      - name: Desktop programs (development build, optimized)
+        run: |
+          export CARGO_TARGET_DIR="$PWD/target/dev-deploy"
+          cargo xtask dev-deploy
+          python3 scripts/stage-linux.py --out target/release-stage/linux
+          # The archive holds the programs only, stripped: the updater carries one artifact of at most 128 MiB.
+          mkdir target/release-stage/programs
+          cp target/release-stage/linux/bin/* target/release-stage/programs/
+          strip --strip-unneeded target/release-stage/programs/*
+          tar -czf target/release-stage/programs.tar.gz -C target/release-stage/programs \
+            peersus peersus-ui peersus-wasm-host peersus-wasm-canvas-host peersus-native-host peersus-store-fetch peersus-diag
+      - name: AppImage (host graphics libraries)
+        if: inputs.runtime_sha256 != ''
+        env:
+          RUNTIME_SHA256: ${{ inputs.runtime_sha256 }}
+        run: |
+          sudo apt-get install -y squashfs-tools desktop-file-utils
+          curl --fail --location --silent --show-error -o target/runtime-x86_64 https://github.com/AppImage/type2-runtime/releases/download/continuous/runtime-x86_64
+          python3 scripts/build-appimage.py --runtime target/runtime-x86_64 --runtime-sha256 "$RUNTIME_SHA256" \
+            --stage target/release-stage/linux --output target/release-stage/appimage
+      - name: Android prerequisites
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.2.12479018' > /dev/null
+          rustup target add aarch64-linux-android x86_64-linux-android wasm32-unknown-unknown
+          cargo install cargo-ndk --version 4.1.2 --locked
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+          test -f "$ANDROID_HOME/platforms/android-36/android.jar"
+          echo "ANDROID_JAR=$ANDROID_HOME/platforms/android-36/android.jar" >> "$GITHUB_ENV"
+          echo "$ANDROID_HOME/build-tools/36.0.0" >> "$GITHUB_PATH"
+      - name: Fixed Android signing key
+        env:
+          ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
+        run: |
+          test -n "$ANDROID_SIGNING_KEYSTORE" || { echo "the ANDROID_SIGNING_KEYSTORE secret is not set"; exit 1; }
+          # Gradle signs the development package with the debug keystore of the Android user folder; here that is the
+          # fixed key. The folder is named outright: the runner image may point Android's tools at another one.
+          mkdir -p "$HOME/.android"
+          echo "ANDROID_USER_HOME=$HOME/.android" >> "$GITHUB_ENV"
+          umask 077
+          printf '%s' "$ANDROID_SIGNING_KEYSTORE" | base64 -d > "$HOME/.android/debug.keystore"
+      - name: Android packages (development build, one per ABI)
+        env:
+          # One package holding both ABIs is past the updater's 128 MiB bound for one artifact; each device takes the
+          # package of its own architecture.
+          PEERSUS_ANDROID_ABI_SPLIT: '1'
+        run: |
+          cargo xtask android-dev
+          for pair in arm64-v8a:aarch64 x86_64:x86_64; do
+            apk="target/distribution/android/community/debug/app-community-${pair%%:*}-debug.apk"
+            signer=$(apksigner verify --print-certs "$apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+            [ "$signer" = "$ANDROID_SIGNER_SHA256" ] || { echo "$apk is not signed with the fixed key (signer: ${signer:-none})"; exit 1; }
+            cp "$apk" "target/release-stage/peersus-${pair##*:}.apk"
+            ls -l "target/release-stage/peersus-${pair##*:}.apk"
+          done
+      - name: Forget the Android signing key
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore"
+      - name: Name and sign the release
+        env:
+          # Each channel has its own key: a development release never verifies on a prerelease build.
+          APP_UPDATE_SIGNING_KEY: ${{ inputs.channel == 'pre' && secrets.APP_UPDATE_SIGNING_KEY_PRE || secrets.APP_UPDATE_SIGNING_KEY }}
+        run: |
+          test -n "$APP_UPDATE_SIGNING_KEY" || { echo "the $CHANNEL channel's update signing secret is not set"; exit 1; }
+          set -- --artifact linux:x86_64:target/release-stage/programs.tar.gz \
+            --artifact android:aarch64:target/release-stage/peersus-aarch64.apk \
+            --artifact android:x86_64:target/release-stage/peersus-x86_64.apk
+          for image in target/release-stage/appimage/*.AppImage; do
+            [ -f "$image" ] && set -- "$@" --artifact "linux:x86_64:$image"
+          done
+          cargo xtask update-sign --channel "$CHANNEL" --version "$VERSION" --build "$PEERSUS_BUILD_NUMBER" \
+            --out target/release-out "$@"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" target/release-out/* --target "$GITHUB_SHA" --prerelease \
+            --title "Peersus $VERSION $CHANNEL build $PEERSUS_BUILD_NUMBER" \
+            --notes "Development $CHANNEL-channel prerelease built from $GITHUB_SHA. Verify with SHA256SUMS and SHA256SUMS.sig ($CHANNEL update key)."
+      - name: Disk left on the runner (after a failure)
+        if: failure()
+        run: df -h . /tmp

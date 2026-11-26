@@ -1,0 +1,97 @@
+name: Security audit
+
+# RustSec advisories (cargo audit) and the cargo-deny policy in deny.toml: advisories, licences and
+# where crates come from. On a dependency change, every day for advisories published since, and on
+# demand. The full Quality gates workflow also audits every push and pull request.
+on:
+  # Every publication of main is a new root commit (one-commit development snapshot), which GitHub cannot diff
+  # against the previous tip: a `paths` filter then skips the run silently. So every push to main counts.
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - 'Cargo.lock'
+      - 'deny.toml'
+      - 'rust-toolchain.toml'
+      - '.github/workflows/security.yml'
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: RustSec advisories (cargo audit)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared Rust toolchain and pinned cargo-audit
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+          cargo install cargo-audit --version 0.22.2 --locked
+      - name: Audit the locked dependencies with the project's strict policy
+        run: cargo xtask audit
+
+  deny:
+    name: Advisories, licences and sources (cargo deny)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared Rust toolchain and pinned cargo-deny
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+          cargo install cargo-deny --version 0.20.2 --locked
+      - name: Check the dependency graph against deny.toml
+        run: cargo deny --locked check
+
+  updated:
+    name: After cargo update (${{ matrix.check }})
+    # What the next dependency update would bring in, before anyone makes it.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check: audit
+            install: cargo install cargo-audit --version 0.22.2 --locked
+            command: cargo xtask audit
+          - check: deny
+            install: cargo install cargo-deny --version 0.20.2 --locked
+            command: cargo deny check
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install declared Rust toolchain and the pinned tool
+        env:
+          INSTALL: ${{ matrix.install }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("rust-toolchain.toml", "rb"))["toolchain"]["channel"])')
+          rustup toolchain install "$version" --profile minimal
+          rustup default "$version"
+          $INSTALL
+      - name: Update dependencies within their declared ranges
+        run: cargo update
+      - name: Check the updated dependencies
+        env:
+          CHECK: ${{ matrix.command }}
+        run: $CHECK
