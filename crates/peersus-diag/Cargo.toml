@@ -1,0 +1,22 @@
+[package]
+name = "peersus-diag"
+description = "Opt-in crash capture: watches the program that started it and writes a minidump when it crashes"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Safe wrappers over ptrace(2) and waitpid(2); the version the workspace already locks.
+nix = { version = "0.29", default-features = false, features = ["ptrace", "signal", "process"] }
+# Writes the minidump of a stopped process from outside it (the format Firefox and Chromium use).
+minidump-writer = "0.13"
+libc = "0.2"
+
+[dev-dependencies]
+tempfile.workspace = true
+# The client the owner and the window use, driven against this helper in `tests/capture.rs`.
+peersus-diagnostics.workspace = true
+[lints]
+workspace = true

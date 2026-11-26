@@ -1,0 +1,4090 @@
+# The application's messages, in English: the template every language file translates.
+# English is written in the code; a message here with no translation in a language file is shown in English.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Ask you to select a file for this extension; no ambient filesystem access."
+msgstr ""
+
+msgid "Ask you where to save one file this extension already holds. It cannot choose a destination by itself."
+msgstr ""
+
+msgid "Request explicit destination approval for HTTPS requests; credentials remain in the host."
+msgstr ""
+
+msgid "Read or replace this device's clipboard text in bounded pieces, each under its own permission."
+msgstr ""
+
+msgid "Read this device's clipboard text in bounded pieces; the platform decides when it is readable and excludes sensitive contents."
+msgstr ""
+
+msgid "Replace this device's clipboard text with text the extension supplies in bounded pieces."
+msgstr ""
+
+msgid "Be told when this device's clipboard changes, without receiving its contents; reading still needs the read permission."
+msgstr ""
+
+msgid "Show you notifications under its name, with its own words and buttons, in the window and outside it."
+msgstr ""
+
+msgid "Know where this device is now, as its system finds it. To find it the system may ask an online service of its own with the wireless networks it sees nearby; the extension receives only the position."
+msgstr ""
+
+msgid "Where this device is now, as its system finds it, behind its own permission."
+msgstr ""
+
+msgid "Confirm {label}"
+msgstr ""
+
+msgid "Working…"
+msgstr ""
+
+msgid "Finishing…"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "The action finished, but its result could not be shown. Check what happened before repeating it."
+msgstr ""
+
+msgid "Cancelled. Check any external result before retrying."
+msgstr ""
+
+msgid "Not allowed. Check this plugin's permissions."
+msgstr ""
+
+msgid "Plugin unavailable. Start it and retry."
+msgstr ""
+
+msgid "The action timed out. Check its result before retrying."
+msgstr ""
+
+msgid "Another operation is running. Try again when it finishes."
+msgstr ""
+
+msgid "The destination's limit was reached. Try again later."
+msgstr ""
+
+msgid "What was sent is larger than the destination accepts."
+msgstr ""
+
+msgid "The request was refused"
+msgstr ""
+
+msgid "The saved credential was not accepted. Save a valid one."
+msgstr ""
+
+msgid "The action could not finish. Check the plugin and retry."
+msgstr ""
+
+msgid "Start the plugin, select an online device when required, and allow its permissions."
+msgstr ""
+
+msgid "Enter a value within the declared limits."
+msgstr ""
+
+msgid "Invalid saved setting. Restore a valid value."
+msgstr ""
+
+msgid "Supported platforms: {platforms}"
+msgstr ""
+
+msgid "Platform support not declared by this legacy plugin."
+msgstr ""
+
+msgid "For {name}"
+msgstr ""
+
+
+
+
+msgid "It does not support this operating system"
+msgstr ""
+
+msgid "Support Peersus — entirely optional"
+msgstr ""
+
+msgid "If Peersus is useful to you, you can leave a voluntary tip. All app functions remain free, with no ads, paid features or priority access."
+msgstr ""
+
+msgid "Card payments use the creator's linked Stripe account where offered by Ko-fi; payment methods vary. Peersus does not handle your card details."
+msgstr ""
+
+msgid "A tip buys no product, service, access or reward. Processor fees may apply. No charitable tax-deductibility is promised. Public thanks is a separate, optional choice on the website, never an in-app benefit."
+msgstr ""
+
+msgid "Support on Ko-fi (opens browser)"
+msgstr ""
+
+msgid "Could not open a browser. You can open https://ko-fi.com/DarkPhilosophy manually."
+msgstr ""
+
+
+
+msgid "That could not be read: it is gone, or this program may not open it."
+msgstr ""
+
+msgid "That file is empty, so there is no package in it."
+msgstr ""
+
+msgid "That is neither a folder nor a file, so it cannot be a package."
+msgstr ""
+
+msgid "Send data to a paired device you choose. It cannot see any device's key."
+msgstr ""
+
+msgid "See this paired device: its name, and whether it is online or asleep. It cannot see the device's key or send it anything."
+msgstr ""
+
+msgid "Interrupt and restart ANY plugin, including ones you did not install for this purpose. It cannot read their data or change what they are allowed to do."
+msgstr ""
+
+msgid "Move the pointer, press buttons and keys, and type text on this computer, as if from a mouse and keyboard plugged into it."
+msgstr ""
+
+msgid "Change this computer's arrangement of paired desktops and where its pointer crosses between them."
+msgstr ""
+
+msgid "Be told when a transfer starts, moves, finishes, is cancelled or fails: which transfer, and how far. It cannot see the name of a file, the name of a device, or where anything is saved, and it cannot accept, refuse or cancel a transfer."
+msgstr ""
+
+msgid "Also see the NAME of each file that is transferred and the name of the device it goes to or comes from. File names can say a lot about a person."
+msgstr ""
+
+msgid "Create its own statuses and choose the words that name them. A status that is only created says nothing about you until it is turned on."
+msgstr ""
+
+msgid "Turn its own statuses on and off. What is on is SHOWN to every device you paired, in the words the plugin chose, for as long as it is on."
+msgstr ""
+
+msgid "See which statuses your paired devices show, and be told when they change. What a status says (watching something, being busy) can be personal."
+msgstr ""
+
+msgid "See this device's processor: its name, how many cores it has, how fast it runs, how busy it is and how warm."
+msgstr ""
+
+msgid "See this device's graphics: who made it, how fast it runs, how much of its memory is used, how busy it is and how warm."
+msgstr ""
+
+msgid "See how much memory this device has and how much of it is free."
+msgstr ""
+
+msgid "See how large the storage of the folder received files go to is, how much of it is free, and the name the system gives its disk. It sees no files or folder names."
+msgstr ""
+
+msgid "See how many bytes this device's network received and sent since it started. It sees no networks, addresses or what was carried."
+msgstr ""
+
+msgid "See this device's battery: its charge and status, whether it is plugged in, and its estimated time remaining."
+msgstr ""
+
+msgid "See this computer's screens and how your paired desktops are arranged around them."
+msgstr ""
+
+msgid "See which other extensions are installed here and whether each is running. It cannot read their data or permissions."
+msgstr ""
+
+msgid "See which operating system and processor architecture this device has."
+msgstr ""
+
+msgid "See the language you use the application in, to show its own words in it."
+msgstr ""
+
+msgid "See the date and time on this device and its time zone, to show when something happened."
+msgstr ""
+
+msgid "Record from this device's microphone when you start a recording in it."
+msgstr ""
+
+msgid "No recording is running"
+msgstr ""
+
+msgid "Nothing was heard"
+msgstr ""
+
+msgid "The microphone could not be started"
+msgstr ""
+
+msgid "The microphone did not open"
+msgstr ""
+
+msgid "The microphone did not start"
+msgstr ""
+
+msgid "The microphone gives samples in a form not read here"
+msgstr ""
+
+msgid "The microphone has no usable setting"
+msgstr ""
+
+msgid "The microphone is recording for another extension"
+msgstr ""
+
+msgid "This device has no microphone"
+msgstr ""
+
+msgid "No folder chosen. Every file asks where it goes."
+msgstr ""
+
+msgid "A folder is chosen. Files go straight into it."
+msgstr ""
+
+msgid "It starts with nothing allowed. You decide what it may do after it is installed."
+msgstr ""
+
+msgid "A plugin with this name is installed. This replaces it and starts with nothing allowed."
+msgstr ""
+
+msgid "Nobody approved this plugin, so it is not running. Approving lets it run with what it asks for, listed below."
+msgstr ""
+
+msgid "The program of this plugin is not the one that was approved, so it is not running. Approving it again lets this program run, and what it was allowed to do is forgotten."
+msgstr ""
+
+msgid "This plugin cannot be used: it is damaged, or its program cannot be run. It can only be removed."
+msgstr ""
+
+msgid "RUNNING"
+msgstr ""
+
+msgid "STARTING"
+msgstr ""
+
+msgid "RESTARTING"
+msgstr ""
+
+msgid "OFF"
+msgstr ""
+
+msgid "FAILED"
+msgstr ""
+
+msgid "BROKEN"
+msgstr ""
+
+msgid "CHANGED"
+msgstr ""
+
+msgid "NEEDS APPROVAL"
+msgstr ""
+
+msgid "Replace"
+msgstr ""
+
+msgid "Drop one package at a time."
+msgstr ""
+
+msgid "No description was given for this permission."
+msgstr ""
+
+msgid "The selection is too large"
+msgstr ""
+
+msgid "The file picker did not report its selection count"
+msgstr ""
+
+msgid "The application answered with something else than a code"
+msgstr ""
+
+msgid "The file producer stopped before finishing the selection."
+msgstr ""
+
+msgid "The file producer stopped before creating a code."
+msgstr ""
+
+msgid "Could not create invitation"
+msgstr ""
+
+msgid "Application stopped"
+msgstr ""
+
+msgid "Left out: {items}."
+msgstr ""
+
+msgid "Not files: {count}"
+msgstr ""
+
+msgid "Could not be read: {count}"
+msgstr ""
+
+msgid "Empty files: {count}"
+msgstr ""
+
+msgid "Beyond the {limit}-file selection limit: {count}"
+msgstr ""
+
+msgid "{refused} selected files could not be offered."
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "OR PICK A SAVED DEVICE"
+msgstr ""
+
+msgid "HAVE A CODE FROM ANOTHER DEVICE?"
+msgstr ""
+
+msgid "OR PASTE THE CODE FROM THE OTHER DEVICE"
+msgstr ""
+
+msgid "OR PASTE THIS CODE ON THE OTHER DEVICE"
+msgstr ""
+
+msgid "CONNECT TO THE OTHER DEVICE"
+msgstr ""
+
+msgid "TRANSFERS"
+msgstr ""
+
+msgid "PAIRED PEERS"
+msgstr ""
+
+msgid "MET BY CODE"
+msgstr ""
+
+msgid "{total} ({online} online)"
+msgstr ""
+
+msgid "{total} ({running} running)"
+msgstr ""
+
+msgid "Goes straight to the device you picked"
+msgstr ""
+
+msgid "Goes straight to the devices you picked"
+msgstr ""
+
+msgid "No device picked: a code will be made"
+msgstr ""
+
+msgid "A device you picked is not available. Pick again, or none to use a code"
+msgstr ""
+
+msgid "tap to choose files"
+msgstr ""
+
+msgid "click to browse your computer"
+msgstr ""
+
+msgid "SCAN"
+msgstr ""
+
+msgid "tap to open the camera"
+msgstr ""
+
+msgid "starting the camera"
+msgstr ""
+
+msgid "NO CAMERA"
+msgstr ""
+
+msgid "allow it for Peersus in the phone's settings, then tap"
+msgstr ""
+
+msgid "Pair: show a code for the other device to scan. Connect: scan or paste the code the other device shows."
+msgstr ""
+
+msgid "Pairing trusts the other device until you forget it. A file sent by code alone never does."
+msgstr ""
+
+msgid "CHOOSE FILES"
+msgstr ""
+
+msgid "TO SEND"
+msgstr ""
+
+msgid "NO DEVICE PICKED"
+msgstr ""
+
+msgid "TAP FOR"
+msgstr ""
+
+msgid "A QR CODE"
+msgstr ""
+
+msgid "HOLD TO SEND"
+msgstr ""
+
+msgid "TAP TO SEND"
+msgstr ""
+
+msgid "1 DEVICE"
+msgstr ""
+
+msgid "{count} DEVICES"
+msgstr ""
+
+msgid "keep holding until it is full"
+msgstr ""
+
+msgid "it sends at once"
+msgstr ""
+
+msgid "A DEVICE WENT AWAY"
+msgstr ""
+
+msgid "PICK AGAIN"
+msgstr ""
+
+msgid "nothing is sent until you do"
+msgstr ""
+
+msgid "READY TO RECEIVE"
+msgstr ""
+
+msgid "PASTE"
+msgstr ""
+
+msgid "THE CODE"
+msgstr ""
+
+msgid "from the other device"
+msgstr ""
+
+msgid "CONNECT"
+msgstr ""
+
+msgid "{name} wants to pair"
+msgstr ""
+
+msgid "ANSWERED, WAITING FOR THE OTHER DEVICE"
+msgstr ""
+
+msgid "PICK THE SAME NUMBER ON BOTH DEVICES"
+msgstr ""
+
+msgid "Send"
+msgstr ""
+
+msgid "Receive"
+msgstr ""
+
+msgid "Peers"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Overview"
+msgstr ""
+
+msgid "Device"
+msgstr ""
+
+msgid "Appearance"
+msgstr ""
+
+msgid "Network"
+msgstr ""
+
+msgid "Extensions"
+msgstr ""
+
+msgid "Permissions"
+msgstr ""
+
+msgid "History"
+msgstr ""
+
+msgid "About"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Accent colour"
+msgstr ""
+
+msgid "Coral"
+msgstr ""
+
+msgid "Sky"
+msgstr ""
+
+msgid "Moss"
+msgstr ""
+
+msgid "Amber"
+msgstr ""
+
+msgid "Violet"
+msgstr ""
+
+msgid "Rose"
+msgstr ""
+
+msgid "Interface size"
+msgstr ""
+
+msgid "Compact"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "Large"
+msgstr ""
+
+msgid "Larger"
+msgstr ""
+
+msgid "Largest"
+msgstr ""
+
+msgid "Text, icons and spacing grow together. Ctrl and + or − changes it for this window only."
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "View files"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Request unlock"
+msgstr ""
+
+msgid "Generate a new identity"
+msgstr ""
+
+msgid "Yes, delete the previous identity and generate a new one"
+msgstr ""
+
+msgid "This deletes the identity kept by the system and sets the pairings aside. Devices must be paired again. It cannot be undone."
+msgstr ""
+
+msgid "The identity was reset. Close this window and open Peersus again."
+msgstr ""
+
+msgid "Turn on devices nearby"
+msgstr ""
+
+msgid "Devices nearby are off. Turn them on to see devices close to you that can be paired."
+msgstr ""
+
+msgid "Paste"
+msgstr ""
+
+msgid "Select all"
+msgstr ""
+
+msgid "Cut"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Relays"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "New relay: relay.example.org"
+msgstr ""
+
+msgid "relay.example.org"
+msgstr ""
+
+msgid "Enter the relay server, for example relay.example.org"
+msgstr ""
+
+msgid "How long a direct connection is given before data may go through a relay."
+msgstr ""
+
+msgid "In Priority order, how long a fallback is used before the first relay is tried again."
+msgstr ""
+
+msgid "Ping"
+msgstr ""
+
+msgid "Search relays"
+msgstr ""
+
+msgid "Position"
+msgstr ""
+
+msgid "New address"
+msgstr ""
+
+msgid "This relay's own timings"
+msgstr ""
+
+msgid "Uses the list-wide timings"
+msgstr ""
+
+msgid "Use list-wide timings"
+msgstr ""
+
+msgid "Accept"
+msgstr ""
+
+msgid "Refuse"
+msgstr ""
+
+msgid "Stop"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Pair"
+msgstr ""
+
+msgid "Install"
+msgstr ""
+
+msgid "Uninstall"
+msgstr ""
+
+msgid "Retry"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Dark"
+msgstr ""
+
+msgid "Custom"
+msgstr ""
+
+msgid "Device name"
+msgstr ""
+
+msgid "CODE SCANNED"
+msgstr ""
+
+msgid "SCANNED"
+msgstr ""
+
+msgid "The other device read the code. Waiting for it to accept."
+msgstr ""
+
+msgid "WAITING FOR APPROVAL"
+msgstr ""
+
+msgid "SENDING"
+msgstr ""
+
+msgid "DONE"
+msgstr ""
+
+msgid "STOPPED"
+msgstr ""
+
+msgid "ENDS IN {time}"
+msgstr ""
+
+msgid "{name} wants to send you a file"
+msgstr ""
+
+msgid "A device wants to send you a file"
+msgstr ""
+
+msgid "{files} are waiting in all"
+msgstr ""
+
+msgid "Waiting for the other device to accept {files}."
+msgstr ""
+
+msgid "Sending 1 file."
+msgstr ""
+
+msgid "Sending {files}."
+msgstr ""
+
+msgid "1 file arrived."
+msgstr ""
+
+msgid "{files} arrived."
+msgstr ""
+
+msgid "1 SENT"
+msgstr ""
+
+msgid "{count} SENT"
+msgstr ""
+
+msgid "{done} of {files} arrived. The rest was refused, cancelled or failed."
+msgstr ""
+
+msgid "1 file selected"
+msgstr ""
+
+msgid "{files} selected"
+msgstr ""
+
+msgid "+ {count} more"
+msgstr ""
+
+msgid "never seen"
+msgstr ""
+
+msgid "just now"
+msgstr ""
+
+msgid "{duration} ago"
+msgstr ""
+
+msgid "Continue"
+msgstr ""
+
+msgid "Join"
+msgstr ""
+
+msgid "Keep"
+msgstr ""
+
+msgid "Forget"
+msgstr ""
+
+msgid "Not now"
+msgstr ""
+
+msgid "Choose folder"
+msgstr ""
+
+msgid "Use none"
+msgstr ""
+
+msgid "Name this device"
+msgstr ""
+
+msgid "Your other devices will list it by this name, so pick one you will recognise."
+msgstr ""
+
+msgid "For example: Alex's laptop"
+msgstr ""
+
+msgid "Paste the code"
+msgstr ""
+
+msgid "No saved devices yet. Send by code, and keep the device when asked."
+msgstr ""
+
+msgid "One action. One destination. Move files between your devices without a labyrinth of menus."
+msgstr ""
+
+msgid "Choose what you accept. Keep everything on your terms. Nothing arrives until you say so."
+msgstr ""
+
+msgid "That is not a code from another device."
+msgstr ""
+
+msgid "No paired peers yet. Pair a device above."
+msgstr ""
+
+msgid "Choose a plugin archive, or drop a folder or an archive here."
+msgstr ""
+
+msgid "This also forgets everything it was allowed to do, on every device. Press again to remove it."
+msgstr ""
+
+msgid "No plugins installed."
+msgstr ""
+
+msgid "It cannot be granted anything."
+msgstr ""
+
+msgid "Pair a device to allow this plugin anything for it."
+msgstr ""
+
+msgid "No plugins installed, so nothing to allow."
+msgstr ""
+
+msgid "Nothing has been sent or received yet."
+msgstr ""
+
+msgid "IMPORTANT — DATA AND SECURITY RISKS"
+msgstr ""
+
+msgid "THE TRANSFER PORTAL"
+msgstr ""
+
+msgid "WELCOME"
+msgstr ""
+
+msgid "HISTORY"
+msgstr ""
+
+msgid "NOT PAIRED"
+msgstr ""
+
+msgid "WAITING FOR YOU"
+msgstr ""
+
+msgid "NOT TIED TO ANY DEVICE"
+msgstr ""
+
+msgid "Received"
+msgstr ""
+
+msgid "Sent"
+msgstr ""
+
+msgid "done"
+msgstr ""
+
+msgid "cancelled"
+msgstr ""
+
+msgid "failed"
+msgstr ""
+
+msgid "going"
+msgstr ""
+
+msgid "SEND"
+msgstr ""
+
+msgid "RECEIVE"
+msgstr ""
+
+msgid "PEERS"
+msgstr ""
+
+msgid "Make files"
+msgstr ""
+
+msgid "fly."
+msgstr ""
+
+msgid "Ready when"
+msgstr ""
+
+msgid "you are."
+msgstr ""
+
+msgid "HOW THINGS STAND"
+msgstr ""
+
+msgid "This device"
+msgstr ""
+
+msgid "Internet relays"
+msgstr ""
+
+msgid "Runs in the background"
+msgstr ""
+
+msgid "Paired devices"
+msgstr ""
+
+msgid "Transfers in progress"
+msgstr ""
+
+msgid "on"
+msgstr ""
+
+msgid "off"
+msgstr ""
+
+msgid "yes"
+msgstr ""
+
+msgid "no"
+msgstr ""
+
+msgid "THIS DEVICE"
+msgstr ""
+
+msgid "Run in the background"
+msgstr ""
+
+msgid "Start without opening a window."
+msgstr ""
+
+msgid "Notifications"
+msgstr ""
+
+msgid "Offers over other apps"
+msgstr ""
+
+msgid "On: the list of the files of an offer opens over what you are doing, and Accept does not open Peersus."
+msgstr ""
+
+msgid "Off: the list of the files of an offer opens in Peersus. Allow it to see the list over other apps."
+msgstr ""
+
+msgid "Where an offer appears"
+msgstr ""
+
+msgid "The edge of the screen where an offer of a file is shown over what you are doing."
+msgstr ""
+
+msgid "Top"
+msgstr ""
+
+msgid "Bottom"
+msgstr ""
+
+msgid "Left"
+msgstr ""
+
+msgid "Right"
+msgstr ""
+
+msgid "Battery"
+msgstr ""
+
+msgid "On: the network of the background service keeps working while the phone is idle."
+msgstr ""
+
+msgid "Limited: while the phone is idle the system may cut the network of the background service. Allow it in the battery settings."
+msgstr ""
+
+msgid "Trying to reach the device"
+msgstr ""
+
+msgid "This can take up to half a minute."
+msgstr ""
+
+msgid "It answers, and it knows this device"
+msgstr ""
+
+msgid "The connection works. Nothing needs to be done."
+msgstr ""
+
+msgid "It answers, but it no longer knows this device"
+msgstr ""
+
+msgid "Forget it here and pair the two devices again. Nothing else is wrong."
+msgstr ""
+
+msgid "It does not answer"
+msgstr ""
+
+msgid "It may be off or out of reach. Try again in a moment. The relays are on, so a change of network is not the cause."
+msgstr ""
+
+msgid "The relays are off, so devices on different networks cannot find each other. Turn on \"Use internet relays\" in Settings."
+msgstr ""
+
+msgid "On: an offer of a file is shown even when the program is closed."
+msgstr ""
+
+msgid "Blocked: an offer of a file is not shown until you allow notifications."
+msgstr ""
+
+msgid "Allow"
+msgstr ""
+
+msgid "Camera"
+msgstr ""
+
+msgid "Wide"
+msgstr ""
+
+msgid "Main"
+msgstr ""
+
+msgid "Zoom"
+msgstr ""
+
+msgid "Automatic"
+msgstr ""
+
+msgid "Choose the camera that reads a code, and press Test to see what it shows."
+msgstr ""
+
+msgid "Test the camera"
+msgstr ""
+
+msgid "Test connection"
+msgstr ""
+
+msgid "Where is this device?"
+msgstr ""
+
+msgid "192.168.1.20:5000 or name.example.org:5000"
+msgstr ""
+
+msgid "Write where this device can be found when the address it was paired at has changed."
+msgstr ""
+
+msgid "A name is better than a number: it is looked up again every time, so it keeps working when the number changes."
+msgstr ""
+
+msgid "The port is shown on the other device, in Settings. Without a port, the one it was last seen at is used."
+msgstr ""
+
+msgid "This only helps if the device can be reached at that address. A phone on a mobile network usually cannot, and then only the relays connect it."
+msgstr ""
+
+msgid "Save and test"
+msgstr ""
+
+msgid "Remove the address"
+msgstr ""
+
+msgid "Listening port"
+msgstr ""
+
+msgid "Another device writes this port after the address of this one to find it. It changes each time the program starts."
+msgstr ""
+
+msgid "Search settings"
+msgstr ""
+
+msgid "Nothing in Settings looks like that."
+msgstr ""
+
+msgid "Files sent"
+msgstr ""
+
+msgid "Files received"
+msgstr ""
+
+msgid "Files in all"
+msgstr ""
+
+msgid "Generate QR code"
+msgstr ""
+
+msgid "Clear the list"
+msgstr ""
+
+msgid "+ Add more files"
+msgstr ""
+
+msgid "All"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Stopped"
+msgstr ""
+
+msgid "Incoming"
+msgstr ""
+
+msgid "Outgoing"
+msgstr ""
+
+msgid "Search transfers"
+msgstr ""
+
+msgid "No transfer matches."
+msgstr ""
+
+msgid "Minimize"
+msgstr ""
+
+msgid "Expand"
+msgstr ""
+
+msgid "OUTGOING FILES"
+msgstr ""
+
+msgid "EXPERIMENTAL"
+msgstr ""
+
+msgid "Devices nearby"
+msgstr ""
+
+msgid "Off: nothing is announced and nothing is listened for. On: while this window is open, this device listens for devices nearby and can be found by them. With Receive open it says that it takes files: files listed on a paired device held right next to it are sent at once, and a device that is not paired can offer its files when it is brought near; each file is asked about here. With Peers open it says that it is there to be paired with, and Peers lists the devices nearby that say so. Uses Bluetooth."
+msgstr ""
+
+msgid "NEARBY"
+msgstr ""
+
+msgid "No device nearby yet. Open Peers on the other device, with Devices nearby turned on there too."
+msgstr ""
+
+msgid "A name here is what that device says of itself. Choosing one begins pairing: both of you then choose the same number."
+msgstr ""
+
+msgid "That device is no longer nearby"
+msgstr ""
+
+msgid "Offered to the device that was brought near. Each file is that person's to accept."
+msgstr ""
+
+msgid "That device does not take files this way"
+msgstr ""
+
+msgid "How near is near"
+msgstr ""
+
+msgid "Hold the two devices as near as you will when you send, with the application open on both, then measure and set. A device counts as brought near a little under the strength measured, so that a hand that is not quite still does not lose it."
+msgstr ""
+
+msgid "Near begins at {dbm} dBm, as you set it."
+msgstr ""
+
+msgid "Near begins at {dbm} dBm, as the application has it."
+msgstr ""
+
+msgid "Strongest device heard now: {dbm} dBm. Set from here, near would begin at {near} dBm."
+msgstr ""
+
+msgid "No device with this application open is heard yet."
+msgstr ""
+
+msgid "Measure"
+msgstr ""
+
+msgid "Stop measuring"
+msgstr ""
+
+msgid "Set near from here"
+msgstr ""
+
+msgid "This device has no Bluetooth that can be used to find devices brought near."
+msgstr ""
+
+msgid "Bluetooth is off. Turn it on to find devices brought near."
+msgstr ""
+
+msgid "The system does not let this program use Bluetooth to find devices brought near."
+msgstr ""
+
+msgid "Bluetooth refused. It is asked again by itself."
+msgstr ""
+
+msgid "This system lets this device find devices brought near but not be found by them."
+msgstr ""
+
+msgid "Sent to the device held near with Receive open. Each file is that person's to accept."
+msgstr ""
+
+msgid "{device} is near. Open Receive on it and these files go to it."
+msgstr ""
+
+msgid "PRIVACY"
+msgstr ""
+
+msgid "Private mode"
+msgstr ""
+
+msgid "Off: your paired devices see this device online, with its name, picture and statuses. On: this device stays connected and sees them, but tells them nothing about itself, so they show it as offline, and extensions send nothing on their own. Sending a file to a device, or choosing a device in an extension, shows this device to that one device until a short while after you are done."
+msgstr ""
+
+msgid "Private mode is on: nothing is sent to that device until you start something for it"
+msgstr ""
+
+msgid "Send instantly"
+msgstr ""
+
+msgid "Off: after choosing where to send, you hold the circle until it fills, so a wrong choice costs nothing. On: touching the circle sends at once."
+msgstr ""
+
+msgid "INCOMING FILES"
+msgstr ""
+
+msgid "Save incoming files on their own"
+msgstr ""
+
+msgid "Off: you are asked where each file goes. On: files go straight to the folder below, without asking."
+msgstr ""
+
+msgid "THEME"
+msgstr ""
+
+msgid "Window bar position"
+msgstr ""
+
+msgid "Choose where the window controls and main navigation appear."
+msgstr ""
+
+msgid "Settings heading position"
+msgstr ""
+
+msgid "Choose where the title, search and Close of Settings appear. They go while you scroll down and come back when you scroll up."
+msgstr ""
+
+msgid "Keep icons when the bar is closed"
+msgstr ""
+
+msgid "A closed bar shows only its pictures. Off, a closed bar is not shown at all."
+msgstr ""
+
+msgid "Reduce motion"
+msgstr ""
+
+msgid "Turn off decorative animation."
+msgstr ""
+
+msgid "CONNECTIONS"
+msgstr ""
+
+msgid "Use internet relays"
+msgstr ""
+
+msgid "Lets devices connect across networks. Off keeps traffic on this network."
+msgstr ""
+
+msgid "INSTALLED"
+msgstr ""
+
+msgid "WHAT EACH PLUGIN MAY DO"
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+msgid "Direction"
+msgstr ""
+
+msgid "State"
+msgstr ""
+
+msgid "Move it. Don't store it."
+msgstr ""
+
+msgid "Private connections between your own devices. Files go directly from one device to another, only after the receiving person approves, and no cloud folder is involved."
+msgstr ""
+
+msgid "INTERFACE"
+msgstr ""
+
+msgid "RENDERING"
+msgstr ""
+
+msgid "NETWORK"
+msgstr ""
+
+msgid "ENGINE"
+msgstr ""
+
+msgid "The windows, layout and components of this application."
+msgstr ""
+
+msgid "The file and folder choosers of the operating system."
+msgstr ""
+
+msgid "Makes the code that another device scans to join."
+msgstr ""
+
+msgid "Draws everything on the screen, text and shapes alike."
+msgstr ""
+
+msgid "Shapes the letters of the text."
+msgstr ""
+
+msgid "A small drawing library used where Skia is not."
+msgstr ""
+
+msgid "Encrypted connections between your devices."
+msgstr ""
+
+msgid "The encryption of those connections."
+msgstr ""
+
+msgid "The cryptographic building blocks under rustls."
+msgstr ""
+
+msgid "Fetches what the application needs over HTTPS."
+msgstr ""
+
+msgid "Runs many transfers at once without waiting on each other."
+msgstr ""
+
+msgid "Reads and writes the application's saved files and messages."
+msgstr ""
+
+msgid "Keeps this device's identity in the system keyring. A local compatibility patch omits the unused asynchronous backend and its legacy wire dependencies, preserving native backends and existing credential lookup behavior. Verification status and provenance are documented with the patch."
+msgstr ""
+
+msgid "Hashes and message codes that check files and pairing."
+msgstr ""
+
+msgid "That file could not be read."
+msgstr ""
+
+msgid "That file is too large to be a profile picture."
+msgstr ""
+
+msgid "Choose a PNG or a JPEG picture."
+msgstr ""
+
+msgid "That picture is too large to use."
+msgstr ""
+
+msgid "That picture could not be read."
+msgstr ""
+
+msgid "That picture could not be kept; try again."
+msgstr ""
+
+msgid "This phone has no way to choose a picture here."
+msgstr ""
+
+msgid "NOTICES"
+msgstr ""
+
+msgid "Keep independent backups and verify important files after a transfer. This application is a transfer tool, not a backup service. You remain responsible for the files you choose, the devices you trust and the permissions you grant."
+msgstr ""
+
+msgid "Security measures reduce risk; they cannot guarantee that vulnerabilities, unauthorized access or data disclosure will never occur. Compromised devices, unsafe plugins, configuration mistakes and future vulnerabilities can affect your data."
+msgstr ""
+
+msgid "This application relies on third-party libraries, operating systems, plugins and, when enabled, network relay services. These dependencies introduce risks outside the authors' control. Third-party components retain their own licences, terms and notices."
+msgstr ""
+
+msgid "Nothing in this notice excludes liability that applicable law does not allow to be excluded, or limits rights that cannot legally be waived."
+msgstr ""
+
+msgid "This software is provided AS IS, without warranties or conditions of any kind, as described in sections 7 and 8 of the Apache License 2.0. To the extent permitted by applicable law, the authors and contributors are not liable for losses arising from its use, including lost, corrupted or disclosed data."
+msgstr ""
+
+msgid "Device is offline"
+msgstr ""
+
+msgid "Could not open selected file"
+msgstr ""
+
+msgid "Could not offer selected files"
+msgstr ""
+
+msgid "Could not accept transfer"
+msgstr ""
+
+msgid "Could not cancel transfer"
+msgstr ""
+
+msgid "Files selection is no longer active"
+msgstr ""
+
+msgid "Could not queue selected files"
+msgstr ""
+
+msgid "Preferences changed elsewhere; reload before saving"
+msgstr ""
+
+msgid "Invalid or expired invitation"
+msgstr ""
+
+msgid "Connection queue is full"
+msgstr ""
+
+msgid "Pairing request is no longer active"
+msgstr ""
+
+msgid "The owner answered with something else."
+msgstr ""
+
+msgid "Unexpected file handoff reply"
+msgstr ""
+
+msgid "A received file could not be put in the folder you chose. It is kept in the app's own folder."
+msgstr ""
+
+msgid "STORE"
+msgstr ""
+
+msgid "Search extensions"
+msgstr ""
+
+msgid "Install from file"
+msgstr ""
+
+msgid "Before you choose a file"
+msgstr ""
+
+msgid "I understand and accept the risk"
+msgstr ""
+
+msgid "Search the store"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Refresh the list"
+msgstr ""
+
+msgid "by {author} · version {version}"
+msgstr ""
+
+msgid "Installed: version {version}"
+msgstr ""
+
+msgid "Update"
+msgstr ""
+
+msgid "Updating forgets what the installed version was allowed to do. You decide again afterwards."
+msgstr ""
+
+msgid "Updating keeps what you allowed that the new version still asks for. Anything new it asks for stays off until you allow it."
+msgstr ""
+
+msgid "A newer version than the approved one is installed. Remove it to install the approved version."
+msgstr ""
+
+msgid "The extension store is not set up in this build."
+msgstr ""
+
+msgid "Press Refresh to see the extensions the maintainer approved."
+msgstr ""
+
+msgid "The store could not complete that. Nothing was changed."
+msgstr ""
+
+msgid "The maintainer has not approved any extension yet."
+msgstr ""
+
+msgid "No extension matches your search."
+msgstr ""
+
+msgid "Manual installation does not imply official approval. Review the extension and its source; you are responsible for code installed outside the Store."
+msgstr ""
+
+msgid "Remove for good?"
+msgstr ""
+
+msgid "Damaged or out of date: install it again to repair it"
+msgstr ""
+
+msgid "Stopped working: update or install it again"
+msgstr ""
+
+msgid "Update available:"
+msgstr ""
+
+msgid "Automatic updates"
+msgstr ""
+
+msgid "Approve"
+msgstr ""
+
+msgid "Reinstall"
+msgstr ""
+
+msgid "Background clipboard access"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Remote input accessibility"
+msgstr ""
+
+msgid "Relay"
+msgstr ""
+
+msgid "Advanced relay options"
+msgstr ""
+
+msgid "Direct wait (ms)"
+msgstr ""
+
+msgid "Relay timeout (ms)"
+msgstr ""
+
+msgid "Retry preferred relay (ms)"
+msgstr ""
+
+msgid "Enter valid relay timings"
+msgstr ""
+
+msgid "Not installed"
+msgstr ""
+
+msgid "Connecting to home relay"
+msgstr ""
+
+msgid "Home relay connected"
+msgstr ""
+
+msgid "Home relay unavailable"
+msgstr ""
+
+msgid "Home relay refused access"
+msgstr ""
+
+msgid "Direct connection is always tried first."
+msgstr ""
+
+msgid "Project relay"
+msgstr ""
+
+msgid "Public relays (n0)"
+msgstr ""
+
+msgid "Enable public relays (n0)"
+msgstr ""
+
+msgid "Move up"
+msgstr ""
+
+msgid "Move down"
+msgstr ""
+
+msgid "Save and enable relay"
+msgstr ""
+
+msgid "The token is sent only to your custom relay, never to project or public relays."
+msgstr ""
+
+msgid "Application traffic waits for a direct path before using relay fallbacks in this order. Relay signalling may begin earlier. Fallback traffic is end-to-end encrypted, but connection metadata is visible. No application telemetry is sent."
+msgstr ""
+
+msgid "Public relays"
+msgstr ""
+
+msgid "No relay"
+msgstr ""
+
+msgid "My own relay"
+msgstr ""
+
+msgid "Priority"
+msgstr ""
+
+msgid "Sequential"
+msgstr ""
+
+msgid "Latency"
+msgstr ""
+
+msgid "Order"
+msgstr ""
+
+msgid "All enabled relays are offered together; the nearest that answers is used."
+msgstr ""
+
+msgid "The list order is the preference; the first relay is tried again after a fallback."
+msgstr ""
+
+msgid "Down the list in order; a working relay is kept until it fails."
+msgstr ""
+
+msgid "The enabled relays are measured and the fastest that answers is used."
+msgstr ""
+
+msgid "No answer"
+msgstr ""
+
+msgid "Remove this relay?"
+msgstr ""
+
+msgid "Change address"
+msgstr ""
+
+msgid "The token is sent only to this relay, never to the others."
+msgstr ""
+
+msgid "Test relays"
+msgstr ""
+
+msgid "Add a relay"
+msgstr ""
+
+msgid "Add relay"
+msgstr ""
+
+msgid "The relays everyone can use. They carry only encrypted traffic and cannot read it."
+msgstr ""
+
+msgid "No relay: devices on different networks cannot find each other. Traffic stays on this network."
+msgstr ""
+
+msgid "A relay you run yourself, instead of the public ones."
+msgstr ""
+
+msgid "https://relay.example.org"
+msgstr ""
+
+msgid "Use this relay"
+msgstr ""
+
+msgid "Access token (kept on this device only)"
+msgstr ""
+
+msgid "Save token"
+msgstr ""
+
+msgid "Forget token"
+msgstr ""
+
+msgid "The token is stored in this device's secure storage. It is never shown again and never sent to other devices."
+msgstr ""
+
+msgid "Token saved"
+msgstr ""
+
+msgid "Token forgotten"
+msgstr ""
+
+msgid "The relay address must start with https:// and be a single address without spaces"
+msgstr ""
+
+msgid "The relay token must be one line of at most 512 characters"
+msgstr ""
+
+msgid "Page background"
+msgstr ""
+
+msgid "Cards and panels"
+msgstr ""
+
+msgid "Raised controls and hover"
+msgstr ""
+
+msgid "Top header background"
+msgstr ""
+
+msgid "Sidebar background"
+msgstr ""
+
+msgid "Borders and separators"
+msgstr ""
+
+msgid "Primary text"
+msgstr ""
+
+msgid "Secondary text"
+msgstr ""
+
+msgid "Portal disc"
+msgstr ""
+
+msgid "Portal text"
+msgstr ""
+
+msgid "Send indicators"
+msgstr ""
+
+msgid "Receive indicators"
+msgstr ""
+
+msgid "Connected and successful"
+msgstr ""
+
+msgid "Offline and failed"
+msgstr ""
+
+msgid "Warning text"
+msgstr ""
+
+msgid "Warning background"
+msgstr ""
+
+msgid "Primary button background"
+msgstr ""
+
+msgid "Primary button text"
+msgstr ""
+
+msgid "Minimise window control"
+msgstr ""
+
+msgid "Maximise window control"
+msgstr ""
+
+msgid "Close window control"
+msgstr ""
+
+msgid "Minimise window"
+msgstr ""
+
+msgid "Maximise window"
+msgstr ""
+
+msgid "Restore window"
+msgstr ""
+
+msgid "Close window"
+msgstr ""
+
+msgid "Diagnostics"
+msgstr ""
+
+msgid "Capture crashes"
+msgstr ""
+
+msgid "When Peersus or one of its windows crashes, a small program beside it writes a crash report (a minidump) to this device's diagnostics folder. Nothing is sent anywhere. A report holds what the program had in memory, so share it only with someone you trust. Off: nothing watches Peersus."
+msgstr ""
+
+msgid "Peersus core"
+msgstr ""
+
+msgid "This window"
+msgstr ""
+
+msgid "Starting…"
+msgstr ""
+
+msgid "Watching"
+msgstr ""
+
+msgid "Crash capture is available on Linux only"
+msgstr ""
+
+msgid "The crash capture program is not installed beside Peersus"
+msgstr ""
+
+msgid "The crash capture program did not start"
+msgstr ""
+
+msgid "The system does not allow crash capture (ptrace is restricted, or a debugger is attached)"
+msgstr ""
+
+msgid "Crash reports"
+msgstr ""
+
+msgid "No crash reports."
+msgstr ""
+
+msgid "Reports stay on this device until you delete them. The newest ten are kept."
+msgstr ""
+
+msgid "Open folder"
+msgstr ""
+
+msgid "Delete reports"
+msgstr ""
+
+msgid "Crash reports are not kept on this device"
+msgstr ""
+
+msgid "Navigation icons"
+msgstr ""
+
+msgid "Selected navigation icon"
+msgstr ""
+
+msgid "Camera detection outline"
+msgstr ""
+
+msgid "CUSTOM THEME"
+msgstr ""
+
+msgid "Choose an element and type its colour. The preview and the whole interface follow as you type; nothing is saved until you save the theme."
+msgstr ""
+
+msgid "Dark base"
+msgstr ""
+
+msgid "Light base"
+msgstr ""
+
+msgid "Editing: {element}"
+msgstr ""
+
+msgid "Enter six hexadecimal RGB digits, such as #708090."
+msgstr ""
+
+msgid "Discard changes"
+msgstr ""
+
+msgid "Reset selected element"
+msgstr ""
+
+msgid "Your theme name"
+msgstr ""
+
+msgid "Confirm replace existing theme"
+msgstr ""
+
+msgid "Save named theme"
+msgstr ""
+
+msgid "SAVED THEME LIBRARY"
+msgstr ""
+
+msgid "Load {name}"
+msgstr ""
+
+msgid "Confirm removal"
+msgstr ""
+
+msgid "IMPORT / EXPORT"
+msgstr ""
+
+msgid "Export / copy theme JSON"
+msgstr ""
+
+msgid "Paste exported theme JSON here"
+msgstr ""
+
+msgid "Import JSON for preview"
+msgstr ""
+
+msgid "Import theme file…"
+msgstr ""
+
+msgid "Export theme file…"
+msgstr ""
+
+msgid "Theme JSON"
+msgstr ""
+
+msgid "Low contrast: “{text}” on “{surface}” may be hard to read."
+msgstr ""
+
+msgid "Choose a theme name of 1–64 characters, without surrounding spaces."
+msgstr ""
+
+msgid "The theme could not be exported."
+msgstr ""
+
+msgid "Theme files must be at most 64 KiB."
+msgstr ""
+
+msgid "This is not a valid theme file."
+msgstr ""
+
+msgid "This theme format version is not supported."
+msgstr ""
+
+msgid "The theme name is invalid."
+msgstr ""
+
+msgid "This name already exists. Confirm replacement below, or use another name."
+msgstr ""
+
+msgid "Theme saved in your library."
+msgstr ""
+
+msgid "The theme could not be saved."
+msgstr ""
+
+msgid "Theme copied. Paste it into a file or another installation."
+msgstr ""
+
+msgid "Theme JSON is in the exchange field below; it can be selected and copied."
+msgstr ""
+
+msgid "Imported for preview. Save to register this theme in your library."
+msgstr ""
+
+msgid "Changes discarded; saved preferences are unchanged."
+msgstr ""
+
+msgid "The theme file could not be opened."
+msgstr ""
+
+msgid "The theme file could not be read."
+msgstr ""
+
+msgid "Theme exported."
+msgstr ""
+
+msgid "Theme removed from your library."
+msgstr ""
+
+msgid "The theme could not be removed."
+msgstr ""
+
+msgid "Top header"
+msgstr ""
+
+msgid "Header · navigation and window controls"
+msgstr ""
+
+msgid "Sidebar"
+msgstr ""
+
+msgid "Navigation icon"
+msgstr ""
+
+msgid "Window control (preview only)"
+msgstr ""
+
+msgid "Portal disc and its text"
+msgstr ""
+
+msgid "PORTAL"
+msgstr ""
+
+msgid "Primary button"
+msgstr ""
+
+msgid "Primary action"
+msgstr ""
+
+msgid "Warning notice"
+msgstr ""
+
+msgid "Warning: verify received files."
+msgstr ""
+
+msgid "Camera detection marker"
+msgstr ""
+
+msgid "Sending →"
+msgstr ""
+
+msgid "← Receiving"
+msgstr ""
+
+msgid "● Connected · Complete"
+msgstr ""
+
+msgid "● Offline · Failed"
+msgstr ""
+
+msgid "Transfer or connection indicator"
+msgstr ""
+
+msgid "Text on the page"
+msgstr ""
+
+msgid "Primary text — names and headings"
+msgstr ""
+
+msgid "Secondary text — descriptions and details"
+msgstr ""
+
+msgid "Surface and border"
+msgstr ""
+
+msgid "Panel / page content"
+msgstr ""
+
+msgid "PREVIEW — {element}"
+msgstr ""
+
+msgid "Import theme file · Export theme file · JSON"
+msgstr ""
+
+msgid "UPDATES"
+msgstr ""
+
+msgid "Update automatically"
+msgstr ""
+
+msgid "On: a verified update of Peersus is downloaded and put in place without asking."
+msgstr ""
+
+msgid "Restart after an update"
+msgstr ""
+
+msgid "On: Peersus starts again by itself once an update is in place, when nothing is being sent or received."
+msgstr ""
+
+msgid "Check for updates"
+msgstr ""
+
+msgid "Update now"
+msgstr ""
+
+msgid "Restart now"
+msgstr ""
+
+msgid "This installation does not update itself."
+msgstr ""
+
+msgid "Updates have not been looked for yet."
+msgstr ""
+
+msgid "Looking for an update…"
+msgstr ""
+
+msgid "This version is up to date."
+msgstr ""
+
+msgid "Version {version} is available."
+msgstr ""
+
+msgid "Version"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "not in this build"
+msgstr ""
+
+msgid "not automatic"
+msgstr ""
+
+msgid "not checked yet"
+msgstr ""
+
+msgid "checking…"
+msgstr ""
+
+msgid "up to date"
+msgstr ""
+
+msgid "update available"
+msgstr ""
+
+msgid "updating…"
+msgstr ""
+
+msgid "restart to finish"
+msgstr ""
+
+msgid "Binds"
+msgstr ""
+
+msgid "KEY BINDINGS"
+msgstr ""
+
+msgid "A key runs what its row says while the window is in front. Press + and then the keys together to add one, up to three; press a binding to change it, then Backspace to remove it or Escape to leave it."
+msgstr ""
+
+msgid "press the keys…"
+msgstr ""
+
+msgid "{held} · Backspace removes"
+msgstr ""
+
+msgid "{what} has three key bindings already."
+msgstr ""
+
+msgid "Also while the window is not in front"
+msgstr ""
+
+msgid "The desktop asks you to approve the keys, and may give another key where one is taken."
+msgstr ""
+
+msgid "{chord} already runs {what}."
+msgstr ""
+
+msgid "Accepts the newest offer of files waiting for you, saved where your rule for received files says."
+msgstr ""
+
+msgid "Declines the newest offer of files waiting for you."
+msgstr ""
+
+msgid "Opens the Send page, to choose files and the device they go to."
+msgstr ""
+
+msgid "Opens the Receive page, with its pairing code and the files received."
+msgstr ""
+
+msgid "Accept incoming files"
+msgstr ""
+
+msgid "Decline incoming files"
+msgstr ""
+
+msgid "Show Send"
+msgstr ""
+
+msgid "Show Receive"
+msgstr ""
+
+msgid "something no longer installed"
+msgstr ""
+
+msgid "Downloading the update…"
+msgstr ""
+
+msgid "Putting the update in place…"
+msgstr ""
+
+msgid "The update is in place. It runs after a restart."
+msgstr ""
+
+msgid "Restarting…"
+msgstr ""
+
+msgid "The update could not be completed."
+msgstr ""
+
+msgid "Accept TOS"
+msgstr ""
+
+msgid "Next"
+msgstr ""
+
+msgid "Hold to confirm"
+msgstr ""
+
+msgid "Keep holding"
+msgstr ""
+
+msgid "Read to the end to go on"
+msgstr ""
+
+msgid "Step {number} of {total}"
+msgstr ""
+
+msgid "WHAT THIS IS"
+msgstr ""
+
+msgid "WHAT CHANGES FOR YOU"
+msgstr ""
+
+msgid "READ THE FULL TEXT"
+msgstr ""
+
+msgid "LICENCE"
+msgstr ""
+
+msgid "NOTICE"
+msgstr ""
+
+msgid "TERMS"
+msgstr ""
+
+msgid "OUTSIDE THE STORE"
+msgstr ""
+
+msgid "This extension did not come through the store"
+msgstr ""
+
+msgid "Nobody at Peersus has reviewed it, signed it or promised that it is safe. It runs with your access on this device and can read and send whatever you let it reach."
+msgstr ""
+
+msgid "The Peersus project cannot take on the risk of an extension from outside its store, and is not responsible for what it does to you, your files or your devices. The risk is yours."
+msgstr ""
+
+msgid "Prefer the store: what is listed there was reviewed before it was offered. If you do not know who made this package, do not install it."
+msgstr ""
+
+msgid "Read to the end, then hold the button to confirm that you understand this and accept the risk."
+msgstr ""
+
+msgid "{count} file"
+msgid_plural "{count} files"
+msgstr[0] ""
+msgstr[1] ""
+
+msgctxt "ago"
+msgid "{count} minute"
+msgid_plural "{count} minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+msgctxt "ago"
+msgid "{count} hour"
+msgid_plural "{count} hours"
+msgstr[0] ""
+msgstr[1] ""
+
+msgctxt "ago"
+msgid "{count} day"
+msgid_plural "{count} days"
+msgstr[0] ""
+msgstr[1] ""
+
+msgctxt "ago"
+msgid "{count} month"
+msgid_plural "{count} months"
+msgstr[0] ""
+msgstr[1] ""
+
+msgctxt "ago"
+msgid "{count} year"
+msgid_plural "{count} years"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "The language file could not be read."
+msgstr ""
+
+msgid "The language file was imported."
+msgstr ""
+
+msgid "The template was saved."
+msgstr ""
+
+msgid "The template could not be saved."
+msgstr ""
+
+msgid "Could not open a browser."
+msgstr ""
+
+msgid "This device is set to {language}."
+msgstr ""
+
+msgid "This device names no language, so English is used."
+msgstr ""
+
+msgid "LANGUAGE"
+msgstr ""
+
+msgid "English is built in. Any other language is a file downloaded for this version; whatever it does not translate is shown in English."
+msgstr ""
+
+msgid "Use the device's language"
+msgstr ""
+
+msgid "Looking for languages…"
+msgstr ""
+
+msgid "The languages could not be fetched"
+msgstr ""
+
+msgid "No other language is offered for this version yet."
+msgstr ""
+
+msgid "TRANSLATE"
+msgstr ""
+
+msgid "Save the template, translate it in any PO editor, import it here to see it at once, then share it so it can be offered to everyone."
+msgstr ""
+
+msgid "{percent}% translated"
+msgstr ""
+
+msgid "Download and use"
+msgstr ""
+
+msgid "Downloaded"
+msgstr ""
+
+msgid "Not downloaded"
+msgstr ""
+
+msgid "AI translated"
+msgstr ""
+
+msgid "Imported"
+msgstr ""
+
+msgid "{first} · {second}"
+msgstr ""
+
+msgid "IN USE"
+msgstr ""
+
+msgid "Use"
+msgstr ""
+
+msgid "Check again"
+msgstr ""
+
+msgid "Language file"
+msgstr ""
+
+msgid "Import a language file…"
+msgstr ""
+
+msgid "Language template"
+msgstr ""
+
+msgid "Save the template…"
+msgstr ""
+
+msgid "Share a translation (opens browser)"
+msgstr ""
+
+msgid "Languages"
+msgstr ""
+
+msgid "English is the application's own language and needs no file"
+msgstr ""
+
+msgid "No languages are offered for this release yet"
+msgstr ""
+
+msgid "That language file is not held"
+msgstr ""
+
+msgid "The language file could not be read"
+msgstr ""
+
+msgid "The language file could not be removed"
+msgstr ""
+
+msgid "The language file could not be saved"
+msgstr ""
+
+msgid "The language file does not say which language it is (its header has no Language)"
+msgstr ""
+
+msgid "The language file is too large"
+msgstr ""
+
+msgid "The languages could not be saved"
+msgstr ""
+
+msgid "The windows are shown in English, which needs no file"
+msgstr ""
+
+msgid "This is not a language file the application can read"
+msgstr ""
+
+msgid "What the languages branch sent could not be checked"
+msgstr ""
+
+msgid "Languages are not available here"
+msgstr ""
+
+msgid "The plugin picker could not be opened"
+msgstr ""
+
+msgid "The file picker could not be opened"
+msgstr ""
+
+msgid "Another language file is being imported"
+msgstr ""
+
+msgid "The application is not ready to import a language file"
+msgstr ""
+
+msgid "The application is not ready to open plugins"
+msgstr ""
+
+msgid "Another plugin archive is being opened"
+msgstr ""
+
+msgid "The selected archive could not be staged"
+msgstr ""
+
+msgid "The selected archive could not be read"
+msgstr ""
+
+msgid "The embedded metadata is not valid"
+msgstr ""
+
+msgid "The program carries no embedded metadata"
+msgstr ""
+
+msgid "The program is not a recognised binary"
+msgstr ""
+
+msgid "Input capabilities are unavailable"
+msgstr ""
+
+msgid "Input is unavailable"
+msgstr ""
+
+msgid "The input was not understood"
+msgstr ""
+
+msgid "This computer cannot be controlled: no input device could be made"
+msgstr ""
+
+msgid "This computer cannot give that device a pointer of its own"
+msgstr ""
+
+msgid "This extension replays input for too many devices at once"
+msgstr ""
+
+msgid "Unknown input method"
+msgstr ""
+
+msgid "An installed native module must be read-only"
+msgstr ""
+
+msgid "Another plugin already has this name"
+msgstr ""
+
+msgid "It could not be read"
+msgstr ""
+
+msgid "It has no manifest"
+msgstr ""
+
+msgid "It has no program"
+msgstr ""
+
+msgid "It has two manifests"
+msgstr ""
+
+msgid "It is not a directory"
+msgstr ""
+
+msgid "It offers a service another plugin already offers"
+msgstr ""
+
+msgid "It takes things in without a permission to guard them"
+msgstr ""
+
+msgid "Its directory belongs to someone else"
+msgstr ""
+
+msgid "Its directory can be changed by others"
+msgstr ""
+
+msgid "Its manifest could not be read"
+msgstr ""
+
+msgid "Its manifest is not a file"
+msgstr ""
+
+msgid "Its manifest is not valid"
+msgstr ""
+
+msgid "Its manifest is too large"
+msgstr ""
+
+msgid "Its manifest must explicitly declare `execution`"
+msgstr ""
+
+msgid "Its name is not usable"
+msgstr ""
+
+msgid "Its program belongs to someone else"
+msgstr ""
+
+msgid "Its program can be changed by others"
+msgstr ""
+
+msgid "Its program cannot be run"
+msgstr ""
+
+msgid "Its program is not a file"
+msgstr ""
+
+msgid "One of its actions could never be reached"
+msgstr ""
+
+msgid "Plugins cannot be run on this system"
+msgstr ""
+
+msgid "Cannot create application directory"
+msgstr ""
+
+msgid "Cannot open identity lock"
+msgstr ""
+
+msgid "Identity is being opened by another process"
+msgstr ""
+
+msgid "System credential store is unavailable"
+msgstr ""
+
+msgid "Cannot start system keyring access; existing identity was not changed"
+msgstr ""
+
+msgid "Cannot verify system keyring unlock; existing identity was not changed"
+msgstr ""
+
+msgid "System keyring is still locked; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "System keyring is unavailable; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "System keyring unlock timed out; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "System keyring unlock was cancelled; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "Cannot read system identity; existing credentials were not changed"
+msgstr ""
+
+msgid "Cannot read the system keyring; nothing was changed"
+msgstr ""
+
+msgid "Cannot remember the choice; nothing was changed"
+msgstr ""
+
+msgid "Cannot save identity in system credential store"
+msgstr ""
+
+msgid "Cannot verify existing pairings; identity was not replaced"
+msgstr ""
+
+msgid "Cannot verify saved identity; retry reading on next startup"
+msgstr ""
+
+msgid "Give at least the first four characters of the record, as `identity-list` shows it"
+msgstr ""
+
+msgid "Stored identity changed during creation; startup refused"
+msgstr ""
+
+msgid "Stored identity is invalid; it has not been replaced. Run `peersus identity-reset --yes` to start with a new identity"
+msgstr ""
+
+msgid "System keyring access was denied or cancelled; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "System keyring contains multiple matching identity records and none could be read; no identity was selected or changed. Run `peersus identity-list`, then `peersus identity-use <record>` to choose one, or `peersus identity-reset --yes` to start with a new identity"
+msgstr ""
+
+msgid "That is not the start of exactly one record; nothing was changed"
+msgstr ""
+
+msgid "The identity for existing pairings is unavailable; it was not replaced. If it is gone for good, run `peersus identity-reset --yes` to start with a new identity"
+msgstr ""
+
+msgid "The identity was deleted but the pairings could not be put aside"
+msgstr ""
+
+msgid "The keyring refused to delete the identity records"
+msgstr ""
+
+msgid "Cannot start the interface's executor"
+msgstr ""
+
+msgid "The application is not running"
+msgstr ""
+
+msgid "The application's directory cannot be found"
+msgstr ""
+
+msgid "The system keyring is locked and its service did not show the password prompt; existing identity and pairings were not changed"
+msgstr ""
+
+msgid "Could not read local application state"
+msgstr ""
+
+msgid "Local connection failed; command outcome may be unknown"
+msgstr ""
+
+msgid "Local request timed out; command outcome may be unknown"
+msgstr ""
+
+msgid "Application data directory unavailable"
+msgstr ""
+
+msgid "Cannot acquire private application directory"
+msgstr ""
+
+msgid "Could not connect to the running application"
+msgstr ""
+
+msgid "Could not send a stop request; its outcome may be unknown"
+msgstr ""
+
+msgid "The application did not stop in time"
+msgstr ""
+
+msgid "Too many windows are attached"
+msgstr ""
+
+msgid "The window program is not beside the owner"
+msgstr ""
+
+msgid "This session has no X display to place a panel on"
+msgstr ""
+
+msgid "This extension format is not available in this distribution"
+msgstr ""
+
+msgid "It clashes with another plugin"
+msgstr ""
+
+msgid "It could not be loaded"
+msgstr ""
+
+msgid "This package carries no licence and notice, so it cannot be installed"
+msgstr ""
+
+msgid "It has no manifest the application can use"
+msgstr ""
+
+msgid "It has no program the application can run"
+msgstr ""
+
+msgid "Its folder can be changed by others, so it is not run"
+msgstr ""
+
+msgid "Cannot encode private catalog configuration"
+msgstr ""
+
+msgid "Cannot locate the private catalog helper"
+msgstr ""
+
+msgid "Cannot prepare private catalog state"
+msgstr ""
+
+msgid "Cannot protect private catalog state"
+msgstr ""
+
+msgid "Cannot read the private catalog configuration"
+msgstr ""
+
+msgid "Cannot save private catalog configuration securely"
+msgstr ""
+
+msgid "Cannot verify the saved private catalog configuration"
+msgstr ""
+
+msgid "The private catalog configuration changed while saving"
+msgstr ""
+
+msgid "The private catalog signing key is not valid"
+msgstr ""
+
+msgid "The saved private catalog configuration is not usable"
+msgstr ""
+
+msgid "The system credential store is unavailable"
+msgstr ""
+
+msgid "Cannot forget the relay token"
+msgstr ""
+
+msgid "Cannot read the relay token; the saved one was not changed"
+msgstr ""
+
+msgid "Cannot save the relay token in the system credential store"
+msgstr ""
+
+msgid "Cannot verify the saved relay token"
+msgstr ""
+
+msgid "The saved relay token changed while it was being saved"
+msgstr ""
+
+msgid "The saved relay token is not usable; it has not been changed"
+msgstr ""
+
+msgid "A development replacement needs a package archive"
+msgstr ""
+
+msgid "A device did not acknowledge the bytes sent"
+msgstr ""
+
+msgid "A device did not confirm receiving the transfer"
+msgstr ""
+
+msgid "A device did not confirm the bytes sent"
+msgstr ""
+
+msgid "A relative desktop cannot be attached there"
+msgstr ""
+
+msgid "A required permission is missing"
+msgstr ""
+
+msgid "Action arguments are invalid"
+msgstr ""
+
+msgid "Action context is invalid"
+msgstr ""
+
+msgid "Action is not permitted for this device"
+msgstr ""
+
+msgid "An action can have up to three key bindings"
+msgstr ""
+
+msgid "An extension asked for too much, too fast, and is paused for a short while"
+msgstr ""
+
+msgid "An extension needs you to read and accept its licence and notice; open Extensions"
+msgstr ""
+
+msgid "Another extension already carries input between devices. Turn that one off to use this one"
+msgstr ""
+
+msgid "Application updates are not available here"
+msgstr ""
+
+msgid "Choose a device for this action"
+msgstr ""
+
+msgid "Choose a device for this setting"
+msgstr ""
+
+msgid "Choose between one and sixteen files"
+msgstr ""
+
+msgid "Choose exactly one file for this action"
+msgstr ""
+
+msgid "Could not change this permission"
+msgstr ""
+
+msgid "Could not clear the history"
+msgstr ""
+
+msgid "Could not forget device"
+msgstr ""
+
+msgid "Could not forget what it was granted"
+msgstr ""
+
+msgid "Could not keep the picture"
+msgstr ""
+
+msgid "Could not narrow the predecessor's permissions"
+msgstr ""
+
+msgid "Could not open selected folder or device is offline"
+msgstr ""
+
+msgid "Could not remove the picture"
+msgstr ""
+
+msgid "Could not save permissions"
+msgstr ""
+
+msgid "Device is not paired"
+msgstr ""
+
+msgid "Extension prompts unavailable"
+msgstr ""
+
+msgid "Files selection is not fully accounted for"
+msgstr ""
+
+msgid "Input arguments are invalid"
+msgstr ""
+
+msgid "Invalid action permission"
+msgstr ""
+
+msgid "Invalid input permission"
+msgstr ""
+
+msgid "Invalid value for this setting"
+msgstr ""
+
+msgid "Key bindings are not available on this device"
+msgstr ""
+
+msgid "Languages are being fetched; try again when that has finished"
+msgstr ""
+
+msgid "No picture is held for that"
+msgstr ""
+
+msgid "No plugin handles this request"
+msgstr ""
+
+msgid "Nothing was shown for that plugin"
+msgstr ""
+
+msgid "This extension is not managed by the package store"
+msgstr ""
+
+msgid "Only one relative desktop can use the same side"
+msgstr ""
+
+msgid "Permissions could not be applied"
+msgstr ""
+
+msgid "Plugin is not permitted for this device"
+msgstr ""
+
+msgid "Plugin unavailable"
+msgstr ""
+
+msgid "Plugins cannot be installed here"
+msgstr ""
+
+msgid "Private catalog configuration could not be saved"
+msgstr ""
+
+msgid "Private catalogs are not enabled on this device"
+msgstr ""
+
+msgid "Read-only demo: this window is not connected to an owner"
+msgstr ""
+
+msgid "Selected input is unavailable"
+msgstr ""
+
+msgid "That action cannot be run by a key"
+msgstr ""
+
+msgid "That action needs a device for its key, and only then"
+msgstr ""
+
+msgid "That device cannot be sent to"
+msgstr ""
+
+msgid "That extension action is not installed"
+msgstr ""
+
+msgid "That input was not understood"
+msgstr ""
+
+msgid "Visibility is reported by a window"
+msgstr ""
+
+msgid "Window observation is unavailable"
+msgstr ""
+
+msgid "Window observation was not accepted"
+msgstr ""
+
+msgid "That permission cannot be granted to this plugin"
+msgstr ""
+
+msgid "The code was already used or is no longer shown"
+msgstr ""
+
+msgid "The extension store failed"
+msgstr ""
+
+msgid "The extension store is not available here"
+msgstr ""
+
+msgid "The licence and notice were not accepted, so nothing was installed"
+msgstr ""
+
+msgid "The package changed after it was shown; choose it again"
+msgstr ""
+
+msgid "The package has no valid name"
+msgstr ""
+
+msgid "The plugin could not be registered"
+msgstr ""
+
+msgid "The plugin does not allow this action"
+msgstr ""
+
+msgid "The plugin does not offer this action"
+msgstr ""
+
+msgid "The plugin is not running"
+msgstr ""
+
+msgid "The plugin is not what was shown; look at it again"
+msgstr ""
+
+msgid "The plugin is sending too much, too fast"
+msgstr ""
+
+msgid "The predecessor is no longer installed"
+msgstr ""
+
+msgid "The request could not be sent"
+msgstr ""
+
+msgid "The text to share is empty or too large"
+msgstr ""
+
+msgid "The update failed"
+msgstr ""
+
+msgid "This action does not accept selected input"
+msgstr ""
+
+msgid "This action does not accept shared text"
+msgstr ""
+
+msgid "This action does not use a device"
+msgstr ""
+
+msgid "This action is not available now"
+msgstr ""
+
+msgid "This action requires its declared selected input"
+msgstr ""
+
+msgid "This device cannot keep a relay token"
+msgstr ""
+
+msgid "This extension declares no input transport"
+msgstr ""
+
+msgid "This is not permitted for this device"
+msgstr ""
+
+msgid "This page is not offered on this system"
+msgstr ""
+
+msgid "This extension has not been allowed to use that facility"
+msgstr ""
+
+msgid "This platform does not offer the requested facility"
+msgstr ""
+
+msgid "This setting is not per device"
+msgstr ""
+
+msgid "Turn on to allow downloads from {address}. The server sees the requested resources and this device’s network address. No files, saved credentials or cookies are sent."
+msgstr ""
+
+msgid "This setting changed. Review it in Settings before trying again."
+msgstr ""
+
+msgid "This setting is not available on this platform"
+msgstr ""
+
+msgid "Accept the extension agreement before enabling this setting"
+msgstr ""
+
+msgid "This extension does not import Public HTTPS"
+msgstr ""
+
+msgid "Public HTTPS is unavailable"
+msgstr ""
+
+msgid "Unknown public resource setting"
+msgstr ""
+
+msgid "Change this public resource in the extension's Settings"
+msgstr ""
+
+msgid "Enable this public resource in the extension's settings"
+msgstr ""
+
+msgid "Download bounded public data, without cookies or credentials, from an HTTPS address you approve."
+msgstr ""
+
+msgid "Too many calls"
+msgstr ""
+
+msgid "Too many extension destinations are already guarded"
+msgstr ""
+
+msgid "Too many operations are pending"
+msgstr ""
+
+msgid "Too many transfers are waiting for plugins"
+msgstr ""
+
+msgid "Unknown action"
+msgstr ""
+
+msgid "Unknown device"
+msgstr ""
+
+msgid "Unknown page"
+msgstr ""
+
+msgid "Unknown plugin"
+msgstr ""
+
+msgid "Unknown setting"
+msgstr ""
+
+msgid "Wait for the current catalog operation to finish"
+msgstr ""
+
+msgid "Your acceptance could not be recorded, so nothing was installed"
+msgstr ""
+
+msgid "An AppImage does not replace itself; download the new one"
+msgstr ""
+
+msgid "Kept by something else"
+msgstr ""
+
+msgid "The application cannot replace itself on this system yet"
+msgstr ""
+
+msgid "The update could not be unpacked"
+msgstr ""
+
+msgid "The update could not be written beside the application"
+msgstr ""
+
+msgid "The update is not a plain set of programs"
+msgstr ""
+
+msgid "The update is not for this installation"
+msgstr ""
+
+msgid "The update was only partly put in place; install the application again"
+msgstr ""
+
+msgid "This installation is managed by the system and is updated with it"
+msgstr ""
+
+msgid "This installation is updated by Flatpak"
+msgstr ""
+
+msgid "This kind of update cannot be applied to this installation"
+msgstr ""
+
+msgid "Loading…"
+msgstr ""
+
+msgid "This extension draws too much and was paused to keep Peersus responsive."
+msgstr ""
+
+msgid "Resume"
+msgstr ""
+
+msgid "This window cannot manage any more extension drawings."
+msgstr ""
+
+msgid "Another device"
+msgstr ""
+
+msgid "CANCELLED"
+msgstr ""
+
+msgid "CONNECTED"
+msgstr ""
+
+msgid "Choose a plugin archive (.tar, .tar.gz, .tgz)"
+msgstr ""
+
+msgid "Choose a profile picture (PNG or JPEG)"
+msgstr ""
+
+msgid "Choosing a folder is not available on this device."
+msgstr ""
+
+msgid "Clear"
+msgstr ""
+
+msgid "Clear them?"
+msgstr ""
+
+msgid "FAILED · {reason}"
+msgstr ""
+
+msgid "FOR {device}"
+msgstr ""
+
+msgid "Folder for incoming files"
+msgstr ""
+
+msgid "INCOMING"
+msgstr ""
+
+msgid "NOT RUNNING"
+msgstr ""
+
+msgid "No folder was chosen, so the file was not accepted."
+msgstr ""
+
+msgid "OUTGOING"
+msgstr ""
+
+msgid "OUTGOING · PREPARED"
+msgstr ""
+
+msgid "Peersus could not be started again"
+msgstr ""
+
+msgid "Save the file in"
+msgstr ""
+
+msgid "The folder chosen for incoming files is gone. Choose another."
+msgstr ""
+
+msgid "The identity could not be reset"
+msgstr ""
+
+msgid "The plugin picker is unavailable"
+msgstr ""
+
+msgid "There is no data directory to look in"
+msgstr ""
+
+msgid "Touch the screen with two fingers to bring Settings down from the top. It does nothing while Settings is already open."
+msgstr ""
+
+msgid "Two fingers open Settings"
+msgstr ""
+
+msgid "Back twice to leave"
+msgstr ""
+
+msgid "Leaving with Back takes a second press soon after the first, so that Back pressed by accident does not close Peersus."
+msgstr ""
+
+msgid "Press Back again to leave"
+msgstr ""
+
+msgid "Nothing to allow"
+msgstr ""
+
+msgid "{allowed} of {offered} allowed"
+msgstr ""
+
+msgid "{allowed} of {offered} allowed, on {devices} devices"
+msgstr ""
+
+msgid "Identity unavailable"
+msgstr ""
+
+msgid "Nowhere to look"
+msgstr ""
+
+msgid "Peersus could not start"
+msgstr ""
+
+msgid "Peersus stopped"
+msgstr ""
+
+msgid "The action did not accept the value"
+msgstr ""
+
+msgid "The owner stopped"
+msgstr ""
+
+msgid "The part of Peersus that keeps your devices connected did not start, and did not say why."
+msgstr ""
+
+msgid "The part of Peersus that keeps your devices connected did not start. It said: {reason}"
+msgstr ""
+
+msgid "The part of Peersus that keeps your devices connected has ended, and starting it again by itself did not keep it running."
+msgstr ""
+
+msgid "This account has no data directory, so the application cannot be found."
+msgstr ""
+
+msgid "Enter your read-only GitHub token. No other settings are needed here; the token stays in secure device storage."
+msgstr ""
+
+msgid "GitHub token with repository Contents: read"
+msgstr ""
+
+msgid "Private development catalog"
+msgstr ""
+
+msgid "Save and apply"
+msgstr ""
+
+msgid "The GitHub token must be a single line of at most 512 bytes"
+msgstr ""
+
+msgid "Token saved securely and applied. The extension listing is updating in the background."
+msgstr ""
+
+msgid "OFFLINE"
+msgstr ""
+
+msgid "ONLINE"
+msgstr ""
+
+msgid "SLEEPING"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+msgid "Sleeping"
+msgstr ""
+
+msgid "An update is already being worked on"
+msgstr ""
+
+msgid "An update was installed; restart the application to use it"
+msgstr ""
+
+msgid "Application updates are not set up in this build"
+msgstr ""
+
+msgid "No update is available"
+msgstr ""
+
+msgid "No update is waiting for a restart"
+msgstr ""
+
+msgid "The application update key is not valid"
+msgstr ""
+
+msgid "The downloaded update is not the one that was published"
+msgstr ""
+
+msgid "The update is not the one that was published"
+msgstr ""
+
+msgid "The update is in place, but its signed list could not be kept"
+msgstr ""
+
+msgid "Only one of the signed list's two files is beside this program; unpack the whole download"
+msgstr ""
+
+msgid "The desktop entry does not start peersus in the way the installer writes it"
+msgstr ""
+
+msgid "The installation folder cannot be named"
+msgstr ""
+
+msgid "The installation folder's name is not text a desktop entry can hold"
+msgstr ""
+
+msgid "The programs written differ from the ones beside this program; the launcher was not changed"
+msgstr ""
+
+msgid "The signed list beside this program cannot be read"
+msgstr ""
+
+msgid "The signed list could not be kept beside the programs"
+msgstr ""
+
+msgid "The signed list names no archive for this system"
+msgstr ""
+
+msgid "The signed list names other programs than an installation holds"
+msgstr ""
+
+msgid "This copy of Peersus is kept current by its package; it is not installed again from inside"
+msgstr ""
+
+msgid "This is the installed copy already; to bring it up to date run `peersus update`"
+msgstr ""
+
+msgid "Where this program is cannot be found"
+msgstr ""
+
+msgid "The saved update state could not be read"
+msgstr ""
+
+msgid "The saved update state is damaged"
+msgstr ""
+
+msgid "The update could not be checked"
+msgstr ""
+
+msgid "The update is described in a way this version does not read"
+msgstr ""
+
+msgid "The update is for another release channel"
+msgstr ""
+
+msgid "The update is not signed by this application's publisher"
+msgstr ""
+
+msgid "The update is too large"
+msgstr ""
+
+msgid "The update listing could not be checked"
+msgstr ""
+
+msgid "The update offered is not the release already seen under that version"
+msgstr ""
+
+msgid "The update offered is older than one already seen"
+msgstr ""
+
+msgid "The update state could not be saved"
+msgstr ""
+
+msgid "The catalog could not be read"
+msgstr ""
+
+msgid "The catalog has ambiguous or invalid platform artifacts"
+msgstr ""
+
+msgid "The catalog has an entry that is not valid"
+msgstr ""
+
+msgid "The catalog has invalid platform artifacts"
+msgstr ""
+
+msgid "The catalog is a version this application does not read"
+msgstr ""
+
+msgid "The catalog is not signed by the maintainer"
+msgstr ""
+
+msgid "The catalog is older than one already seen"
+msgstr ""
+
+msgid "The catalog is too large"
+msgstr ""
+
+msgid "The catalog lists a name twice"
+msgstr ""
+
+msgid "The catalog lists too many extensions"
+msgstr ""
+
+msgid "The catalog signature is not valid"
+msgstr ""
+
+msgid "The package does not say what the catalog says about it"
+msgstr ""
+
+msgid "The package is not the one that was approved"
+msgstr ""
+
+msgid "The package name is not the approved name"
+msgstr ""
+
+msgid "The program and its manifest disagree about who made it"
+msgstr ""
+
+msgid "Choose a plugin directory, not a file or a link"
+msgstr ""
+
+msgid "No data directory"
+msgstr ""
+
+msgid "No such plugin is installed"
+msgstr ""
+
+msgid "Nothing was retired under that name"
+msgstr ""
+
+msgid "Something is already installed under this name"
+msgstr ""
+
+msgid "That is not the name of a plugin"
+msgstr ""
+
+msgid "The approval could not be written"
+msgstr ""
+
+msgid "The installed plugin directory is not safe"
+msgstr ""
+
+msgid "The native module could not be made read-only"
+msgstr ""
+
+msgid "The package could not be put back"
+msgstr ""
+
+msgid "The package could not be put in place"
+msgstr ""
+
+msgid "The package could not be read"
+msgstr ""
+
+msgid "The package could not be staged"
+msgstr ""
+
+msgid "The package could not be taken out of use"
+msgstr ""
+
+msgid "The package has too many files"
+msgstr ""
+
+msgid "The package is too large"
+msgstr ""
+
+msgid "The package names a file it does not have"
+msgstr ""
+
+msgid "The package needs a manifest and a program"
+msgstr ""
+
+msgid "The package's name is not usable"
+msgstr ""
+
+msgid "The plugin could not be switched off"
+msgstr ""
+
+msgid "The plugin could not be switched on"
+msgstr ""
+
+msgid "The plugin store can be changed by others"
+msgstr ""
+
+msgid "The plugin store could not be locked"
+msgstr ""
+
+msgid "The plugin store could not be made"
+msgstr ""
+
+msgid "The plugin store could not be read"
+msgstr ""
+
+msgid "The plugin store is a link"
+msgstr ""
+
+msgid "The plugin store is being changed by another process"
+msgstr ""
+
+msgid "The plugin store is not a directory"
+msgstr ""
+
+msgid "The retired plugin directory is not safe"
+msgstr ""
+
+msgid "There is nothing to approve for this plugin"
+msgstr ""
+
+msgid "Too many plugins are installed"
+msgstr ""
+
+msgid "The extension store could not be reached"
+msgstr ""
+
+msgid "What the store sent is larger than allowed"
+msgstr ""
+
+msgid "Desktop arrangement changed elsewhere; reload before saving"
+msgstr ""
+
+msgid "Desktop screens overlap or lie outside the usable plane"
+msgstr ""
+
+msgid "Invalid desktop arrangement"
+msgstr ""
+
+msgid "Too many desktops"
+msgstr ""
+
+msgid "Unknown desktop"
+msgstr ""
+
+msgid "How this device is doing, one part at a time, each behind its own permission: processor, graphics, memory, storage, network and battery, as the operating system publishes them."
+msgstr ""
+
+msgid "A file name of the package is not usable"
+msgstr ""
+
+msgid "A file of the package could not be read"
+msgstr ""
+
+msgid "A file of the package is not usable"
+msgstr ""
+
+msgid "A file of the package is outside it"
+msgstr ""
+
+msgid "A file of the package is too large"
+msgstr ""
+
+msgid "A plugin package cannot contain links"
+msgstr ""
+
+msgid "A plugin package holds only files and directories"
+msgstr ""
+
+msgid "A device sent more than a plugin may receive"
+msgstr ""
+
+msgid "A plugin tried to send more than it may"
+msgstr ""
+
+msgid "A transfer to a device stopped making progress"
+msgstr ""
+
+msgid "A transfer to a device was interrupted"
+msgstr ""
+
+msgid "A transfer to a plugin stopped making progress"
+msgstr ""
+
+msgid "A transfer to a plugin was interrupted"
+msgstr ""
+
+msgid "A chosen file is no longer available"
+msgstr ""
+
+msgid "A device could not be reached to send to it"
+msgstr ""
+
+msgid "A package for this name is waiting to be confirmed; confirm or cancel it first"
+msgstr ""
+
+msgid "A package from outside the store is installed only after its warning was read to the end and held to confirm"
+msgstr ""
+
+msgid "A plugin could not be started"
+msgstr ""
+
+msgid "A plugin could not complete the action"
+msgstr ""
+
+msgid "A plugin could not complete the action: it is busy"
+msgstr ""
+
+msgid "A plugin could not complete the action: what it needs is not available"
+msgstr ""
+
+msgid "A plugin did not complete the action in time"
+msgstr ""
+
+msgid "A plugin did not start sending in time"
+msgstr ""
+
+msgid "A plugin stopped working and was turned off"
+msgstr ""
+
+msgid "A plugin was not allowed to complete the action"
+msgstr ""
+
+msgid "A restart names one plugin"
+msgstr ""
+
+msgid "A transfer or a pairing is under way; restart when it has finished"
+msgstr ""
+
+msgid "A transfer or a pairing is under way; update when it has finished"
+msgstr ""
+
+msgid "A transfer to a plugin failed"
+msgstr ""
+
+msgid "A folder is being chosen for another file. Finish that first, then accept this one."
+msgstr ""
+
+msgid "A plugin stopped before it finished the action"
+msgstr ""
+
+msgid "The plugin stopped before it finished. Retry when it runs again."
+msgstr ""
+
+msgid "EXTENSIONS"
+msgstr ""
+
+msgid "Extension pages in one place"
+msgstr ""
+
+msgid "The pages extensions add share one place in the navigation, Extensions, which switches between them. Off, each has a place of its own."
+msgstr ""
+
+msgid "Choose a device"
+msgstr ""
+
+msgid "No device is paired"
+msgstr ""
+
+msgid "NOT ALLOWED"
+msgstr ""
+
+msgid "NOT READY THERE"
+msgstr ""
+
+msgid "NO STATUS"
+msgstr ""
+
+msgid "STATUS NOT ALLOWED"
+msgstr ""
+
+msgid "Another extension dialog is already open"
+msgstr ""
+
+msgid "Authorization was cancelled"
+msgstr ""
+
+msgid "Configure the API key in this extension's settings first"
+msgstr ""
+
+msgid "Could not remove the saved API key"
+msgstr ""
+
+msgid "Could not save the API key in the encrypted credential store"
+msgstr ""
+
+msgid "Enter an API key"
+msgstr ""
+
+msgid "Selected file is unavailable"
+msgstr ""
+
+msgid "Selection was cancelled"
+msgstr ""
+
+msgid "The credential store is unavailable"
+msgstr ""
+
+msgid "The encrypted credential store is unavailable"
+msgstr ""
+
+msgid "The stored API key is invalid; configure it again"
+msgstr ""
+
+msgid "Extension prompt identifiers exhausted"
+msgstr ""
+
+msgid "Extension prompt is no longer active"
+msgstr ""
+
+msgid "This extension already has a prompt pending"
+msgstr ""
+
+msgid "Too many extension prompts are pending"
+msgstr ""
+
+msgid "That notification has no such button"
+msgstr ""
+
+msgid "That notification is no longer shown"
+msgstr ""
+
+msgid "That notification opens nothing"
+msgstr ""
+
+msgid "That page is being used too fast"
+msgstr ""
+
+msgid "The extension approval is older than one already accepted"
+msgstr ""
+
+msgid "The extension source listing could not be checked"
+msgstr ""
+
+msgid "The saved extension approvals are damaged"
+msgstr ""
+
+msgid "The saved extension approvals could not be read"
+msgstr ""
+
+msgid "The extension approvals are too large"
+msgstr ""
+
+msgid "The extension approvals could not be saved"
+msgstr ""
+
+msgid "The extension is not in the approved catalog"
+msgstr ""
+
+msgid "The extension store is not set up in this build"
+msgstr ""
+
+msgid "The native process is not a supported executable"
+msgstr ""
+
+msgid "The native process platform is not supported by store validation"
+msgstr ""
+
+msgid "The package could not be checked"
+msgstr ""
+
+msgid "The package does not say who made it"
+msgstr ""
+
+msgid "The store cache is not available"
+msgstr ""
+
+msgid "The store is busy; wait for it to finish"
+msgstr ""
+
+msgid "The extension is not keeping up with this input"
+msgstr ""
+
+msgid "Details"
+msgstr ""
+
+msgid "Hide details"
+msgstr ""
+
+msgid "Read the licence and notice"
+msgstr ""
+
+msgid "Enable the extension before restarting it"
+msgstr ""
+
+msgid "Start when you sign in"
+msgstr ""
+
+msgid "Off: Peersus starts when you open it. This is separate from Run in the background."
+msgstr ""
+
+msgid "On: Peersus starts with your session and keeps running without a window, so your devices can reach it. This is separate from Run in the background."
+msgstr ""
+
+msgid "Checking whether the system starts Peersus with your session."
+msgstr ""
+
+msgid "The system will start it with your session, and it is running now."
+msgstr ""
+
+msgid "The system will start it with your session; it is not running now."
+msgstr ""
+
+msgid "The system will not start it with your session; it is running now until you sign out."
+msgstr ""
+
+msgid "The system will not start it with your session, and it is not running now."
+msgstr ""
+
+msgid "Your session runs before you sign in (lingering). The keyring is locked until you sign in, so Peersus waits and does not connect before then."
+msgstr ""
+
+msgid "Your session starts when you sign in, so this starts then, not when the computer starts. Peersus does not turn lingering on."
+msgstr ""
+
+msgid "Whether your session runs before you sign in could not be read."
+msgstr ""
+
+msgid "The system's user service manager could not be asked."
+msgstr ""
+
+msgid "The system's user service manager is not available, so Peersus cannot be started with your session."
+msgstr ""
+
+msgid "The system refused to turn the service on."
+msgstr ""
+
+msgid "The system refused to turn the service off."
+msgstr ""
+
+msgid "The program to start cannot be used in a service file."
+msgstr ""
+
+msgid "The program to start was not found next to this window."
+msgstr ""
+
+msgid "The service file could not be written."
+msgstr ""
+
+msgid "This account has no configuration directory, so Peersus cannot be started with your session."
+msgstr ""
+
+msgid "Cannot acquire the application's private directory"
+msgstr ""
+
+msgid "The system keyring is locked; Peersus is waiting for it to be unlocked and has not changed the identity"
+msgstr ""
+
+msgid "The system keyring is not available; Peersus is waiting for it and has not changed the identity"
+msgstr ""
+
+msgid "Approval is required in System Settings → General → Login Items. No connection has been confirmed."
+msgstr ""
+
+msgid "This user service runs only in your signed-in macOS session. It does not control the login screen."
+msgstr ""
+
+msgid "Starting with your session requires macOS 13 or later."
+msgstr ""
+
+msgid "Open the installed application bundle to manage startup."
+msgstr ""
+
+msgid "macOS could not find the bundled user service."
+msgstr ""
+
+msgid "macOS did not approve the user service."
+msgstr ""
+
+msgid "macOS rejected the application's signature."
+msgstr ""
+
+msgid "macOS could not register the user service."
+msgstr ""
+
+msgid "macOS could not unregister the user service."
+msgstr ""
+
+msgid "A user service cannot run as root"
+msgstr ""
+
+msgid "Cannot prevent keychain prompts; the service did not start"
+msgstr ""
+
+msgid "The service cannot read the existing identity; open the app in your session"
+msgstr ""
+
+msgid "Windows applies this account's choice at the next sign-in. No service instance runs for a signed-out account."
+msgstr ""
+
+msgid "The Windows per-user service template is missing or disabled. An administrator must install it before an account can opt in."
+msgstr ""
+
+msgid "Windows could not read or save this account's service choice."
+msgstr ""
+
+msgid "The Windows service manager could not be reached."
+msgstr ""
+
+msgid "The windows, layout and components of this application. Local core/component manifest patches replace the unmaintained paste macro with pastey; upstream MIT attribution is retained."
+msgstr ""
+
+msgid "Enumerates actual Windows monitors for paired desktop layouts and pointer pass-through."
+msgstr ""
+
+msgid "Linux desktop bus communication. Direct sleep and theme watchers are migrating to zbus 6; legacy transitive serialization dependencies remain under remediation."
+msgstr ""
+
+msgid "Desktop appearance and accessibility preferences. A local Linux portal patch migrates to zbus 6 without disabling preference support; platform verification is pending."
+msgstr ""
+
+msgid "Linux assistive-technology protocol. Local common/proxy ports retain XML signature validation on maintained zbus wire APIs. Protocol regressions and isolated bus registration pass; full screen-reader/platform verification remains pending."
+msgstr ""
+
+msgid "Accessibility tree and Linux platform integration. Local Unix/AT-SPI compatibility ports retain assistive-technology support during the maintained-bus migration."
+msgstr ""
+
+msgid "Validates accessibility wire signatures against their XML definitions. Local library and macro ports retain these checks with the maintained zbus and introspection XML APIs."
+msgstr ""
+
+msgid "Wayland window decorations. Winit selects the published skrifa title renderer."
+msgstr ""
+
+msgid "Parses and draws Wayland title fonts instead of the unmaintained ttf-parser chain."
+msgstr ""
+
+msgid "Maintained token-pasting macros used by local compatibility patches in Freya and rav1e. Only dependency manifests change; upstream source and licenses are retained."
+msgstr ""
+
+msgid "AV1 encoding in the image dependency chain, with a local pastey dependency migration."
+msgstr ""
+
+msgid "Network interface monitoring. The local 0.19.3 compatibility patch backports the maintained netlink dependency set; remaining dependency advisories are not suppressed."
+msgstr ""
+
+msgid "Downloads the extension catalog and approved extensions, and uploads files, over HTTPS."
+msgstr ""
+
+msgid "Checks HTTPS certificates against the Android platform trust store. The official Android support artifact is pinned to its upstream source revision."
+msgstr ""
+
+msgid "The official Android trust-manager bridge, retained in release packages and pinned to its upstream source revision."
+msgstr ""
+
+msgid "Combines asynchronous connection events without blocking transfers."
+msgstr ""
+
+msgid "Checks the maintainer's signature on the extension catalog. It can only verify: this application holds no signing key."
+msgstr ""
+
+msgid "Reads who made an extension out of its program file, without running it."
+msgstr ""
+
+msgid "Reads the same facts out of a WebAssembly extension, without running it."
+msgstr ""
+
+msgid "Replays permitted pointer and keyboard input through the Windows platform backend."
+msgstr ""
+
+msgid "Contains supervised extension processes in Windows job objects so their children stop with them."
+msgstr ""
+
+msgid "Plays the sound an extension hands over, as finished samples, on the device's output."
+msgstr ""
+
+msgid "Decodes a sound inside the extension's own helper process, never in the application."
+msgstr ""
+
+msgid "Measures frequency bands for the live microphone meter."
+msgstr ""
+
+msgid "Tells an extension, with your permission, the date and time on this device in its own time zone."
+msgstr ""
+
+msgid "Reads this device's identity from the Linux system keyring for the session service, without ever asking to unlock it."
+msgstr ""
+
+msgid "Registers the application's optional macOS login agent with Service Management."
+msgstr ""
+
+msgid "Connects the optional per-user owner to the Windows service manager."
+msgstr ""
+
+msgid "Windows service dispatcher already started"
+msgstr ""
+
+msgid "Windows must start the session service through its service manager"
+msgstr ""
+
+msgid "Not a signed-in user's Windows service instance"
+msgstr ""
+
+msgid "The service is already running"
+msgstr ""
+
+msgid "Windows refused the service start"
+msgstr ""
+
+msgid "The service has no owner"
+msgstr ""
+
+msgid "Install the desktop programs in the machine's Program Files/Peersus directory first."
+msgstr ""
+
+msgid "Installing the Windows per-user service template requires administrator approval."
+msgstr ""
+
+msgid "Windows did not create the session service template. An existing registration was not replaced."
+msgstr ""
+
+msgid "Destinations"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "Graphics renderer"
+msgstr ""
+
+msgid "Compare renderers"
+msgstr ""
+
+msgid "Software"
+msgstr ""
+
+msgid "Frame time, CPU and memory"
+msgstr ""
+
+msgid "This window does not report a native renderer."
+msgstr ""
+
+msgid "In use now: {renderer}"
+msgstr ""
+
+msgid "Saved preference: {renderer}"
+msgstr ""
+
+msgid "A launch override requested {renderer}."
+msgstr ""
+
+msgid "{renderer} is not included in this build."
+msgstr ""
+
+msgid "{renderer} could not start on this display."
+msgstr ""
+
+msgid "Automatic selection skipped the basic {renderer} software adapter."
+msgstr ""
+
+msgid "{renderer} stopped working while this window was open."
+msgstr ""
+
+msgid "The renderer preference could not be saved. Try again."
+msgstr ""
+
+msgid "Restart Peersus to apply renderer changes."
+msgstr ""
+
+msgid "Renderer changes apply the next time you open a window."
+msgstr ""
+
+msgid "Automatic tries these renderers in order: {renderers}"
+msgstr ""
+
+msgid "Not included in this build: {renderers}"
+msgstr ""
+
+msgid "Renderer comparison is available on desktop only."
+msgstr ""
+
+msgid "Renderer comparison"
+msgstr ""
+
+msgid "Synthetic failure for the demo"
+msgstr ""
+
+msgid "Run a short test in temporary windows. Results stay on this device. Leaving this page stops the test."
+msgstr ""
+
+msgid "Testing {renderer}…"
+msgstr ""
+
+msgid "Stopping renderer comparison…"
+msgstr ""
+
+msgid "Renderer comparison cancelled."
+msgstr ""
+
+msgid "Renderer comparison could not finish. Try again."
+msgstr ""
+
+msgid "Could not start on this display"
+msgstr ""
+
+msgid "Timed out"
+msgstr ""
+
+msgid "Test did not finish"
+msgstr ""
+
+msgid "CPU or memory counters unavailable"
+msgstr ""
+
+msgid "Renderer"
+msgstr ""
+
+msgid "p50 (ms)"
+msgstr ""
+
+msgid "p95 (ms)"
+msgstr ""
+
+msgid "Main CPU (%)"
+msgstr ""
+
+msgid "RAM (MiB)"
+msgstr ""
+
+msgid "{renderer} (baseline)"
+msgstr ""
+
+msgid "No recommendation: the current renderer could not be measured. Try again."
+msgstr ""
+
+msgid "No recommendation: only the current renderer could be measured."
+msgstr ""
+
+msgid "Keep the current renderer. No alternative showed a clear gain without a trade-off."
+msgstr ""
+
+msgid "Try {renderer}: its slow frames were shorter in this test."
+msgstr ""
+
+msgid "Try {renderer}: it used less main-thread CPU in this test."
+msgstr ""
+
+msgid "Try {renderer}: it used less memory in this test."
+msgstr ""
+
+msgid "p50 is the typical frame time; p95 shows the slower frames. CPU is a percentage of one core."
+msgstr ""
+
+msgid "The active renderer changed. Rerun the test for a current baseline."
+msgstr ""
+
+msgid "Test frame did not match the scene"
+msgstr ""
+
+msgid "Not ready."
+msgstr ""
+
+msgid "This extension is missing permission {permission}."
+msgstr ""
+
+msgid "No extension can receive this request."
+msgstr ""
+
+msgid "The other device did not accept the input visit"
+msgstr ""
+
+msgid "The connection carrying the input visit ended"
+msgstr ""
+
+msgid "The extension carrying the input visit stopped"
+msgstr ""
+
+msgid "The input visit ended because its device was withdrawn"
+msgstr ""
+
+msgid "The extension no longer carries input"
+msgstr ""
+
+msgid "The input visit no longer matches its destination"
+msgstr ""
+
+msgid "Too many input visits are waiting to close"
+msgstr ""
+
+msgid "Too many extension transfers are waiting"
+msgstr ""
+
+msgid "Could not create a new file at the selected destination"
+msgstr ""
+
+msgid "Could not open the selected destination"
+msgstr ""
+
+msgid "Saving was cancelled"
+msgstr ""
+
+msgid "The file picker is busy"
+msgstr ""
+
+msgid "Saving extension files is not supported here"
+msgstr ""
+
+msgid "Private data could not be removed and the package could not be restored"
+msgstr ""
+
+msgid "The extension's private data could not be removed"
+msgstr ""
+
+msgid "The extension's private data could not be kept"
+msgstr ""
+
+msgid "Invalid file kind"
+msgstr ""
+
+msgid "Could not retire the device reference"
+msgstr ""

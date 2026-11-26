@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Drawn for Peersus: two arrows going opposite ways, on the same grid and stroke as the other pictures. Colours are currentColor. -->
+  <path d="M10 17H36" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M29 10L36 17L29 24" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M38 31H12" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <path d="M19 24L12 31L19 38" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

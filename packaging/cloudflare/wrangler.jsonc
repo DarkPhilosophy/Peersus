@@ -1,0 +1,19 @@
+// The project's one name, peersus.axxa.dev: the project's server answers while it is up, and Cloudflare's copy of the same
+// stage answers for the website when it is not (worker.js). Needs the name's DNS record proxied. Stage first (README.md).
+{
+  "name": "peersus-site",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-20",
+  "assets": {
+    "directory": "../../target/site-stage",
+    "binding": "ASSETS",
+    "run_worker_first": true,
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  },
+  "routes": [
+    { "pattern": "peersus.axxa.dev/*", "zone_name": "axxa.dev" }
+  ],
+  "workers_dev": false,
+  "observability": { "enabled": false }
+}
